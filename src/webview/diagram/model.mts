@@ -1,6 +1,6 @@
 // Modèle de schéma (pur, sans DOM) : composants, fils, calcul de la netlist et
 // résolution logique des composants. Entièrement testable hors navigateur.
-import { mcuInternalStrips, mcuPinRole, mcuPins, partDef, resistorPowerRating, rolePin, PARAM_ATTR_PREFIX, type BoardId, type PartKind } from './catalog.mjs';
+import { isPicoBoard, mcuInternalStrips, mcuPinRole, mcuPins, partDef, resistorPowerRating, rolePin, PARAM_ATTR_PREFIX, type BoardId, type PartKind } from './catalog.mjs';
 import { breadboardStrips, normalizeSize } from './breadboard.mjs';
 import { groveShieldStrips, normalizePower } from './grove-shield.mjs';
 import { shieldStrips } from './shield.mjs';
@@ -3809,6 +3809,16 @@ export function logicProbeVoies(diagram: Diagram): LogicProbeVoie[] {
     };
     const accroche = (sonde.attrs?.accroche ?? '').trim();
     if (!accroche) {
+      // Rien SOUS la pince — mais peut-être un FIL À son crochet. Frank
+      // (17/09) : « On doit pouvoir brancher la sonde en la posant directement
+      // sur un composant ET en la reliant par un fil. » Les deux gestes sont
+      // légitimes sur une paillasse : on pose la pince sur une patte, ou on
+      // relie son crochet au point à écouter par un cordon.
+      const parFil = suivreFilVersMcu(diagram, { partId: sonde.id, pin: 'G' });
+      if (parFil) {
+        out.push({ ...base, pin: parFil.pin, suivi: true, analogique: parFil.analogique });
+        continue;
+      }
       out.push({ ...base, probleme: 'nowhere' });
       continue;
     }
@@ -3913,21 +3923,88 @@ export function scopeProbePins(diagram: Diagram): Array<{ partId: string; pin: s
  * tout ce qui est généré par le GBF » de Frank. L'onde étant connue par sa
  * formule, l'appelant peut la rééchantillonner autant de fois qu'il faut.
  *
- * Une broche MCU sur le même nœud gagne : elle est datée au cycle près par le
- * moteur, c'est plus fidèle qu'une formule rejouée.
+ * LE GÉNÉRATEUR PRIME SUR LA BROCHE MCU (corrigé le 17/09). L'inverse était
+ * écrit ici, au motif qu'une broche est datée au cycle près par le moteur. Vrai
+ * quand la broche ÉMET son créneau — faux quand elle SUBIT un générateur : une
+ * entrée analogique attaquée par un GBF ne produit aucun front, son journal est
+ * vide, et l'oscilloscope n'affichait plus rien du tout. C'est le retour de
+ * Frank : « si je branche le GBF à l'oscillo je vois les courbes, si je branche
+ * aussi la carte pico je ne vois plus rien ». Brancher un appareil de mesure
+ * supplémentaire ne doit jamais effacer le signal.
  */
 export function scopeGbfSources(diagram: Diagram): Array<{ partId: string; gbfId: string }> {
   const scopes = diagram.parts.filter((p) => partDef(p.type).kind === 'scope');
   const gbfs = diagram.parts.filter((p) => p.type === 'gbf');
   if (scopes.length === 0 || gbfs.length === 0) return [];
   const nets = buildNets(diagram);
-  const dejaSonde = new Set(scopeProbePins(diagram).map((q) => q.partId));
   const out: Array<{ partId: string; gbfId: string }> = [];
   for (const scope of scopes) {
-    if (dejaSonde.has(scope.id)) continue;
     const net = nets.netOf({ partId: scope.id, pin: '+' });
     const gbf = gbfs.find((g) => nets.netOf({ partId: g.id, pin: 'Vs' }) === net);
     if (gbf) out.push({ partId: scope.id, gbfId: gbf.id });
+  }
+  return out;
+}
+
+/**
+ * Tension MAXIMALE qu'une broche de la carte accepte sans être détruite.
+ *
+ * Un Pico tourne en 3,3 V et ses GPIO ne tolèrent PAS le 5 V : c'est la
+ * différence la plus coûteuse entre lui et un Arduino, et celle qui grille le
+ * plus de cartes en salle. On garde une marge au-dessus de la tension nominale
+ * (les fiches donnent VDD + 0,3 V) : brancher une sortie 3,3 V ne doit rien
+ * casser, brancher du 5 V doit tuer.
+ */
+export function maxPinVolts(board: BoardId): number {
+  return isPicoBoard(board) ? 3.6 : 5.5;
+}
+
+/** Une carte attaquée par un générateur, et ce qu'elle supporte. */
+export interface GbfBoardStress {
+  /** Le générateur qui attaque. */
+  gbfId: string;
+  /** La carte attaquée. */
+  boardPartId: string;
+  board: BoardId;
+  /** Broche MCU touchée (celle qui grillera en premier). */
+  pin: string;
+  /** Tension maximale admise sur cette broche, en volts. */
+  vmax: number;
+}
+
+/**
+ * Générateurs BF câblés DIRECTEMENT sur une broche de carte, avec la limite que
+ * cette broche accepte.
+ *
+ * Demande de Frank (17/09) : « au-delà de 5 V en entrée les cartes pico doivent
+ * griller (explosion + explication) ». La destruction elle-même se décide dans
+ * `sim.mts`, qui seul connaît l'amplitude RÉGLÉE à l'instant t — les boutons du
+ * générateur tournent pendant la simulation. Ici on répond seulement à : quelle
+ * carte, quelle broche, quelle limite.
+ *
+ * On ne fusionne PAS les résistances (`joinResistors = false`) : un pont
+ * diviseur est précisément la façon correcte d'attaquer un Pico en 5 V, et le
+ * faire griller malgré son pont apprendrait l'inverse de ce qu'il faut.
+ */
+export function gbfBoardStress(diagram: Diagram): GbfBoardStress[] {
+  const gbfs = diagram.parts.filter((p) => p.type === 'gbf');
+  if (gbfs.length === 0) return [];
+  const nets = buildNets(diagram, false);
+  const out: GbfBoardStress[] = [];
+  for (const gbf of gbfs) {
+    const net = nets.netOf({ partId: gbf.id, pin: 'Vs' });
+    for (const { part, board } of mcuParts(diagram)) {
+      const touchee = mcuPins(board).find((pin) => {
+        const role = mcuPinRole(board, pin);
+        return role.role === 'digital' && !!role.name && nets.netOf({ partId: part.id, pin }) === net;
+      });
+      const nom = touchee && mcuPinRole(board, touchee).name;
+      if (!nom) continue;
+      out.push({
+        gbfId: gbf.id, boardPartId: part.id, board, pin: nom, vmax: maxPinVolts(board),
+      });
+      break;
+    }
   }
   return out;
 }

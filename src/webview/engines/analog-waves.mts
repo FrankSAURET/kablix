@@ -34,11 +34,14 @@ export type AnalogWave =
    * c'est un signal ÉLECTRIQUE que le circuit voit, il ne ralentit pas quand la
    * simulation ralentit (à l'inverse du pouls, phénomène du monde réel).
    *
-   * `amplitude` est la valeur CRÊTE en volts (0..10 V) et `offset` la composante
-   * continue (−5..+5 V) : la tension va donc de `offset − amplitude` à
-   * `offset + amplitude`. `duty` (0..100 %) est le rapport cyclique ; il déforme
-   * le carré ET le triangle (dent de scie aux extrêmes), mais pas le sinus, qui
-   * est symétrique par définition.
+   * `amplitude` est la valeur CRÊTE-À-CRÊTE en volts (0..10 V), c'est-à-dire la
+   * hauteur TOTALE du signal — sens français du mot, et celui qu'affiche un vrai
+   * GBF de salle de TP. `offset` est la composante continue (−5..+5 V) : la
+   * tension va donc de `offset − amplitude/2` à `offset + amplitude/2`. Un
+   * générateur réglé sur 5 V d'amplitude et 0 V de décalage sort bien de −2,5 V
+   * à +2,5 V. `duty` (0..100 %) est le rapport cyclique ; il déforme le carré ET
+   * le triangle (dent de scie aux extrêmes), mais pas le sinus, qui est
+   * symétrique par définition.
    *
    * `vcc` est la pleine échelle de l'ADC de la carte (5 V ou 3,3 V) : la sortie
    * est ÉCRÊTÉE à 0..vcc par `evalAnalogWave`, comme une vraie entrée analogique
@@ -50,7 +53,7 @@ export type AnalogWave =
       forme: 'sinus' | 'triangle' | 'carre';
       /** Fréquence en Hz (1 .. 1 000 000). */
       freq: number;
-      /** Amplitude crête en volts (0 .. 10). */
+      /** Amplitude crête-à-crête en volts (0 .. 10) : hauteur TOTALE du signal. */
       amplitude: number;
       /** Décalage continu en volts (−5 .. +5). */
       offset: number;
@@ -128,7 +131,8 @@ export function evalAnalogWave(wave: AnalogWave, simulatedMs: number, realMs: nu
     // Écrêtage à l'entrée de l'ADC : elle ne lit ni le négatif (diode de
     // protection) ni au-dessus de sa référence. C'est ce que l'élève verra, et
     // c'est ce qu'il verrait sur la vraie carte.
-    return clamp((wave.offset + wave.amplitude * norme) / wave.vcc);
+    // `amplitude` est crête-à-crête : la moitié de part et d'autre du décalage.
+    return clamp((wave.offset + (wave.amplitude / 2) * norme) / wave.vcc);
   }
   if (wave.kind === 'pulse') {
     const bpm = Math.max(0, Math.min(200, wave.bpm));

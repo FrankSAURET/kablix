@@ -3080,6 +3080,19 @@ export class Editor {
   rotateSelection(deltaDeg: number): void {
     const ids = this.transformTargets();
     if (ids.length === 0) return;
+    // PIVOT = LA BROCHE, pas le centre du dessin (demande de Frank, 17/09 :
+    // « la sonde doit tourner autour de sa broche de connection »). Le navigateur
+    // ne sait tourner qu'autour du centre de la boîte : on relève donc où se
+    // trouve la première pastille AVANT, et on retranslate le composant après
+    // pour l'y ramener. Sur une sonde — pastille unique en bas à gauche d'un
+    // dessin de 80×80 — un quart de tour la promenait d'une trentaine de pixels ;
+    // l'élève voyait la pince sauter hors de la broche qu'elle pinçait.
+    const avant = new Map<string, XY>();
+    for (const id of ids) {
+      const r = this.rendered.get(id);
+      const off = this.gridOffset(id);
+      if (r && off) avant.set(id, { x: r.part.x + off.x, y: r.part.y + off.y });
+    }
     for (const id of ids) {
       const r = this.rendered.get(id);
       if (!r) continue;
@@ -3087,10 +3100,25 @@ export class Editor {
       const body = r.container.querySelector('.part__body') as HTMLDivElement | null;
       if (body) this.applyRotation(r.part, body);
     }
+    // Le dessin a tourné : la pastille est ailleurs. On rend au composant la
+    // translation qui la remet exactement où elle était.
+    for (const id of ids) {
+      const cible = avant.get(id);
+      const r = this.rendered.get(id);
+      const off = this.gridOffset(id);
+      if (!cible || !r || !off) continue;
+      const cale = this.clampToSheet(id, cible.x - off.x, cible.y - off.y);
+      r.part.x = cale.x;
+      r.part.y = cale.y;
+      r.container.style.left = `${r.part.x}px`;
+      r.container.style.top = `${r.part.y}px`;
+    }
     // La rotation tourne autour du centre de la BOÎTE MESURÉE (gap de mise en
     // page, dimensions impaires) : les broches peuvent quitter la grille de
     // quelques px (constaté : 2 px sur LDR/CTN/CTP/LED à 90°). On recolle donc
-    // le premier pin de chaque composant tourné sur la grille.
+    // le premier pin de chaque composant tourné sur la grille. Le pivot ci-dessus
+    // partait d'une pastille DÉJÀ sur la grille : ce recollage ne rattrape plus
+    // qu'un résidu d'arrondi, il ne déplace pas le composant d'un carreau.
     for (const id of ids) this.snapPartToGrid(id, true);
     // Les pastilles tournent avec le corps : leurs positions à l'écran changent.
     this.redrawWires();

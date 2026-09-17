@@ -117,6 +117,8 @@ import {
   pulseMonitorPins,
   scopeProbePins,
   scopeGbfSources,
+  gbfBoardStress,
+  type GbfBoardStress,
   logicProbeVoies,
   type LogicProbeVoie,
   neopixelBindings,
@@ -364,6 +366,14 @@ let gbfTargets: Array<{ pin: string; el: SimElement }> = [];
  * n'existait pour personne et l'oscilloscope restait plat (retour Frank, .92).
  */
 let gbfParts: Array<{ partId: string; el: SimElement }> = [];
+/**
+ * Cartes attaquées DIRECTEMENT par un générateur, et ce que leurs broches
+ * supportent (cf. `gbfBoardStress`). Recensé au lancement ; l'amplitude, elle,
+ * se relit à chaque image — les boutons du générateur tournent en simulation.
+ */
+let gbfStress: GbfBoardStress[] = [];
+/** Cartes détruites par une surtension pendant ce run. */
+const burnedBoards = new Set<string>();
 // Capteurs PIR : broche MCU + élément. La sortie suit `el.motion` (survol souris
 // / Ctrl+clic), relue à chaque frame car le survol n'émet pas d'événement.
 let motionTargets: Array<{ pin: string; el: SimElement; last: boolean }> = [];
@@ -447,6 +457,7 @@ const BURN_NOTE = {
   motor: 'This motor burned out: it was fed more than 1.5 times its rated voltage. Its windings do not take that.',
   driver: 'This transistor was destroyed: a motor is a coil, and cutting its current sends back a surge. A flyback diode across the motor absorbs it — it is not optional.',
   ic: 'This chip was destroyed: it was fed above the maximum supply voltage of its family. The family printed on the package sets that limit.',
+  board: 'This board was destroyed: one of its pins was fed above {0} V. A Pico runs on 3.3 V and its GPIOs are NOT 5 V tolerant — a 5 V sensor or a generator wired straight to a pin destroys it. Use a voltage divider or a level shifter.',
 } as const;
 /** Composants actuellement encadrés parce que grillés → texte de l'étiquette. */
 const burnNotes = new Map<string, string>();
@@ -458,10 +469,16 @@ const burnNotes = new Map<string, string>();
  * `why` ajoute le cadre rouge et son explication. La pose ne se fait qu'au
  * CHANGEMENT : markBurned repasse sur chaque composant à chaque frame.
  */
-function markBurned(partId: string, el: Record<string, unknown>, on: boolean, why = ''): void {
+function markBurned(
+  partId: string,
+  el: Record<string, unknown>,
+  on: boolean,
+  why = '',
+  ...args: Array<string | number>
+): void {
   el.burned = on;
   editor.setBurned(partId, on);
-  const note = on && why ? t(why) : '';
+  const note = on && why ? t(why, ...args) : '';
   if ((burnNotes.get(partId) ?? '') === note) return;
   if (note) burnNotes.set(partId, note);
   else burnNotes.delete(partId);
@@ -1329,7 +1346,9 @@ function gbfVoltsInstant(r: GbfReglages, tMs: number): number {
     phase,
     Math.max(0, Math.min(1, r.duty / 100)),
   );
-  return r.offset + r.amplitude * norme;
+  // `amplitude` est crête-à-crête (sens français) : la moitié de chaque côté du
+  // décalage. 5 V d'amplitude sans décalage, c'est −2,5 V à +2,5 V.
+  return r.offset + (r.amplitude / 2) * norme;
 }
 
 /**
@@ -1362,6 +1381,7 @@ function salveGbf(
   maintenant: number,
   el: SimElement,
   lu: number | null,
+  bride: boolean,
 ): number[] | null {
   const r = gbfReglages(gbfId);
   if (!r) return null;
@@ -1369,7 +1389,15 @@ function salveGbf(
   const ecranMs = Math.max(0.01, (Number.isFinite(secDiv) ? secDiv : 0.001) * 10 * 1000);
   const aVide = gbfVoltsInstant(r, maintenant);
   let charge = scopeGbfCharge.get(scopeId) ?? 1;
-  if (lu !== null && Number.isFinite(lu) && Math.abs(aVide) > 0.2) {
+  // La lecture ne mesure la chute du montage que si elle n'est pas ELLE-MÊME
+  // écrêtée. Une entrée analogique ne lit ni le négatif ni au-dessus de sa
+  // référence : sur un signal à cheval sur zéro, `lu` vaut 0 la moitié du
+  // temps, et `0 / aVide` ramenait TOUTE la salve à zéro — écran plat. On
+  // n'apprend donc rien d'une lecture collée à une borne, on garde le rapport
+  // précédent.
+  const vref = isPicoBoard(board) ? 3.3 : 5;
+  const ecrete = lu !== null && (lu <= 0.001 || lu >= vref - 0.001);
+  if (lu !== null && Number.isFinite(lu) && !ecrete && Math.abs(aVide) > 0.2) {
     charge = lu / aVide;
     scopeGbfCharge.set(scopeId, charge);
   }
@@ -1382,9 +1410,18 @@ function salveGbf(
   if (!(duree > 0)) return null;
   const n = GBF_POINTS_PAR_IMAGE;
   const salve: number[] = [];
+  // ÉCRÊTAGE (demande de Frank, 17/09 : « l'affichage de l'oscillo doit aussi
+  // être écrêté »). Il ne vient pas de l'appareil de mesure — un oscilloscope
+  // voit le négatif — mais de la CARTE branchée sur le même nœud : ses diodes
+  // de protection ramènent l'entrée entre la masse et sa référence. Le sommet
+  // du sinus est alors rogné à plat, exactement ce que montre un vrai montage.
+  // Générateur seul sur l'écran : aucune bride, la courbe passe sous zéro.
+  const bas = 0;
+  const haut = vref;
   for (let i = 1; i <= n; i++) {
     const t = debut + (duree * i) / n;
-    salve.push(t, gbfVoltsInstant(r, t) * charge);
+    const v = gbfVoltsInstant(r, t) * charge;
+    salve.push(t, bride ? Math.max(bas, Math.min(haut, v)) : v);
   }
   scopeGbfDernier.set(scopeId, maintenant);
   return salve;
@@ -1642,6 +1679,7 @@ function nomVoie(v: LogicProbeVoie): string {
 function pousserVoiesLogiques(): void {
   logicProbes = logicProbeVoies(editor.diagram);
   engine?.setLogicProbes?.(logicProbes.filter((v) => v.pin).map((v) => v.pin!));
+  colorerSondesReliees();
   vscode.postMessage({
     type: 'analyseurVoies',
     voies: logicProbes.map((v) => ({
@@ -1653,6 +1691,40 @@ function pousserVoiesLogiques(): void {
       suivi: v.suivi === true,
     })),
   });
+}
+
+/**
+ * Repeint les sondes BRANCHÉES PAR UN FIL.
+ *
+ * Une sonde se colore d'elle-même quand on la POSE sur une pastille : l'éditeur
+ * lui écrit son `accroche` au lâcher, et l'élément en déduit sa teinte. Mais
+ * Frank demande (17/09) que le second geste marche aussi — relier le crochet au
+ * point à écouter par un cordon — et dans ce cas rien n'est posé sur rien :
+ * `accroche` reste vide et la pince resterait grise alors qu'elle mesure.
+ *
+ * Le câblage n'est pas une propriété de la sonde mais du schéma : c'est donc
+ * ici, où les voies viennent d'être résolues, qu'on le répercute. `logicProbes`
+ * porte déjà la réponse — une voie sans `accroche` qui a tout de même une `pin`
+ * est, par construction, une sonde branchée par un fil.
+ *
+ * L'attribut posé (`relie`) ne va PAS dans le schéma enregistré : il se déduit
+ * du câblage à chaque ouverture, et l'écrire en dur ferait mentir un .projix
+ * dont on aurait retiré le fil.
+ */
+function colorerSondesReliees(): void {
+  for (const v of logicProbes) {
+    const el = document.getElementById(v.partId)?.querySelector('kablix-sonde-logique');
+    if (!el) continue;
+    const parFil = !!v.pin && !v.accroche;
+    if (parFil) el.setAttribute('relie', '1');
+    else el.removeAttribute('relie');
+    // Une sonde câblée qui n'avait pas encore de voie doit en recevoir une,
+    // exactement comme à la première pose — sinon elle serait branchée mais
+    // sans identité, donc grise et sans piste dans l'analyseur.
+    if (parFil && !(el.getAttribute('voie') ?? '').trim()) {
+      el.setAttribute('voie', String(v.voie));
+    }
+  }
 }
 
 /**
@@ -2112,9 +2184,46 @@ function reportResistorFaults(): void {
   }
 }
 
+/**
+ * Détruit la carte dont une broche reçoit plus qu'elle ne supporte.
+ *
+ * Demande de Frank (17/09) : « au-delà de 5 V en entrée les cartes pico doivent
+ * griller (explosion + explication) ». C'est une erreur de câblage qui coûte
+ * une vraie carte en salle — la simuler est précisément ce que l'atelier doit
+ * apprendre.
+ *
+ * On juge sur le SOMMET du signal, pas sur sa valeur à l'instant du rendu : un
+ * sinus à 8 V crête ne dépasse la limite qu'une fraction de sa période, mais il
+ * la dépasse à CHAQUE période, et c'est la pointe qui perce le silicium. Prendre
+ * la valeur instantanée reviendrait à tirer au sort si la carte survit.
+ *
+ * Une carte grillée le reste jusqu'au prochain lancement (comme une LED ou un
+ * condensateur) : baisser l'amplitude après coup ne la répare pas, pas plus que
+ * dans la vraie vie.
+ */
+function reportBoardOvervoltage(): void {
+  for (const st of gbfStress) {
+    const gen = gbfParts.find((g) => g.partId === st.gbfId);
+    if (!gen) continue;
+    const amplitude = Number(gen.el.amplitude ?? 0);
+    const offset = Number(gen.el.offset ?? 0);
+    if (!Number.isFinite(amplitude) || !Number.isFinite(offset)) continue;
+    // Sommet ET creux : une pointe négative perce aussi (diode de masse).
+    const haut = offset + amplitude / 2;
+    const bas = offset - amplitude / 2;
+    if (haut > st.vmax || bas < -0.6) burnedBoards.add(st.boardPartId);
+    const el = editor.elementOf(st.boardPartId);
+    if (el) {
+      markBurned(st.boardPartId, el, burnedBoards.has(st.boardPartId),
+        BURN_NOTE.board, st.vmax.toFixed(1));
+    }
+  }
+}
+
 function refreshVisualsInner(): void {
   if (!engine) return;
   stepCapacitors();
+  reportBoardOvervoltage();
   reportRelayFaults();
   reportMotorFaults();
   reportIcFaults();
@@ -2281,7 +2390,12 @@ function refreshVisualsInner(): void {
           pushMany(flat: ArrayLike<number>, hold?: boolean): void;
         };
         const maintenant = engine?.simulatedMs?.() ?? performance.now();
-        const sonde = scopeProbes.find((q) => q.partId === part.id);
+        // Un GÉNÉRATEUR sur la prise « + » l'emporte sur la broche MCU du même
+        // nœud : la broche subit le signal au lieu de l'émettre, son journal de
+        // fronts est vide, et suivre la branche « créneau » laissait l'écran
+        // noir dès qu'on branchait la carte en plus (retour de Frank, 17/09).
+        const gbfIci = scopeGbfs.some((g) => g.partId === part.id);
+        const sonde = gbfIci ? undefined : scopeProbes.find((q) => q.partId === part.id);
         const lv = sonde ? scopeLevels.get(part.id) : undefined;
         if (!sonde || !lv) {
           scopeHeld.delete(part.id);
@@ -2292,7 +2406,12 @@ function refreshVisualsInner(): void {
           // deux points et la courbe n'avait plus aucun rapport avec le signal
           // (retour de Frank, .93).
           const gen = scopeGbfs.find((g) => g.partId === part.id);
-          const salveG = gen ? salveGbf(part.id, gen.gbfId, maintenant, el, m ? m.value : null) : null;
+          // Une carte sur le même nœud BRIDE le signal (diodes de protection) :
+          // c'est `scopeProbes` qui dit qu'une broche MCU y est raccordée.
+          const bride = scopeProbes.some((q) => q.partId === part.id);
+          const salveG = gen
+            ? salveGbf(part.id, gen.gbfId, maintenant, el, m ? m.value : null, bride)
+            : null;
           if (salveG) scope.pushMany(salveG, false);
           else scope.push(maintenant, m ? m.value : null);
           break;
@@ -2752,6 +2871,9 @@ function bindInputs(): void {
   scopeGbfs = scopeGbfSources(editor.diagram);
   scopeGbfDernier.clear();
   scopeGbfCharge.clear();
+  // Générateurs câblés DROIT sur une broche : de quoi décider, image par image,
+  // si l'amplitude réglée dépasse ce que la carte encaisse.
+  gbfStress = gbfBoardStress(editor.diagram);
   // Analyseur logique : même chaîne de fronts datés, un plafond de journal plus
   // profond (une trame DMX fait déjà 10 000 fronts à elle seule). La capture
   // précédente est effacée : un nouveau lancement est une nouvelle mesure.
@@ -4335,6 +4457,8 @@ function startRun(): void {
   for (const id of blownDrivers) editor.setBurned(id, false);
   for (const id of burnedIcs) editor.setBurned(id, false);
   for (const id of burnedResistors) editor.setBurned(id, false);
+  for (const id of burnedBoards) editor.setBurned(id, false);
+  burnedBoards.clear(); // carte survoltée « remplacée » à chaque lancement
   burnedIcs.clear(); // circuits intégrés détruits « remplacés » eux aussi
   burnedResistors.clear(); // résistances parties en fumée « remplacées » de même
   burnedLeds.clear(); // LED grillées « remplacées » à chaque nouveau lancement

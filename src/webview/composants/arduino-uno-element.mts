@@ -14,6 +14,7 @@ import type { PropertyValues } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { analog, ElementPin, i2c, spi, usart } from './pin.mjs';
 import { SPACE_KEYS } from './utils/keys.mjs';
+import { boumOverlay } from './utils/boum.mjs';
 import drawing from './externe/uno.svg';
 
 export class ArduinoUnoElement extends LitElement {
@@ -22,6 +23,8 @@ export class ArduinoUnoElement extends LitElement {
   declare ledTX: boolean;
   declare ledPower: boolean;
   declare resetPressed: boolean;
+  /** Carte grillée : une broche a reçu plus que sa tension maximale (5,5 V). */
+  declare burned: boolean;
   get resetButton(): SVGCircleElement {
     return this.renderRoot.querySelector('#reset-button')!;
   }
@@ -33,6 +36,7 @@ export class ArduinoUnoElement extends LitElement {
     ledTX: {},
     ledPower: {},
     resetPressed: {},
+    burned: { type: Boolean },
   };
 
   constructor() {
@@ -42,6 +46,7 @@ export class ArduinoUnoElement extends LitElement {
     this.ledTX = false;
     this.ledPower = false;
     this.resetPressed = false;
+    this.burned = false;
   }
 
   // Broches recalées sur grille 10 px (surcharges pin-overrides.mts « uno », vérifiées
@@ -82,6 +87,11 @@ export class ArduinoUnoElement extends LitElement {
 
   static get styles() {
     return css`
+      /* position: relative — requis par boumOverlay (span centré en absolu). */
+      :host {
+        display: inline-block;
+        position: relative;
+      }
       circle[tabindex]:hover,
       circle[tabindex]:focus {
         stroke: white;
@@ -108,6 +118,7 @@ export class ArduinoUnoElement extends LitElement {
           tabindex="0"
         />
       </svg>
+      ${this.burned ? boumOverlay(90) : null}
     `;
   }
 

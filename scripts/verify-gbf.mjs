@@ -31,12 +31,14 @@ const buildTo = async (entry, outfile) => {
 };
 const { gbfWaveform, evalAnalogWave } = await buildTo('src/webview/engines/analog-waves.mts', 'waves.mjs');
 const { partDef, partCategory, CATEGORY_ORDER } = await buildTo('src/webview/diagram/catalog.mts', 'catalog.mjs');
-const { analogSourceBindings, meterReadings, scopeGbfSources, scopeProbePins } =
+const { analogSourceBindings, meterReadings, scopeGbfSources, scopeProbePins, gbfBoardStress, maxPinVolts } =
   await buildTo('src/webview/diagram/model.mts', 'model.mjs');
 
 let failures = 0;
-const check = (label, ok) => {
-  console.log(`${ok ? '✅' : '❌'} ${label}`);
+const check = (label, ok, detail) => {
+  // `detail` n'est imprimé qu'en cas d'échec : il porte la valeur MESURÉE, sans
+  // quoi un ❌ oblige à rouvrir le banc pour savoir ce qui est sorti.
+  console.log(`${ok ? '✅' : '❌'} ${label}${!ok && detail ? ` — ${detail}` : ''}`);
   if (!ok) failures++;
 };
 const near = (a, b, eps = 1e-6) => a !== null && a !== undefined && Math.abs(a - b) <= eps;
@@ -134,11 +136,13 @@ check('triangle à 0 % et 100 % : reste continu (pente bornée, ce n\'est pas un
   Math.abs(gbfWaveform('triangle', 0.5, 0)) < 1 && Math.abs(gbfWaveform('triangle', 0.5, 1)) < 1);
 
 // --- evalAnalogWave : volts → fraction d'ADC, temps SIMULÉ ---------------------
+// `amplitude` est CRÊTE-À-CRÊTE (sens français, lot .97) : 5 ici, c'est ±2,5 V
+// autour du décalage — le même signal qu'avant, décrit dans l'unité de Frank.
 const onde = (o) => ({
-  kind: 'gbf', pin: 'A0', forme: 'sinus', freq: 1000, amplitude: 2.5, offset: 2.5, duty: 50, vcc: 5, ...o,
+  kind: 'gbf', pin: 'A0', forme: 'sinus', freq: 1000, amplitude: 5, offset: 2.5, duty: 50, vcc: 5, ...o,
 });
-// 1 kHz : période 1 ms. À t=0,25 ms le sinus est au sommet → 2,5 + 2,5 = 5 V = plein échelle.
-check('eval : sinus 2,5 V ± 2,5 V sous 5 V → sommet à 1,0 au quart de période',
+// 1 kHz : période 1 ms. À t=0,25 ms le sinus est au sommet → 2,5 + 5/2 = 5 V = plein échelle.
+check('eval : sinus 5 Vpp sur 2,5 V de décalage, sous 5 V → sommet à 1,0 au quart de période',
   near(evalAnalogWave(onde(), 0.25, 0), 1, 1e-9));
 check('eval : et fond de cuve à 0,0 aux trois quarts',
   near(evalAnalogWave(onde(), 0.75, 0), 0, 1e-9));
@@ -148,12 +152,35 @@ check('eval : milieu de course (offset seul) à la demi-période', near(evalAnal
 check('eval : c\'est le temps SIMULÉ qui cadence (l\'heure du mur est ignorée)',
   near(evalAnalogWave(onde(), 0.25, 0), evalAnalogWave(onde(), 0.25, 123456), 1e-12));
 // Écrêtage : une entrée analogique ne lit ni le négatif ni au-delà de sa référence.
-check('eval : écrêté à 1,0 au-dessus de la référence (10 V crête sur une entrée 5 V)',
+check('eval : écrêté à 1,0 au-dessus de la référence (10 Vpp centré, soit +5 V, sur une entrée 5 V)',
   evalAnalogWave(onde({ amplitude: 10, offset: 0 }), 0.25, 0) === 1);
 check('eval : écrêté à 0,0 sous la masse (alternance négative)',
   evalAnalogWave(onde({ amplitude: 10, offset: 0 }), 0.75, 0) === 0);
 check('eval : plein échelle 3,3 V (Pico) → 1,65 V vaut la moitié',
   near(evalAnalogWave(onde({ amplitude: 0, offset: 1.65, vcc: 3.3 }), 0, 0), 0.5, 1e-9));
+// Le contrôle de la DÉFINITION elle-même, et il vaut d'être lu : en français
+// « amplitude » désigne la hauteur TOTALE du signal, du creux au sommet. Un GBF
+// réglé sur 5 V sort donc sur 5 V de haut — et, sans décalage, de −2,5 V à
+// +2,5 V. C'est la demande de Frank (item 3.1), et c'est ce que dit le cadran
+// d'un appareil de TP.
+//
+// Mesuré sur une référence de 10 V AVEC un décalage de 5 V, choisi pour que le
+// signal entier tienne dans la plage : `evalAnalogWave` rend la fraction lue par
+// une entrée d'ADC, qui écrête à 0 et à vcc. Sans ce décalage, le creux sortirait
+// à 0 V quelle que soit l'amplitude et le contrôle mentirait — c'est exactement
+// l'erreur commise en écrivant ce banc, rattrapée par la valeur imprimée.
+// (Fraction d'ADC → volts : v = f × vcc.)
+const volts = (t, o) => evalAnalogWave(onde({ vcc: 10, offset: 5, ...o }), t, 0) * 10;
+const sommetCreux = (a) => [volts(0.25, { amplitude: a }), volts(0.75, { amplitude: a })];
+{
+  const [haut, bas] = sommetCreux(5);
+  check('eval : « amplitude » vaut CRÊTE-À-CRÊTE — 5 V réglés donnent 5 V de hauteur',
+    near(haut, 7.5, 1e-9) && near(bas, 2.5, 1e-9),
+    `sommet ${haut} V, creux ${bas} V (attendu 7,5 et 2,5 autour du décalage de 5 V)`);
+  const [h3, b3] = sommetCreux(3);
+  check('eval : et la hauteur suit la valeur réglée (3 V → 3 V de haut, pas 6)',
+    near(h3 - b3, 3, 1e-9), `${h3 - b3} V de hauteur`);
+}
 // 1 MHz : période 1 µs. Deux instants distants d'un quart de µs doivent différer
 // — c'est tout l'intérêt d'évaluer à l'instant de la conversion et non par image.
 check('eval : à 1 MHz, deux instants à 0,25 µs d\'écart donnent deux valeurs',
@@ -241,11 +268,15 @@ check('netlist : GBF non câblé → aucune liaison (contre-épreuve)',
       parts: montage.parts,
       wires: [{ id: 'w1', a: { partId: 'G1', pin: 'GND' }, b: { partId: 'OSC1', pin: '+' }, path: [] }],
     }).length === 0);
-  // Une BROCHE de la carte sur le même nœud gagne : le moteur la date au cycle
-  // près, c'est plus fidèle qu'une formule rejouée. Le schéma de test réel
-  // (gbf-pico) est justement dans ce cas — sauf que GP26 y est une entrée
-  // ANALOGIQUE, que `scopeProbePins` ne retient pas : le rééchantillonnage doit
-  // donc bien s'appliquer là.
+  // LE GÉNÉRATEUR PRIME SUR LA BROCHE (corrigé le 17/09). Le lot .93 avait
+  // tranché l'inverse : une broche MCU sur le nœud gagne, puisque le moteur la
+  // date au cycle près. Vrai quand elle ÉMET son créneau — faux quand elle
+  // SUBIT un générateur. Une entrée attaquée par un GBF ne produit aucun front,
+  // son journal reste vide, et l'écran devenait NOIR dès qu'on branchait la
+  // carte en plus du générateur. C'est le retour de Frank : « si je branche le
+  // GBF à l'oscillo je vois les courbes, si je branche aussi la carte pico je
+  // ne vois plus rien ». Brancher un appareil de mesure de plus ne doit jamais
+  // effacer le signal.
   const surDigitale = {
     parts: [...montage.parts, { id: 'U1', type: 'uno', x: 0, y: 300, attrs: {} }],
     wires: [
@@ -253,8 +284,102 @@ check('netlist : GBF non câblé → aucune liaison (contre-épreuve)',
       { id: 'w3', a: { partId: 'G1', pin: 'Vs' }, b: { partId: 'U1', pin: '3' }, path: [] },
     ],
   };
-  check('modèle : broche numérique sur le même nœud → la sonde datée gagne',
-    scopeProbePins(surDigitale).length === 1 && scopeGbfSources(surDigitale).length === 0);
+  check('modèle : carte branchée EN PLUS du générateur → la courbe reste tracée',
+    scopeProbePins(surDigitale).length === 1 && scopeGbfSources(surDigitale).length === 1,
+    `sondes=${scopeProbePins(surDigitale).length} gbf=${scopeGbfSources(surDigitale).length}`);
+}
+
+// --- SURTENSION : la carte grille (retour du 17/09) ---------------------------
+//
+// « Au-delà de 5 V en entrée, les cartes Pico doivent griller » (Frank). Les
+// GPIO du RP2040/RP2350 ne sont PAS tolérants 5 V : la carte tourne en 3,3 V et
+// l'absolute maximum de ses entrées est 3,6 V. Un capteur 5 V ou un générateur
+// câblé droit sur une broche la détruit — c'est la faute de câblage numéro un
+// des débutants, et la simulation doit la montrer plutôt que la laisser passer.
+// Un Uno, lui, encaisse jusqu'à 5,5 V.
+{
+  const carte = (id, type, y) => ({ id, type, x: 0, y, attrs: {} });
+  const filVers = (id, partId, pin) =>
+    ({ id, a: { partId: 'G1', pin: 'Vs' }, b: { partId, pin }, path: [] });
+  const gbf = { id: 'G1', type: 'gbf', x: 0, y: 0, attrs: {} };
+
+  check('modèle : une broche de Pico ne tient que 3,6 V', maxPinVolts('pico') === 3.6,
+    String(maxPinVolts('pico')));
+  check('modèle : une broche d’Uno tient 5,5 V', maxPinVolts('uno') === 5.5,
+    String(maxPinVolts('uno')));
+
+  const surPico = { parts: [gbf, carte('P1', 'pico', 300)], wires: [filVers('w1', 'P1', 'GP15')] };
+  const st = gbfBoardStress(surPico);
+  check('modèle : générateur câblé droit sur un GPIO de Pico → carte sous contrainte',
+    st.length === 1 && st[0].boardPartId === 'P1' && st[0].vmax === 3.6,
+    JSON.stringify(st));
+
+  const surUno = { parts: [gbf, carte('U1', 'uno', 300)], wires: [filVers('w1', 'U1', '9')] };
+  const stUno = gbfBoardStress(surUno);
+  check('modèle : le même câblage sur un Uno → seuil de 5,5 V, pas 3,6',
+    stUno.length === 1 && stUno[0].vmax === 5.5, JSON.stringify(stUno));
+
+  // Le pont diviseur est LA façon correcte d'attaquer un Pico en 5 V : les deux
+  // pattes d'une résistance ne sont pas le même potentiel, la netlist ne doit
+  // donc PAS les fusionner (`buildNets(diagram, false)`). Fusionnées, ce montage
+  // propre aurait grillé la carte — le contraire de ce qu'on veut enseigner.
+  const parPont = {
+    parts: [gbf, carte('P1', 'pico', 300), { id: 'R1', type: 'resistor', x: 100, y: 100, attrs: {} }],
+    wires: [
+      { id: 'w1', a: { partId: 'G1', pin: 'Vs' }, b: { partId: 'R1', pin: '1' }, path: [] },
+      { id: 'w2', a: { partId: 'R1', pin: '2' }, b: { partId: 'P1', pin: 'GP15' }, path: [] },
+    ],
+  };
+  check('modèle : derrière une résistance (pont diviseur) → la carte n’est PAS en danger',
+    gbfBoardStress(parPont).length === 0, JSON.stringify(gbfBoardStress(parPont)));
+
+  // Une patte d'alim n'est pas un GPIO : VSYS encaisse 5 V par construction.
+  const surVsys = { parts: [gbf, carte('P1', 'pico', 300)], wires: [filVers('w1', 'P1', 'VSYS')] };
+  check('modèle : câblé sur VSYS (entrée d’alimentation) → rien ne grille',
+    gbfBoardStress(surVsys).length === 0, JSON.stringify(gbfBoardStress(surVsys)));
+
+  // Sans générateur, aucune contrainte : la fonction ne doit rien inventer.
+  check('modèle : pas de générateur → aucune contrainte (contre-épreuve)',
+    gbfBoardStress({ parts: [carte('P1', 'pico', 300)], wires: [] }).length === 0);
+}
+
+// --- L'explosion et son explication, côté sim.mts et côté composants ----------
+{
+  const sim = readFileSync(join(root, 'src', 'webview', 'sim.mts'), 'utf8');
+  check('sim : les cartes en danger sont recensées au lancement de la simulation',
+    /gbfStress = gbfBoardStress\(editor\.diagram\)/.test(sim));
+  check('sim : la surtension est jugée à chaque image',
+    /reportBoardOvervoltage\(\)/.test(sim));
+  const bloc = sim.slice(sim.indexOf('function reportBoardOvervoltage'),
+    sim.indexOf('function reportBoardOvervoltage') + 1200);
+  // Le SOMMET de l'onde décide, pas la valeur moyenne : un sinus à 2 V de
+  // décalage et 4 V crête-à-crête monte à 4 V et perce un Pico, alors que sa
+  // moyenne reste sous 3,6.
+  check('sim : c’est le SOMMET de l’onde qui grille la carte, pas sa moyenne',
+    /offset \+ amplitude \/ 2/.test(bloc) && /haut > st\.vmax/.test(bloc), bloc.slice(0, 200));
+  // Une pointe négative perce aussi : la diode de masse conduit sous -0,6 V.
+  check('sim : une pointe NÉGATIVE perce aussi (diode de masse)',
+    /bas < -0\.6/.test(bloc));
+  check('sim : la carte grillée porte une explication chiffrée',
+    /markBurned\([\s\S]{0,160}?BURN_NOTE\.board, st\.vmax/.test(bloc));
+  check('sim : la note dit le seuil, le 3,3 V et la parade (pont diviseur)',
+    /board: '[^']*\{0\} V[^']*divider/.test(sim));
+
+  // L'éditeur ne fait que hisser le conteneur grillé : c'est l'ÉLÉMENT qui peint
+  // le « Boum ». Sans propriété `burned` sur la carte, rien ne s'afficherait —
+  // c'était le cas jusqu'ici pour les quatre Pico et pour l'Uno.
+  const pico = readFileSync(join(root, 'src', 'webview', 'composants', 'pico-board.mts'), 'utf8');
+  check('Pico : la carte sait se peindre grillée',
+    /set burned\(/.test(pico) && /boumOverlay\(/.test(pico));
+  check('Pico : l’explosion a un conteneur positionné (sinon elle part en haut à gauche)',
+    /position = 'relative'/.test(pico) && /boumHost/.test(pico));
+  check('Pico : changer de variante ne perd pas l’explosion',
+    /this\.boumHost = document\.createElement[\s\S]{0,160}?this\.updateBoum\(\)/.test(pico));
+  const uno = readFileSync(join(root, 'src', 'webview', 'composants', 'arduino-uno-element.mts'), 'utf8');
+  check('Uno : la carte sait se peindre grillée',
+    /burned: \{ type: Boolean \}/.test(uno) && /this\.burned \? boumOverlay\(/.test(uno));
+  check('Uno : l’hôte lit est positionné (:host position relative)',
+    /:host \{[\s\S]{0,80}?position: relative/.test(uno));
 }
 
 // --- La chaîne de rééchantillonnage dans sim.mts (contrôle sur les SOURCES) ----
@@ -274,6 +399,27 @@ check('netlist : GBF non câblé → aucune liaison (contre-épreuve)',
   // ailleurs dans le montage (pont diviseur, condensateur) rien ne change.
   check('sim : sans générateur reconnu, on garde le point par image',
     /if\s*\(salveG\)\s*scope\.pushMany\(salveG,\s*false\);\s*\n\s*else\s+scope\.push\(/.test(sim));
+
+  // --- Carte branchée EN PLUS du générateur (retour du 17/09) ----------------
+  // Trois pièces, et il fallait les trois : sans l'une, l'écran restait noir.
+  // 1) le modèle reconnaît toujours le générateur (contrôlé plus haut) ;
+  // 2) la boucle d'image ne part PAS dans la branche « créneau », qui lirait un
+  //    journal de fronts vide — une entrée analogique n'en produit aucun ;
+  // 3) le rapport de charge ne se laisse pas calculer sur une lecture ÉCRÊTÉE.
+  check('sim : un générateur sur la prise + l’emporte sur la broche MCU du nœud',
+    /const gbfIci = scopeGbfs\.some\([\s\S]{0,80}?const sonde = gbfIci \? undefined :/.test(sim));
+  // `charge = lu / aVide` avec `lu` écrêté à 0 ramenait TOUTE la salve à zéro :
+  // sur un signal à cheval sur la masse, la lecture ADC vaut 0 la moitié du
+  // temps. C'est l'écran plat, par un autre chemin que la branche « créneau ».
+  check('sim : une lecture écrêtée ne sert PAS à mesurer la chute du montage',
+    /const ecrete = lu !== null && \(lu <= [\d.]+ \|\| lu >= vref - [\d.]+\)/.test(sim)
+      && /!ecrete && Math\.abs\(aVide\) > /.test(sim));
+  // L'écrêtage d'AFFICHAGE demandé par Frank. Il ne vient pas de l'appareil —
+  // un oscilloscope voit le négatif — mais des diodes de protection de la carte
+  // posée sur le même nœud. Générateur seul : aucune bride.
+  check('sim : la carte sur le nœud ÉCRÊTE le signal affiché (diodes de protection)',
+    /const bride = scopeProbes\.some\(/.test(sim)
+      && /bride \? Math\.max\(bas, Math\.min\(haut, v\)\) : v/.test(sim));
 }
 
 // --- Rendu réel (Chrome headless, avec de VRAIS événements de souris) ----------

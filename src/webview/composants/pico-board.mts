@@ -13,10 +13,12 @@
 // complet s'affiche à la demande via le bouton ☢ de l'éditeur (poster
 // <variante>-pinout). La LED embarquée GP25 (`ledPower`) s'allume en vert.
 
+import { render } from 'lit';
 import picoSvg from './externe/pico.svg';
 import picowSvg from './externe/picow.svg';
 import pico2Svg from './externe/pico2.svg';
 import pico2wSvg from './externe/pico2w.svg';
+import { boumOverlay } from './utils/boum.mjs';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -147,6 +149,32 @@ export class PicoBoardElement extends HTMLElement {
   private ledEl: SVGElement | null = null;
   private ledValue = false;
   private rendered = false;
+  private _burned = false;
+  /** Conteneur de l'explosion « Boum » (GPIO attaqué au-dessus de 3,6 V). */
+  private boumHost: HTMLElement | null = null;
+
+  /**
+   * Carte grillée : le GPIO d'une Pico n'est PAS tolérant 5 V. `sim.mts` lève ce
+   * drapeau quand un générateur (ou toute source) dépasse la tension maximale de
+   * la broche. L'éditeur, lui, ne fait que hisser le conteneur : c'est ICI que
+   * l'explosion se peint.
+   */
+  set burned(v: boolean) {
+    const on = !!v;
+    if (on === this._burned) return;
+    this._burned = on;
+    this.updateBoum();
+  }
+
+  get burned(): boolean {
+    return this._burned;
+  }
+
+  /** Monte/démonte l'overlay d'explosion selon `burned`. */
+  private updateBoum(): void {
+    if (!this.boumHost) return;
+    render(this._burned ? boumOverlay(90) : null, this.boumHost);
+  }
 
   constructor() {
     super();
@@ -182,6 +210,8 @@ export class PicoBoardElement extends HTMLElement {
 
     const wrap = document.createElement('div');
     wrap.style.lineHeight = '0';
+    // `position: relative` requis par boumOverlay (span centré en absolu).
+    wrap.style.position = 'relative';
 
     const svg = document.createElementNS(SVG_NS, 'svg');
     svg.setAttribute('xmlns', SVG_NS);
@@ -220,6 +250,14 @@ export class PicoBoardElement extends HTMLElement {
     this.ledPower = v;
 
     wrap.appendChild(svg);
+
+    // Hôte de l'explosion, par-dessus le dessin (centré par boumOverlay).
+    // `render()` reconstruit tout à chaque changement de variante : l'hôte est
+    // recréé, puis l'état courant y est réappliqué — comme la LED juste au-dessus.
+    this.boumHost = document.createElement('span');
+    wrap.appendChild(this.boumHost);
+    this.updateBoum();
+
     shadow.appendChild(wrap);
   }
 

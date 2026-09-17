@@ -1540,10 +1540,11 @@ for (const [fault, mot] of [
 rows.push({
 	name: 'grillé : le composant qui explose reçoit lui aussi son explication',
 	// La borne du bloc suit le nombre d'entrées : chaque composant qui peut
-	// griller en ajoute une (la résistance de puissance, v2026.9.3.70).
-	ok: /const BURN_NOTE = \{[\s\S]{0,1200}?\} as const;/.test(sim) &&
+	// griller en ajoute une (la résistance de puissance, v2026.9.3.70 ; la carte
+	// attaquée au-dessus de sa tension d'entrée, v2026.9.4.97 — note longue).
+	ok: /const BURN_NOTE = \{[\s\S]{0,1600}?\} as const;/.test(sim) &&
 		/function markBurned\([\s\S]{0,400}?editor\.setFaulty\(partId, !!note, note\)/.test(sim) &&
-		(sim.match(/markBurned\([^;]{0,120}?BURN_NOTE\.(led|cap|pca|resistor)\)/g) ?? []).length >= 7,
+		(sim.match(/markBurned\([^;]{0,160}?BURN_NOTE\.(led|cap|pca|resistor|board)\b/g) ?? []).length >= 8,
 	detail: 'BURN_NOTE absent, ou points d appel non câblés',
 });
 rows.push({

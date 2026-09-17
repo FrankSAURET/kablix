@@ -1165,8 +1165,10 @@ export const CATALOG: readonly PartDef[] = [
   // l'instant de la conversion ADC (`kind: 'gbf'` de engines/analog-waves.mts) :
   // à 1 MHz une période dure 1 µs, une valeur par image serait seize mille
   // périodes en retard.
-  // `amplitude` est la valeur CRÊTE : la sortie va de offset−amplitude à
-  // offset+amplitude, écrêtée à la plage de l'entrée analogique reliée.
+  // `amplitude` est la valeur CRÊTE-À-CRÊTE — le sens français du mot, et celui
+  // qu'affiche un GBF de salle de TP : la sortie va de offset−amplitude/2 à
+  // offset+amplitude/2, écrêtée à la plage de l'entrée analogique reliée. 5 V
+  // d'amplitude et 0 V de décalage donnent donc une courbe de −2,5 V à +2,5 V.
   {
     type: 'gbf', label: 'Function generator', tag: 'kablix-gbf', kind: 'analog-source',
     analogPin: 'Vs', simControl: true,
@@ -1174,14 +1176,14 @@ export const CATALOG: readonly PartDef[] = [
     // sur la masse) et rapport cyclique à 50 %. Sur une entrée ADC 0–VREF
     // l'alternance négative est donc écrêtée — c'est exact, et c'est à l'élève
     // d'ajouter le décalage (la fiche d'aide le dit).
-    attrs: { frequency: '1000', amplitude: '2.5', offset: '0', duty: '50', waveform: 'sinus' },
+    attrs: { frequency: '1000', amplitude: '5', offset: '0', duty: '50', waveform: 'sinus' },
     props: [
       {
         attr: 'waveform', label: 'Waveform', kind: 'select', options: ['sinus', 'triangle', 'carre'],
         optionLabels: { sinus: 'Sine', triangle: 'Triangle', carre: 'Square' },
       },
       { attr: 'frequency', label: 'Frequency (Hz)', kind: 'number', min: 1, max: 1_000_000, step: 1, suffixes: true },
-      { attr: 'amplitude', label: 'Peak amplitude (V)', kind: 'number', min: 0, max: 10, step: 0.1 },
+      { attr: 'amplitude', label: 'Amplitude, peak-to-peak (V)', kind: 'number', min: 0, max: 10, step: 0.1 },
       { attr: 'offset', label: 'DC offset (V)', kind: 'number', min: -5, max: 5, step: 0.1 },
       { attr: 'duty', label: 'Duty cycle (%)', kind: 'number', min: 0, max: 100, step: 1 },
     ],

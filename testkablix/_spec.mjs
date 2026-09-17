@@ -1491,7 +1491,7 @@ void loop() {
 
   // Générateur BF : l'appareil de la salle de TP qui sort un SIGNAL, là où
   // l'alimentation de laboratoire sort une tension fixe. Réglé ici sur un sinus
-  // lent (10 Hz) centré dans la plage de l'entrée analogique — 2,5 V de crête
+  // lent (10 Hz) centré dans la plage de l'entrée analogique — 5 V crête-à-crête
   // sur 2,5 V de décalage, donc 0 à 5 V pile. Un signal plus rapide serait
   // illisible dans la console, et une amplitude plus forte serait écrêtée.
   // Le programme lit A0 en boucle : c'est le sinus qu'il doit voir défiler.
@@ -1501,7 +1501,7 @@ void loop() {
       MCU('uno'),
       {
         id: 'Gen1', type: 'gbf', x: 620, y: 90,
-        attrs: { waveform: 'sinus', frequency: '10', amplitude: '2.5', offset: '2.5', duty: '50' },
+        attrs: { waveform: 'sinus', frequency: '10', amplitude: '5', offset: '2.5', duty: '50' },
       },
     ],
     wires: () => [
@@ -1509,8 +1509,8 @@ void loop() {
       w('Gen1', 'GND', 'U1', 'GND.1', 'black'),
     ],
     expect: { kind: 'analog-source', partId: 'Gen1', mcuPin: 'A0' },
-    code: `// Test generateur BF : sinus de 10 Hz, 0 a 5 V (2,5 V de crete sur 2,5 V de
-// decalage), lu sur A0. En simulation, les quatre boutons de l'appareil font
+    code: `// Test generateur BF : sinus de 10 Hz, 0 a 5 V (5 V crete-a-crete sur 2,5 V
+// de decalage), lu sur A0. En simulation, les quatre boutons de l'appareil font
 // varier forme, frequence, amplitude, decalage et rapport cyclique a la souris.
 void setup() {
   Serial.begin(115200);
@@ -4716,7 +4716,7 @@ while True:
   }),
 
   // Générateur BF côté Pico : l'entrée ADC y monte à 3,3 V et non 5 V, donc
-  // l'appareil est réglé pour ne pas écrêter — 1,5 V de crête sur 1,65 V de
+  // l'appareil est réglé pour ne pas écrêter — 3 V crête-à-crête sur 1,65 V de
   // décalage, soit 0,15 à 3,15 V. Forme TRIANGLE, choisie exprès : c'est celle
   // dont le rapport cyclique change le dessin (montée plus ou moins longue), ce
   // que le sinus du test Arduino ne montre pas.
@@ -4726,7 +4726,7 @@ while True:
       MCU('pico'),
       {
         id: 'Gen1', type: 'gbf', x: 680, y: 90,
-        attrs: { waveform: 'triangle', frequency: '20', amplitude: '1.5', offset: '1.65', duty: '30' },
+        attrs: { waveform: 'triangle', frequency: '20', amplitude: '3', offset: '1.65', duty: '30' },
       },
     ],
     wires: () => [

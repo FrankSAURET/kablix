@@ -147,10 +147,31 @@ function zoomer(facteur: number, tAncre: number): void {
   dessiner();
 }
 
-/** Ramène la vue sur toute la capture (bouton « Tout »). */
+/**
+ * Ramène la vue sur toute la capture (bouton « Toute la capture »).
+ *
+ * La fenêtre se cale sur l'intervalle RÉELLEMENT occupé par les fronts, du
+ * premier au dernier, et non sur `[0, fin]`. Une capture ne commence pas
+ * forcément à zéro : sur une liaison série, le premier octet part souvent après
+ * des dizaines de secondes de programme. Cadrer depuis zéro tassait alors toute
+ * la mesure dans les derniers pixels de l'écran, et l'onglet paraissait vide
+ * (retour de Frank sur dmx-pico, .96) — le défaut n'était pas dans la capture,
+ * qui était bel et bien là, mais dans le cadrage.
+ */
 function ajuster(): void {
+  const debut = capture.tDebut;
   const fin = capture.tFin;
-  fenetre = { t0: 0, duree: fin > 0 ? fin * 1.02 : 10 };
+  const etendue = fin - debut;
+  if (!(etendue > 0)) {
+    // Rien, ou un seul front : on garde une fenêtre de travail lisible autour de
+    // ce qu'on a, plutôt qu'une durée nulle qui ne saurait rien afficher.
+    fenetre = { t0: Math.max(0, debut - 5), duree: 10 };
+  } else {
+    // Une marge de 1 % de chaque côté : les fronts extrêmes ne collent pas au
+    // bord, où ils seraient coupés par les graduations.
+    const marge = etendue * 0.01;
+    fenetre = { t0: debut - marge, duree: etendue + 2 * marge };
+  }
   suivi = false;
   dessiner();
 }
@@ -634,6 +655,26 @@ function restaurer(etat: EtatSerialise): void {
   const salves: Record<string, number[]> = {};
   for (const v of etat.voies) salves[v.pin] = v.fronts;
   capture.verser(salves);
+  // Les PISTES viennent normalement du message `voies`, que pousse l'atelier.
+  // Mais à la réouverture d'un projet sans avoir relancé la simulation, l'atelier
+  // n'a encore rien poussé : la liste de l'hôte est vide, et la capture du
+  // .projix — pourtant complète — n'avait alors aucune piste où se dessiner.
+  // L'onglet affichait « aucune sonde » par-dessus des milliers de fronts bien
+  // présents : la page grise signalée par Frank sur dmx-pico.
+  // La capture est autoportante (chaque voie porte son numéro, sa broche et son
+  // nom) : on s'en sert pour dresser les pistes tant que rien d'autre ne l'a
+  // fait. Le message `voies`, quand il arrive, reprend la main.
+  if (diagnostics.length === 0 && etat.voies.length > 0) {
+    diagnostics = etat.voies.map((v) => ({
+      voie: v.voie,
+      nom: v.nom,
+      pin: v.pin,
+      probleme: null,
+      analogique: false,
+      suivi: false,
+    }));
+    remplirVoies(selDeclVoie, t('none'));
+  }
   if (etat.declenchement) {
     selDeclVoie.value = String(etat.declenchement.voie);
     selDeclSens.value = etat.declenchement.sens;

@@ -29,8 +29,27 @@ export const SONDE_W = 80;
 export const SONDE_H = 80;
 
 /** Centre de la pastille du dessin (pointe de la pince) : c'est CE point que
- *  l'élève pose sur la broche à écouter. */
+ *  l'élève pose sur la broche à écouter. (10,70) est un croisement de la grille
+ *  de 10 px — c'est la contrainte dure, elle ne se négocie pas. */
 export const SONDE_PIN = { x: 10, y: 70 };
+
+/**
+ * Recalage du dessin importé, en unités de viewBox.
+ *
+ * Mesuré (lot .97) : la pointe de la mâchoire du dessin de Frank tombe en
+ * (10,73 ; 69,25), pas en (10 ; 70). Un écart de trois quarts d'unité — moins
+ * d'un dixième de carreau, invisible isolément, mais assez pour que la pince
+ * DESSINÉE pince visiblement à côté du croisement où le fil, lui, se raccorde.
+ * C'est le « sa connection n'est toujours pas exactement à l'intersection de la
+ * grille » de Frank (17/09).
+ *
+ * On déplace le DESSIN, jamais la pastille : `SONDE_PIN` doit rester sur un
+ * croisement, sinon plus rien ne s'accroche. Le crochet, lui, est tracé par
+ * `remonterTige()` dans le repère du SVG hôte à partir de `SONDE_PIN` : il ne
+ * subit pas ce décalage, et c'est ainsi que dessin et point de connexion se
+ * retrouvent enfin au même endroit.
+ */
+const RECALAGE = { x: -0.73, y: 0.75 };
 
 /**
  * Les huit teintes VERTES du dessin de Frank, et leur rôle dans la pince.
@@ -54,17 +73,32 @@ const TEINTES_VERTES: Array<{ hex: string; delta: number }> = [
 const GRIS_INERTE = '#9e9e9e';
 
 /**
- * Demi-longueur du crochet métallique, en unités de viewBox, mesurée de part et
- * d'autre de la pastille. 4 px de chaque côté font un trait de 11 px en
- * diagonale : il dépasse franchement de la mâchoire (qui commence à 5,5 px de
- * la pastille) tout en restant dans le viewBox — la pastille est à (10,70), un
- * crochet plus long sortirait par le bas à gauche et serait rogné.
+ * Longueur du crochet métallique VERS L'EXTÉRIEUR, en unités de viewBox, à
+ * partir de la pastille. C'est la seule partie qu'on voit dépasser.
+ *
+ * Volontairement COURTE (retour de Frank, 17/09) : le crochet d'une pince de
+ * mesure est un ergot, pas une aiguille. Il doit arriver PILE sur le croisement
+ * de la grille — la pastille est à (10,70), un croisement — et non le traverser
+ * de part en part. 2,2 unités le font dépasser nettement de la mâchoire (qui
+ * s'arrête à ~1,5 unité de la pastille) sans partir vers le bas de la planche.
  */
-const CROCHET = 4;
+const CROCHET = 2.2;
 
-/** Épaisseur du crochet. Assez pour tenir sur la grille de 10 px sans manger la
- *  pastille de connexion qu'il traverse. */
-const CROCHET_EP = 1.3;
+/**
+ * Longueur du crochet VERS L'INTÉRIEUR du corps. Il file sous le plastique de
+ * la pince, où il est masqué : c'est ce qui donne l'impression que l'ergot
+ * ENTRE dans la pince au lieu d'être posé dessus. Plus long que la partie
+ * visible, comme sur une vraie pince où la lame se prolonge dans le manche.
+ */
+const CROCHET_DEDANS = 6;
+
+/**
+ * Épaisseur du crochet. Élargie au lot .97 (Frank : « pas assez large ») : à
+ * 1,3 le trait faisait maigre à côté de la mâchoire, et sur la grille de 10 px
+ * il se lisait comme un cheveu. 2,2 lui donne la carrure d'un ergot métallique
+ * tout en laissant voir la pastille rouge de connexion sous lui.
+ */
+const CROCHET_EP = 2.2;
 
 /** Pile de repli de la police du dessin (Arial Rounded MT Bold n'existe pas
  *  partout : sans repli, l'étiquette tombait sur une police à empattements). */
@@ -120,7 +154,7 @@ export class SondeLogiqueElement extends HTMLElement {
   ];
 
   static get observedAttributes(): string[] {
-    return ['voie', 'etiquette', 'accroche', 'simulating'];
+    return ['voie', 'etiquette', 'accroche', 'relie', 'simulating'];
   }
 
   private root: ShadowRoot;
@@ -141,10 +175,21 @@ export class SondeLogiqueElement extends HTMLElement {
     return Number.isInteger(v) && v >= 0 ? v : -1;
   }
 
-  /** Vrai quand la pince recouvre bien une pastille (attribut `accroche`
-   *  non vide, écrit par l'éditeur au lâcher). */
+  /**
+   * Vrai quand la pince mesure vraiment quelque chose, par l'un OU l'autre des
+   * deux gestes que Frank demande (17/09) :
+   *
+   *  - POSÉE sur une pastille — l'éditeur écrit `accroche` au lâcher ;
+   *  - RELIÉE par un fil à son crochet — rien n'est posé sur rien, c'est le
+   *    câblage qui branche la sonde. Le schéma seul le sait : `sim.mts` pose
+   *    alors l'attribut `relie` (voir `colorerSondesReliees`).
+   *
+   * Dans les deux cas la pince prend sa couleur de voie, et la perd dès qu'on
+   * la décroche ou qu'on retire le fil.
+   */
   get branchee(): boolean {
-    return (this.getAttribute('accroche') ?? '').trim() !== '';
+    return (this.getAttribute('accroche') ?? '').trim() !== ''
+      || (this.getAttribute('relie') ?? '').trim() !== '';
   }
 
   /**
@@ -178,7 +223,7 @@ export class SondeLogiqueElement extends HTMLElement {
 
   attributeChangedCallback(name: string): void {
     if (!this.rendered) return;
-    if (name === 'voie' || name === 'accroche') this.updateCouleur();
+    if (name === 'voie' || name === 'accroche' || name === 'relie') this.updateCouleur();
     if (name === 'etiquette') this.updateEtiquette();
   }
 
@@ -196,8 +241,8 @@ export class SondeLogiqueElement extends HTMLElement {
     const doc = new DOMParser().parseFromString(drawing.slice(drawing.indexOf('<svg')), 'image/svg+xml');
     if (doc.documentElement.nodeName.toLowerCase() === 'svg') {
       const inner = document.importNode(doc.documentElement, true) as unknown as SVGElement;
-      inner.setAttribute('x', '0');
-      inner.setAttribute('y', '0');
+      inner.setAttribute('x', String(RECALAGE.x));
+      inner.setAttribute('y', String(RECALAGE.y));
       inner.setAttribute('width', String(SONDE_W));
       inner.setAttribute('height', String(SONDE_H));
       svg.appendChild(inner);
@@ -232,6 +277,14 @@ export class SondeLogiqueElement extends HTMLElement {
    * dépasser de la pince. Le point de connexion, lui, ne bouge pas : il reste
    * le centre de la pastille de Frank, `SONDE_PIN`.
    *
+   * REPRISE DU 17/09 (lot .97). Frank demande un ergot, pas une aiguille :
+   * court dehors, large, et qui donne l'impression d'ENTRER dans la pince. Le
+   * trait file donc bien plus loin vers le haut-droit (`CROCHET_DEDANS`) qu'il
+   * ne sort vers le bas-gauche (`CROCHET`), et il est inséré AVANT le corps
+   * coloré au lieu d'être peint en dernier : le plastique recouvre la partie
+   * intérieure, exactement comme une lame qui se prolonge dans un manche. Seul
+   * l'ergot dépasse, et il arrive pile sur le croisement de la grille.
+   *
    * Corrigé ICI et non dans le SVG : `externe/grip-fil.svg` est extrait de
    * `Composants2D.svg` (`_extract-composants.mjs`) — une retouche du fichier
    * serait perdue à la prochaine extraction. Le dessin de Frank reste intact.
@@ -248,10 +301,21 @@ export class SondeLogiqueElement extends HTMLElement {
     // mâchoire verte qui le masquait.
     const hote = this.root.querySelector('svg > svg') ?? this.root.querySelector('svg');
     if (!hote) return;
-    hote.appendChild(tige);
+    // PREMIER enfant, donc peint EN DESSOUS de tout le reste : la partie du
+    // crochet qui rentre dans le corps disparaît sous le plastique, et seul
+    // l'ergot — qui sort du côté opposé, là où il n'y a rien — reste visible.
+    hote.insertBefore(tige, hote.firstChild);
     tige.removeAttribute('transform');
     const { x, y } = SONDE_PIN;
-    tige.setAttribute('d', `M ${x + CROCHET} ${y - CROCHET} L ${x - CROCHET} ${y + CROCHET}`);
+    // La diagonale va du bas-gauche (l'ergot, dehors) au haut-droit (la partie
+    // enfouie). Le facteur 0,7071 ramène les longueurs à la vraie distance le
+    // long du trait : sans lui, une diagonale de « 2,2 » mesurerait 3,1.
+    const k = Math.SQRT1_2;
+    tige.setAttribute(
+      'd',
+      `M ${x - CROCHET * k} ${y + CROCHET * k}`
+      + ` L ${x + CROCHET_DEDANS * k} ${y - CROCHET_DEDANS * k}`,
+    );
     tige.setAttribute(
       'style',
       'fill:none;stroke:url(#linearGradient996);'
@@ -265,6 +329,8 @@ export class SondeLogiqueElement extends HTMLElement {
     // reflet d'un métal cylindrique.
     const grad = this.root.querySelector('#linearGradient996') as SVGElement | null;
     if (grad) {
+      // En TRAVERS du trait : le segment descend vers le bas-gauche, le dégradé
+      // le coupe donc perpendiculairement (haut-gauche → bas-droit).
       grad.setAttribute('x1', String(x - CROCHET_EP / 2));
       grad.setAttribute('y1', String(y - CROCHET_EP / 2));
       grad.setAttribute('x2', String(x + CROCHET_EP / 2));

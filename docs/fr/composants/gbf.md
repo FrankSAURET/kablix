@@ -23,13 +23,13 @@ Les deux prises sont espacées de 20 px (deux pas de grille). Câblez **Vs** sur
 |-----------|------|--------|
 | `waveform` | Forme : sinus, triangle ou carré | `sinus` |
 | `frequency` | **Fréquence** (Hz), 1 à 1 000 000 au **Hz près** | `1000` |
-| `amplitude` | **Amplitude crête** (V), 0 à 10 par pas de **0,1** | `2,5` |
+| `amplitude` | **Amplitude crête-à-crête** (V), 0 à 10 par pas de **0,1** | `5` |
 | `offset` | **Décalage continu** (V), −5 à +5 par pas de **0,1** | `0` |
 | `duty` | **Rapport cyclique** (%), 0 à 100 au **pourcent** | `50` |
 
 > Ces valeurs sont l'état de **départ** : ce sont elles qui reviennent à chaque lancement de simulation. Les boutons tournés en cours de séance ne modifient pas le projet — l'énoncé garde ses réglages d'origine.
 
-L'amplitude est une amplitude **crête**, pas crête-à-crête : `amplitude = 2,5` et `offset = 2,5` donnent un signal qui va de **0 à 5 V**, soit 5 V crête-à-crête.
+L'amplitude est **crête-à-crête**, comme sur un vrai GBF : c'est la hauteur **totale** du signal, du creux au sommet. `amplitude = 5` et `offset = 0` donnent donc une courbe qui va de **−2,5 V à +2,5 V** ; avec `offset = 2,5`, elle va de **0 à 5 V**. La moitié de l'amplitude se trouve de chaque côté du décalage.
 
 Sorti de son carton, l'appareil a un **décalage nul** : son signal est centré sur la masse, comme sur une paillasse. Branché tel quel sur une entrée analogique, il est donc **écrêté** sur toute son alternance négative (voir plus bas) — c'est à vous d'ajouter le décalage.
 
@@ -57,7 +57,7 @@ L'afficheur écrit l'unité qui convient : `1 Hz`, `250 Hz`, `12,5 kHz`, `1 MHz`
 
 Le signal est calculé **à l'instant exact de la conversion** analogique, pas une fois par image : à 1 MHz une période dure une microseconde, et une valeur posée par image serait des milliers de périodes en retard. Un programme qui lit `analogRead` en boucle voit donc bien la forme d'onde.
 
-Attention à l'**écrêtage** : une entrée analogique ne lit ni le négatif, ni au-delà de sa tension de référence (**5 V** sur Arduino, **3,3 V** sur Pico). Un signal de 10 V crête sans décalage ressort **écrêté** — plein échelle sur les sommets, zéro sur toute l'alternance négative, et la forme lue n'a plus rien à voir avec celle du cadran. Pour rester dans la plage, décalez : par exemple `amplitude = 1,5` et `offset = 1,65` sur un Pico.
+Attention à l'**écrêtage** : une entrée analogique ne lit ni le négatif, ni au-delà de sa tension de référence (**5 V** sur Arduino, **3,3 V** sur Pico). Un signal de 10 V crête-à-crête sans décalage (donc de −5 V à +5 V) ressort **écrêté** — plein échelle sur les sommets, zéro sur toute l'alternance négative, et la forme lue n'a plus rien à voir avec celle du cadran. Pour rester dans la plage, décalez : par exemple `amplitude = 3` et `offset = 1,65` sur un Pico (la courbe va alors de 0,15 V à 3,15 V).
 
 ## Utilisation
 

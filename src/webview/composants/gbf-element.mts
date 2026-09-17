@@ -11,7 +11,9 @@
 //
 // Plages demandées par Frank (et bornes de l'inspecteur) :
 //   fréquence       1 Hz .. 1 MHz, au Hz près     — course LOGARITHMIQUE
-//   amplitude       0 .. 10 V, au dixième de volt — crête (pas crête-à-crête)
+//   amplitude       0 .. 10 V, au dixième de volt — CRÊTE-À-CRÊTE (sens
+//                   français, et celui gravé sur les GBF de TP) : 5 V affichés
+//                   sans décalage, c'est une courbe de −2,5 V à +2,5 V
 //   décalage        −5 .. +5 V, au dixième
 //   rapport cyclique 0 .. 100 %, au pourcent     — déforme carré ET triangle
 //
@@ -433,10 +435,18 @@ export class GbfElement extends HTMLElement {
     return `${this.duty} %`;
   }
 
-  /** Infobulle du composant : ce que l'appareil sort, en une ligne. */
+  /**
+   * Infobulle du composant : ce que l'appareil sort, en une ligne.
+   *
+   * L'amplitude y est suffixée « pp » alors que l'afficheur du dessin n'affiche
+   * que « V » : la sérigraphie est étroite (10,0 V y tient tout juste) et sur un
+   * vrai GBF l'unité est gravée sur le cadran, pas répétée dans l'afficheur.
+   * L'infobulle, elle, a la place de lever l'ambiguïté.
+   */
   get resume(): string {
     const forme = this.forme === 'sinus' ? t('sine') : this.forme === 'triangle' ? t('triangle') : t('square');
-    return `${forme} · ${formaterFreq(this.freq)} · ${this.libelle('amplitude')} · ${this.libelle('offset')}`;
+    const ampl = `${this.amplitude.toFixed(1).replace('.', ',')} Vpp`;
+    return `${forme} · ${formaterFreq(this.freq)} · ${ampl} · ${this.libelle('offset')}`;
   }
 }
 

@@ -121,6 +121,27 @@ export class AnalyseurCapture {
     return this.tDernier;
   }
 
+  /**
+   * Borne GAUCHE de la capture : le premier front vu, toutes voies confondues,
+   * en ms simulées. Vaut 0 quand il n'y a rien.
+   *
+   * Une capture ne commence pas forcément à zéro, et c'est le cas courant dès
+   * qu'une liaison série est sondée : le programme se lance, ouvre son port,
+   * attend, et le premier octet ne part qu'après plusieurs dizaines de secondes.
+   * Sans cette borne, la vue s'ouvrait de 0 à la fin de la capture et tassait
+   * quelques microsecondes de créneaux dans les derniers pixels de l'écran —
+   * l'élève ne voyait qu'une page vide (retour de Frank sur dmx-pico, .96).
+   */
+  get tDebut(): number {
+    let min = Infinity;
+    for (const v of this.voies.values()) {
+      // Les fronts d'une voie sont rangés dans l'ordre : le premier suffit.
+      const f = v.fronts[0];
+      if (f !== undefined && f.t < min) min = f.t;
+    }
+    return min === Infinity ? 0 : min;
+  }
+
   /** Instant du déclenchement, ou null s'il n'a pas (encore) eu lieu. */
   get tTrigger(): number | null {
     return this.tDeclenche;

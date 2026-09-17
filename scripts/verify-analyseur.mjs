@@ -116,6 +116,28 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
     v[0].probleme === 'nowhere' && v[0].pin === undefined, JSON.stringify(v[0]));
 }
 {
+  // BRANCHEMENT PAR FIL. Frank (17/09) : « On doit pouvoir brancher la sonde en
+  // la posant directement sur un composant ET en la reliant par un fil. » Les
+  // deux gestes existent sur une paillasse : on pose la pince sur une patte, ou
+  // on relie son crochet au point à écouter par un cordon. Ici rien SOUS la
+  // pince (`accroche` vide) mais un fil part de son crochet `G`.
+  const filCrochet = [{ id: 'w2', a: { partId: 's1', pin: 'G' }, b: { partId: 'uno1', pin: '9' }, path: [] }];
+  const v = logicProbeVoies(schema([sonde('s1', 0, '')], filCrochet));
+  check('modèle : crochet RELIÉ par un fil à la broche 9 → voie traçable, pas `nowhere`',
+    !v[0].probleme && v[0].pin === '9' && v[0].suivi === true, JSON.stringify(v[0]));
+  // Le fil ne doit pas primer sur la pose : posée sur la 8 ET reliée à la 9,
+  // c'est la pince qui gagne — elle est le contact réel.
+  const w = logicProbeVoies(schema([sonde('s1', 0, 'uno1/8')], filCrochet));
+  check('modèle : posée ET reliée → la POSE gagne, le fil du crochet est ignoré',
+    w[0].pin === '8' && !w[0].suivi, JSON.stringify(w[0]));
+  // Un fil du crochet vers une patte EN L'AIR ne branche rien : pas de voie
+  // fantôme, le diagnostic reste `nowhere`.
+  const filMort = [{ id: 'w3', a: { partId: 's1', pin: 'G' }, b: { partId: 'r1', pin: '2' }, path: [] }];
+  const m = logicProbeVoies(schema([sonde('s1', 0, '')], filMort));
+  check('modèle : crochet relié à une patte en l’air → toujours `nowhere`',
+    m[0].probleme === 'nowhere' && m[0].pin === undefined, JSON.stringify(m[0]));
+}
+{
   // Patte CÂBLÉE à la broche 8 : la pince SUIT LE FIL (décision de Frank, .92).
   // Une vraie pince crocodile mesure le potentiel du point où on l'accroche, et
   // ce point est électriquement la broche qui le pilote. C'est le cas ordinaire
@@ -215,6 +237,45 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   c.verser({ 13: [4.0, 1] });
   check('capture : broche inconnue ignorée (journal partagé avec l\'oscilloscope)',
     c.listeVoies.length === 1 && c.tFin === 3.0);
+}
+{
+  // RÉOUVERTURE D'UN PROJET ENREGISTRÉ. Une capture ne commence pas à zéro : dès
+  // qu'une liaison série est sondée, le programme démarre, ouvre son port, et le
+  // premier octet ne part qu'après des dizaines de secondes. Sur le dmx-pico de
+  // Frank, la capture va de 89,3 s à 92,3 s. Cadrée depuis 0, elle tiendrait
+  // dans 3 % de l'écran — une page grise pour l'élève (retour du 17/09).
+  const c = new AnalyseurCapture();
+  c.declarerVoies([{ voie: 3, pin: 'GP0', nom: 'DMX' }]);
+  check('réouverture : sans aucun front, la borne gauche vaut 0 (pas Infinity)',
+    c.tDebut === 0, String(c.tDebut));
+  c.verser({ GP0: [89251.3, 1, 89252.0, 0, 92265.1, 1] });
+  check('réouverture : borne GAUCHE = premier front, pas zéro',
+    c.tDebut === 89251.3, String(c.tDebut));
+  // Le rapport entre les deux cadrages, c'est tout l'écart entre une page grise
+  // et une capture lisible : 3 s sur 92 s tiennent dans 3 % de la largeur.
+  const partDepuisZero = ((c.tFin - c.tDebut) / c.tFin) * 100;
+  check('réouverture : cadrer depuis zéro écraserait la capture sous 5 % de l\'écran',
+    partDepuisZero < 5, `${partDepuisZero.toFixed(1)} %`);
+}
+{
+  // Les PISTES de l'onglet viennent normalement du message `voies` que pousse
+  // l'atelier. À la réouverture d'un projet sans relancer la simulation, rien ne
+  // l'a poussé : l'onglet affichait « aucune sonde » par-dessus des milliers de
+  // fronts bien présents. La capture restaurée est autoportante — chaque voie y
+  // porte son numéro, sa broche et son nom —, et c'est d'elle que `restaurer()`
+  // dresse les pistes tant que rien d'autre ne l'a fait.
+  const src = readFileSync(join(root, 'src', 'webview', 'analyseur.mts'), 'utf8');
+  const bloc = src.slice(src.indexOf('function restaurer'), src.indexOf('function restaurer') + 1400);
+  check('réouverture : restaurer() dresse les pistes quand la liste est vide',
+    /diagnostics\.length === 0 && etat\.voies\.length > 0/.test(bloc) &&
+      /diagnostics = etat\.voies\.map/.test(bloc));
+  check('réouverture : et le sélecteur de déclenchement est regarni avec elles',
+    /remplirVoies\(selDeclVoie/.test(bloc));
+  // Le message `voies`, quand il arrive, doit reprendre la main sans condition :
+  // c'est lui qui porte les DIAGNOSTICS de câblage, que la capture ignore.
+  const surVoies = src.slice(src.indexOf("case 'voies'"), src.indexOf("case 'voies'") + 700);
+  check('réouverture : le message `voies` de l\'atelier reprend la main',
+    /diagnostics = msg\.voies\.map/.test(surVoies) && !/diagnostics\.length === 0/.test(surVoies));
 }
 {
   const c = new AnalyseurCapture();
@@ -582,6 +643,21 @@ check('SPI : quatre rôles proposés (SCK, MOSI, MISO, CS)',
     logicProbeVoies(schema([])).length === 0);
   check('déclenchement : une pince accrochée → une voie, donc l\'onglet s\'ouvre',
     logicProbeVoies(schema([sonde('s1', 0, 'uno1/8')])).length === 1);
+
+  // Branchement par fil : la teinte se déduit du CÂBLAGE, là où les voies
+  // viennent d'être résolues. L'attribut `relie` est posé sur l'élément vivant
+  // et jamais écrit dans le schéma — un .projix dont on retire le fil doit
+  // rouvrir sur une pince grise.
+  check('fil au crochet : la résolution des voies repeint aussi les pinces câblées',
+    /function pousserVoiesLogiques[\s\S]{0,400}?colorerSondesReliees\(\)/.test(sim));
+  const colorer = sim.slice(sim.indexOf('function colorerSondesReliees'),
+    sim.indexOf('function colorerSondesReliees') + 900);
+  check('fil au crochet : une voie SANS accroche mais AVEC broche = branchée par un fil',
+    /!!v\.pin && !v\.accroche/.test(colorer));
+  check('fil au crochet : l\'attribut est retiré dès que le fil disparaît',
+    /removeAttribute\('relie'\)/.test(colorer));
+  check('fil au crochet : `relie` ne part jamais dans le schéma enregistré',
+    !/relie/.test(JSON.stringify(partDef('sonde-logique').attrs)));
 
   // L'aide utilisateur doit dire ce nouveau geste, sinon l'élève cherche un
   // bouton qui n'existe plus.

@@ -165,6 +165,10 @@ async function run() {
 	// mais loadDiagram ne sélectionne rien : il faut le faire à la main.
 	editor.select({ kind: 'part', id: 'SD1' });
 	await wait(20);
+	// Position de la pastille AVANT toute rotation : c'est la broche qu'elle
+	// pince, et la rotation ne doit pas l en decrocher (item 1.3 du 17/09 :
+	// « la sonde doit tourner autour de sa broche de connection »).
+	const pivot = pinCenters()[0];
 	for (const [i, step] of [90, 90, 90].entries()) { // 90 puis 180 puis 270 cumulés
 		editor.rotateSelection(step);
 		await wait(20);
@@ -174,40 +178,73 @@ async function run() {
 			rot === (i + 1) * 90 % 360 && pins.length === 1
 				&& offGrid(pins[0].x) < 0.05 && offGrid(pins[0].y) < 0.05,
 			'rotation=' + rot + ' ' + fmt(pins));
+		// ET AU MÊME croisement. Avant ce lot la pastille restait bien sur la
+		// grille — mais un carreau ou trois plus loin : le composant tournait
+		// autour du centre de sa boite, puis on recollait la pastille sur le
+		// croisement le plus proche de LÀ. Une pince posée sur GP0 se retrouvait
+		// sur une autre broche, ou dans le vide.
+		const dx = pins.length === 1 ? Math.abs(pins[0].x - pivot.x) : 999;
+		const dy = pins.length === 1 ? Math.abs(pins[0].y - pivot.y) : 999;
+		ok('sonde tournée à ' + ((i + 1) * 90) + '° : elle pivote AUTOUR de sa pastille (elle ne bouge pas)',
+			dx < 0.6 && dy < 0.6,
+			'écart=' + dx.toFixed(2) + ' ; ' + dy.toFixed(2) + ' px');
 	}
 	editor.rotateSelection(90); // retour à 0° pour les contrôles suivants
 	await wait(20);
 
-	// --- 5. Le CROCHET métallique se voit (v2026.9.4.94) ---------------------
-	// Il était noyé sous la mâchoire verte : 4,5 px de long en diagonale, dont
-	// tout sauf le dernier millimètre recouvert par path14-32. On mesure donc
-	// deux choses — sa taille, et le fait qu'il ressorte du dessin coloré.
+	// --- 5. Le CROCHET métallique : un ERGOT, pas une aiguille (v2026.9.4.97) -
+	// Reprise du 17/09. Au lot .94 il était devenu un long trait peint par-dessus
+	// tout le dessin — visible, mais posé SUR la pince comme une écharde. Frank
+	// le veut court dehors, large, et donnant l'impression de RENTRER dans le
+	// corps plastique. On mesure donc quatre choses : qu'il dépasse (sinon on ne
+	// le voit pas), qu'il dépasse PEU, qu'il soit épais, et qu'il passe SOUS le
+	// dessin coloré au lieu de le recouvrir.
 	{
 		const el = document.querySelector('[id="SD1"] kablix-sonde-logique')
 			|| [...document.querySelectorAll('kablix-sonde-logique')].pop();
 		const r = el && el.shadowRoot;
 		const tige = r && r.querySelector('#path944');
 		const bb = tige && tige.getBBox();
-		// 8×8 unités de viewBox pour un demi-crochet de 4 : un trait en diagonale
-		// qui traverse la pastille et sort de la mâchoire des deux côtés.
-		ok('crochet : au moins 6 unités de viewBox dans chaque sens',
-			bb && bb.width >= 6 && bb.height >= 6,
+		// La boîte couvre l'ergot ET la partie enfouie : ~5,8 unités en diagonale.
+		// Trop petite, le crochet ne rentrerait dans rien ; trop grande, il
+		// ressortirait de l'autre bout du corps.
+		ok('crochet : le trait entier mesure entre 4 et 9 unités de viewBox',
+			bb && bb.width >= 4 && bb.width <= 9 && bb.height >= 4 && bb.height <= 9,
 			bb ? bb.width.toFixed(2) + 'x' + bb.height.toFixed(2) : 'tige introuvable');
-		// La mâchoire commence à ~5,5 unités de la pastille : un crochet qui ne
-		// dépasse pas ce bord reste invisible, quelle que soit sa longueur.
+		// ASYMÉTRIE : c'est elle qui fait « rentrer » l'ergot. La partie enfouie
+		// (vers le haut-droit) doit être nettement plus longue que l'ergot visible
+		// (vers le bas-gauche). Un crochet symétrique — celui du lot .94 — a l'air
+		// planté en travers de la pince, ce que Frank a signalé.
+		const pastilleY = 70; // SONDE_PIN.y, en unités de viewBox
+		const dedans = bb ? (pastilleY - bb.y) : 0;
+		const dehors = bb ? (bb.y + bb.height - pastilleY) : 0;
+		ok('crochet : sa partie enfouie est au moins double de son ergot visible',
+			dedans > dehors * 2,
+			'dedans=' + dedans.toFixed(2) + ' dehors=' + dehors.toFixed(2));
+		// Épaisseur : c'est la demande « pas assez large ». Elle se lit sur le
+		// style, la boîte englobante d'une diagonale ne la donne pas.
+		const st = tige && (tige.getAttribute('style') || '');
+		// Découpage à la main plutôt qu'une expression régulière : ce fichier est
+		// un gabarit entre backticks, les échappements y sont mangés (déjà vu).
+		const ep = st ? Number(st.split('stroke-width:')[1].split(';')[0]) : NaN;
+		ok("crochet : au moins 2 unités d'épaisseur (un ergot, pas un cheveu)",
+			ep >= 2, 'stroke-width=' + ep);
+		// L'ergot doit SORTIR sous la mâchoire, sans quoi rien ne se voit.
 		const mach = r && r.querySelector('#path14-32');
-		const mb = mach && mach.getBBox();
-		const svg = r && r.querySelector('svg > svg');
-		// Comparaison en coordonnées ÉCRAN : les deux vivent dans des repères
-		// différents (le crochet dans le viewBox, la mâchoire dans le groupe
-		// tourné de la planche).
 		const rc = tige && tige.getBoundingClientRect();
 		const rm = mach && mach.getBoundingClientRect();
-		ok('crochet : sa pointe dépasse sous la mâchoire verte',
-			rc && rm && rc.bottom > rm.bottom + 2,
+		ok('crochet : son ergot dépasse sous la mâchoire verte',
+			rc && rm && rc.bottom > rm.bottom,
 			rc && rm ? 'crochet bas=' + rc.bottom.toFixed(1) + ' mâchoire bas=' + rm.bottom.toFixed(1) : 'introuvable');
-		ok('crochet : peint APRÈS le dessin coloré (dernier enfant du SVG)',
-			tige && tige.parentNode.lastElementChild === tige,
+		// Mais PEU : au lot .94 l'ergot faisait 4 unités sous la pastille, soit
+		// presque la moitié d'un carreau de grille — il arrivait bien au-delà du
+		// croisement au lieu de s'y arrêter. Frank : « il est trop long ».
+		ok("crochet : son ergot s'arrête à moins de 2 unités sous la pastille",
+			dehors > 0 && dehors < 2, 'ergot=' + dehors.toFixed(2) + ' unités');
+		// SOUS le plastique : premier enfant, donc peint en premier. C'est ce qui
+		// donne l'impression que l'ergot entre dans le corps.
+		ok('crochet : peint SOUS le dessin coloré (premier enfant du SVG)',
+			tige && tige.parentNode.firstElementChild === tige,
 			tige ? String(tige.parentNode.nodeName) : 'tige introuvable');
 		// Dégradé argenté : recalé sur le nouveau segment, sinon le trait sort
 		// d'une seule teinte plate (le dégradé d'origine est posé à des centaines
@@ -217,6 +254,23 @@ async function run() {
 		ok('crochet : dégradé métallique recalé en travers du trait',
 			grad && Math.abs(gx1 - 10) < 2 && grad.getAttribute('gradientTransform') === 'translate(0,0)',
 			grad ? 'x1=' + gx1 + ' gt=' + grad.getAttribute('gradientTransform') : 'dégradé introuvable');
+		// MESURE BRUTE du point de connexion, pour diagnostic.
+		// Position de la mâchoire EN UNITÉS DE VIEWBOX : sa boîte locale est dans
+		// un repère transformé (223,213 chez Inkscape), il faut passer par le
+		// rectangle écran et le rapporter au SVG hôte, qui fait 80 unités.
+		const svgH = r && r.querySelector('svg');
+		const rs = svgH && svgH.getBoundingClientRect();
+		const enVb = (v, origine, taille) => ((v - origine) / taille) * 80;
+		const mx = rs && rm ? enVb(rm.left, rs.left, rs.width) : NaN;
+		const my = rs && rm ? enVb(rm.bottom, rs.top, rs.height) : NaN;
+		// LE POINT DE CONNEXION. Frank (17/09) : « sa connection n'est toujours
+		// pas exactement à l'intersection de la grille ». Mesuré avant correction :
+		// la pointe de la mâchoire tombait en (10,73 ; 69,25) alors que la pastille
+		// est déclarée en (10 ; 70). Trois quarts d'unité d'écart — le fil se
+		// raccordait au croisement, mais la pince DESSINÉE pinçait à côté.
+		ok('point de connexion : la pointe de la mâchoire tombe PILE sur la pastille',
+			Math.abs(mx - 10) < 0.2 && Math.abs(my - 70) < 0.2,
+			'pointe=(' + mx.toFixed(2) + ' ; ' + my.toFixed(2) + ') pastille=(10 ; 70)');
 	}
 
 	// --- 6. Grise tant qu'elle n'est accrochée à rien (v2026.9.4.94) ---------
@@ -257,6 +311,26 @@ async function run() {
 		const colore = corps && corps.getAttribute('fill');
 		ok('décrochage : le CORPS de la pince est repeint en gris', gris === GRIS, String(gris));
 		ok('repose : le CORPS reprend la teinte de la voie', colore && colore !== GRIS, String(colore));
+
+		// L AUTRE geste (v2026.9.4.97) : rien SOUS la pince, mais un cordon à son
+		// crochet. La sonde mesure pour de bon, elle ne doit donc pas rester
+		// grise. C est sim.mts qui pose l attribut relie d apres le cablage,
+		// jamais le schema enregistre.
+		el.setAttribute('accroche', '');
+		await wait(20);
+		const avantFil = el.couleur;
+		el.setAttribute('relie', '1');
+		await wait(20);
+		const parFil = el.couleur;
+		const corpsFil = corps && corps.getAttribute('fill');
+		el.removeAttribute('relie');
+		await wait(20);
+		const filCoupe = el.couleur;
+		ok('branchée par un FIL au crochet : elle prend la couleur de sa voie',
+			avantFil === GRIS && parFil !== GRIS, avantFil + ' puis ' + parFil);
+		ok('branchée par un fil : le CORPS aussi est repeint',
+			corpsFil && corpsFil !== GRIS, String(corpsFil));
+		ok('fil retiré : elle redevient grise', filCoupe === GRIS, filCoupe);
 	}
 
 	const out = document.createElement('pre');
