@@ -386,6 +386,7 @@ function groupeDecodage(d: ReglageDecodage): HTMLElement {
     ['spi', 'SPI'],
     ['uart', 'UART'],
     ['onewire', '1-Wire'],
+    ['dht', 'DHT11 / DHT22'],
     ['dmx', 'DMX512'],
   ] as Array<[Protocole, string]>) {
     const o = document.createElement('option');
@@ -473,6 +474,33 @@ function groupeDecodage(d: ReglageDecodage): HTMLElement {
       d.bitsDonnees = f.bits;
       d.parite = f.parite;
       d.bitsArret = f.stop;
+      dessiner();
+      envoyerReglages();
+    });
+    lab.append(sel);
+    boite.append(lab);
+  }
+
+  if (d.protocole === 'dht') {
+    // Les deux capteurs envoient la MÊME trame, avec les mêmes durées : rien
+    // sur le fil ne dit lequel parle. Seule l'interprétation des octets change
+    // — d'où un réglage, comme le mode SPI ou le format UART.
+    const lab = document.createElement('label');
+    lab.className = 'role';
+    lab.textContent = t('Sensor');
+    const sel = document.createElement('select');
+    for (const [v, nom] of [
+      ['dht22', 'DHT22'],
+      ['dht11', 'DHT11'],
+    ] as Array<['dht11' | 'dht22', string]>) {
+      const o = document.createElement('option');
+      o.value = v;
+      o.textContent = nom;
+      sel.append(o);
+    }
+    sel.value = d.modele ?? 'dht22';
+    sel.addEventListener('change', () => {
+      d.modele = sel.value as 'dht11' | 'dht22';
       dessiner();
       envoyerReglages();
     });

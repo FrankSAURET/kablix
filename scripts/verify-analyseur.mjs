@@ -778,6 +778,172 @@ const oneWireDe = (sequence) => {
     ann.map((a) => `${a.texte}@${a.voie}`).join(' | '));
 }
 
+// --- DHT11 / DHT22 ---------------------------------------------------------------
+// LE BANC NE FABRIQUE PAS LE SIGNAL À LA MAIN. Il appelle `buildDht22Schedule`,
+// la fonction du MOTEUR qui pilote réellement la broche en simulation : c'est un
+// aller-retour moteur → décodeur, le seul contrôle qui ne puisse pas rester vert
+// sur deux conventions contraires. Une trame écrite à la main dans le banc
+// prouverait que je sais recopier une fiche technique, rien de plus — et le lot
+// .99 a montré qu'un contrôle qui ne discrimine pas passe sans qu'on le voie.
+const { buildDht22Schedule, dht22Bytes } =
+  await buildTo('src/webview/engines/dht22.mts', 'dht22.mjs');
+
+/**
+ * Décode et rend les TEXTES, sans faire mourir le banc quand le protocole est
+ * inconnu du code sous test. Indispensable à la contre-épreuve : `decoder` avec
+ * un protocole absent du `switch` rend `undefined`, et le `.map()` qui suit
+ * lève — le banc s'arrêtait alors AVANT d'afficher le moindre échec, et un
+ * `grep ❌` comptait zéro. Un banc muet n'est pas un banc vert.
+ */
+const textesDht = (voies, reglage) => {
+  try {
+    const ann = decoder(voies, reglage);
+    return Array.isArray(ann) ? ann.map((a) => a.texte) : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+/**
+ * Fronts d'une trame DHT complète : creux de départ du maître, puis la réponse
+ * du capteur telle que le moteur la produit. Le moteur horodate en CYCLES ; ici
+ * on prend 1 cycle = 1 µs (`cyclesPerUs = 1`) et on convertit en ms simulées.
+ */
+const dhtDe = (tempC, humidity, model) => {
+  const US = 0.001; // un µs en ms simulées
+  const fronts = [];
+  let t = 1.0;
+  // Signal de départ du maître : il tire bas ~1 ms puis relâche.
+  fronts.push([t, 0]);
+  t += 1000 * US;
+  fronts.push([t, 1]);
+  t += 30 * US; // le capteur laisse passer un court instant avant de répondre
+  const depart = t;
+  for (const ev of buildDht22Schedule(tempC, humidity, 0, 1, model)) {
+    fronts.push([depart + ev.cycle * US, ev.value ? 1 : 0]);
+  }
+  t = fronts[fronts.length - 1][0] + 500 * US; // retour au repos
+  return fronts;
+};
+
+{
+  const fronts = dhtDe(23.4, 56.7, 'dht22');
+  const textes = textesDht([voieDe(0, 'DATA', fronts, 1)], { protocole: 'dht', donnees: 0 });
+  check('DHT : le signal de départ du maître est repéré',
+    textes.includes('DÉPART'), textes.join(' | '));
+  check('DHT : l\'accusé de réception du capteur est repéré',
+    textes.includes('PRÉSENT'), textes.join(' | '));
+  // Les cinq octets attendus viennent de l'encodeur du moteur, pas d'une
+  // constante recopiée : si l'encodage change, le contrôle suit.
+  const attendus = dht22Bytes(23.4, 56.7, 'dht22')
+    .map((b) => `0x${b.toString(16).toUpperCase().padStart(2, '0')}`).join(' ');
+  check('DHT : les cinq octets relus sont EXACTEMENT ceux que le moteur a émis',
+    textes.includes(attendus), `attendu ${attendus} · lu ${textes.join(' | ')}`);
+  check('DHT : la mesure est rendue en clair (humidité et température)',
+    textes.some((x) => x.includes('56.7 %HR') && x.includes('23.4 °C')), textes.join(' | '));
+  check('DHT : la somme de contrôle est vérifiée et annoncée bonne',
+    textes.some((x) => x.includes('somme ✓')) && !textes.some((x) => x.includes('SOMME ✗')),
+    textes.join(' | '));
+  check('DHT : le palier de 80 µs de l\'accusé n\'est PAS compté comme un bit',
+    // S'il l'était, la trame serait décalée d'un bit : les octets seraient faux
+    // et la somme avec. Le contrôle exige donc une trame COMPLÈTE ET juste, pas
+    // seulement l'absence d'un message d'erreur — une liste vide passerait.
+    textes.includes(attendus) && !textes.some((x) => x.includes('/40 bits')),
+    textes.join(' | '));
+}
+{
+  // Une température NÉGATIVE : le DHT22 code un bit de signe et une valeur
+  // absolue, pas un complément à deux. Le lire en signé donnerait +3276,7 °C —
+  // un défaut invisible tant qu'on ne teste que des températures positives.
+  const fronts = dhtDe(-12.5, 40.0, 'dht22');
+  const textes = textesDht([voieDe(0, 'DATA', fronts, 1)], { protocole: 'dht', donnees: 0 });
+  check('DHT22 : une température négative est lue comme telle (bit de signe, pas complément à deux)',
+    textes.some((x) => x.includes('-12.5 °C')), textes.join(' | '));
+}
+{
+  // Même trame, même durées, LE MÊME SIGNAL : seul le réglage change. C'est tout
+  // l'intérêt de l'avoir sorti en option — rien sur le fil ne distingue les deux
+  // capteurs.
+  const fronts = dhtDe(22, 55, 'dht11');
+  const voies = [voieDe(0, 'DATA', fronts, 1)];
+  const enDht11 = textesDht(voies, { protocole: 'dht', donnees: 0, modele: 'dht11' });
+  const enDht22 = textesDht(voies, { protocole: 'dht', donnees: 0, modele: 'dht22' });
+  check('DHT11 : les entiers sont lus tels quels (55 %HR, 22 °C)',
+    enDht11.some((x) => x.includes('55 %HR') && x.includes('22 °C')), enDht11.join(' | '));
+  // Exigence des DEUX côtés : le même signal doit rendre une mesure en dht22
+  // ET une mesure DIFFÉRENTE. Sans le premier membre, deux listes vides
+  // passeraient le contrôle — c'est exactement ce que rend un décodeur absent.
+  check('DHT : le réglage du modèle change VRAIMENT la lecture du même signal',
+    enDht22.some((x) => x.includes('%HR')) && !enDht22.some((x) => x.includes('55 %HR · 22 °C')),
+    `dht22 ➜ ${enDht22.join(' | ')}`);
+}
+{
+  // Une trame coupée en route (câble arraché, pince déplacée) doit être
+  // SIGNALÉE, pas rendue avec des octets inventés.
+  const complet = dhtDe(20, 50, 'dht22');
+  // On garde le départ, l'accusé et une quinzaine de bits, puis plus rien.
+  const tronque = complet.slice(0, 40);
+  const textes = textesDht([voieDe(0, 'DATA', tronque, 1)], { protocole: 'dht', donnees: 0 });
+  check('DHT : une trame coupée en route est signalée, pas complétée au hasard',
+    textes.some((x) => /\/40 bits$/.test(x)) && !textes.some((x) => x.includes('%HR')),
+    textes.join(' | '));
+}
+{
+  // Une somme de contrôle fausse = une liaison douteuse. C'est CE message qui
+  // apprend quelque chose à l'élève, « 0x3F » ne lui dirait rien.
+  const fronts = dhtDe(25.0, 60.0, 'dht22');
+  // Le dernier octet est la somme : on retourne son bit de poids fort en
+  // allongeant le palier HAUT qui le porte. Bit 33 de la trame (0-indexé) —
+  // deux fronts par bit, l'accusé en tête.
+  const voies = [voieDe(0, 'DATA', fronts, 1)];
+  const bon = textesDht(voies, { protocole: 'dht', donnees: 0 });
+  check('DHT : point de départ sain avant l\'épreuve de la somme fausse',
+    bon.some((x) => x.includes('somme ✓')), bon.join(' | '));
+  // Corruption : on allonge le palier du tout dernier bit (il passe de 0 à 1).
+  const abimes = fronts.map((p) => [...p]);
+  const dernierMontant = abimes.map((p, i) => [p, i]).filter(([p]) => p[1] === 1).slice(-2)[0];
+  if (dernierMontant) {
+    const i = dernierMontant[1];
+    // On repousse le front descendant qui suit, pour rallonger ce palier HAUT.
+    for (let k = i + 1; k < abimes.length; k++) {
+      if (abimes[k][1] === 0) { abimes[k][0] += 0.05; break; }
+    }
+  }
+  const casse = textesDht([voieDe(0, 'DATA', abimes, 1)], { protocole: 'dht', donnees: 0 });
+  check('DHT : une somme de contrôle fausse est dénoncée',
+    casse.some((x) => x.includes('SOMME ✗')), casse.join(' | '));
+}
+{
+  check('DHT : un seul rôle de voie, obligatoire',
+    rolesDe('dht').length === 1 && rolesDe('dht')[0].obligatoire === true);
+  check('DHT : sans voie de données le réglage est incomplet',
+    !reglageComplet({ protocole: 'dht' }) &&
+    reglageComplet({ protocole: 'dht', donnees: 0 }));
+}
+{
+  // Le DHT n'est PAS du 1-Wire malgré le fil unique : le bit y est dans le
+  // palier HAUT, pas dans le creux. Décoder l'un avec l'autre ne doit pas
+  // rendre une mesure par accident — sinon un élève croirait avoir branché le
+  // bon décodeur.
+  const fronts = dhtDe(23.4, 56.7, 'dht22');
+  const enOneWire = decoder([voieDe(0, 'DATA', fronts, 1)], { protocole: 'onewire', donnees: 0 })
+    .map((a) => a.texte);
+  // Et la réciproque, qui prouve d'où vient le bit : dans une trame DHT TOUS les
+  // creux durent 50 µs, seuls les paliers HAUTS varient (28 ou 70 µs). Un
+  // décodeur qui lirait le creux ne pourrait rendre que des bits identiques —
+  // donc jamais les octets du moteur. Les avoir relus exactement EST la preuve.
+  const creux = [];
+  for (let i = 0; i + 1 < fronts.length; i++) {
+    if (fronts[i][1] === 0 && fronts[i + 1][1] === 1) creux.push(fronts[i + 1][0] - fronts[i][0]);
+  }
+  const bits = creux.slice(2); // on saute le départ du maître et l'accusé
+  check('DHT : le bit est dans le palier HAUT — tous les creux de la trame sont identiques',
+    bits.length >= 40 && bits.every((d) => Math.abs(d - bits[0]) < 1e-9),
+    `${bits.length} creux, min ${Math.min(...bits)} max ${Math.max(...bits)}`);
+  check('DHT lu en 1-Wire : aucune mesure n\'en sort (ce sont deux protocoles différents)',
+    !enOneWire.some((x) => x.includes('%HR')), enOneWire.join(' | '));
+}
+
 // --- Rendu : géométrie et graduations -------------------------------------------
 // Le tracé lui-même se vérifie à l'œil (et par les gestes dans verify:souris) ;
 // ici on prouve les CONVERSIONS, parce qu'un réticule décalé de 100 px vient

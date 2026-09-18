@@ -1,6 +1,4 @@
 # À faire
-1. Analyseur logique
-    1. ✅ Ajouter décodage Twi, 1-wire, single-bus (dht11 et dht22 zt tu le nommera "DHT11/DHT22") et UART. — TWI = I²C (même bus, un seul décodeur, renommé « I²C / TWI ») ; UART et 1-Wire ajoutés. ⬜ Reste le single-bus DHT11/DHT22, qui n'est PAS du 1-Wire malgré l'apparence : trame de 40 bits sans adressage ni commande, le bit se lit à la durée du niveau HAUT et non du creux.
 1. Repliement des panneaux :
     1. je t'ai fais une image avant aprés de ce que je veux ici "repliement panneaux.png"
     1. Tu notera en haut ce qu'on voit actuellement à gauche déplié et à droite replié et en dessous ce que je veux
@@ -9,8 +7,28 @@
         1. Fleche au dessus de l'ascenseur pour replier, si il y a un ascenseur sans ascenseur elle ne doit pas empièter sur le texte. 
         1. Une fois replié, le texte devient verticale et est centré dans le mini panneau avec la flêche au dessus
   1. J'ai rajouté 1 composants (dans composants2D.svg) en 2 versions (CI et Étanche). Le choix se fait dans les propriétés. C'est un DSB1820. En simulation il trouve un curseur de température (-55 à +125 +-0,5°C), protocole 1-wire. Il se met dans la bibliothèque externe.
+  1. L'heure du build ne dois pas apparaitre dans une version publiée.
+  1. Les fils peuvent passer sur une sonde mais doivent etre dessinnées dessous
 ## ne pas faire pour l'instant
-1. Ajouter ds18b20 (item 3 ci-dessus).
+
+
+---
+
+# >>>>  v2026.9.4.100 — Le DHT décodé, et un banc qui mourait au lieu d'échouer
+
+1. ✅ **Item 1.1 : décodage DHT11 / DHT22.** Le `DÉPART` du microcontrôleur, le `PRÉSENT` du capteur, les cinq octets, puis la mesure en clair (`56.7 %HR · 23.4 °C`) et le verdict de la somme de contrôle. Une trame coupée en route est signalée telle quelle (`17/40 bits`), jamais complétée au hasard.
+2. ℹ️ **Décodeur SÉPARÉ du 1-Wire, malgré le fil unique des deux.** Le DHT n'est pas du 1-Wire Dallas : le bit y est porté par la durée du palier **HAUT** (28 µs = 0, 70 µs = 1) et non par celle du creux, il n'y a ni ROM ni commande, et l'ordre des bits est MSB d'abord. Une option sur le décodeur 1-Wire aurait mélangé deux protocoles qui n'ont en commun que le nombre de fils.
+3. ✅ **Réglage du modèle exposé, parce que rien sur le fil ne le donne.** DHT11 et DHT22 émettent la MÊME trame avec les MÊMES durées ; seule l'interprétation des quatre octets diffère (dixièmes signés contre entiers). Un contrôle le prouve : le même signal rend deux mesures différentes selon le réglage.
+4. ✅ **Le palier de 80 µs de l'accusé de réception n'est pas compté comme un bit.** Il dure plus que le seuil : le compter donnerait un « 1 » de trop, la trame décalée d'un bit et les cinq octets faux. Contrôlé sur les octets eux-mêmes, pas sur l'absence d'un message d'erreur.
+5. ✅ **Seize contrôles neufs dans [verify-analyseur.mjs](scripts/verify-analyseur.mjs), dont un aller-retour moteur → décodeur.** Le banc ne fabrique PAS le signal : il appelle `buildDht22Schedule`, la fonction qui pilote réellement la broche en simulation, et compare aux octets de `dht22Bytes`. Une trame écrite à la main dans le banc n'aurait prouvé que ma capacité à recopier une fiche technique.
+6. ✅ **Température négative couverte.** Le DHT22 code un bit de signe et une valeur ABSOLUE, pas un complément à deux : lue en signé, −12,5 °C devient +3276,7 °C. Invisible tant qu'on ne teste que des températures positives.
+7. ✅ **Contrôle de la provenance du bit** : dans une trame DHT, TOUS les creux durent 50 µs, seuls les paliers hauts varient. Un décodeur qui lirait le creux ne pourrait rendre que des bits identiques — donc jamais les octets du moteur. Les avoir relus exactement EST la preuve.
+8. ✅ **Défaut de banc trouvé par la contre-épreuve : le banc MOURAIT au lieu d'échouer.** Décodeur remisé au `git stash`, `decoder` rendait `undefined` (protocole absent du `switch`), le `.map()` levait, et le banc s'arrêtait **avant d'afficher le moindre échec**. Un `grep ❌` comptait **zéro** — exactement le piège que l'en-tête du banc documente (« un banc muet passerait pour un banc vert ») et que j'ai quand même déclenché.
+9. ℹ️ **Quatre contrôles étaient verts sur une liste vide**, donc verts sans le code. Chacun ne cherchait que l'ABSENCE de quelque chose (« pas de message d'erreur », « pas la même mesure ») : rien du tout satisfait cette exigence. Refaits pour exiger une trame complète ET juste. Contre-épreuve finale : **0 échec avant, 12 après**, tous nommés.
+10. ✅ **Fiche [sonde-logique.md](docs/fr/composants/sonde-logique.md) complétée** : ligne du tableau, ce qui se règle et ne se devine pas (le modèle), ce que le décodage montre, et un cas d'usage — `DÉPART` sans `PRÉSENT` = capteur muet, `SOMME ✗` = liaison abîmée. `verify:docs` : 25 contrôles OK.
+11. ✅ **Suite complète : 114 bancs sur 115.** Le seul échec est `verify:i18n`, dette de traduction connue et **inchangée** (7 échecs).
+12. ⏳ **Traductions en attente** : `t('Sensor')` est une chaîne neuve, en anglais (langue de base). À verser au lot d'avant publication.
+13. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 100. CHANGELOG complété sous `2026.9.5 (prochaine publication)`.
 
 ---
 

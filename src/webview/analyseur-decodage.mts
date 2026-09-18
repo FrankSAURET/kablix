@@ -55,8 +55,14 @@ export interface Annotation {
  * `i2c` couvre aussi ce que l'Arduino appelle TWI : c'est le même bus, seul le
  * nom de la bibliothèque change (brevet Philips oblige). Un seul décodeur donc,
  * présenté sous les deux noms dans l'interface.
+ *
+ * `dht` est un décodeur À PART de `onewire`, malgré le fil unique des deux : le
+ * DHT n'est pas du 1-Wire Dallas. Le bit y est porté par la durée du palier
+ * HAUT (28 µs = 0, 70 µs = 1) et non par celle du creux, il n'y a ni ROM ni
+ * commande, et l'ordre des bits est MSB d'abord. Décoder l'un avec l'autre ne
+ * rend pas des octets faux : ça n'en rend aucun.
  */
-export type Protocole = 'i2c' | 'spi' | 'dmx' | 'uart' | 'onewire';
+export type Protocole = 'i2c' | 'spi' | 'dmx' | 'uart' | 'onewire' | 'dht';
 
 /** Affectation des voies à un décodeur (indices de voie, -1 = non affectée). */
 export interface ReglageDecodage {
@@ -79,6 +85,14 @@ export interface ReglageDecodage {
   parite?: 'none' | 'even' | 'odd';
   /** UART : nombre de bits d'arrêt (1 ou 2). */
   bitsArret?: 1 | 2;
+  /**
+   * DHT : modèle du capteur. Les deux envoient la MÊME trame de 40 bits, avec
+   * les mêmes durées — rien sur le fil ne permet de les distinguer, il faut
+   * donc le dire. Ce qui change est l'INTERPRÉTATION des quatre octets : le
+   * DHT22 code des dixièmes (température signée par un bit de signe), le DHT11
+   * des entiers avec les décimales à zéro. `dht22` par défaut.
+   */
+  modele?: 'dht11' | 'dht22';
   /**
    * Tolérance relative sur la durée d'un bit (0,25 = ±25 %). Un palier qui
    * tombe au-delà est signalé comme mal cadré au lieu d'être arrondi en
@@ -751,6 +765,154 @@ function decoderOneWire(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
   return out;
 }
 
+// --- DHT11 / DHT22 -------------------------------------------------------------
+
+/** Durées de la trame DHT, en µs. */
+const DHT = {
+  /** Le maître tire bas au moins ~1 ms pour réveiller le capteur (500 suffit à le reconnaître). */
+  depart: 500,
+  /**
+   * Au-delà de ce palier HAUT, le bit vaut 1 ; en deçà, il vaut 0. Les valeurs
+   * du capteur sont 28 µs et 70 µs : le seuil est posé à mi-chemin, ce qui
+   * laisse ±40 % de marge de chaque côté — largement de quoi absorber une
+   * capture à pas grossier.
+   */
+  seuilBit: 50,
+  /** Silence HAUT qui referme une trame restée incomplète. */
+  repos: 200,
+} as const;
+
+/**
+ * DHT11 / DHT22 (capteurs température-humidité à un seul fil).
+ *
+ * MALGRÉ LE FIL UNIQUE, CE N'EST PAS DU 1-WIRE. Rien du protocole Dallas n'y
+ * est : ni ROM, ni commande, ni slot de lecture. Le capteur ne répond qu'à une
+ * chose — un creux de départ du maître — et débite ensuite 40 bits d'affilée
+ * sans que le maître ne dise plus rien.
+ *
+ * Chaque bit commence par 50 µs BAS, puis c'est la durée du palier HAUT qui
+ * porte l'information : ~28 µs = 0, ~70 µs = 1. C'est l'inverse exact du
+ * 1-Wire, où le bit est dans le creux — d'où deux décodeurs et non un seul
+ * avec une option.
+ *
+ * Ce qui sort : les cinq octets en hexadécimal, puis l'humidité, la température
+ * et le verdict de la somme de contrôle. Un élève qui voit `SOMME ✗` sait que
+ * sa liaison est trop longue ou mal tirée, ce que « 0x3F » ne lui dirait pas.
+ */
+function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
+  const v = voie(voies, r.donnees);
+  if (!v || v.fronts.length === 0) return [];
+
+  const usMs = 1 / 1000;
+  const modele = r.modele ?? 'dht22';
+  const out: Annotation[] = [];
+
+  /** Bits de la trame en cours, MSB d'abord (le DHT n'inverse pas, lui). */
+  let bits: number[] = [];
+  let tTrame = 0;
+  /** Vrai entre l'accusé de réception et la fin des 40 bits. */
+  let enTrame = false;
+  /**
+   * Le prochain creux est celui de l'accusé de réception (80 bas / 80 haut) :
+   * son palier HAUT ne vaut PAS un bit. Il dure 80 µs, plus que le seuil : le
+   * compter donnerait un « 1 » de trop, la trame entière décalée d'un bit et
+   * les cinq octets faux.
+   */
+  let attendAccuse = false;
+
+  /** Pose les cinq octets et le résumé d'une trame complète ou tronquée. */
+  const clore = (tFin: number): void => {
+    if (bits.length === 0) {
+      enTrame = false;
+      return;
+    }
+    if (bits.length < 40) {
+      out.push({ t0: tTrame, t1: tFin, texte: `${bits.length}/40 bits`, nature: 'erreur' });
+      bits = [];
+      enTrame = false;
+      return;
+    }
+    const o: number[] = [];
+    for (let k = 0; k < 5; k++) {
+      let b = 0;
+      for (let j = 0; j < 8; j++) b = (b << 1) | bits[k * 8 + j]!; // MSB d'abord
+      o.push(b);
+    }
+    out.push({
+      t0: tTrame,
+      t1: tFin,
+      texte: o.map(hex2).join(' '),
+      nature: 'donnee',
+    });
+    const somme = (o[0]! + o[1]! + o[2]! + o[3]!) & 0xff;
+    const ok = somme === o[4]!;
+    out.push({
+      t0: tTrame,
+      t1: tFin,
+      texte: `${mesureDht(o, modele)} · ${ok ? 'somme ✓' : 'SOMME ✗'}`,
+      nature: ok ? 'controle' : 'erreur',
+    });
+    bits = [];
+    enTrame = false;
+  };
+
+  for (let i = 0; i < v.fronts.length; i++) {
+    const f = v.fronts[i]!;
+    if (f.niveau !== 0) continue; // on part toujours d'un front DESCENDANT
+    const montant = v.fronts.slice(i + 1).find((x) => x.niveau === 1);
+    if (!montant) break; // creux jamais refermé : la capture s'arrête dedans
+    const creuxUs = (montant.t - f.t) / usMs;
+
+    if (creuxUs >= DHT.depart) {
+      // Signal de départ du maître : ce qui traînait avant n'appartient pas à
+      // la trame qui commence.
+      clore(f.t);
+      out.push({ t0: f.t, t1: montant.t, texte: 'DÉPART', nature: 'cadre' });
+      attendAccuse = true;
+      continue;
+    }
+
+    // Longueur du palier HAUT qui suit ce creux : c'est LUI qui porte le bit.
+    const j = v.fronts.findIndex((x) => x === montant);
+    const descendant = v.fronts.slice(j + 1).find((x) => x.niveau === 0);
+    const hautUs = descendant ? (descendant.t - montant.t) / usMs : Infinity;
+
+    if (attendAccuse) {
+      out.push({ t0: f.t, t1: montant.t, texte: 'PRÉSENT', nature: 'cadre' });
+      attendAccuse = false;
+      enTrame = true;
+      tTrame = montant.t;
+      continue;
+    }
+    if (!enTrame) continue; // du bruit hors trame : rien à en tirer
+
+    if (hautUs >= DHT.repos) {
+      // La ligne est retombée au repos : la trame s'arrête ici, complète ou non.
+      bits.push(hautUs >= DHT.seuilBit ? 1 : 0);
+      clore(descendant ? descendant.t : montant.t);
+      continue;
+    }
+    bits.push(hautUs >= DHT.seuilBit ? 1 : 0);
+    if (bits.length === 40) clore(descendant ? descendant.t : montant.t);
+  }
+  clore(v.fronts[v.fronts.length - 1]!.t);
+  return out;
+}
+
+/** Humidité et température lues dans les quatre octets utiles d'une trame DHT. */
+function mesureDht(o: number[], modele: 'dht11' | 'dht22'): string {
+  if (modele === 'dht11') {
+    // Le DHT11 ne code que des entiers : les octets de décimales valent 0.
+    return `${o[0]} %HR · ${o[2]} °C`;
+  }
+  const rh = ((o[0]! << 8) | o[1]!) / 10;
+  const brut = (o[2]! << 8) | o[3]!;
+  // Bit 15 = signe, et le reste est une valeur ABSOLUE — pas un complément à
+  // deux : lire -0x8001 comme un entier signé donnerait +3276,7 °C.
+  const t = ((brut & 0x8000 ? -1 : 1) * (brut & 0x7fff)) / 10;
+  return `${rh.toFixed(1)} %HR · ${t.toFixed(1)} °C`;
+}
+
 // --- Entrée publique ---------------------------------------------------------
 
 /**
@@ -771,6 +933,8 @@ export function decoder(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
         return decoderUart(voies, r);
       case 'onewire':
         return decoderOneWire(voies, r);
+      case 'dht':
+        return decoderDht(voies, r);
     }
   })();
   // Chaque annotation part avec SA voie de données : c'est ce qui permet à la
@@ -839,6 +1003,8 @@ export function rolesDe(p: Protocole): Array<{ cle: keyof ReglageDecodage; nom: 
       return [{ cle: 'donnees', nom: 'TX/RX', obligatoire: true }];
     case 'onewire':
       return [{ cle: 'donnees', nom: 'DQ', obligatoire: true }];
+    case 'dht':
+      return [{ cle: 'donnees', nom: 'DATA', obligatoire: true }];
   }
 }
 

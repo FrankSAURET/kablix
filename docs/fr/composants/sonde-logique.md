@@ -60,7 +60,7 @@ Changer de réglage **réarme** l'attente.
 
 ## Le décodage
 
-Sélecteur **Décoder** : `I²C / TWI`, `SPI`, `UART`, `1-Wire` ou `DMX512`. Il faut ensuite dire **quelle voie joue quel rôle** :
+Sélecteur **Décoder** : `I²C / TWI`, `SPI`, `UART`, `1-Wire`, `DHT11 / DHT22` ou `DMX512`. Il faut ensuite dire **quelle voie joue quel rôle** :
 
 | Protocole | Rôles à désigner |
 |-----------|------------------|
@@ -68,6 +68,7 @@ Sélecteur **Décoder** : `I²C / TWI`, `SPI`, `UART`, `1-Wire` ou `DMX512`. Il 
 | **SPI** | l'horloge (SCK), MOSI, MISO, la sélection (CS), plus le **mode** 0 à 3 |
 | **UART** | la ligne série (TX ou RX), plus le **format** (`8N1`, `7E1`…) et la **vitesse** |
 | **1-Wire** | la ligne unique (DQ) |
+| **DHT11 / DHT22** | la ligne unique (DATA), plus le **modèle** du capteur |
 | **DMX512** | la ligne de données |
 
 `I²C` et `TWI` sont **le même bus** : seul le nom change d'une bibliothèque à l'autre. Un seul décodage suffit pour les deux.
@@ -78,12 +79,15 @@ Les octets et les repères de trame (`START`, `STOP`, `ACK`, `RESET`, numéros d
 
 Le mode SPI ne se devine pas depuis les créneaux — deux modes donnent les mêmes fronts et des octets différents. C'est un réglage, comme sur un appareil du commerce.
 
+Le **modèle** d'un capteur DHT non plus. Le DHT11 et le DHT22 envoient exactement la même trame, avec les mêmes durées : **rien sur le fil ne permet de les distinguer**. Ce qui change est la façon de lire les quatre octets — dixièmes de degré et température négative possible pour le DHT22, entiers seulement pour le DHT11. Choisir le mauvais modèle ne donne pas d'erreur, il donne des valeurs fausses.
+
 La **vitesse** et le **format** d'une ligne UART non plus : deux vitesses voisines produisent les mêmes fronts et des octets différents, et un même signal lu en `8N1` ou en `7E1` ne donne pas les mêmes caractères. Des octets en charabia : c'est presque toujours la vitesse qu'il faut revoir en premier (elle se saisit dans les réglages de la **voie**, pas du décodage — deux lignes série d'un montage ne tournent pas forcément à la même allure).
 
 ### Ce que chaque décodage montre
 
 - **UART** — chaque caractère sort avec sa valeur et, quand il est imprimable, le caractère lui-même : `0x48 'H'`. Un bit d'arrêt manquant est signalé `cadrage`, une parité fausse `parité` — l'octet reste affiché, à vous de juger.
 - **1-Wire** — une seule ligne, aucune horloge : c'est la **durée du creux** qui porte le bit. Le décodeur repère le `RESET` et nomme les commandes courantes en clair (`SKIP ROM`, `CONVERT T`, `READ SCRATCHPAD`…), parce que `0x44` ne dit rien alors que `CONVERT T` dit tout. Il ne distingue pas qui parle du maître ou de l'esclave : sur le fil, c'est le même creux, et un appareil du commerce ne fait pas mieux avec une seule pince.
+- **DHT11 / DHT22** — un seul fil lui aussi, mais **ce n'est pas du 1-Wire** : ici le bit est porté par la durée du palier **HAUT** (environ 28 µs pour un `0`, 70 µs pour un `1`), et il n'y a ni ROM ni commande. Vous voyez d'abord le `DÉPART` du microcontrôleur, puis le `PRÉSENT` du capteur qui accuse réception, puis les cinq octets, et enfin la mesure en clair : `56.7 %HR · 23.4 °C · somme ✓`. La **somme de contrôle** est recalculée et annoncée : un `SOMME ✗` désigne une liaison douteuse — fil trop long, résistance de tirage absente — bien mieux que cinq octets en hexadécimal ne le feraient. Une trame coupée en route est signalée telle quelle (`17/40 bits`) plutôt que complétée au hasard.
 
 ## Ce qu'une pince ne peut pas montrer
 
@@ -99,6 +103,7 @@ L'analyseur ne se tait jamais : une voie qui ne trace rien **dit pourquoi**, en 
 - Une pince sur `8`, une sur `9`, étiquetées, et l'on voit d'un coup d'œil laquelle bat deux fois plus vite que l'autre.
 - Pour un bus I²C : une pince sur `SDA`, une sur `SCL`, décodage `I²C / TWI`, et les adresses des composants s'écrivent en clair sous les créneaux.
 - Pour voir ce que `Serial.print()` envoie vraiment : une pince sur la broche `TX`, décodage `UART`, vitesse réglée sur celle du `Serial.begin()`, et le texte apparaît caractère par caractère sous les créneaux.
+- Pour comprendre pourquoi un capteur DHT ne répond pas : une pince sur sa broche `DATA`, décodage `DHT11 / DHT22`. Un `DÉPART` seul, sans `PRÉSENT` derrière, et le capteur est muet — câblage ou alimentation. Un `SOMME ✗`, et il parle mais la liaison abîme ses octets.
 - Pour attraper un événement rare : déclenchement sur son front, puis on zoome autour de l'instant 0.
 - Créneau trop serré ou trop étalé : molette. La règle donne toujours l'échelle réelle (s, ms, µs, ns).
 
