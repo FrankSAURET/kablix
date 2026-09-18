@@ -130,7 +130,16 @@ export interface KeypadConfig {
   pressed: Set<string>;
 }
 
-/** Capteur DHT22 (température/humidité, protocole 1-wire) à simuler. */
+/**
+ * Capteur DHT22/DHT11 (température/humidité) à simuler.
+ *
+ * ATTENTION : ce n'est PAS du 1-Wire Dallas, malgré le fil unique. Le DHT tient
+ * un MONOLOGUE — le MCU le réveille, puis le capteur débite ses 40 bits tout
+ * seul, MSB d'abord, sans adresse ni commande. Le vrai 1-Wire (DS18B20,
+ * `Ds18b20Sensor` ci-dessous) est un DIALOGUE : le maître ouvre CHAQUE bit par
+ * un front descendant, LSB d'abord, et les capteurs ont une ROM d'adressage.
+ * Les deux ne partagent que le nombre de fils.
+ */
 export interface Dht22Sensor {
   /** Broche MCU reliée à la ligne de données. */
   pin: string;
@@ -140,6 +149,16 @@ export interface Dht22Sensor {
   humidity: number;
   /** Modèle : le DHT11 code des entiers, le DHT22 des dixièmes (défaut). */
   model?: 'dht11' | 'dht22';
+}
+
+/** Capteur DS18B20 (température, vrai protocole 1-Wire Dallas) à simuler. */
+export interface Ds18b20Sensor {
+  /** Identifiant du composant dans le schéma : fixe son adresse ROM. */
+  id: string;
+  /** Broche MCU reliée à la ligne DQ. */
+  pin: string;
+  /** Température simulée, en °C (curseur de l'inspecteur, −55 à +125). */
+  temperatureC: number;
 }
 
 /** Afficheur LCD HD44780 en bus parallèle (broches côté MCU). */
@@ -272,8 +291,10 @@ export interface SimEngine {
    * basse n'était jamais vue. À appeler à chaque appui/relâchement.
    */
   syncKeypads?(): void;
-  /** Déclare les capteurs DHT22 : répond au protocole 1-wire avec température/humidité. */
+  /** Déclare les capteurs DHT22/DHT11 : répondent en température/humidité. */
   setDht22?(sensors: Dht22Sensor[]): void;
+  /** Déclare les capteurs DS18B20 : dialoguent en 1-Wire Dallas sur la ligne DQ. */
+  setDs18b20?(sensors: Ds18b20Sensor[]): void;
   /** Relie des périphériques I²C (esclaves) au bus du MCU (LCD, PCA9685…). */
   setI2cDevices?(devices: I2cDevice[]): void;
   /** Relie des périphériques SPI (esclaves) au bus du MCU (OLED SPI…). */

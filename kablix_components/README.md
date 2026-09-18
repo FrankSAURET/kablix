@@ -19,6 +19,8 @@ Voir [kompix_specification.md](../docs/kompix_specification.md) pour les détail
 | | Type | Label | Version | Catégorie | Description |
 |---|------|-------|---------|-----------|-------------|
 | <img src="thumbnails/dmx-grove.webp" alt="Grove DMX512" width="64"> | `dmx-grove` | Grove DMX512 | 2026.8.1 | Misc | Grove DMX512 shield (SP3485 line driver): turns th |
+| <img src="thumbnails/ds18b20.webp" alt="Temperature sensor DS18B20 (TO-92)" width="64"> | `ds18b20` | Temperature sensor DS18B20 (TO-92) | 2026.9.0 | Sensors | Dallas DS18B20 digital temperature sensor (-55 to  |
+| <img src="thumbnails/ds18b20-etanche.webp" alt="Temperature sensor DS18B20 (waterproof probe)" width="64"> | `ds18b20-etanche` | Temperature sensor DS18B20 (waterproof probe) | 2026.9.0 | Sensors | Dallas DS18B20 digital temperature sensor (-55 to  |
 | <img src="thumbnails/grove-light-sensor.webp" alt="Grove light sensor" width="64"> | `grove-light-sensor` | Grove light sensor | 2026.9.1 | Sensors | Grove ambient light sensor (LS06-S phototransistor |
 | <img src="thumbnails/grove-rfid.webp" alt="Grove 125 kHz RFID reader" width="64"> | `grove-rfid` | Grove 125 kHz RFID reader | 2026.9.1 | Sensors | Grove 125 kHz RFID reader (EM4100 tags): while a t |
 | <img src="thumbnails/grove-uno.webp" alt="Grove Shield (Uno)" width="64"> | `grove-uno` | Grove Shield (Uno) | 2026.9.1 | Boards | Grove Base Shield V2 for Arduino Uno: 16 Grove soc |
@@ -42,4 +44,4 @@ Pour proposer un composant :
 
 ---
 
-Généré le 13/09/2026 18:10:39 — Kablix v2026.9.4
+Généré le 18/09/2026 16:11:28 — Kablix v2026.9.4

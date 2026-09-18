@@ -124,6 +124,7 @@ a pas de carte à remplacer.
 | Moteur à courant continu | `moteur-dc-uno` | `moteur-dc-pico` | `moteur-dc-pico2` | tourne avec sa diode, cale sur une broche, transistor détruit sans roue libre |
 | DHT22 (temp/humidité) | `dht22-uno` | `dht22-pico` | `dht22-pico2` | T + H toutes les 2 s |
 | DHT11 (temp/humidité) | `dht11-uno` | `dht11-pico` | `dht11-pico2` | valeurs entières, 1 lecture/s |
+| DS18B20 (température) | `ds18b20-uno` | `ds18b20-pico` | `ds18b20-pico2` | composant de la bibliothèque publique (`.kompix`) ; vrai 1-Wire Dallas : sur l'Uno, DEUX capteurs (TO-92 + sonde étanche) sur le même fil, chacun à son adresse ; rappel 4,7 kΩ obligatoire ; curseur de température de −55 à +125 °C |
 | Clavier matriciel 4×4 | `keypad-uno` | `keypad-pico` | `keypad-pico2` | touche affichée |
 | CI logiques : ET et OU | `CI1-uno` | `CI1-pico` | `CI1-pico2` | CD4081/74HC08 et CD4071/74HC32, deux entrées communes, table de vérité comparée porte par porte |
 | CI logiques : OU EXCLUSIF et NON-ET | `CI2-uno` | `CI2-pico` | `CI2-pico2` | CD4070/74HC86 et CD4011/74HC00, même principe |

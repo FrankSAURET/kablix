@@ -21,6 +21,7 @@ import type {
   Breakpoint,
   DebugPauseState,
   Dht22Sensor,
+  Ds18b20Sensor,
   KeypadConfig,
   LcdParallelConfig,
   NetRequest,
@@ -612,6 +613,10 @@ export class WorkerEngine implements SimEngine {
 
   setDht22(sensors: Dht22Sensor[]): void {
     this.post({ t: 'setDht22', sensors });
+  }
+
+  setDs18b20(sensors: Ds18b20Sensor[]): void {
+    this.post({ t: 'setDs18b20', sensors });
   }
 
   setNeopixels(strips: Array<{ pin: string; count: number }>): void {

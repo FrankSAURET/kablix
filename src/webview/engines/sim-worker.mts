@@ -380,6 +380,9 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
       case 'setDht22':
         engine?.setDht22?.(msg.sensors as never);
         return;
+      case 'setDs18b20':
+        engine?.setDs18b20?.(msg.sensors as never);
+        return;
       case 'setKeypads': {
         const cfgs = msg.keypads as Array<{ rows: Array<string | null>; cols: Array<string | null> }>;
         keypads = cfgs.map((k) => ({ rows: k.rows, cols: k.cols, pressed: new Set<string>() }));

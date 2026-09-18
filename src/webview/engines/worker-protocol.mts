@@ -146,6 +146,7 @@ export type ToWorker =
   | { t: 'setKeypads'; keypads: unknown[] }
   | { t: 'keypadPressed'; pressed: string[] }
   | { t: 'setDht22'; sensors: unknown[] }
+  | { t: 'setDs18b20'; sensors: unknown[] }
   | { t: 'setNeopixels'; strips: unknown[] }
   | { t: 'setLcdParallel'; screens: unknown[] }
   /**

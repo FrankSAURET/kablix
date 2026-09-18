@@ -4184,6 +4184,42 @@ export function dht22Bindings(diagram: Diagram): Dht22Binding[] {
   return out;
 }
 
+export interface Ds18b20Binding {
+  partId: string;
+  /** Broche MCU reliée à la ligne DQ (1-Wire Dallas). */
+  pin: string;
+}
+
+/**
+ * Capteurs 1-Wire Dallas du schéma dont la ligne DQ va à une broche MCU.
+ *
+ * Le filtre porte sur le KIND, pas sur le type : le DS18B20 vient de la
+ * bibliothèque externe et son type est déclaré dans son manifeste (deux
+ * versions, CI et étanche). Tout composant qui déclare `onewire-temp` sera donc
+ * simulé, sans rien changer ici.
+ *
+ * La patte porte le rôle « Data » ; on accepte aussi les noms usuels du dessin
+ * (« DQ », « Data ») pour qu'un composant sans `pinRoles` marche quand même.
+ */
+export function ds18b20Bindings(diagram: Diagram): Ds18b20Binding[] {
+  const nets = buildNets(diagram);
+  const out: Ds18b20Binding[] = [];
+  for (const part of diagram.parts) {
+    const def = partDef(part.type);
+    if (def.kind !== 'onewire-temp') continue;
+    const roles = def.custom?.pinRoles ?? def.pinRoles;
+    const nomme =
+      Object.keys(roles ?? {}).find((p) => String(roles?.[p]).toLowerCase() === 'data') ??
+      ['Data', 'DATA', 'DQ', 'data'].find((p) =>
+        nets.netOf({ partId: part.id, pin: p }) !== null
+      );
+    if (!nomme) continue;
+    const pin = mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: nomme }));
+    if (pin) out.push({ partId: part.id, pin });
+  }
+  return out;
+}
+
 export interface SpiDeviceBinding {
   partId: string;
   /** Type du composant (spi-oled, spi-tft, spi-sd…). */

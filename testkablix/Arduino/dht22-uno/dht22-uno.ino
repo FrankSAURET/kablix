@@ -1,20 +1,19 @@
-// Test DHT22 : température et humidité sur la ligne DATA (1-wire).
+// Test DHT22 : température et humidité sur la ligne DATA. Un seul fil de
+// données, mais ce n'est PAS du 1-Wire Dallas (voir le test ds18b20-uno) : le
+// DHT22 débite sa trame tout seul, sans adresse et sans dialogue.
 #include <DHT.h>
 
 DHT dht(2, DHT22);
-float t;
-float h;
+
 void setup() {
   Serial.begin(115200);
   dht.begin();
 }
 
 void loop() {
-  delay(2100);   // le DHT22 ne fournit une NOUVELLE mesure que toutes les 2 s :
-                 // sans ce délai, la bibliothèque renvoie sa valeur en cache et
-                 // le moniteur série se remplit de lignes identiques.
-  t = dht.readTemperature();
-  h = dht.readHumidity();
+  delay(2100);   // le DHT22 ne répond qu'une fois toutes les 2 s
+  float t = dht.readTemperature();
+  float h = dht.readHumidity();
   if (isnan(t) || isnan(h)) {
     Serial.println("lecture ratee");
     return;

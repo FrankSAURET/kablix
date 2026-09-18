@@ -141,6 +141,10 @@ export const PART_PINS = {
   // le SENS des deux fils de données, jamais leur nom — en UART le module parle
   // sur « Tx » seul, en Wiegand « Tx » devient DATA0 et « Rx » DATA1.
   'grove-rfid': ['Tx', 'Rx', 'VCC', 'GND'],
+  // Capteur de température DS18B20 : trois broches dans les deux versions (le
+  // TO-92 et la sonde étanche), « Data » étant la ligne 1-Wire.
+  ds18b20: ['GND', 'Data', 'VDD'],
+  'ds18b20-etanche': ['GND', 'Data', 'VDD'],
 };
 
 // --- Grove Shield (Uno) : la carte fille qui se pose sur l'Arduino Uno ---------
@@ -1679,7 +1683,9 @@ void loop() {
       w('Capt1', 'GND', 'U1', 'GND.1', 'black'),
     ],
     expect: { kind: 'dht22', partId: 'Capt1', mcuPin: '2' },
-    code: `// Test DHT22 : température et humidité sur la ligne DATA (1-wire).
+    code: `// Test DHT22 : température et humidité sur la ligne DATA. Un seul fil de
+// données, mais ce n'est PAS du 1-Wire Dallas (voir le test ds18b20-uno) : le
+// DHT22 débite sa trame tout seul, sans adresse et sans dialogue.
 #include <DHT.h>
 
 DHT dht(2, DHT22);
@@ -1702,6 +1708,72 @@ void loop() {
   Serial.print(" C   H = ");
   Serial.print(h);
   Serial.println(" %");
+}
+`,
+  }),
+
+  // DS18B20 : vrai 1-Wire Dallas. Deux capteurs sur LE MÊME fil de données —
+  // le TO-92 et la sonde étanche — chacun répondant à son adresse d'usine.
+  // C'est ce que le DHT22 ne sait pas faire. La sortie est à collecteur ouvert :
+  // le rappel de 4,7 kΩ vers 5 V est obligatoire, sans lui la ligne ne remonte
+  // jamais et la bibliothèque rend −127.
+  test({
+    name: 'ds18b20-uno', board: 'uno', ext: 'ino',
+    kompix: ['ds18b20', 'ds18b20-etanche'],
+    parts: [
+      MCU('uno'),
+      { id: 'Capt1', type: 'ds18b20', x: 600, y: 80 },
+      { id: 'Capt2', type: 'ds18b20-etanche', x: 600, y: 200 },
+      { id: 'R1', type: 'resistor', x: 460, y: 60, attrs: { value: '4700' } },
+    ],
+    wires: () => [
+      w('Capt1', 'VDD', 'U1', '5V', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Capt1', 'Data', 'U1', '2', 'yellow'),
+      w('Capt2', 'VDD', 'U1', '5V', 'red'),
+      w('Capt2', 'GND', 'U1', 'GND.2', 'black'),
+      w('Capt2', 'Data', 'U1', '2', 'yellow'),
+      w('R1', '1', 'U1', '2', 'orange'),
+      w('R1', '2', 'U1', '5V', 'red'),
+    ],
+    expect: {
+      kind: 'onewire-temp',
+      sensors: [
+        { partId: 'Capt1', mcuPin: '2' },
+        { partId: 'Capt2', mcuPin: '2' },
+      ],
+    },
+    code: `// Test DS18B20 : deux capteurs de température sur le MÊME fil (1-Wire Dallas).
+// En simulation, chaque composant porte un curseur « Température » : ce qu'on y
+// règle est ce que le programme lit.
+// Résistance de 4,7 kohms entre la ligne Data et 5 V : obligatoire.
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+OneWire fil(2);
+DallasTemperature capteurs(&fil);
+
+void setup() {
+  Serial.begin(115200);
+  capteurs.begin();
+  Serial.print("capteurs trouves : ");
+  Serial.println(capteurs.getDeviceCount());
+}
+
+void loop() {
+  capteurs.requestTemperatures();   // 750 ms de conversion en 12 bits
+  for (int i = 0; i < capteurs.getDeviceCount(); i++) {
+    float t = capteurs.getTempCByIndex(i);
+    Serial.print("T");
+    Serial.print(i);
+    Serial.print(" = ");
+    if (t == DEVICE_DISCONNECTED_C) Serial.println("lecture ratee");
+    else {
+      Serial.print(t);
+      Serial.println(" C");
+    }
+  }
+  delay(1000);
 }
 `,
   }),
@@ -4916,6 +4988,51 @@ while True:
         print("T =", capteur.temperature(), "C   H =", capteur.humidity(), "%")
     except OSError as e:
         print("lecture ratee :", e)
+`,
+  }),
+
+  // Même capteur qu'en `ds18b20-uno`, côté Pico et en un seul exemplaire : la
+  // sonde étanche. MicroPython embarque `onewire` et `ds18x20`, rien à
+  // installer. Le rappel de 4,7 kohms reste obligatoire — le rappel interne du
+  // Pico (~50 kohms) est bien trop mou pour la ligne 1-Wire.
+  test({
+    name: 'ds18b20-pico', board: 'pico', ext: 'py',
+    kompix: ['ds18b20-etanche'],
+    parts: [
+      MCU('pico'),
+      { id: 'Capt1', type: 'ds18b20-etanche', x: 680, y: 60 },
+      { id: 'R1', type: 'resistor', x: 540, y: 60, attrs: { value: '4700' } },
+    ],
+    wires: () => [
+      w('Capt1', 'VDD', 'U1', '3V3', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.5', 'black'),
+      w('Capt1', 'Data', 'U1', 'GP14', 'yellow'),
+      w('R1', '1', 'U1', 'GP14', 'orange'),
+      w('R1', '2', 'U1', '3V3', 'red'),
+    ],
+    expect: {
+      kind: 'onewire-temp',
+      sensors: [{ partId: 'Capt1', mcuPin: 'GP14' }],
+    },
+    code: `# Test DS18B20 : sonde etanche sur GP14 (1-Wire Dallas).
+# En simulation, le curseur « Temperature » du composant donne la valeur lue.
+# Resistance de 4,7 kohms entre Data et 3,3 V : obligatoire.
+from machine import Pin
+import onewire
+import ds18x20
+import time
+
+fil = onewire.OneWire(Pin(14))
+capteurs = ds18x20.DS18X20(fil)
+adresses = capteurs.scan()
+print("capteurs trouves :", len(adresses))
+
+while True:
+    capteurs.convert_temp()
+    time.sleep(0.75)   # 750 ms de conversion en 12 bits
+    for adresse in adresses:
+        print("T =", capteurs.read_temp(adresse), "C")
+    time.sleep(0.25)
 `,
   }),
 

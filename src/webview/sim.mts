@@ -110,6 +110,7 @@ import {
   ultrasonicBindings,
   keypadBindings,
   dht22Bindings,
+  ds18b20Bindings,
   pca9685Bindings,
   rgbLedBindings,
   sevenSegmentBindings,
@@ -3056,6 +3057,41 @@ function bindInputs(): void {
       if (!el) continue;
       el.addEventListener('input', pushDht);
       inputRemovers.push(() => el.removeEventListener('input', pushDht));
+    }
+  }
+
+  // Capteurs DS18B20 (vrai 1-Wire Dallas) : température réglée EN SIMULATION par
+  // le curseur du composant. Contrairement aux capteurs analogiques, la valeur ne
+  // part PAS en `setAnalog` — elle nourrit l'automate de protocole, qui la code
+  // en scratchpad quand le programme lui demande une conversion.
+  {
+    const dsBindings = ds18b20Bindings(editor.diagram);
+    const dsEls = dsBindings.map((b) => ({
+      id: b.partId,
+      pin: b.pin,
+      el: editor.elementOf(b.partId),
+      ctrl: partDef(
+        editor.diagram.parts.find((p) => p.id === b.partId)?.type ?? ''
+      ).custom?.control,
+    }));
+    const pushDs = () =>
+      engine?.setDs18b20?.(
+        dsEls.map(({ id, pin, el, ctrl }) => ({
+          id,
+          pin,
+          // `controlValue` porte la position du curseur ; à défaut (composant
+          // sans contrôle, schéma ouvert hors simulation) on prend le milieu de
+          // course déclaré, sinon 25 °C.
+          temperatureC: Number(
+            el?.controlValue ?? (ctrl ? ((ctrl.min ?? -55) + (ctrl.max ?? 125)) / 2 : 25)
+          ),
+        }))
+      );
+    pushDs();
+    for (const { el } of dsEls) {
+      if (!el) continue;
+      el.addEventListener('input', pushDs);
+      inputRemovers.push(() => el.removeEventListener('input', pushDs));
     }
   }
 

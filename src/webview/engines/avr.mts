@@ -47,6 +47,7 @@ import type {
   DebugPauseState,
   DebugVariable,
   Dht22Sensor,
+  Ds18b20Sensor,
   KeypadConfig,
   LcdParallelConfig,
   SimEngine,
@@ -59,6 +60,7 @@ import {
   DHT22_START_LOW_US,
   type Dht22Monitor,
 } from './dht22.mjs';
+import { Ds18b20 } from './ds18b20.mjs';
 import { DEFAULT_AIR_TEMP_C, echoUsPerCm } from './ultrasonic.mjs';
 import { selectSpiDevice, Hd44780, type I2cDevice, type SpiDevice } from './i2c-devices.mjs';
 import { Ws2812Decoder } from './ws2812.mjs';
@@ -378,8 +380,19 @@ export class AvrEngine implements SimEngine {
   private spiDevices: SpiDevice[] = [];
   private spiSelected = new Map<SpiDevice, boolean>();
 
-  // Capteurs DHT22 : surveillance du signal de départ (1-wire) par broche.
+  // Capteurs DHT22 : surveillance du signal de départ par broche.
   private dht22: Dht22Monitor[] = [];
+
+  // Capteurs DS18B20 : un automate 1-Wire par capteur, plus l'état du fil.
+  //
+  // Contrairement au DHT (une trame entière programmée d'un coup au réveil), le
+  // 1-Wire est un DIALOGUE : le maître ouvre CHAQUE bit par un front descendant
+  // et l'automate décide au coup par coup s'il doit tirer la ligne. On suit donc
+  // les DEUX fronts de la broche, et `tenu` retient jusqu'à quand le capteur
+  // maintient le fil bas pour ne pas le relâcher sous le pied du maître.
+  private ds18b20: Array<{
+    id: string; pin: string; auto: Ds18b20; etaitBas: boolean; tenuJusqua: number;
+  }> = [];
 
   constructor(
     program: Uint16Array,
@@ -465,6 +478,7 @@ export class AvrEngine implements SimEngine {
         this.sampleNeopixels();
         this.sampleLcdParallel();
         this.sampleDht22();
+        this.sampleDs18b20();
         this.sampleSpiSelect();
         this.applyKeypads();
         this.onUpdate?.();
@@ -1093,6 +1107,75 @@ export class AvrEngine implements SimEngine {
     // démarrer. Réservé aux capteurs NOUVEAUX : forcer les autres écraserait la
     // réponse en cours.
     for (const d of this.dht22) if (!before.includes(d)) this.setInput(d.pin, true);
+  }
+
+  setDs18b20(sensors: Ds18b20Sensor[]): void {
+    const avant = this.ds18b20;
+    this.ds18b20 = sensors.map((s) => {
+      // Curseur bougé pendant un dialogue : on met à jour l'automate EXISTANT.
+      // Le recréer perdrait la phase en cours (le capteur oublierait qu'on vient
+      // de lui envoyer SKIP ROM) et reforcerait la ligne à HAUT au milieu d'un
+      // créneau — la bibliothèque lirait un CRC faux et jetterait la mesure.
+      // C'est le défaut qu'avait connu le DHT22 en v205.
+      const prec = avant.find((d) => d.id === s.id && d.pin === s.pin);
+      if (prec) {
+        prec.auto.temperatureC = s.temperatureC;
+        return prec;
+      }
+      const auto = new Ds18b20(s.id, CYCLES_PER_US);
+      auto.temperatureC = s.temperatureC;
+      return { id: s.id, pin: s.pin, auto, etaitBas: false, tenuJusqua: 0 };
+    });
+    // Ligne DQ au repos = HAUT (résistance de tirage). Seulement pour les
+    // capteurs NOUVEAUX : forcer les autres couperait un dialogue en cours.
+    for (const d of this.ds18b20) if (!avant.includes(d)) this.setInput(d.pin, true);
+  }
+
+  /**
+   * Suit les deux fronts de la ligne DQ et laisse l'automate 1-Wire répondre.
+   *
+   * Le maître tire la ligne BAS pour ouvrir chaque créneau, puis la relâche.
+   * L'automate mesure la durée du bas — c'est elle qui distingue un RESET
+   * (≥ 480 µs), un « 0 » écrit (long) et un « 1 » écrit (court) — et rend
+   * l'impulsion qu'il veut poser sur le fil, qu'on programme en temps simulé.
+   */
+  private sampleDs18b20(): void {
+    if (this.ds18b20.length === 0) return;
+    const now = this.cpu.cycles;
+    for (const d of this.ds18b20) {
+      const map = this.pinMap[d.pin];
+      if (!map) continue;
+      const bas = this.ports[map[0]]?.pinState(map[1]) === PinState.Low;
+      // Tant que le CAPTEUR tient le fil bas, le bas qu'on lit est le sien : le
+      // prendre pour un créneau du maître ferait répondre l'automate à sa propre
+      // voix. On attend donc la fin de l'impulsion posée.
+      //
+      // Garde DÉFENSIVE : mesuré, `fireScheduled` ne redéclenche pas ce listener,
+      // donc le cas ne se produit pas aujourd'hui (retirer cette ligne laisse le
+      // banc vert). Elle reste parce que le jour où l'application d'une action
+      // programmée réveillera les écoutes — c'est le chemin normal des autres
+      // capteurs — le dialogue se mettrait à bégayer sans elle, et le défaut
+      // serait très pénible à retrouver.
+      if (now < d.tenuJusqua) continue;
+      if (bas && !d.etaitBas) {
+        d.etaitBas = true;
+        this.appliquerDs18b20(d, d.auto.frontDescendant(now));
+      } else if (!bas && d.etaitBas) {
+        d.etaitBas = false;
+        this.appliquerDs18b20(d, d.auto.frontMontant(now));
+      }
+    }
+  }
+
+  /** Pose sur le fil une impulsion demandée par l'automate (BAS puis relâche). */
+  private appliquerDs18b20(
+    d: { pin: string; tenuJusqua: number },
+    imp: { debut: number; fin: number } | null
+  ): void {
+    if (!imp) return;
+    this.scheduled.push({ cycle: imp.debut, name: d.pin, value: false });
+    this.scheduled.push({ cycle: imp.fin, name: d.pin, value: true });
+    d.tenuJusqua = imp.fin;
   }
 
   /**

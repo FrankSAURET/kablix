@@ -18,6 +18,46 @@
       }
     },
     {
+      "type": "ds18b20-etanche",
+      "label": "Temperature sensor DS18B20 (waterproof probe)",
+      "version": "2026.9.0",
+      "author": "Frank Sauret",
+      "description": "Dallas DS18B20 digital temperature sensor (-55 to +125 °C, ±0.5 °C): it talks over a single data wire (1-Wire), so several sensors can share the same pin — each one carries its own factory address. A 4.7 kΩ pull-up between Data and VDD is required. This is the stainless-steel probe on a lead, for liquids and outdoor use.",
+      "category": "Sensors",
+      "kind": "onewire-temp",
+      "file": "ds18b20-etanche.kompix",
+      "thumbnail": "data:image/webp;base64,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",
+      "l10n": {
+        "fr": {
+          "label": "Capteur de température DS18B20 (sonde étanche)",
+          "description": "Capteur de température numérique Dallas DS18B20 (−55 à +125 °C, ±0,5 °C) : il dialogue sur un seul fil de données (1-Wire), si bien que plusieurs capteurs peuvent partager la même broche — chacun porte son adresse d'usine. Une résistance de tirage de 4,7 kΩ entre Data et VDD est obligatoire. Version sonde inox au bout d'un câble, pour les liquides et l'extérieur.",
+          "control": {
+            "label": "Température"
+          }
+        }
+      }
+    },
+    {
+      "type": "ds18b20",
+      "label": "Temperature sensor DS18B20 (TO-92)",
+      "version": "2026.9.0",
+      "author": "Frank Sauret",
+      "description": "Dallas DS18B20 digital temperature sensor (-55 to +125 °C, ±0.5 °C): it talks over a single data wire (1-Wire), so several sensors can share the same pin — each one carries its own factory address. A 4.7 kΩ pull-up between Data and VDD is required. This is the bare TO-92 package, for a board or a breadboard.",
+      "category": "Sensors",
+      "kind": "onewire-temp",
+      "file": "ds18b20.kompix",
+      "thumbnail": "data:image/webp;base64,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",
+      "l10n": {
+        "fr": {
+          "label": "Capteur de température DS18B20 (TO-92)",
+          "description": "Capteur de température numérique Dallas DS18B20 (−55 à +125 °C, ±0,5 °C) : il dialogue sur un seul fil de données (1-Wire), si bien que plusieurs capteurs peuvent partager la même broche — chacun porte son adresse d'usine. Une résistance de tirage de 4,7 kΩ entre Data et VDD est obligatoire. Version boîtier TO-92 nu, pour carte ou platine d'essais.",
+          "control": {
+            "label": "Température"
+          }
+        }
+      }
+    },
+    {
       "type": "grove-light-sensor",
       "label": "Grove light sensor",
       "version": "2026.9.1",
@@ -135,5 +175,5 @@
       }
     }
   ],
-  "generated": "2026-09-13T16:10:39.244Z"
+  "generated": "2026-09-18T14:11:28.495Z"
 }

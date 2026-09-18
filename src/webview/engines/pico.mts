@@ -23,6 +23,7 @@ import type {
   Breakpoint,
   DebugPauseState,
   Dht22Sensor,
+  Ds18b20Sensor,
   FlashSegment,
   KeypadConfig,
   LcdParallelConfig,
@@ -37,6 +38,7 @@ import { Ws2812Decoder } from './ws2812.mjs';
 import { DmxDecoder } from './dmx.mjs';
 import { frontsDeTrame, dureeTrameUs, frontsDeBreak, type TrameSerie } from './uart-fronts.mjs';
 import { buildDht22Schedule, DHT22_START_LOW_US, type DhtModel, type DhtTransition } from './dht22.mjs';
+import { Ds18b20 } from './ds18b20.mjs';
 import { DEFAULT_AIR_TEMP_C, echoUsPerCm } from './ultrasonic.mjs';
 
 export type PicoProgram =
@@ -414,6 +416,13 @@ export class PicoEngine implements SimEngine {
     pin: string; index: number; tempC: number; humidity: number; model: DhtModel;
     wasLow: boolean; lowStartNanos: number; busyUntilNanos: number;
   }> = [];
+  // Capteurs DS18B20 : un automate 1-Wire par capteur. Il est construit avec
+  // 1000 « cycles » par microseconde, donc ses instants SONT des nanosecondes —
+  // l'unité de temps du Pico. Cf. avr.mts pour le même branchement en cycles.
+  private ds18b20: Array<{
+    id: string; pin: string; index: number; auto: Ds18b20;
+    etaitBas: boolean; tenuJusquaNanos: number;
+  }> = [];
 
   constructor(program: PicoProgram, famille: PicoFamily = 'rp2040') {
     this.sim = new KablixSimulator(famille);
@@ -459,6 +468,7 @@ export class PicoEngine implements SimEngine {
         this.sampleNeopixels();
         this.sampleLcdParallel();
         this.sampleDht22();
+        this.sampleDs18b20();
         this.sampleSpiSelect();
         this.applyKeypads();
         this.onUpdate?.();
@@ -848,6 +858,79 @@ export class PicoEngine implements SimEngine {
       }
     }
     this.updateNextScheduled();
+  }
+
+  setDs18b20(sensors: Ds18b20Sensor[]): void {
+    const avant = this.ds18b20;
+    this.ds18b20 = [];
+    for (const s of sensors) {
+      const i = gpioIndex(s.pin);
+      if (i === null) continue;
+      // Curseur bougé pendant un dialogue : mise à jour de l'automate existant.
+      // Le recréer perdrait la phase en cours et couperait le créneau — même
+      // correctif que le DHT22 (v205), et cf. avr.mts.
+      const prec = avant.find((d) => d.id === s.id && d.pin === s.pin);
+      if (prec) {
+        prec.auto.temperatureC = s.temperatureC;
+        this.ds18b20.push(prec);
+        continue;
+      }
+      // 1000 « cycles » par µs : les instants rendus par l'automate sont donc
+      // directement des nanosecondes, l'unité de temps de ce moteur.
+      const auto = new Ds18b20(s.id, 1000);
+      auto.temperatureC = s.temperatureC;
+      this.ds18b20.push({
+        id: s.id, pin: s.pin, index: i, auto, etaitBas: false, tenuJusquaNanos: 0,
+      });
+      // Ligne DQ au repos = HAUT (résistance de tirage).
+      this.setInput(s.pin, true);
+    }
+  }
+
+  /**
+   * Suit les deux fronts de la ligne DQ et laisse l'automate 1-Wire répondre.
+   *
+   * Le maître ouvre CHAQUE bit par un front descendant : contrairement au DHT,
+   * rien ne se programme d'avance, tout se décide front par front. Cf. avr.mts.
+   */
+  private sampleDs18b20(): void {
+    if (this.ds18b20.length === 0) return;
+    const nowNanos = this.sim.clock.nanos;
+    let pose = false;
+    for (const d of this.ds18b20) {
+      // Tant que le CAPTEUR tient le fil bas, ce bas est le sien : y répondre
+      // ferait dialoguer l'automate avec sa propre impulsion. Garde défensive,
+      // comme dans avr.mts — cf. le commentaire détaillé là-bas.
+      if (nowNanos < d.tenuJusquaNanos) continue;
+      const bas = this.mcu.gpio[d.index].value === GPIOPinState.Low;
+      if (bas && !d.etaitBas) {
+        d.etaitBas = true;
+        pose = this.appliquerDs18b20(d, d.auto.frontDescendant(nowNanos)) || pose;
+      } else if (!bas && d.etaitBas) {
+        d.etaitBas = false;
+        pose = this.appliquerDs18b20(d, d.auto.frontMontant(nowNanos)) || pose;
+      }
+    }
+    // Sans cela, le front sortirait avec le retard restant du lot (jusqu'à 1 ms)
+    // alors que le maître échantillonne 15 µs après son front — cf. le même
+    // piège sur le DHT dans `updateNextScheduled`.
+    if (pose) this.updateNextScheduled();
+  }
+
+  /** Pose sur le fil une impulsion demandée par l'automate (BAS puis relâche). */
+  private appliquerDs18b20(
+    d: { pin: string; tenuJusquaNanos: number },
+    imp: { debut: number; fin: number } | null
+  ): boolean {
+    if (!imp) return false;
+    // La relâche pend au front BAS : sa durée est ce que le maître mesure, elle
+    // ne doit pas dépendre du retard avec lequel le bas est réellement appliqué.
+    this.scheduled.push({
+      nanos: imp.debut, name: d.pin, value: false,
+      suite: [{ apres: imp.fin - imp.debut, value: true }],
+    });
+    d.tenuJusquaNanos = imp.fin;
+    return true;
   }
 
   /**

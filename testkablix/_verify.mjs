@@ -429,6 +429,20 @@ for (const t of TESTS) {
         }
         break;
       }
+      // DS18B20 : plusieurs capteurs peuvent partager la MÊME broche — c'est
+      // tout l'intérêt du 1-Wire. La spec liste donc les couples attendus, et
+      // on vérifie aussi qu'il n'en sort ni plus ni moins.
+      case 'onewire-temp': {
+        const bs = model.ds18b20Bindings(diagram);
+        check(`${t.name} : ${e.sensors.length} capteur(s) 1-Wire résolu(s)`,
+          bs.length === e.sensors.length, JSON.stringify(bs));
+        for (const attendu of e.sensors) {
+          const b = bs.find((x) => x.partId === attendu.partId);
+          check(`${t.name} : ${attendu.partId}.Data → ${attendu.mcuPin}`,
+            b?.pin === attendu.mcuPin, JSON.stringify(b));
+        }
+        break;
+      }
       case 'diode': {
         // Les deux broches sont au niveau haut : seule la branche dont la diode
         // est dans le bon sens (A → K) laisse passer le courant.

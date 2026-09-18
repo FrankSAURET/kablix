@@ -1,5 +1,4 @@
 # À faire
-1. J'ai rajouté 1 composants (dans composants2D.svg) en 2 versions (CI et Étanche). Le choix se fait dans les propriétés. C'est un DSB1820. En simulation il trouve un curseur de température (-55 à +125 +-0,5°C), protocole 1-wire. Il se met dans la bibliothèque externe.
 1. Nos 3 platines d'essais sont fausses. L'écart entre les lignes du haut et du bas doit être de 3 pas (pour nous 30px) actuellement il n'y en a que 2. Corrige. En même temps tu fais un schéma interne qui montre les liaison entre les trous, matérialisé par des lignes jaunes orangé semi transparentes qui relient les trous.
 1. kablix_components
     1. Y a t'il un intéret à la migrer vers un repo dedié ?
@@ -10,6 +9,30 @@
         1. Fais moi un scenario (à la racine "créer un composant 2D.md" et "créer un composant 3D.md) pour le 2D une carte joy-it SBC-MotorDriver3 et pour le 3D un petit véhicule simple découpé en pmma avec une pico pi, la carte moteur 2d , 4 moteurs, la platine et les rous directement sur l'axe des moteurs.
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# >>>>  v2026.9.4.104 — Le DS18B20 dialogue vraiment en 1-Wire
+
+1. ✅ **Item 1 : le DSB1820 est simulé, en deux versions.** `ds18b20` (TO-92) et `ds18b20-etanche` (sonde inox), tous deux dans la bibliothèque externe (`kablix_components/_sources.json`), avec leur `.kompix` et l'index régénéré.
+2. ℹ️ **Le 1-Wire Dallas n'existait nulle part dans le projet.** Les mentions « 1-wire » du code visaient le DHT22 — qui n'en est pas : le DHT tient un MONOLOGUE (réveil, puis 40 bits débités seul, MSB d'abord, sans adresse), le 1-Wire est un DIALOGUE où le maître ouvre CHAQUE bit par un front descendant, LSB d'abord, avec une ROM de 64 bits. Les deux ne partagent que le nombre de fils. Commentaire faux corrigé dans [types.mts](src/webview/engines/types.mts) et dans le programme de `dht22-uno`.
+3. ✅ **[ds18b20.mts](src/webview/engines/ds18b20.mts) : automate front par front.** Tout l'outillage existant (DHT22, ultrason) programme une trame d'un coup — impossible ici. La classe `Ds18b20` réagit à `frontDescendant`/`frontMontant` et rend les impulsions à poser sur le fil. ROM stable par FNV-1a sur l'identifiant du composant, donc deux capteurs d'un même schéma ont deux adresses.
+4. ✅ **Température en COMPLÉMENT À DEUX** sur 16 bits au 1/16 °C, et non valeur absolue + bit de signe comme le DHT22. CRC8 Dallas au polynôme réfléchi 0x8C, vérifié contre le vecteur Maxim AN27.
+5. ✅ **Branché aux DEUX moteurs.** [avr.mts](src/webview/engines/avr.mts) en cycles (impulsions poussées dans `scheduled`), [pico.mts](src/webview/engines/pico.mts) en nanosecondes avec `updateNextScheduled()` — sans lui le front sort avec le retard du lot (jusqu'à 1 ms), c'est ce qui faisait échouer les DHT.
+6. ✅ **Aucun code d'interface pour le curseur.** `control: { type: 'slider' }` existait déjà dans le manifeste déclaratif : le curseur −55 à +125 °C au pas de 0,5 est une ligne de JSON.
+7. ✅ **Le binding filtre sur le `kind` `onewire-temp`**, pas sur un `type` écrit en dur : tout composant de bibliothèque qui déclare ce genre est simulé sans toucher au code.
+8. ✅ **[verify-ds18b20.mjs](scripts/verify-ds18b20.mjs) : 29 contrôles.** RESET, présence, READ ROM, SKIP ROM, MATCH ROM (bonne ET mauvaise adresse), CONVERT T, READ/WRITE SCRATCHPAD, CRC, températures négatives, saturation aux bornes, commande inconnue, et le silence sans RESET préalable.
+9. ℹ️ **Banc vert du premier coup, donc suspect — et le `git stash` était inopérant** (module neuf non versionné : sans lui le banc ne compile pas, ce qui ne prouve rien). Remplacé par **6 mutations ciblées**, une par couche : CRC faussé, bit reçu inversé, impulsion de lecture trop courte, relecture en valeur absolue, résolution ignorée, MATCH ROM permissif. Résultat : 1, 6, 7, 6, 1 et 1 échecs. Le banc discrimine.
+10. ✅ **[verify-ds18b20-moteur.mjs](scripts/verify-ds18b20-moteur.mjs) : 12 contrôles de bout en bout** sur le VRAI moteur AVR, dont **deux capteurs sur un fil** adressés par MATCH ROM, le curseur bougé en cours de simulation, et une 2e lecture 2 s plus tard (le piège du DHT22 en v205).
+11. ℹ️ **Un garde-fou du banc moteur était rouge pour une raison fausse.** Sur un moteur AVR nu, `PIND` vaut 0 même au repos — la résistance de tirage interne n'est pas modélisée tant que rien ne force la broche : `!reset()` lisait donc « ligne basse = présence » alors que rien ne répondait. Défaut du BANC, pas du code. Il mesure désormais `scheduled.length`, la file d'actions réellement posées sur le fil, en deux volets : sans capteur = 0, avec capteur > 0.
+12. ℹ️ **Une mutation est restée verte, et je l'ai mesurée au lieu de la supposer.** Retirer la garde `tenuJusqua` ne change rien : en comptant les appels, `sampleDs18b20` n'est **pas appelé** pendant l'impulsion du capteur, `fireScheduled` ne redéclenchant pas le listener de port. La garde est conservée (elle protège d'une régression réelle si l'application d'une action programmée réveillait un jour les écoutes) mais son commentaire dit maintenant la vérité, plutôt que de laisser croire le cas couvert.
+13. ✅ **Tests `testkablix` : `ds18b20-uno`, `ds18b20-pico` et le jumeau `ds18b20-pico2`.** Sur l'Uno, DEUX capteurs (TO-92 + étanche) sur le MÊME fil avec le rappel de 4,7 kΩ — c'est ce que le DHT22 ne sait pas faire. Nouveau cas `onewire-temp` dans `_verify.mjs`, qui contrôle aussi le NOMBRE de capteurs résolus. Contre-épreuve : broche faussée → 1 échec, 2e capteur déplacé → 1 échec.
+14. ℹ️ **Le jumeau Pico 2 a demandé son routage.** Un fil sans point de passage est une diagonale à travers la carte portrait : `_router-jumeaux-pico2.mjs` a tracé les 5 fils (15 points), rangés dans `_routage.json` — 87 insertions, 0 suppression, les 47 autres bancs intacts.
+15. ℹ️ **`arduino-cli` est introuvable sur cette machine** : aucun `.ino` n'est compilé par `_verify.mjs`. Dette d'environnement, antérieure au lot. Les 30 autres échecs de `testkablix` sont eux aussi préexistants (vérifié au `git stash` : 30 avant comme après).
+16. ✅ **Fiches d'aide FR** dans `kablix_components/help/ds18b20/` et `…/ds18b20-etanche/` : le rappel de 4,7 kΩ expliqué par le collecteur ouvert, plusieurs capteurs sur un fil, exemples Arduino (le piège du −127) et MicroPython (les 750 ms de conversion).
+17. ⏳ **Traductions : les fiches d'aide EN des deux composants manquent**, ainsi que le bloc `l10n.en`. À faire en un seul lot avant publication. Dette `verify:i18n` **inchangée** (7 échecs).
+18. ✅ **Suite complète : 121 bancs sur 122.** Seul échec : `verify:i18n`, la dette connue.
+19. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 104. CHANGELOG complété sous `2026.9.5 (prochaine publication)`.
 
 ---
 
