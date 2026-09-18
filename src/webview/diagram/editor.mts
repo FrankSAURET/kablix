@@ -6483,8 +6483,15 @@ export class Editor {
       body.appendChild(overlay);
       return;
     }
-    const inner = internalWiringSvg(partDef(r.part.type).kind, pins, r.part.attrs, r.part.type, { w, h });
+    const kind = partDef(r.part.type).kind;
+    const inner = internalWiringSvg(kind, pins, r.part.attrs, r.part.type, { w, h });
     if (!inner) return;
+    // Le voile blanc efface le dessin externe pour faire ressortir un SYMBOLE
+    // tracé par-dessus. La platine d'essai est le cas contraire : ses liaisons
+    // relient des trous, qu'il faut donc continuer à voir sous les traits.
+    const voile = kind === 'breadboard'
+      ? ''
+      : `<rect x="0" y="0" width="${w}" height="${h}" rx="6" fill="rgba(255,255,255,0.8)"/>`;
     // Inséré dans le corps : suit naturellement rotation et retournement.
     const overlay = document.createElement('div');
     overlay.className = 'part__internal';
@@ -6494,7 +6501,7 @@ export class Editor {
     overlay.style.height = `${h}px`;
     overlay.innerHTML =
       `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="${SVG_NS}">` +
-      `<rect x="0" y="0" width="${w}" height="${h}" rx="6" fill="rgba(255,255,255,0.8)"/>` +
+      voile +
       `<g fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</g>` +
       `</svg>`;
     body.appendChild(overlay);

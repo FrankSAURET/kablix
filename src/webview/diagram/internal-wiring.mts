@@ -93,6 +93,10 @@ import ic7486Schema from '../composants/interne/7486-interne.svg';
 import ic7400Schema from '../composants/interne/7400-interne.svg';
 import ic7402Schema from '../composants/interne/7402-interne.svg';
 import ic7414Schema from '../composants/interne/7414-interne.svg';
+// Platine d'essai : les liaisons ne se dessinent pas, elles se CALCULENT — même
+// source que la netlist, sinon la vue interne pourrait montrer autre chose que
+// ce que la simulation relie vraiment.
+import { breadboardStrips, normalizeSize } from './breadboard.mjs';
 
 export interface PinPoint {
   name: string;
@@ -472,6 +476,38 @@ function potentiometer(pins: PinPoint[]): string | null {
 }
 
 /**
+ * Platine d'essai : ce qu'on ne voit PAS en la regardant — les lamelles de
+ * cuivre sous les trous. Une ligne par bande, du premier au dernier trou, ce qui
+ * dit d'un coup d'œil ce qui est relié à quoi : les colonnes de 5 trous des deux
+ * blocs, et les rails d'alimentation sur toute la longueur.
+ *
+ * Les bandes viennent de `breadboardStrips`, celle-là même dont se sert la
+ * netlist : la vue montre donc les liaisons RÉELLEMENT simulées, elle ne les
+ * redessine pas de son côté (deux dessins finiraient par diverger).
+ *
+ * Jaune orangé semi-transparent, à contre-courant du noir des autres schémas :
+ * les traits passent SUR les trous et en masqueraient la lecture. D'où la
+ * surcharge de `stroke` et `stroke-opacity`, imposés par le groupe parent.
+ */
+function breadboard(pins: PinPoint[], attrs?: Record<string, string>): string | null {
+  const size = normalizeSize(attrs?.size);
+  const at = new Map(pins.map((p) => [p.name, { x: p.x, y: p.y }]));
+  const traits: string[] = [];
+  for (const strip of breadboardStrips(size)) {
+    const trous = strip.map((n) => at.get(n)).filter((p): p is XY => !!p);
+    if (trous.length < 2) continue;
+    traits.push(line(trous[0], trous[trous.length - 1]));
+  }
+  if (traits.length === 0) return null;
+  // Trait de 3 px : les trous en font 4, un trait plus épais les enfouirait et
+  // la liaison ne relierait plus rien de visible. La semi-transparence laisse
+  // en plus deviner le trou sous le trait qui le traverse.
+  return `<g stroke="#f0a020" stroke-opacity="0.7" stroke-width="3" stroke-linecap="round">`
+    + traits.join('')
+    + `</g>`;
+}
+
+/**
  * Tracé du câblage interne d'un composant (repère local), ou null si aucun
  * schéma n'est défini. `attrs` varie le schéma (ex. 7 segments cathode/anode) ;
  * `type` distingue les composants partageant un même `kind` (ex. clavier).
@@ -545,6 +581,8 @@ export function internalWiringSvg(
       return sevenSegment(attrs, box);
     case 'potentiometer':
       return potentiometer(pins);
+    case 'breadboard':
+      return breadboard(pins, attrs);
     default:
       return null;
   }

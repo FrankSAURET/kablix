@@ -1,5 +1,4 @@
 # À faire
-1. Nos 3 platines d'essais sont fausses. L'écart entre les lignes du haut et du bas doit être de 3 pas (pour nous 30px) actuellement il n'y en a que 2. Corrige. En même temps tu fais un schéma interne qui montre les liaison entre les trous, matérialisé par des lignes jaunes orangé semi transparentes qui relient les trous.
 1. kablix_components
     1. Y a t'il un intéret à la migrer vers un repo dedié ?
     1. Modifie le readme de ce dossier
@@ -9,6 +8,25 @@
         1. Fais moi un scenario (à la racine "créer un composant 2D.md" et "créer un composant 3D.md) pour le 2D une carte joy-it SBC-MotorDriver3 et pour le 3D un petit véhicule simple découpé en pmma avec une pico pi, la carte moteur 2d , 4 moteurs, la platine et les rous directement sur l'axe des moteurs.
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# >>>>  v2026.9.4.105 — La platine d'essai retrouve sa rigole, et montre ses lamelles
+
+1. ✅ **Item 1 : l'écart entre les deux blocs passe de 2 pas à 3.** Une seule constante en cause, `CHANNEL` dans [breadboard.mts](src/webview/diagram/breadboard.mts), de 20 à 30 px. Tout le reste en découle (`bottomStart`, `breadboardDims`, la rigole dessinée par l'élément visuel).
+2. ℹ️ **Pourquoi 3 pas et pas 2.** 0,3 pouce, c'est l'écartement d'un boîtier DIL : un circuit intégré doit enjamber la rigole, une rangée de pattes de chaque côté. À 2 pas, aucun boîtier ne tombait juste — la platine était inutilisable pour ce à quoi elle sert d'abord.
+3. ✅ **Vérifié avant de corriger qu'aucun schéma existant ne se décalerait** : `grep breadboard testkablix/_spec.mjs` ne rend rien, et aucun schéma d'exemple livré ne pose de platine. Le déplacement de 10 px ne casse donc aucun montage enregistré.
+4. ✅ **Item 1 (2e volet) : le schéma interne montre les liaisons entre trous.** Fonction `breadboard()` dans [internal-wiring.mts](src/webview/diagram/internal-wiring.mts), branchée par un `case 'breadboard'` — le bouton « K » apparaît de lui-même, il ne s'affiche que si `internalWiringSvg` rend autre chose que `null`.
+5. ✅ **Les liaisons ne sont pas dessinées, elles sont CALCULÉES depuis `breadboardStrips`** — la même fonction qui construit les équipotentielles de la netlist. Un tracé écrit à part aurait fini par montrer des liaisons que la simulation ne fait pas ; là, c'est impossible par construction.
+6. ✅ **Le voile blanc est supprimé pour ce genre.** `renderInternalWiring()` de [editor.mts](src/webview/diagram/editor.mts) couvre le dessin externe à 80 % pour faire ressortir un SYMBOLE. La platine est le cas contraire : ses liaisons relient des trous, qu'il faut donc continuer à voir sous les traits.
+7. ℹ️ **Deux réglages corrigés au VU du rendu, pas au jugé.** Premier essai à `stroke-width="6"` : le trait enfouissait les trous (4 px de large) — une liaison qui cache ce qu'elle relie ne montre rien. Ramené à 3 px, opacité montée de 0,55 à 0,7 pour compenser. Constaté sur une capture Chrome des trois tailles, jetée au scratchpad.
+8. ℹ️ **Il a fallu surcharger `stroke` et `stroke-opacity`** : le groupe parent de l'overlay impose `stroke="#111" stroke-width="2"`. Sans la surcharge, les liaisons sortaient en noir.
+9. ✅ **[verify-platine.mjs](scripts/verify-platine.mjs) : 53 contrôles**, sur les trois tailles. L'écart e→f à 3 pas (et sur TOUTES les colonnes, pas seulement la première : une rangée penchée passerait le contrôle d'une seule colonne), le pas conservé ailleurs, la vue interne présente, sa couleur jaune orangé, sa semi-transparence, son épaisseur encadrée des deux côtés.
+10. ✅ **Le banc compare la vue interne à la netlist, pas à une chaîne figée.** Une ligne par bande, ni plus ni moins, et chaque ligne va du premier au dernier trou de SA bande. Une liaison oubliée comme une liaison inventée font tomber le banc.
+11. ℹ️ **Un contrôle mesurait la mauvaise chose et je l'ai corrigé, pas contourné.** « Tous les trous sur la grille de 10 px » échouait : `MARGIN_X = 16` décale tous les x de 6 px, avant mon lot comme après (mesuré au `git stash`). Ce qui compte n'est pas la position absolue mais que les trous soient à un multiple du pas les uns des autres — la platine se cale ensuite d'un bloc. Contrôle réécrit en écart au trou `a1`.
+12. ✅ **Contre-épreuve `git stash` concluante : 11 échecs sur l'ancien code**, couvrant les deux volets — « mesuré 20 px, soit 2 pas » sur les trois tailles, et « la platine a une vue interne » rouge partout.
+13. ✅ **Banc déclaré dans `package.json`** et inséré dans `verify:all:serie` juste après `verify:diagram`. `verify:diagram`, `verify:components`, `verify:equipot` et `verify:net` relancés : verts.
+14. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 105. CHANGELOG complété sous `2026.9.5 (prochaine publication)`.
 
 ---
 

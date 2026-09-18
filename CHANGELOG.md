@@ -13,6 +13,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **La bibliothèque et le panneau Propriétés/Variables se replient** par la petite flèche de leur bord. Le panneau devient une bande étroite portant son nom, et l'état est mémorisé d'une ouverture à l'autre.
 - **La bibliothèque se replie au démarrage de la simulation** et se rouvre à l'arrêt : la place va au schéma. Un réglage désactive ce comportement.
 - **Un générateur BF.**  Il sort un **sinus**, un **triangle** ou un **carré**, de **1 Hz à 1 MHz**, jusqu'à **10 V** de crête, avec **décalage continu** de −5 à +5 V et **rapport cyclique** de 0 à 100 %. Le rapport cyclique déforme le carré **et** le triangle, jusqu'à la dent de scie. Les quatre boutons se tournent à la souris en simulation, et le curseur choisit la forme.
+- **La platine d'essai montre ses liaisons internes.** Le bouton « K » d'une platine dévoile les lamelles de cuivre cachées sous les trous, en traits jaune orangé translucides : on voit d'un coup d'œil quels trous sont reliés entre eux, colonne par colonne et le long des rails d'alimentation.
 - **Un capteur de température DS18B20**, à télécharger dans la bibliothèque de composants, en deux versions : le boîtier TO-92 et la sonde étanche sur câble. Un curseur règle la température de −55 à +125 °C, et le capteur répond pour de bon en 1-Wire : plusieurs capteurs se branchent sur le même fil, chacun avec son adresse.
 
 ### Modification
@@ -33,6 +34,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Correction
 
+- **Les trois platines d'essai ont retrouvé leur bonne rigole.** L'espace entre les deux blocs de trous ne faisait que deux pas au lieu de trois : un circuit intégré ne tombait pas juste, ses pattes ne trouvaient pas les trous de part et d'autre.
 - **L'heure de fabrication n'apparaît plus sous le nom Kablix.** C'est un repère de mise au point : elle reste affichée pendant le développement de l'extension, plus dans la version installée.
 - **L'analyseur affiche enfin ses courbes.** Son onglet restait gris, programme lancé, en pause ou arrêté : né derrière le schéma, il ne recevait aucune image, et une fois ramené devant il gardait sa page vide alors que les voies étaient bien là dans sa légende. Il se dessine maintenant dans tous les cas, et se repeint à coup sûr dès qu'on revient dessus.
 - **Le crochet de la pince pointe pile sur le croisement de la grille.** Son bout — le point où elle mesure — tombait deux carreaux à côté de ce qu'on voyait. Il garde son **bout arrondi**, dont le centre tombe sur l'intersection ; une version l'avait coupé au carré.

@@ -28,7 +28,11 @@ const RAIL_GAP = 20; // espace rail → bloc principal (multiple de 10 px = gril
 
 const ROWS_TOP = ['a', 'b', 'c', 'd', 'e'] as const;
 const ROWS_BOTTOM = ['f', 'g', 'h', 'i', 'j'] as const;
-const CHANNEL = 20; // rigole centrale entre e et f (multiple de 10 px = grille)
+// Rigole centrale entre e et f. Sur une VRAIE platine, l'écart entre ces deux
+// rangées vaut 3 pas (0,3 pouce) : c'est l'écartement d'un boîtier DIL, qui doit
+// enjamber la rigole une patte de chaque côté. À 2 pas, aucun circuit intégré ne
+// tombait juste.
+const CHANNEL = 30;
 
 export function normalizeSize(value: string | null | undefined): BreadboardSize {
   return value === 'mini' || value === 'full' ? value : 'half';
