@@ -186,13 +186,49 @@ function suivreFinDemande(): void {
 // --- Rendu -------------------------------------------------------------------
 
 let raf = 0;
+let filet = 0;
 
+/**
+ * Délai du FILET de secours, en ms. Assez court pour que l'élève ne voie pas
+ * l'onglet traîner, assez long pour qu'une image normale (16 ms) passe toujours
+ * la première et que le filet se contente d'annuler.
+ */
+const FILET_MS = 120;
+
+/**
+ * Demande un rendu — par IMAGE quand le navigateur en sert, PAR MINUTERIE
+ * sinon.
+ *
+ * Un onglet de webview VS Code qui n'est pas au premier plan ne reçoit AUCUNE
+ * image : `requestAnimationFrame` y est gelé. Or l'analyseur s'ouvre justement
+ * à côté de l'atelier, sans lui voler le focus (`preserveFocus`) — il est donc
+ * caché au moment précis où l'hôte lui pousse ses voies et sa capture.
+ *
+ * Mesuré (lot .98, banc `_diag-onglet-analyseur.mjs`) : ZÉRO image servie en
+ * 500 ms, l'état arrivait bien (la liste de déclenchement se remplissait à
+ * quatre entrées) mais le canvas gardait sa hauteur d'une piste et ses 936
+ * pixels de message d'accueil. C'est la page blanche que Frank photographie :
+ * l'onglet n'avait pas trop peu de données, il n'avait jamais repeint.
+ *
+ * Pire, le verrou `raf` restait armé pendant tout le gel : chaque demande
+ * suivante repartait aussitôt, et la seule image finalement servie ne peignait
+ * que le dernier état — tout ce qui s'était passé entre-temps était perdu.
+ *
+ * Les deux voies sont donc armées ensemble et la première qui tire annule
+ * l'autre : jamais deux rendus pour une demande.
+ */
 function dessiner(): void {
-  if (raf) return;
+  if (raf || filet) return;
   raf = requestAnimationFrame(() => {
     raf = 0;
+    if (filet) { clearTimeout(filet); filet = 0; }
     rendu();
   });
+  filet = window.setTimeout(() => {
+    filet = 0;
+    if (raf) { cancelAnimationFrame(raf); raf = 0; }
+    rendu();
+  }, FILET_MS);
 }
 
 /** Voies effectivement dessinées : les masquées gardent leur capture, pas leur piste. */
@@ -744,6 +780,12 @@ selDeclSens.addEventListener('change', majDeclenchement);
 document.getElementById('tout')?.addEventListener('click', ajuster);
 document.getElementById('suivre')?.addEventListener('click', suivreFinDemande);
 window.addEventListener('resize', () => dessiner());
+// Retour au premier plan : la fenêtre a pu changer de largeur pendant que
+// l'onglet était caché, et un canvas mesuré à ce moment-là l'aurait été sur une
+// disposition périmée. Un rendu de plus ne coûte rien, une vue fausse si.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) dessiner();
+});
 // Changement de thème VS Code : les couleurs de voie ont une variante claire et
 // une sombre, il faut redessiner.
 new MutationObserver(() => dessiner()).observe(document.body, {

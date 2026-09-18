@@ -192,6 +192,26 @@ async function run() {
 	editor.rotateSelection(90); // retour à 0° pour les contrôles suivants
 	await wait(20);
 
+	// Et MIROITÉE. Même exigence que la rotation, même cause, et elle a échappé
+	// au lot .97 (item 1.3 du 18/09 : « la rotation se fait bien avec pour
+	// centre la patte de connexion mais pas les 2 symétries »). Le scale(-1) du
+	// navigateur joue autour du centre de la boîte : sur un dessin de 80x80
+	// dont la pastille est en bas à gauche, un miroir la projetait à l autre
+	// bout. Les quatre bascules se testent d affilée, chacune devant laisser la
+	// pastille immobile ; les deux dernières ramènent la sonde à l endroit.
+	for (const [i, axe] of ['h', 'v', 'h', 'v'].entries()) {
+		editor.flipSelection(axe);
+		await wait(20);
+		const pins = pinCenters();
+		const dx = pins.length === 1 ? Math.abs(pins[0].x - pivot.x) : 999;
+		const dy = pins.length === 1 ? Math.abs(pins[0].y - pivot.y) : 999;
+		ok('sonde miroitée (' + axe + ', bascule ' + (i + 1) + ') : la pastille ne bouge pas',
+			dx < 0.6 && dy < 0.6,
+			'écart=' + dx.toFixed(2) + ' ; ' + dy.toFixed(2) + ' px');
+		ok('sonde miroitée (' + axe + ', bascule ' + (i + 1) + ') : la pastille reste sur un croisement',
+			pins.length === 1 && offGrid(pins[0].x) < 0.05 && offGrid(pins[0].y) < 0.05, fmt(pins));
+	}
+
 	// --- 5. Le CROCHET métallique : un ERGOT, pas une aiguille (v2026.9.4.97) -
 	// Reprise du 17/09. Au lot .94 il était devenu un long trait peint par-dessus
 	// tout le dessin — visible, mais posé SUR la pince comme une écharde. Frank
@@ -211,15 +231,19 @@ async function run() {
 		ok('crochet : le trait entier mesure entre 4 et 9 unités de viewBox',
 			bb && bb.width >= 4 && bb.width <= 9 && bb.height >= 4 && bb.height <= 9,
 			bb ? bb.width.toFixed(2) + 'x' + bb.height.toFixed(2) : 'tige introuvable');
-		// ASYMÉTRIE : c'est elle qui fait « rentrer » l'ergot. La partie enfouie
-		// (vers le haut-droit) doit être nettement plus longue que l'ergot visible
-		// (vers le bas-gauche). Un crochet symétrique — celui du lot .94 — a l'air
-		// planté en travers de la pince, ce que Frank a signalé.
+		// ASYMÉTRIE : c'est elle qui fait « rentrer » l'ergot. Le trait part du
+		// croisement et file VERS L INTERIEUR du corps (haut-droit) ; rien ne le
+		// prolonge au-dela. Un crochet symetrique — celui du lot .94 — a l air
+		// plante en travers de la pince, ce que Frank a signale.
+		// Depuis le 18/09 le bout EST le croisement, il n y a donc plus d ergot
+		// sous la pastille a comparer : ce qu on verifie, c est que tout le trait
+		// est du bon cote. Le demi-trait de la coupe en biais deborde de 0,78 au
+		// plus (EP/2 en travers), on tolere donc ce residu.
 		const pastilleY = 70; // SONDE_PIN.y, en unités de viewBox
 		const dedans = bb ? (pastilleY - bb.y) : 0;
 		const dehors = bb ? (bb.y + bb.height - pastilleY) : 0;
-		ok('crochet : sa partie enfouie est au moins double de son ergot visible',
-			dedans > dehors * 2,
+		ok('crochet : tout le trait file VERS L INTERIEUR du corps',
+			dedans > 2.5 && dehors < 1,
 			'dedans=' + dedans.toFixed(2) + ' dehors=' + dehors.toFixed(2));
 		// Épaisseur : c'est la demande « pas assez large ». Elle se lit sur le
 		// style, la boîte englobante d'une diagonale ne la donne pas.
@@ -229,18 +253,30 @@ async function run() {
 		const ep = st ? Number(st.split('stroke-width:')[1].split(';')[0]) : NaN;
 		ok("crochet : au moins 2 unités d'épaisseur (un ergot, pas un cheveu)",
 			ep >= 2, 'stroke-width=' + ep);
-		// L'ergot doit SORTIR sous la mâchoire, sans quoi rien ne se voit.
 		const mach = r && r.querySelector('#path14-32');
 		const rc = tige && tige.getBoundingClientRect();
 		const rm = mach && mach.getBoundingClientRect();
-		ok('crochet : son ergot dépasse sous la mâchoire verte',
-			rc && rm && rc.bottom > rm.bottom,
-			rc && rm ? 'crochet bas=' + rc.bottom.toFixed(1) + ' mâchoire bas=' + rm.bottom.toFixed(1) : 'introuvable');
-		// Mais PEU : au lot .94 l'ergot faisait 4 unités sous la pastille, soit
-		// presque la moitié d'un carreau de grille — il arrivait bien au-delà du
-		// croisement au lieu de s'y arrêter. Frank : « il est trop long ».
-		ok("crochet : son ergot s'arrête à moins de 2 unités sous la pastille",
-			dehors > 0 && dehors < 2, 'ergot=' + dehors.toFixed(2) + ' unités');
+		// L EXTREMITE DU CROCHET EST LE POINT DE CONNEXION (item 1.2 du 18/09 :
+		// « son extremite (bas gauche) doit etre sur une intersection de la
+		// grille. La connection c'est bien l extremite du crochet »). On lit donc
+		// le NOEUD du trait, pas sa boite englobante : avec une terminaison coupee
+		// nette, un trait diagonal a un bord perpendiculaire dont les deux coins
+		// s ecartent du noeud d un demi-trait de part et d autre. La boite voit le
+		// coin le plus bas-gauche (9,27 ; 70,75), alors que le point de connexion
+		// est le MILIEU de cette coupe.
+		const bout = tige && tige.getPointAtLength ? tige.getPointAtLength(0) : null;
+		ok("crochet : son extremite tombe PILE sur le croisement de la grille",
+			bout && Math.abs(bout.x - 10) < 0.05 && Math.abs(bout.y - 70) < 0.05,
+			bout ? 'bout=(' + bout.x.toFixed(2) + ' ; ' + bout.y.toFixed(2) + ')' : 'tige introuvable');
+		// Coupee NETTE, justement : une calotte arrondie deborde AUTOUR du noeud,
+		// donc au-dela du croisement, quoi qu on recule le trait. C est ce qui
+		// mettait le bout peint 2,3 unites trop bas avant ce lot.
+		ok("crochet : terminaison coupee nette (pas de calotte au-dela du croisement)",
+			st && st.indexOf('stroke-linecap:butt') >= 0, 'style=' + st);
+		// Il reste VISIBLE : le trait sort du corps en biais sous la machoire.
+		ok('crochet : son ergot reste visible hors de la machoire verte',
+			rc && rm && rc.left < rm.left,
+			rc && rm ? 'crochet gauche=' + rc.left.toFixed(1) + ' machoire gauche=' + rm.left.toFixed(1) : 'introuvable');
 		// SOUS le plastique : premier enfant, donc peint en premier. C'est ce qui
 		// donne l'impression que l'ergot entre dans le corps.
 		ok('crochet : peint SOUS le dessin coloré (premier enfant du SVG)',

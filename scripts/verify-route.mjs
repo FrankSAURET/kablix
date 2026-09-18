@@ -29,6 +29,7 @@ import '../../src/webview/composants/pca9685-element.mjs';
 import '../../src/webview/composants/servo-element.mjs';
 import '../../src/webview/composants/7segment-element.mjs';
 import '../../src/webview/composants/breadboard.mjs';
+import '../../src/webview/composants/sonde-logique-element.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
 const ok = (name, cond, detail = '') => checks.push({ name, ok: !!cond, detail: String(detail) });
@@ -825,6 +826,64 @@ async function run() {
 			caps.children[0].style.fill !== avantFill &&
 			caps.children[0].style.fill === editor.wirePaths.get(wBB.id).style.stroke,
 			caps.children[0].style.fill);
+	}
+
+	// --- Routage SOUS une SONDE de l'analyseur logique (v2026.9.4.98) ----------
+	// Demande de Frank (18/09) : « modifie la regle de routage, uniquement pour
+	// les sondes, les cables peuvent passer en dessous ». Une pince d'analyseur
+	// n'est pas un composant du montage : elle est POSEE PAR-DESSUS, comme sur
+	// une vraie paillasse, et un cable qui chemine sur la planche passe dessous.
+	// Elle rejoint donc la platine du cote des obstacles traversables — pour une
+	// raison PHYSIQUE inverse : la platine est le plan de travail qu on traverse,
+	// la sonde surplombe ce plan.
+	//
+	// Ce bloc EFFACE le montage : le garder apres les controles qui relisent la
+	// platine (wBB, cTrou), sinon ils tombent sur un schema vide.
+	{
+		for (const p of [...editor.diagram.parts]) editor.removePart?.(p.id);
+		await wait(30);
+		const rSondeA = editor.addPart('resistor', 100, 300);
+		const rSondeB = editor.addPart('resistor', 500, 300);
+		await wait(120);
+		// La sonde est plantee EN PLEIN MILIEU du chemin le plus direct.
+		const sndR = editor.addPart('sonde-logique', 280, 260);
+		await wait(150);
+		editor.addWire({ partId: rSondeA.id, pin: '2' }, { partId: rSondeB.id, pin: '1' }, { color: 'green' });
+		await wait(50);
+		const wSonde = editor.diagram.wires[editor.diagram.wires.length - 1];
+		editor.select(null); editor.autoRoute();
+		await wait(120);
+		const polySonde = [
+			editor.hotspotCenter({ partId: rSondeA.id, pin: '2' }),
+			...(wSonde.points ?? []),
+			editor.hotspotCenter({ partId: rSondeB.id, pin: '1' }),
+		];
+		const boiteSonde = editor.partObstacles().find((o) => o.id === sndR.id);
+		// Elle est bien declaree TRAVERSABLE, au meme titre que la platine.
+		ok('sonde : declaree obstacle traversable (dessus), comme la platine',
+			boiteSonde && boiteSonde.dessus === true,
+			boiteSonde ? JSON.stringify({ board: boiteSonde.board, dessus: boiteSonde.dessus }) : 'boite introuvable');
+		// Et le fil PASSE BIEN DANS son encombrement, au lieu d en faire le tour :
+		// c est la mesure qui prouve le lot. On echantillonne le trace et on compte
+		// les points qui tombent DANS la boite de la sonde — exactement la mesure
+		// du controle « un composant ENFICHE reste un obstacle », mais attendue a
+		// l envers. Une tolerance sur les COUDES ne prouverait rien : mesure faite,
+		// l A* trouvait deja un contournement sans coude supplementaire.
+		let dansSonde = 0;
+		for (let i = 0; i < polySonde.length - 1; i++) {
+			const p = polySonde[i], q = polySonde[i + 1];
+			const n = Math.max(2, Math.round((Math.abs(q.x - p.x) + Math.abs(q.y - p.y)) / 2));
+			for (let k = 0; k <= n; k++) {
+				const x = p.x + ((q.x - p.x) * k) / n, y = p.y + ((q.y - p.y) * k) / n;
+				if (x > boiteSonde.x + 4 && x < boiteSonde.x + boiteSonde.w - 4 &&
+					y > boiteSonde.y + 4 && y < boiteSonde.y + boiteSonde.h - 4) dansSonde++;
+			}
+		}
+		ok('sonde : le cable passe DESSOUS (il traverse son encombrement)',
+			dansSonde > 0,
+			dansSonde + ' points dans la sonde | boite=' + JSON.stringify(boiteSonde) + ' | ' + S(polySonde));
+		ok('sonde : le fil reste un bon fil (4 coudes au plus)',
+			lenBends(polySonde).bends <= 4, S(polySonde));
 	}
 
 	// --- Ctrl + clic sur le bouton : RETRACER, coudes effacés ------------------

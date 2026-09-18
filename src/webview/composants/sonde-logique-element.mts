@@ -72,17 +72,13 @@ const TEINTES_VERTES: Array<{ hex: string; delta: number }> = [
 /** Teinte du corps quand la sonde n'est posée nulle part. */
 const GRIS_INERTE = '#9e9e9e';
 
-/**
- * Longueur du crochet métallique VERS L'EXTÉRIEUR, en unités de viewBox, à
- * partir de la pastille. C'est la seule partie qu'on voit dépasser.
- *
- * Volontairement COURTE (retour de Frank, 17/09) : le crochet d'une pince de
- * mesure est un ergot, pas une aiguille. Il doit arriver PILE sur le croisement
- * de la grille — la pastille est à (10,70), un croisement — et non le traverser
- * de part en part. 2,2 unités le font dépasser nettement de la mâchoire (qui
- * s'arrête à ~1,5 unité de la pastille) sans partir vers le bas de la planche.
+/*
+ * Il n'y a plus de longueur « vers l'extérieur » (l'ancien `CROCHET`, 2,2 puis
+ * 1,1) : depuis le 18/09 le crochet ne dépasse PLUS la pastille, il s'y arrête.
+ * Frank : « son extrémité (bas gauche) doit être sur une intersection de la
+ * grille. La connection c'est bien l'extrémité du crochet. » Le trait part donc
+ * de `SONDE_PIN` et ne file que vers l'intérieur (`CROCHET_DEDANS`).
  */
-const CROCHET = 2.2;
 
 /**
  * Longueur du crochet VERS L'INTÉRIEUR du corps. Il file sous le plastique de
@@ -271,19 +267,17 @@ export class SondeLogiqueElement extends HTMLElement {
    *     cette même diagonale à partir de (11,0 ; 65,4). Il n'en dépassait
    *     qu'un millimètre de dessin, à la taille d'un carreau de grille.
    *
-   * D'où le CROCHET redessiné ici : le trait part toujours de la pastille et
-   * ressort maintenant de l'AUTRE côté, vers le bas-gauche, là où rien ne le
-   * couvre — c'est la pointe qu'on pose sur la broche, elle doit se voir
-   * dépasser de la pince. Le point de connexion, lui, ne bouge pas : il reste
-   * le centre de la pastille de Frank, `SONDE_PIN`.
+   * D'où le CROCHET redessiné ici, dont le point de connexion reste le centre
+   * de la pastille de Frank, `SONDE_PIN`.
    *
    * REPRISE DU 17/09 (lot .97). Frank demande un ergot, pas une aiguille :
-   * court dehors, large, et qui donne l'impression d'ENTRER dans la pince. Le
-   * trait file donc bien plus loin vers le haut-droit (`CROCHET_DEDANS`) qu'il
-   * ne sort vers le bas-gauche (`CROCHET`), et il est inséré AVANT le corps
-   * coloré au lieu d'être peint en dernier : le plastique recouvre la partie
-   * intérieure, exactement comme une lame qui se prolonge dans un manche. Seul
-   * l'ergot dépasse, et il arrive pile sur le croisement de la grille.
+   * court, large, et qui donne l'impression d'ENTRER dans la pince. Le trait
+   * est donc inséré AVANT le corps coloré au lieu d'être peint en dernier : le
+   * plastique recouvre sa partie intérieure, exactement comme une lame qui se
+   * prolonge dans un manche.
+   *
+   * REPRISE DU 18/09 : il ne dépasse plus du tout la pastille — son extrémité
+   * EST le croisement de la grille. Détail de la mesure dans `remonterTige()`.
    *
    * Corrigé ICI et non dans le SVG : `externe/grip-fil.svg` est extrait de
    * `Composants2D.svg` (`_extract-composants.mjs`) — une retouche du fichier
@@ -311,15 +305,34 @@ export class SondeLogiqueElement extends HTMLElement {
     // enfouie). Le facteur 0,7071 ramène les longueurs à la vraie distance le
     // long du trait : sans lui, une diagonale de « 2,2 » mesurerait 3,1.
     const k = Math.SQRT1_2;
+    // REPRISE DU 18/09 — LE BOUT DU CROCHET EST LE POINT DE CONNEXION. Le lot
+    // .97 avait calé la MÂCHOIRE verte, qui tombe bien sur (10 ; 70) ; l'ergot
+    // métallique, lui, n'avait jamais été mesuré. Frank : « son extrémité (bas
+    // gauche) doit être sur une intersection de la grille. La connection c'est
+    // bien l'extrémité du crochet. »
+    //
+    // Deux choses le mettaient à côté, et la seconde a demandé deux mesures :
+    //  1. le trait DÉPASSAIT la pastille de 2,2 unités vers le bas-gauche — il
+    //     traversait le croisement au lieu de s'y arrêter. Il part maintenant
+    //     DE la pastille et ne file que vers l'intérieur du corps ;
+    //  2. `stroke-linecap:round` coiffait le nœud d'un demi-disque qui déborde
+    //     dans TOUTES les directions, pas seulement le long du trait. Reculer le
+    //     nœud ne suffisait donc pas : mesuré à mi-correction, nœud pile sur
+    //     (10 ; 70) et bord peint encore en (9,27 ; 70,75). La terminaison passe
+    //     à `butt` — le trait est COUPÉ NET au nœud.
+    //
+    // Mesuré avant : bout en (7,71 ; 72,31), soit 2,3 unités hors du croisement.
+    // Après : (10 ; 70). Le bout intérieur garde son arrondi, il est enfoui sous
+    // le plastique et personne ne le voit.
     tige.setAttribute(
       'd',
-      `M ${x - CROCHET * k} ${y + CROCHET * k}`
+      `M ${x} ${y}`
       + ` L ${x + CROCHET_DEDANS * k} ${y - CROCHET_DEDANS * k}`,
     );
     tige.setAttribute(
       'style',
       'fill:none;stroke:url(#linearGradient996);'
-      + `stroke-width:${CROCHET_EP};stroke-linecap:round;stroke-opacity:1`,
+      + `stroke-width:${CROCHET_EP};stroke-linecap:butt;stroke-opacity:1`,
     );
 
     // Le dégradé de Frank est calé (`userSpaceOnUse`) sur la position d'ORIGINE

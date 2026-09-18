@@ -276,6 +276,26 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   const surVoies = src.slice(src.indexOf("case 'voies'"), src.indexOf("case 'voies'") + 700);
   check('réouverture : le message `voies` de l\'atelier reprend la main',
     /diagnostics = msg\.voies\.map/.test(surVoies) && !/diagnostics\.length === 0/.test(surVoies));
+
+  // L'ONGLET AU SECOND PLAN NE REÇOIT AUCUNE IMAGE (v2026.9.4.98). Frank, 18/09 :
+  // « je ne vois toujours rien dans l'analyseur, que le programme tourne, soit
+  // en pause ou arrêté ». Mesuré au banc : l'état arrivait bien dans la page —
+  // la liste de déclenchement se remplissait — mais **zéro** `requestAnimationFrame`
+  // servi en 500 ms. Un onglet de webview VS Code ouvert avec `preserveFocus`
+  // naît au second plan, et le navigateur y gèle le rAF ; `retainContextWhenHidden`
+  // n'y change rien, il garde le contexte, il ne rend pas d'image.
+  //
+  // Le verrou `if (raf) return` aggravait tout : armé au premier appel, il
+  // avalait en silence toutes les demandes suivantes pendant le gel. D'où un
+  // onglet définitivement blanc — même une fois ramené au premier plan.
+  const dess = src.slice(src.indexOf('function dessiner'), src.indexOf('function dessiner') + 700);
+  check('rendu : une minuterie de secours double le rAF (onglet au second plan)',
+    /setTimeout/.test(dess) && /cancelAnimationFrame/.test(dess),
+    dess.slice(0, 120));
+  check('rendu : le verrou laisse passer quand le rAF est gelé',
+    /if \(raf \|\| filet\) return/.test(dess));
+  check('rendu : un retour au premier plan repeint',
+    /visibilitychange/.test(src) && /document\.hidden/.test(src));
 }
 {
   const c = new AnalyseurCapture();

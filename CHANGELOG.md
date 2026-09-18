@@ -24,11 +24,16 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Les deux boutons de l'analyseur disent ce qu'ils font** : « Capture entière » et « Suivre en direct », avec une infobulle qui l'explique.
 - **Un segment de fil se déplace au glisser**, perpendiculairement à sa direction. Les segments voisins suivent, le reste du tracé ne bouge pas.
 - **L'aide d'un fil sélectionné détaille le glissement d'un segment** et ce que Ctrl y change.
+- **Les câbles passent sous les pinces de l'analyseur.** Un fil qui rencontrait une pince faisait un grand détour, comme devant un composant. Il file maintenant tout droit : la pince surplombe le plan de travail, elle ne le bouche pas.
 - **Le tableau des composants du README suit les catégories de la palette**.
 - **La liste des composants téléchargeables est illustrée**.
 
 ### Correction
 
+- **L'analyseur affiche enfin ses courbes.** Son onglet restait blanc, programme lancé, en pause ou arrêté : né derrière le schéma, il ne recevait aucune image et n'en redemandait plus une fois ramené devant. Il se dessine maintenant dans tous les cas, et se repeint dès qu'on revient dessus.
+- **Le crochet de la pince pointe pile sur le croisement de la grille.** Son bout — le point où elle mesure — tombait deux carreaux à côté de ce qu'on voyait.
+- **Les symétries horizontale et verticale ne déplacent plus la pince.** Elle sautait de six carreaux à chaque miroir, alors que la rotation, elle, tournait bien autour de sa pastille.
+- **Les pinces du projet d'exemple ne pendent plus dans le vide** : elles sont posées sur les broches qu'elles mesurent.
 - **Les flèches de repliement des deux panneaux sont visibles** : elles débordaient sur l'ascenseur de la bibliothèque et sur le titre des propriétés. Elles sont maintenant plus grosses, plus grasses, dans leur propre gouttière.
 - **La sonde logique se branche enfin proprement.** Son crochet se voit sur la grille — il était de la couleur du quadrillage et passait sous le dessin — et il pince **pile sur l'intersection**, en donnant l'impression d'entrer sous le corps en plastique. La sonde **tourne autour de sa pastille** : à chaque quart de tour elle sautait de six carreaux. Elle retrouve exactement sa pastille à l'ouverture d'un projet, là où une fraction de pixel la décalait et l'empêchait d'accrocher. Elle se branche aussi bien **posée sur une broche** que **reliée par un fil**, et prend sa couleur dans les deux cas. Posée ailleurs que sur la carte, elle **suit le fil** jusqu'à la broche qui la commande : pincer la borne d'un module montre enfin son signal, la voie portant le nom de la broche trouvée suivi d'une flèche. Et sur une **broche TX**, elle voit la liaison série : elle montrait une ligne plate alors que le montage recevait bien les données — sur le projet DMX, le projecteur changeait de couleur pendant que l'analyseur n'affichait rien. Les créneaux de chaque octet apparaissent maintenant, bit de départ, données, parité et bits d'arrêt, au débit réglé par le programme, sur Pico comme sur Arduino, pour toute liaison série, DMX ou simple `print`.
 - **Le dessin du générateur BF ne passe plus devant les fils** au lancement de la simulation.

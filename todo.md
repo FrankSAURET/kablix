@@ -1,28 +1,35 @@
 # À faire
-1. Analyseur Logique
-    1. ✅ Sur dmx-pico, je ne vois tjs rien *(lot .95 : l'UART émulé ne bougeait jamais sa broche TX — les fronts de la ligne série sont désormais synthétisés, sur Pico ET sur Arduino)*
-    1. ✅ On doit pouvoir changer les paramètres par courbe *(lot .94 : décodages multiples, réglages d'affichage par voie, seuils et temps par voie)*
-    1. ✅ la sonde n'a pas été réparé ; l'extrémité (le crochet) doit récupérer son dégradé métallique afin  d'être visible dur la grille. Le point de connexion (en bas à gauche : le centre de la pastille rouge sur mon  dessin) doit être sur la grille. *(déjà corrigé au lot .94, le jour même où l'item a été écrit — vérifié au lot .96, et étendu à la sonde TOURNÉE)*
-    1. ✅ Comportement, on la prend, elle est grise et dès qu'elle est connectée elle prend la couleur suivante. Si on la déconnecte elle redevient grise et si on la reconnect elle se recolore. *(déjà corrigé au lot .94 — les quatre temps du geste sont mesurés)*
-1. ✅ De temps en temps les propriétés d'un objet sont triplés. Je l'ai remarqué sur les nouveaus objets mais ce sont aussi ceux sue je test le plus. Une désélection resélection résoud le PB mais corrige ce bug. *(lot .94 : ce n'était pas l'inspecteur mais la pose — plusieurs composants empilés au même point)*
-1. Analyseur logique (retours du 17/09, APRÈS le lot .96 — prioritaires)
-    1. ✅ Je ne vois toujours rien (v2026.9.4.96), aucune courbe juste une page grise. *(lot .97 : la capture était bien dans le projet, mais l'onglet n'avait aucune piste où la dessiner tant que la simulation n'avait pas retourné — il affichait « aucune sonde » par-dessus 8000 fronts)*
-    1. ✅ La sonde pas complètement réparée. Sa connection n'est toujours pas exactement à l'intersection de la grille et le crochet (gris avec dégradé) doit arriver pil dessus. La, il est trops long et pas assez large de plus il doit donner l'impression  de rentrer dedans et con se trouver sous le corps en plastique. On doit pouvoir branche la sonde en la posant directement sur un composant ET en la reliant par un fil  et dans ce cas aussi elle doit changer de couleur. *(lot .97 : crochet raccourci/élargi et passé SOUS le plastique, dessin recalé de 0,75 px pour que la pince pince pile sur le croisement, et branchement par fil au crochet reconnu et coloré)*
-    1. ✅ La sonde doit tourner autour de sa broche de connection *(lot .97 : elle sautait de 60 px — six carreaux — à chaque quart de tour ; la pastille ne bouge plus du tout)*
-1. GBF
-    1. ✅ En français amplitude désigne la valeur peak to peak en anglais don le GBF qui a une amplitude de 5 V et un décalage de 0 Affiche une courbe de -2,5 à + 2,5V
-    1. ✅ Sur gbf-pico si je branche le GBF à l'oscillo je vois les courbes, si le branche aussi la carte pico je ne vois plus rien à l'oscillo. Et l'affichage de l'oscillo doit aussi être écrété *(lot .97 : la broche MCU du nœud volait la priorité au générateur — vrai quand elle émet, faux quand elle subit ; écrêtage d'affichage ajouté, dû aux diodes de protection de la carte)*
-    1. ✅ au dela de 5 V en entrée les cartes pico doivent griller (explosion + explication) *(lot .97 : 3,6 V pour un Pico, 5,5 V pour un Uno, sommet ET creux jugés ; le pont diviseur ne grille rien ; les cinq cartes savent enfin se peindre grillées)*
-    1. 
-    1. 
-1. ✅ Pour le changelog tu ne donnes les amélioration et correction que par rapport à la dernière version publiée pas tout ce qu'on a fait entre 2. *(lot .97 : vérifié — la section ouverte est bien `2026.9.5`, la dernière publiée étant `2026.9.4` du 13/09 ; rien à retrancher)*
-1. ✅ Dans le change log tu réorganise ce qui est dit sur l'analyseur logique en un seul paragraphe *(lot .97 : sept entrées fondues en une en Nouveauté, six en une en Correction)*
-1. Roadmap
-    1. ✅ Réorganise roadmap en supprimant ce q'on a fait et ce qui est noté supprime (suppression  du tableau et suppression du paragraphe) *(lot .97 : cinq pistes retirées — analyseur et variables locales AVR livrés, trois écartées ; sections renumérotées dans TON ordre, pas dans l'ordre d'intérêt)*
-    1. ✅ chiffre "Associer des composants entre eux" j'a précisé *(lot .97 : **M**, découpé en deux lots — un S+ donne déjà la démonstration aimant/servo/Hall)*
-    1. ✅ Pour les badges, fait une proposition de badges 'preuve de maîtrise', 'qui récompensent l'effort ou le processus' *(lot .97 : huit badges par famille, chacun avec son déclencheur mesurable)*
+1. Analyseur logique
+    1. Ajouter décodage Twi; 1-wire et UART.
+1. Repliement des panneaux :
+    1. je t'ai fais une image avant aprés de ce que je veux ici "repliement panneaux.png"
+    1. Tu notera en haut ce qu'on voit actuellement à gauche déplié et à droite replié et en dessous ce que je veux
+    1. Les eléments importants
+        1. Ascenseurs du panneau de gauche diminués symétriquement en haut et en bas pour avoir la place de mettre la flèche en haut et ne pas mordre sur l'arrondi. Attention ce doit être la même chose si un ascenseur apparait dans le paneau de droite.
+        1. Fleche au dessus de l'ascenseur pour replier, si il y a un ascenseur sans ascenseur elle ne doit pas empièter sur le texte. 
+        1. Une fois replié, le texte devient verticale et est centré dans le mini panneau avec la flêche au dessus
 ## ne pas faire pour l'instant
+- Ajouter ds18b20
 
+---
+
+# >>>>  v2026.9.4.98 — Les câbles passent dessous, et l'onglet qui ne recevait aucune image
+
+1. ✅ **Item analyseur 1.1 : les câbles passent SOUS les sondes.** Une pince d'analyseur n'est pas un composant du montage — elle est posée PAR-DESSUS, comme sur une paillasse. Elle rejoint donc la platine du côté des obstacles traversables de l'autoroutage, par un champ `dessus` distinct de `board` : la platine est le plan de travail qu'on traverse, la sonde **surplombe** ce plan. Sa pastille `G` passe du même coup de « broche interdite » à « trou à coût léger » — indispensable au branchement par cordon livré au lot .97, sinon aucun fil ne pouvait arriver dessus. Trois contrôles dans [verify-route.mjs](scripts/verify-route.mjs).
+2. ✅ **Item analyseur 1.2 : l'extrémité du crochet tombe enfin sur le croisement.** Le lot .97 avait calé la **mâchoire verte**, qui tombe bien sur (10 ; 70) ; l'**ergot métallique**, dont Frank dit qu'il EST le point de connexion, n'avait jamais été mesuré. Il tombait en **(7,71 ; 72,31)** — 2,3 unités hors du croisement, près d'un quart de carreau.
+3. ℹ️ **Deux causes, et la seconde a demandé une deuxième mesure.** Le trait *dépassait* la pastille de 2,2 unités (il traversait le croisement au lieu de s'y arrêter) ; il part maintenant DE la pastille et ne file que vers l'intérieur du corps. Mais reculer le nœud n'a pas suffi : `stroke-linecap:round` coiffe le nœud d'un demi-disque qui déborde dans **toutes** les directions, pas seulement le long du trait — mesuré à mi-correction, nœud pile sur (10 ; 70) et bord peint encore en (9,27 ; 70,75). La terminaison extérieure est passée à `butt`, coupée net. Vérifié à **(10,00 ; 70,00)**.
+4. ✅ **Item analyseur 1.3 : les deux symétries déplaçaient la pastille de 60 px — six carreaux.** Le lot .97 avait corrigé `rotateSelection` et laissé `flipSelection` intact : le `scale(-1)` du navigateur joue autour du centre de la boîte, or la pastille de la sonde est en bas à gauche d'un dessin de 80×80. Même remède que la rotation — on relève où est la pastille avant, on retranslate le composant après. Huit contrôles dans [verify-align.mjs](scripts/verify-align.mjs), quatre bascules d'affilée.
+5. ℹ️ **La quatrième bascule passait AVANT correction**, et c'est pourquoi il en fallait quatre : après quatre miroirs la sonde revient à son point de départ par accident. Un banc à une seule bascule aurait pu être écrit vert sur du code faux.
+6. ✅ **Item analyseur 1.4, volet « l'analyseur n'affiche rien » : l'onglet ne recevait AUCUNE image.** Les données étaient toutes là — capture dans le fichier, voies résolues par le modèle, état bien arrivé dans la page (la liste de déclenchement se remplissait). Mais **zéro `requestAnimationFrame` servi en 500 ms** : un onglet de webview VS Code ouvert avec `preserveFocus` naît au second plan, et le navigateur y gèle le rAF. `retainContextWhenHidden` n'y change rien — il garde le contexte, il ne rend pas d'image.
+7. ℹ️ **Le verrou aggravait tout.** `if (raf) return`, armé au premier appel, avalait en silence chaque demande suivante pendant le gel : l'onglet restait blanc **même une fois ramené au premier plan**. Corrigé par une minuterie de secours (120 ms) armée en parallèle du rAF, plus un repaint au `visibilitychange`. Mesuré après correction : 31 320 pixels peints sur `sonde-logique-pico`, **4 075 sur `dmx-pico`** (légende « DMX · GP0 »), et toujours zéro rAF servi — la preuve que c'est bien le filet qui peint. Les deux fichiers signalés par Frank sont couverts.
+8. ✅ **Item analyseur 1.4, volet « les sondes connectées dans le vide » : défaut du FICHIER DE TEST, pas du code.** Les coordonnées des sondes avaient été écrites à la main dans `_spec.mjs` et jamais calées : écarts mesurés de **50, 86 et 171 px**. Le modèle les résolvait quand même — l'attribut `accroche` ne regarde pas le dessin — d'où des pinces qui « marchaient » tout en pendant à côté, exactement ce que montre `sonde-logic-pico.png`. Recalées à **0,16 px**, vérifiées à l'œil par capture.
+9. ℹ️ **Trois broches voisines (10 px) pour des pinces de 80 px** : elles se recouvriraient toutes en partant du même côté. Posées en éventail, un quart de tour chacune, comme des pinces empilées sur un connecteur.
+10. ⏳ **Reste à faire, hors périmètre de ces quatre items** : reporter les positions recalées dans [_spec.mjs](testkablix/_spec.mjs) (une régénération les reperdrait), et générer le test `sonde-logique-uno` — il est déclaré dans la spec mais son `.projix` n'a jamais existé, alors que le CLAUDE.md exige un test Arduino ET un test Pico par composant.
+11. ✅ **Contre-épreuves, quatre passes séparées.** `editor.mts` remisé → la symétrie déplace la pastille de **60 px** et le câble ne met **aucun point** dans la sonde (il la contourne par le bas) ; `sonde-logique-element.mts` remisé → bout du crochet en (8,44 ; 71,56) ; `analyseur.mts` remisé → les trois contrôles de rendu tombent.
+12. ℹ️ **Un premier jet du contrôle de routage passait AVANT et APRÈS** — donc ne prouvait rien. Il jugeait les coudes avec une tolérance de 60 px, trop lâche : l'A* trouvait déjà un contournement sans coude supplémentaire. Remplacé par la mesure des points du tracé tombant DANS la boîte de la sonde (la même que « un composant enfiché reste un obstacle », attendue à l'envers), et celle-là discrimine : 0 point avant, le fil traverse après.
+13. ✅ **Suite complète : 114 bancs sur 115.** Le seul échec est `verify:i18n`, dette de traduction connue et **inchangée** (7 échecs, déjà notée au lot .97).
+14. ⏳ **Traductions en attente** : aucune chaîne neuve ce lot, la dette reste à verser au lot d'avant publication.
+15. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 98. CHANGELOG complété sous `2026.9.5 (prochaine publication)`.
 
 ---
 

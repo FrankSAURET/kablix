@@ -2998,6 +2998,19 @@ export class Editor {
   flipSelection(axis: 'h' | 'v'): void {
     const ids = this.transformTargets();
     if (ids.length === 0) return;
+    // PIVOT = LA BROCHE, comme pour la rotation (demande de Frank, 18/09 :
+    // « la rotation se fait bien avec pour centre la patte de connexion mais
+    // pas les 2 symétries »). Le `scale(-1)` du navigateur se fait autour du
+    // centre de la boîte : sur une sonde — pastille unique en bas à gauche d'un
+    // dessin de 80×80 — un miroir la projetait à l'autre bout du dessin, et la
+    // pince quittait la broche qu'elle pinçait. On relève donc où est la
+    // pastille AVANT, et on retranslate le composant après pour l'y ramener.
+    const avant = new Map<string, XY>();
+    for (const id of ids) {
+      const r = this.rendered.get(id);
+      const off = this.gridOffset(id);
+      if (r && off) avant.set(id, { x: r.part.x + off.x, y: r.part.y + off.y });
+    }
     for (const id of ids) {
       const r = this.rendered.get(id);
       if (!r) continue;
@@ -3006,8 +3019,23 @@ export class Editor {
       const body = r.container.querySelector('.part__body') as HTMLDivElement | null;
       if (body) this.applyRotation(r.part, body);
     }
+    // Le dessin est miroité : la pastille est ailleurs. On rend au composant la
+    // translation qui la remet exactement où elle était.
+    for (const id of ids) {
+      const cible = avant.get(id);
+      const r = this.rendered.get(id);
+      const off = this.gridOffset(id);
+      if (!cible || !r || !off) continue;
+      const cale = this.clampToSheet(id, cible.x - off.x, cible.y - off.y);
+      r.part.x = cale.x;
+      r.part.y = cale.y;
+      r.container.style.left = `${r.part.x}px`;
+      r.container.style.top = `${r.part.y}px`;
+    }
     // Le miroir peut sortir les broches de la grille (boîte mesurée ≠ dessin) :
-    // recolle le premier pin de chaque composant retourné sur la grille.
+    // recolle le premier pin de chaque composant retourné sur la grille. Le
+    // pivot ci-dessus partait d'une pastille DÉJÀ sur la grille : ce recollage
+    // ne rattrape plus qu'un résidu d'arrondi.
     for (const id of ids) this.snapPartToGrid(id, true);
     this.redrawWires(); // le miroir déplace les broches à l'écran
     this.renderInspector(); // met à jour l'état actif des boutons
@@ -4253,6 +4281,7 @@ export class Editor {
         h: h || body?.offsetHeight || 40,
         outer,
         board: partDef(r.part.type).kind === 'breadboard',
+        dessus: partDef(r.part.type).kind === 'logic-probe',
       });
     }
     return rects;
@@ -4504,8 +4533,14 @@ export class Editor {
     // traverse comme on le fait à la main. Elle est donc retirée de TOUS les
     // calculs de survol de composant — sinon le routeur payait un détour pour
     // sortir de la carte, exactement ce que Frank voyait.
-    const solidObs = obstacles.filter((o) => !o.board);
-    const boardIds = new Set(obstacles.filter((o) => o.board).map((o) => o.id));
+    //
+    // Une SONDE non plus : elle surplombe le montage, les fils passent dessous
+    // (cf. PartRect.dessus). Elle est donc transparente pour les mêmes raisons
+    // de calcul, avec une justification physique différente.
+    const solidObs = obstacles.filter((o) => !o.board && !o.dessus);
+    const boardIds = new Set(
+      obstacles.filter((o) => o.board || o.dessus).map((o) => o.id),
+    );
     const STUB = GRID; // sortie perpendiculaire = 1 pas de grille hors du corps
     // Écart mini entre deux fils parallèles d'équipotentielles DIFFÉRENTES : 5 px
     // (2 px en v2026.7.120, 3 px en v2026.7.124 — toujours trop serré à l'œil,
@@ -8950,6 +8985,23 @@ interface PartRect {
    * coût, pas en contournant la carte.
    */
   board?: boolean;
+  /**
+   * Instrument posé PAR-DESSUS le montage — la pince de l'analyseur logique.
+   *
+   * Ce n'est pas un composant du montage : c'est un appareil qu'on approche,
+   * qu'on pince et qu'on retire, et qui surplombe les fils au lieu de les
+   * gêner. Le faire contourner par l'autoroutage était doublement faux : le
+   * routeur payait un détour pour un objet qui n'occupe pas le plan, et il
+   * suffisait de poser une pince pour que des fils déjà tracés se mettent à
+   * zigzaguer (demande de Frank, 18/09 : « uniquement pour les sondes, les
+   * câbles peuvent passer en dessous »).
+   *
+   * Distinct de `board` : une platine est le plan de travail, qu'on traverse ;
+   * une sonde est AU-DESSUS du plan, on passe dessous. Le résultat est le même
+   * pour le routeur, la raison n'est pas la même — et un jour un instrument
+   * pourra être l'un sans être l'autre.
+   */
+  dessus?: boolean;
 }
 
 /**
