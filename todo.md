@@ -1,13 +1,38 @@
 # À faire
 1. J'ai rajouté 1 composants (dans composants2D.svg) en 2 versions (CI et Étanche). Le choix se fait dans les propriétés. C'est un DSB1820. En simulation il trouve un curseur de température (-55 à +125 +-0,5°C), protocole 1-wire. Il se met dans la bibliothèque externe.
   1. L'heure du build ne dois pas apparaitre dans une version publiée.
-  1. Les fils qui passent sur une sonde doivent etre dessinnées dessous
-  1. Analyseur logique
-    1. Je ne vois toujours qu'un onglet gris dans l'analyseur logique. Fait moi un pas à pas pour voir si il y a qqc que je fais mal.
-    1. Une sonde reliée par un fil reste grise et ne peux pas changer de couleur.
-    1. Le crochet métalique ne tombe toujours pas sur la grille (alignement crochet.png). De plus je l'a dessiné arrondit et je souhaite qu'il le reste avec le centre de l'arrondi sur une intersection  de grille.
+1. Nos 3 platines d'essais sont fausses. L'écart entre les lignes du haut et du bas doit être de 3 pas (pour nous 30px) actuellement il n'y en a que 2. Corrige. En même temps tu fais un schéma interne qui montre les liaison entre les trous, matérialisé par des lignes jaunes orangé semi transparentes qui relient les trous.
+1. kablix_components
+    1. Y a t'il un intéret à la migrer vers un repo dedié ?
+    1. Modifie le readme de ce dossier
+        1. Ajoute des liens vers les fichiers d'aide à la création
+        1. Ajoute une section "Composants inclus dans Kablix" au même format que celle composants disponibles
+        1. Rends les deux section  de composants repliables
+        1. Fais moi un scenario (à la racine "créer un composant 2D.md" et "créer un composant 3D.md) pour le 2D une carte joy-it SBC-MotorDriver3 et pour le 3D un petit véhicule simple découpé en pmma avec une pico pi, la carte moteur 2d , 4 moteurs, la platine et les rous directement sur l'axe des moteurs.
 ## ne pas faire pour l'instant
+- Ruban led extensible
 
+---
+
+# >>>>  v2026.9.4.102 — La pince passe au-dessus des fils, et son crochet reste arrondi
+
+1. ✅ **Item 1.4.1 : pas à pas « l'onglet reste gris ».** Six étapes dans [sonde-logique.md](docs/fr/composants/sonde-logique.md), chacune disant ce qu'on DOIT voir à ce stade — donc où ça casse quand on ne le voit pas.
+2. ✅ **Item 1.4.2 : une pince reliée par un fil prend enfin sa voie.** `poserSonde()` n'attribuait d'indice que si la pointe RECOUVRAIT une pastille ; branchée au cordon, la pince restait grise et l'inspecteur n'offrait aucune pastille active à changer.
+3. ℹ️ **Le trou n'était pas là où je l'avais d'abord bouché.** Un fil naît par TROIS chemins — le geste (`completeWire`), le schéma de démarrage et l'autoroutage (`addWire`), la réouverture d'un `.projix` (`loadDiagram`). Ma première correction ne couvrait que le geste : un projet rouvert reperdait la couleur. Factorisé en `colorerSondesBranchees()`, appelé par les trois.
+4. ✅ **[verify-sonde-fil.mjs](scripts/verify-sonde-fil.mjs) : 12 contrôles, contre-épreuve 6 échecs.** Couvre la pose sans fil (pas de voie), le fil qui donne la voie 0, la peinture effective, le nuancier de 8 pastilles avec l'ACTIVE de rang 0, la deuxième pince en voie 1, la réouverture, et deux contre-cas.
+5. ℹ️ **Trois contrôles étaient verts quoi qu'il arrive, corrigés avant d'être payés.** Un gris recopié d'un autre banc (`#b8b8b8` au lieu de `#9e9e9e`) ; un sélecteur inventé (`[data-voie]` alors que le rendu écrit `.inspector__swatch`) ; et « l'inspecteur propose des couleurs », vrai avant comme après puisque le nuancier est dessiné dans les deux cas.
+6. ✅ **Item 1.4.3 : le crochet garde son ARRONDI, centre sur l'intersection.** Retour à `stroke-linecap:round`, nœud du tracé sur (10 ; 70).
+7. ℹ️ **Le lot précédent avait conclu à tort sur une mesure aveugle.** `getBBox()` et `getPointAtLength()` ignorent l'épaisseur et la terminaison d'un trait : vérifié, `butt` et `round` y rendent EXACTEMENT les mêmes chiffres. Le débordement de 1,1 unité pris pour un défaut d'alignement était le rayon de l'arrondi — symétrique, donc centré. Couper au carré alignait le bord en détruisant le dessin de Frank.
+8. ✅ **[verify-crochet.mjs](scripts/verify-crochet.mjs) : 8 contrôles par lecture de PIXELS, contre-épreuve 2 échecs.** Le crochet est rendu isolé dans un canvas à 10 px/unité et l'alpha est lu. Contrôle décisif : le débord vers l'extérieur vaut 0 avec `butt`, 1,0 avec `round`.
+9. ✅ **Item 1.2 : un fil qui passe sur une pince est dessiné DESSOUS.** Classe `.part--over-wires` (z=6) posée sur les `logic-probe` : seul composant hissé au-dessus du calque des fils (z=5), parce qu'une pince n'est pas dans le montage, elle est posée dessus.
+10. ℹ️ **Le lot .98 avait traité le TRAJET, pas l'AFFICHAGE.** L'autoroutage savait déjà traverser une pince au lieu de la contourner, mais un trajet ne fait pas un dessin : le câble passait dessous et était quand même peint par-dessus.
+11. ℹ️ **Règle de spécificité double nécessaire.** `.part--pin-reachable` (z=4, survol d'une broche) est écrite plus bas dans la feuille : sans `.part--over-wires.part--pin-reachable`, approcher la souris de la pointe faisait replonger la pince DERRIÈRE les fils.
+12. ✅ **[verify-sonde-dessus.mjs](scripts/verify-sonde-dessus.mjs) : 8 contrôles, contre-épreuve 5 échecs.** Mesure par `elementFromPoint` au croisement — l'empilement réellement résolu par le navigateur, pas des `z-index` comparés dans la feuille. Couvre le survol et le contre-cas « une résistance reste sous les fils ».
+13. ℹ️ **Piège de banc : les coordonnées d'`addPart` sont celles du MONDE.** Le centre de la pince tombait en (−1088 ; −781), hors fenêtre, où `elementFromPoint` ne rend rien : le banc échouait pour une raison étrangère au code testé. Réglé par `editor.fitView()` avant de mesurer.
+14. ✅ **Un contrôle de [verify-align.mjs](scripts/verify-align.mjs) exigeait la coupe au carré** — il portait la conclusion fausse du lot précédent, et la suite complète l'a fait tomber. Retourné : il exige désormais `round`, avec le commentaire qui dit pourquoi la calotte déborde (c'est son rayon, pas un décalage). **66 contrôles OK.**
+15. ⏳ **Traductions : aucune chaîne neuve.** Dette `verify:i18n` **inchangée** (7 échecs).
+16. ✅ **Suite complète : 118 bancs sur 119.** Seul échec restant : `verify:i18n`, la dette connue.
+17. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 102. CHANGELOG complété sous `2026.9.5 (prochaine publication)`.
 
 ---
 

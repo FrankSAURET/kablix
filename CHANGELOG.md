@@ -22,17 +22,19 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Le panneau Variables montre aussi les variables `static` déclarées dans une fonction**, sous le nom `loop::memo`. Elles n'apparaissaient pas du tout auparavant.
 - **Les variables qu'on ne peut pas suivre sont nommées** sous le panneau, avec la raison et le remède, au lieu d'être simplement absentes. Elles s'écrivent maintenant **une par ligne**, la variable d'abord et sa fonction ensuite (`valeurCtn -> loop()`), suivies du remède en clair.
 - **Les deux boutons de l'analyseur disent ce qu'ils font** : « Capture entière » et « Suivre en direct », avec une infobulle qui l'explique.
+- **L'aide de la sonde logique donne un pas à pas** pour un analyseur qui reste gris : six étapes, chacune disant ce qu'on doit voir.
 - **Un segment de fil se déplace au glisser**, perpendiculairement à sa direction. Les segments voisins suivent, le reste du tracé ne bouge pas.
 - **L'aide d'un fil sélectionné détaille le glissement d'un segment** et ce que Ctrl y change.
-- **Les câbles passent sous les pinces de l'analyseur.** Un fil qui rencontrait une pince faisait un grand détour, comme devant un composant. Il file maintenant tout droit : la pince surplombe le plan de travail, elle ne le bouche pas.
+- **Les câbles passent sous les pinces de l'analyseur.** Un fil qui rencontrait une pince faisait un grand détour, comme devant un composant. Il file maintenant tout droit : la pince surplombe le plan de travail, elle ne le bouche pas. Et il est maintenant **dessiné dessous** : la pince est posée sur le plan de travail, elle cache ce qui passe sous elle.
 - **La flèche de repli des panneaux est passée dans le panneau**, au-dessus de son ascenseur, qui est raccourci en haut et en bas pour lui laisser la place et ne plus mordre sur les bords arrondis. Une fois le panneau replié, son nom vertical est centré dans la bande, la flèche au-dessus.
 - **Le tableau des composants du README suit les catégories de la palette**.
 - **La liste des composants téléchargeables est illustrée**.
 
 ### Correction
 
-- **L'analyseur affiche enfin ses courbes.** Son onglet restait blanc, programme lancé, en pause ou arrêté : né derrière le schéma, il ne recevait aucune image et n'en redemandait plus une fois ramené devant. Il se dessine maintenant dans tous les cas, et se repeint dès qu'on revient dessus.
-- **Le crochet de la pince pointe pile sur le croisement de la grille.** Son bout — le point où elle mesure — tombait deux carreaux à côté de ce qu'on voyait.
+- **L'analyseur affiche enfin ses courbes.** Son onglet restait gris, programme lancé, en pause ou arrêté : né derrière le schéma, il ne recevait aucune image, et une fois ramené devant il gardait sa page vide alors que les voies étaient bien là dans sa légende. Il se dessine maintenant dans tous les cas, et se repeint à coup sûr dès qu'on revient dessus.
+- **Le crochet de la pince pointe pile sur le croisement de la grille.** Son bout — le point où elle mesure — tombait deux carreaux à côté de ce qu'on voyait. Il garde son **bout arrondi**, dont le centre tombe sur l'intersection ; une version l'avait coupé au carré.
+- **Une pince reliée par un fil prend sa couleur.** Elle restait grise et refusait d'en changer dans ses propriétés, qu'on branche le cordon à la main, qu'on parte d'un schéma d'exemple ou qu'on rouvre un projet enregistré.
 - **Les symétries horizontale et verticale ne déplacent plus la pince.** Elle sautait de six carreaux à chaque miroir, alors que la rotation, elle, tournait bien autour de sa pastille.
 - **Les pinces du projet d'exemple ne pendent plus dans le vide** : elles sont posées sur les broches qu'elles mesurent.
 - **Les flèches de repliement des deux panneaux sont visibles** : elles débordaient sur l'ascenseur de la bibliothèque et sur le titre des propriétés. Elles sont maintenant plus grosses, plus grasses, dans leur propre gouttière.

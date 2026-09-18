@@ -2469,6 +2469,11 @@ export class Editor {
       // apparaissaient comme des fils parasites après une sauvegarde/réouverture.
       if (!nw.auto) this.drawWire(nw);
     }
+    // Rattrapage à l'ouverture : une pince branchée au cordon dans un schéma qui
+    // ne portait pas encore son indice de voie (fichier écrit avant ce lot,
+    // schéma fabriqué à la main) repart grise sans cela. Les hotspots existent
+    // déjà — `renderPart` les pose sans attendre le rendu de Lit.
+    for (const w of this.diagram.wires) this.colorerSondesBranchees([w.a, w.b]);
     // Étiquettes de texte : identifiants régénérés comme le reste, elles ne
     // référencent rien et rien ne les référence.
     for (const n of data.texts ?? []) {
@@ -2495,8 +2500,26 @@ export class Editor {
     const color = opts?.color ?? this.autoColor(a, b);
     const wire: Wire = { id: uid('w-'), a, b, points: opts?.points, color };
     this.diagram.wires.push(wire);
+    this.colorerSondesBranchees([a, b]);
     this.drawWire(wire);
     this.notify();
+  }
+
+  /**
+   * Donne sa teinte de voie à toute pince qu'un fil vient de brancher.
+   *
+   * Les fils naissent par TROIS chemins — le geste (`completeWire`), le schéma
+   * de démarrage et l'autoroutage (`addWire`), la réouverture d'un `.projix`
+   * (`loadDiagram`) — et une pince branchée au cordon doit être colorée par
+   * tous, sinon elle reste grise selon la façon dont le fil est arrivé. Les
+   * bouts qui ne sont pas des pinces sont ignorés : c'est l'appelant qui passe
+   * les deux extrémités sans savoir ce qu'elles sont.
+   */
+  private colorerSondesBranchees(bouts: Endpoint[]): void {
+    for (const bout of bouts) {
+      const p = this.diagram.parts.find((q) => q.id === bout.partId);
+      if (p && partDef(p.type).kind === 'logic-probe') this.poserSonde(p);
+    }
   }
 
   /**
@@ -2618,6 +2641,12 @@ export class Editor {
     if (def.kind === 'mcu' || def.kind === 'breadboard' || def.kind === 'grove-shield') {
       container.classList.add('part--under-wires');
     }
+    // La pince d'analyseur fait exception à la règle « tout composant passe sous
+    // les fils » : elle n'est pas dans le montage, elle est posée PAR-DESSUS.
+    // L'autoroutage le sait déjà (lot .98 : une sonde est un obstacle qu'on
+    // traverse, pas qu'on contourne), mais le trajet ne fait pas le dessin — un
+    // fil qui passait dessous était quand même peint devant elle.
+    if (def.kind === 'logic-probe') container.classList.add('part--over-wires');
     // Un shield-socle descend d'un cran de plus (z=0) : la Pico (mcu, z=1)
     // enfichée dessus doit rester visible par-dessus le shield. Une carte fille
     // posée SUR sa carte hôte fait l'inverse : elle passe devant elle (z=2).
@@ -3560,6 +3589,11 @@ export class Editor {
       color: this.autoColor(from, endpoint),
     };
     this.diagram.wires.push(wire);
+    // Un fil tiré JUSQU'À une pince est un branchement de pince : elle prend sa
+    // couleur de voie tout comme si on l'avait posée sur une pastille. Sans
+    // cela, seul le geste « poser la pince » colorait, et une pince branchée au
+    // cordon restait grise — alors que l'analyseur, lui, la traçait.
+    this.colorerSondesBranchees([from, endpoint]);
     this.drawWire(wire);
     this.notify();
     // Un fil qu'on vient de tracer est le fil sur lequel on travaille : il
@@ -4156,7 +4190,13 @@ export class Editor {
     const accroche = cible ? `${cible.partId}/${cible.pin}` : '';
     const attrs: Record<string, string> = { ...part.attrs, accroche };
     // Première pose réussie : la sonde prend la plus petite teinte libre.
-    if (cible && !(part.attrs?.voie ?? '').trim()) {
+    // BRANCHÉE PAR UN CORDON, elle compte tout autant : Frank (17/09) tient les
+    // deux gestes pour légitimes — poser la pince sur une patte, ou relier son
+    // crochet au point à écouter par un fil. Le modèle le sait déjà (il suit le
+    // fil jusqu'à la broche), mais la POSE l'ignorait : sans cible sous la
+    // pointe, la sonde restait sans indice de voie, donc GRISE sur la planche et
+    // sans pastille de couleur à choisir dans ses propriétés.
+    if ((cible || this.sondeFilAttache(part.id)) && !(part.attrs?.voie ?? '').trim()) {
       attrs.voie = String(this.voieLibre(part.id));
     }
     part.attrs = attrs;
@@ -4167,6 +4207,26 @@ export class Editor {
     if (this.selection?.kind === 'part' && this.selection.id === part.id) {
       this.renderPartInspector(part.id);
     }
+  }
+
+  /**
+   * Vrai si un fil est branché sur la POINTE de cette sonde.
+   *
+   * C'est l'autre façon de brancher une pince, à côté de la pose directe sur
+   * une pastille. On ne regarde pas où va le fil : cela regarde le modèle, qui
+   * le suit jusqu'à la broche et dira, le cas échéant, que la voie n'écoute
+   * rien. Ici on décide seulement qu'il y a eu un GESTE DE BRANCHEMENT — donc
+   * qu'il faut une couleur de voie.
+   */
+  private sondeFilAttache(sondeId: string): boolean {
+    const r = this.rendered.get(sondeId);
+    const pointe = r ? [...r.hotspots.keys()][0] : undefined;
+    if (pointe === undefined) return false;
+    return this.diagram.wires.some(
+      (w) =>
+        (w.a.partId === sondeId && w.a.pin === pointe) ||
+        (w.b.partId === sondeId && w.b.pin === pointe)
+    );
   }
 
   /**

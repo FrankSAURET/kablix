@@ -259,20 +259,24 @@ async function run() {
 		// L EXTREMITE DU CROCHET EST LE POINT DE CONNEXION (item 1.2 du 18/09 :
 		// « son extremite (bas gauche) doit etre sur une intersection de la
 		// grille. La connection c'est bien l extremite du crochet »). On lit donc
-		// le NOEUD du trait, pas sa boite englobante : avec une terminaison coupee
-		// nette, un trait diagonal a un bord perpendiculaire dont les deux coins
-		// s ecartent du noeud d un demi-trait de part et d autre. La boite voit le
-		// coin le plus bas-gauche (9,27 ; 70,75), alors que le point de connexion
-		// est le MILIEU de cette coupe.
+		// le NOEUD du trait, pas sa boite englobante : la boite englobe la CALOTTE
+		// arrondie, un demi-disque de rayon 1,1 autour du noeud, et voit donc son
+		// bord le plus bas-gauche (9,27 ; 70,75). Le point de connexion est le
+		// CENTRE de cette calotte, c est-a-dire le noeud lui-meme.
 		const bout = tige && tige.getPointAtLength ? tige.getPointAtLength(0) : null;
 		ok("crochet : son extremite tombe PILE sur le croisement de la grille",
 			bout && Math.abs(bout.x - 10) < 0.05 && Math.abs(bout.y - 70) < 0.05,
 			bout ? 'bout=(' + bout.x.toFixed(2) + ' ; ' + bout.y.toFixed(2) + ')' : 'tige introuvable');
-		// Coupee NETTE, justement : une calotte arrondie deborde AUTOUR du noeud,
-		// donc au-dela du croisement, quoi qu on recule le trait. C est ce qui
-		// mettait le bout peint 2,3 unites trop bas avant ce lot.
-		ok("crochet : terminaison coupee nette (pas de calotte au-dela du croisement)",
-			st && st.indexOf('stroke-linecap:butt') >= 0, 'style=' + st);
+		// ARRONDIE, et c est voulu. Ce controle exigeait l inverse (coupe nette)
+		// sur une lecture fausse : la calotte qui deborde de 1,1 unite autour du
+		// noeud n est pas un defaut d alignement, c est le RAYON de l arrondi, donc
+		// symetrique — le centre de l arrondi, lui, tombe pile sur le croisement.
+		// Frank (18/09) : « je l ai dessine arrondit et je souhaite qu il le reste
+		// avec le centre de l arrondi sur une intersection de grille ». La mesure de
+		// la peinture reelle est dans verify-crochet.mjs (lecture des pixels :
+		// getBBox et getPointAtLength ignorent la terminaison du trait).
+		ok("crochet : terminaison ARRONDIE (le centre de l arrondi est sur le croisement)",
+			st && st.indexOf('stroke-linecap:round') >= 0, 'style=' + st);
 		// Il reste VISIBLE : le trait sort du corps en biais sous la machoire.
 		ok('crochet : son ergot reste visible hors de la machoire verte',
 			rc && rm && rc.left < rm.left,

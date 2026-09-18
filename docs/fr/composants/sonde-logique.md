@@ -52,6 +52,19 @@ L'onglet montre une **piste par voie**, dans la couleur de sa pince, avec une r�
 
 Hors simulation, l'onglet montre la **dernière capture** enregistrée dans le `.projix`, pas du vide.
 
+### L'onglet reste gris : le pas à pas
+
+Six étapes, dans l'ordre. Chacune dit **ce qu'il faut voir** : la première qui ne donne pas le résultat annoncé désigne la cause.
+
+1. **La pince est-elle accrochée ?** L'accrochage se décide **au lâcher**, par superposition des pastilles : la pointe de la pince doit tomber sur celle de la broche, à moins d'une graduation près. Une pince bien posée **garde sa couleur** ; une pince lâchée à côté se décroche, et c'est l'analyseur qui le dira à l'étape 4 (« posée dans le vide »). Dans le doute, reposez-la en visant la pastille, pas le corps de la broche.
+2. **L'onglet s'ouvre-t-il tout seul ?** Lancez la simulation. Un onglet « Analyseur logique » doit apparaître **à côté** du schéma. Il ne s'ouvre pas : c'est qu'aucune pince n'est posée sur la planche — l'analyseur ne s'ouvre jamais à vide.
+3. **L'onglet est-il au premier plan ?** Il naît **derrière** l'atelier pour ne pas vous voler le clavier. Cliquez sur son titre. Depuis la version 2026.9.4.102 il se peint tout seul en arrivant devant ; avant, il pouvait rester gris — c'est le défaut corrigé.
+4. **La légende porte-t-elle des noms de voies ?** Juste sous la barre d'outils, une pastille de couleur et un nom (`8`, `GP14`, ou votre étiquette) par pince. Légende **vide** : les pinces ne sont pas arrivées jusqu'à l'analyseur — revoyez l'étape 1. Légende **grise et barrée** : la voie est là mais ne peut rien tracer, et le motif est écrit à côté (voir plus bas, « Ce qu'une pince ne peut pas montrer »).
+5. **Y a-t-il des créneaux ?** Si la légende est bonne mais que les pistes restent plates, c'est que la broche **ne change pas d'état** : vérifiez que le programme la pilote vraiment, et qu'il tourne (la console doit vivre).
+6. **Un message au milieu de la piste ?** Il y en a trois, et chacun se lit au pied de la lettre : « aucune sonde » (rien n'est posé), « aucun front capturé » (la broche est immobile), « en attente du déclenchement » (le front choisi au **Déclenchement** n'est jamais venu — changez de sens, ou retirez le déclenchement).
+
+Si les six étapes passent et que l'image reste grise, c'est un défaut : **fermez l'onglet et relancez la simulation**, la capture repart de zéro.
+
 ## Le déclenchement
 
 Sélecteur **Déclenchement** : une voie, et un **sens** — front *montant* ou *descendant*. La capture reste alors **en attente** jusqu'au premier front de ce type, puis se **fige sur lui** : l'instant 0 de la règle devient ce front, et tout se lit en avance ou en retard par rapport à lui. Sans déclenchement, la règle part du début du run.

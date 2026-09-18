@@ -276,8 +276,9 @@ export class SondeLogiqueElement extends HTMLElement {
    * plastique recouvre sa partie intérieure, exactement comme une lame qui se
    * prolonge dans un manche.
    *
-   * REPRISE DU 18/09 : il ne dépasse plus du tout la pastille — son extrémité
-   * EST le croisement de la grille. Détail de la mesure dans `remonterTige()`.
+   * REPRISE DU 18/09 : il ne dépasse plus la pastille, et son bout garde son
+   * ARRONDI — c'est le centre de cet arrondi qui tombe sur le croisement de la
+   * grille, pas son bord. Détail de la mesure dans `remonterTige()`.
    *
    * Corrigé ICI et non dans le SVG : `externe/grip-fil.svg` est extrait de
    * `Composants2D.svg` (`_extract-composants.mjs`) — une retouche du fichier
@@ -311,19 +312,28 @@ export class SondeLogiqueElement extends HTMLElement {
     // gauche) doit être sur une intersection de la grille. La connection c'est
     // bien l'extrémité du crochet. »
     //
-    // Deux choses le mettaient à côté, et la seconde a demandé deux mesures :
-    //  1. le trait DÉPASSAIT la pastille de 2,2 unités vers le bas-gauche — il
-    //     traversait le croisement au lieu de s'y arrêter. Il part maintenant
-    //     DE la pastille et ne file que vers l'intérieur du corps ;
-    //  2. `stroke-linecap:round` coiffait le nœud d'un demi-disque qui déborde
-    //     dans TOUTES les directions, pas seulement le long du trait. Reculer le
-    //     nœud ne suffisait donc pas : mesuré à mi-correction, nœud pile sur
-    //     (10 ; 70) et bord peint encore en (9,27 ; 70,75). La terminaison passe
-    //     à `butt` — le trait est COUPÉ NET au nœud.
+    // Le trait DÉPASSAIT la pastille de 2,2 unités vers le bas-gauche — il
+    // traversait le croisement au lieu de s'y arrêter. Il part maintenant DE la
+    // pastille et ne file que vers l'intérieur du corps. Mesuré avant : bout en
+    // (7,71 ; 72,31), soit 2,3 unités hors du croisement.
     //
-    // Mesuré avant : bout en (7,71 ; 72,31), soit 2,3 unités hors du croisement.
-    // Après : (10 ; 70). Le bout intérieur garde son arrondi, il est enfoui sous
-    // le plastique et personne ne le voit.
+    // SECONDE REPRISE DU 18/09 — L'ARRONDI RESTE ARRONDI. Une première passe
+    // avait conclu que `stroke-linecap:round` mettait le crochet à côté, parce
+    // que son demi-disque déborde du nœud dans toutes les directions : le bord
+    // peint tombait en (9,27 ; 70,75) pour un nœud pile sur (10 ; 70), et la
+    // terminaison était passée à `butt` pour couper le trait net au croisement.
+    //
+    // C'était lire la demande de travers. Frank (18/09) : « je l'ai dessiné
+    // arrondi et je souhaite qu'il le reste avec le CENTRE DE L'ARRONDI sur une
+    // intersection de grille. » Ce n'est donc pas le bord peint qui doit tomber
+    // sur le croisement, c'est le centre du demi-disque — et c'est exactement ce
+    // que `round` donne quand le nœud est sur (10 ; 70). Le débordement de 1,1
+    // unité tout autour n'est pas un défaut d'alignement : c'est le rayon de
+    // l'arrondi, et il est symétrique, donc centré sur le croisement.
+    //
+    // `butt` coupait le métal au carré : alignement juste au sens strict, dessin
+    // faux au sens de Frank. On revient à `round`, le nœud restant sur la
+    // pastille — les deux exigences tiennent ensemble.
     tige.setAttribute(
       'd',
       `M ${x} ${y}`
@@ -332,7 +342,7 @@ export class SondeLogiqueElement extends HTMLElement {
     tige.setAttribute(
       'style',
       'fill:none;stroke:url(#linearGradient996);'
-      + `stroke-width:${CROCHET_EP};stroke-linecap:butt;stroke-opacity:1`,
+      + `stroke-width:${CROCHET_EP};stroke-linecap:round;stroke-opacity:1`,
     );
 
     // Le dégradé de Frank est calé (`userSpaceOnUse`) sur la position d'ORIGINE

@@ -59,7 +59,13 @@ type MessageEntrant =
   /** Fin d'un run : la vue se fige sur ce qu'elle a. */
   | { type: 'arret' }
   /** Capture complète restaurée depuis le .projix (ouverture hors simulation). */
-  | { type: 'restaure'; etat: EtatSerialise };
+  | { type: 'restaure'; etat: EtatSerialise }
+  /**
+   * L'onglet vient de repasser DEVANT : l'hôte le dit, parce que la page ne
+   * l'apprend pas autrement (ni `resize`, ni `visibilitychange`). Voir le
+   * commentaire du `ResizeObserver`, plus bas.
+   */
+  | { type: 'repeindre' };
 
 /** Capture enregistrée dans le .projix (forme compacte). */
 export interface EtatSerialise {
@@ -229,6 +235,19 @@ function dessiner(): void {
     if (raf) { cancelAnimationFrame(raf); raf = 0; }
     rendu();
   }, FILET_MS);
+}
+
+/**
+ * Repeint TOUT DE SUITE, verrou compris.
+ *
+ * Réservé au cas où l'on SAIT que la vue affichée est fausse et qu'attendre une
+ * image serait attendre pour rien : le retour de l'onglet au premier plan. Les
+ * demandes ordinaires passent par `dessiner()`, qui regroupe.
+ */
+function redessinerMaintenant(): void {
+  if (raf) { cancelAnimationFrame(raf); raf = 0; }
+  if (filet) { clearTimeout(filet); filet = 0; }
+  rendu();
 }
 
 /** Voies effectivement dessinées : les masquées gardent leur capture, pas leur piste. */
@@ -770,6 +789,14 @@ window.addEventListener('message', (ev) => {
     case 'restaure':
       restaurer(msg.etat);
       return;
+    case 'repeindre':
+      // FORCÉ, pas `dessiner()` : une demande en attente pourrait tenir le
+      // verrou (`raf` armé mais jamais servi tant que l'onglet était derrière,
+      // minuterie ralentie par le navigateur dans un onglet d'arrière-plan), et
+      // la seule demande qui compte — celle qui arrive quand la page a enfin
+      // une largeur — serait alors avalée en silence.
+      redessinerMaintenant();
+      return;
   }
 });
 
@@ -874,6 +901,29 @@ window.addEventListener('resize', () => dessiner());
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) dessiner();
 });
+/**
+ * Le canvas a CHANGÉ DE LARGEUR : on repeint.
+ *
+ * C'est ce qui reste de la page grise après le filet du lot .98. Un onglet de
+ * webview VS Code ouvert en second plan n'est pas « caché » au sens du
+ * navigateur — `document.hidden` reste faux — mais sa page est large de ZÉRO
+ * pixel. Le rendu a donc bien lieu, et `vue.dessiner()` en ressort aussitôt sur
+ * son garde `w === 0`. Quand l'élève clique enfin sur l'onglet, la page reprend
+ * sa largeur sans qu'aucun `resize` de fenêtre ni aucun `visibilitychange` ne
+ * soit émis : plus rien ne redemandait de rendu, et le canvas restait vierge
+ * alors que la légende et la hauteur des pistes, elles, étaient bien en place.
+ * C'est exactement l'image que Frank signale.
+ *
+ * On ne réagit qu'à la LARGEUR : la hauteur, c'est `rendu()` lui-même qui la
+ * pose (une piste par voie), et s'en servir ferait repeindre la vue en réponse
+ * à son propre dessin.
+ */
+let largeurVue = canvas.clientWidth;
+new ResizeObserver(() => {
+  if (canvas.clientWidth === largeurVue) return;
+  largeurVue = canvas.clientWidth;
+  dessiner();
+}).observe(canvas);
 // Changement de thème VS Code : les couleurs de voie ont une variante claire et
 // une sombre, il faut redessiner.
 new MutationObserver(() => dessiner()).observe(document.body, {

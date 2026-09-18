@@ -1765,6 +1765,19 @@ body.vscode-light .inspector__ref--nouveau {
   z-index: 1;
 }
 
+/* Pince d'analyseur : AU-DESSUS des fils (z=5), seule de tous les composants.
+   La règle générale — un dessin ne masque jamais un fil — vaut pour ce qui est
+   DANS le montage : une résistance qui recouvrirait un câble cacherait le
+   câblage que l'élève est en train de lire. Une pince crocodile n'est pas dans
+   le montage, elle est POSÉE DESSUS, comme sur une paillasse : un fil qui passe
+   sous elle doit disparaître sous elle, sinon le dessin dit le contraire du
+   geste (demande de Frank, item 1.2 du 18/09).
+   z=6 et pas plus haut : les couches d'interface (bulle de broche z=46, poster
+   de brochage z=50, panneaux) doivent rester devant. */
+.part--over-wires {
+  z-index: 6;
+}
+
 /* Grove Shield : encore un cran plus bas, pour que la Pico (z=1) enfichée
    dessus reste visible par-dessus le dessin du shield. */
 .part--shield {
@@ -1852,6 +1865,16 @@ body.vscode-light .inspector__ref--nouveau {
    couche .pin-hoist-layer ci-dessous. Posé/retiré au pointermove par l'éditeur. */
 .part--pin-reachable {
   z-index: 4;
+}
+
+/* ...sauf la pince d'analyseur, qui vit AU-DESSUS des fils (voir
+   `.part--over-wires`). Sans cette règle, approcher le curseur de sa pointe la
+   ferait plonger de z=6 à z=4 : la pince passerait brusquement DERRIÈRE les
+   fils au survol, le temps d'aller cliquer sur sa broche. Les deux classes ont
+   la même spécificité, c'est l'ordre du fichier qui tranche — et
+   `.part--pin-reachable` est écrite plus bas, donc elle gagnerait. */
+.part--over-wires.part--pin-reachable {
+  z-index: 6;
 }
 
 /* Couche du rond de sélection + bulle de la broche survolée, AU-DESSUS des fils.

@@ -33,7 +33,9 @@ export type HoteVersAnalyseur =
   | { type: 'fronts'; salves: Record<string, number[]> }
   | { type: 'depart' }
   | { type: 'arret' }
-  | { type: 'restaure'; etat: unknown };
+  | { type: 'restaure'; etat: unknown }
+  /** L'onglet vient de repasser au premier plan : qu'il repeigne. */
+  | { type: 'repeindre' };
 
 /** Ce dont l'onglet a besoin quand il s'ouvre (ou se recharge). */
 export interface EtatAnalyseur {
@@ -119,6 +121,25 @@ export class AnalyseurPanel {
   private constructor(panel: vscode.WebviewPanel, private cle: string) {
     this.panel = panel;
     this.panel.onDidDispose(() => this.onDispose(), null, this.disposables);
+    // RETOUR AU PREMIER PLAN. L'onglet naît DERRIÈRE l'atelier (`preserveFocus`)
+    // et sa page est alors large de zéro pixel : le rendu a bien lieu mais sort
+    // sur son garde de largeur nulle, et le canvas reste vierge. Quand l'élève
+    // clique enfin sur l'onglet, la page reprend sa largeur sans qu'aucun
+    // `resize` de fenêtre ni aucun `visibilitychange` ne soit émis dans la
+    // webview — `document.hidden` n'a jamais été vrai.
+    //
+    // La page a bien un `ResizeObserver` sur son canvas, mais un observateur de
+    // taille n'est servi qu'avec une image : il rattrape le cas dès que le
+    // navigateur en donne une, pas de façon certaine. C'est l'HÔTE qui sait,
+    // lui, que l'onglet vient de passer devant. Un message de plus ne coûte
+    // rien, une page grise coûte la mesure.
+    this.panel.onDidChangeViewState(
+      (e) => {
+        if (e.webviewPanel.visible) this.envoyer({ type: 'repeindre' });
+      },
+      null,
+      this.disposables
+    );
   }
 
   /**
