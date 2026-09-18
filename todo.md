@@ -1,16 +1,30 @@
 # À faire
-1. Repliement des panneaux :
-    1. je t'ai fais une image avant aprés de ce que je veux ici "repliement panneaux.png"
-    1. Tu notera en haut ce qu'on voit actuellement à gauche déplié et à droite replié et en dessous ce que je veux
-    1. Les eléments importants
-        1. Ascenseurs du panneau de gauche diminués symétriquement en haut et en bas pour avoir la place de mettre la flèche en haut et ne pas mordre sur l'arrondi. Attention ce doit être la même chose si un ascenseur apparait dans le paneau de droite.
-        1. Fleche au dessus de l'ascenseur pour replier, si il y a un ascenseur sans ascenseur elle ne doit pas empièter sur le texte. 
-        1. Une fois replié, le texte devient verticale et est centré dans le mini panneau avec la flêche au dessus
-  1. J'ai rajouté 1 composants (dans composants2D.svg) en 2 versions (CI et Étanche). Le choix se fait dans les propriétés. C'est un DSB1820. En simulation il trouve un curseur de température (-55 à +125 +-0,5°C), protocole 1-wire. Il se met dans la bibliothèque externe.
+1. J'ai rajouté 1 composants (dans composants2D.svg) en 2 versions (CI et Étanche). Le choix se fait dans les propriétés. C'est un DSB1820. En simulation il trouve un curseur de température (-55 à +125 +-0,5°C), protocole 1-wire. Il se met dans la bibliothèque externe.
   1. L'heure du build ne dois pas apparaitre dans une version publiée.
-  1. Les fils peuvent passer sur une sonde mais doivent etre dessinnées dessous
+  1. Les fils qui passent sur une sonde doivent etre dessinnées dessous
+  1. Analyseur logique
+    1. Je ne vois toujours qu'un onglet gris dans l'analyseur logique. Fait moi un pas à pas pour voir si il y a qqc que je fais mal.
+    1. Une sonde reliée par un fil reste grise et ne peux pas changer de couleur.
+    1. Le crochet métalique ne tombe toujours pas sur la grille (alignement crochet.png). De plus je l'a dessiné arrondit et je souhaite qu'il le reste avec le centre de l'arrondi sur une intersection  de grille.
 ## ne pas faire pour l'instant
 
+
+---
+
+# >>>>  v2026.9.4.101 — La flèche entre dans le panneau, et l'ascenseur recule
+
+1. ✅ **Item 1 : le bouton de repli a quitté la gouttière pour le PANNEAU.** Il est posé en absolu dans le coin haut du panneau, du côté du canvas (`.panel__fold`). Avant, il vivait dans le splitter de 14 px : la flèche s'écrivait donc à CÔTÉ du panneau, à cheval sur la bordure arrondie et sur la grille du canvas — c'est exactement ce que montre le quadrant « Actuellement » de `repliement panneaux.png`.
+2. ℹ️ **Pourquoi il n'y était pas déjà.** Le commentaire du HTML le disait : le contenu des panneaux est refait à chaque rendu (`replaceChildren`), un bouton posé dedans y serait effacé. La contrainte est levée par une **enveloppe** : la bibliothèque et l'inspecteur sont désormais rendus dans un `.panel__scroll`, et le bouton est son FRÈRE. Le rendu n'écrase plus que l'enveloppe.
+3. ✅ **Item 1.3.1 : l'ascenseur est raccourci en haut ET en bas.** Une barre de défilement native occupe toute la hauteur de son conteneur — on ne la raccourcit pas, on raccourcit le conteneur. C'est le rôle de l'enveloppe : `margin: 26px 0 6px`, 26 px en haut (4 de décalage + 20 de bouton + 2 de dégagement) et 6 en bas. Le panneau lui-même ne défile plus (`overflow: hidden`), sinon la barre reviendrait courir sur les arrondis.
+4. ✅ **Item 1.3.2 : la flèche n'empiète sur rien, avec ou sans ascenseur.** Elle est AU-DESSUS de la zone de contenu, pas dessus : la question « et s'il n'y a pas d'ascenseur ? » ne se pose donc plus. Mesuré sur les deux panneaux — la bibliothèque déborde (il y a une barre), les Propriétés non (c'est le cas « sans ascenseur » que Frank nomme).
+5. ✅ **Item 1.3.3 : replié, le nom vertical est CENTRÉ dans la bande, la flèche au-dessus.** Le bouton s'étale alors sur toute la bande, en colonne. Mesuré : écart entre le centre du texte et le centre de la bande **inférieur à 2 px**, flèche centrée elle aussi et n'empiétant pas sur le texte.
+6. ✅ **Le panneau Variables porte désormais SON propre bouton.** En colonne de droite il prend la place des Propriétés ; le bouton étant passé dans le panneau, un seul bouton partagé n'était plus possible. Il est masqué quand ce panneau redevient un bandeau bas, où replier latéralement n'a pas de sens.
+7. ✅ **Douze contrôles neufs dans [verify-panneaux.mjs](scripts/verify-panneaux.mjs), tous géométriques.** Marge haute, marge basse, non-recouvrement flèche/contenu, appartenance de la flèche au panneau, centrage du nom et de la flèche dans la bande, et le cas sans ascenseur mesuré sur l'autre panneau. **49 contrôles OK.**
+8. ✅ **Défaut de banc corrigé AVANT d'être payé : le banc mourait au lieu d'échouer.** Première contre-épreuve : `TypeError: Cannot read properties of null` au sixième contrôle, banc arrêté, **5 échecs affichés sur 33 réels**. Exactement le piège du lot .100. `ok()` accepte maintenant une FONCTION : une exception vaut échec nommé, pas mort du banc — et `clicChevron` sur un bouton absent échoue au lieu de lever.
+9. ✅ **Contre-épreuve finale au `git stash` : 0 échec avant, 33 après**, les douze neufs nommément (« l ascenseur est raccourci EN HAUT », « le nom vertical est DANS la bande repliée »…).
+10. ⏳ **Traductions : aucune chaîne neuve.** Les libellés réutilisent `Components`, `Properties` et `Variables`, déjà en place. Dette `verify:i18n` **inchangée** (7 échecs).
+11. ✅ **Suite complète : 114 bancs sur 115.** Seul échec : `verify:i18n`, la dette connue.
+12. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 101. CHANGELOG complété sous `2026.9.5 (prochaine publication)`.
 
 ---
 

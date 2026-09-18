@@ -25,6 +25,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Un segment de fil se déplace au glisser**, perpendiculairement à sa direction. Les segments voisins suivent, le reste du tracé ne bouge pas.
 - **L'aide d'un fil sélectionné détaille le glissement d'un segment** et ce que Ctrl y change.
 - **Les câbles passent sous les pinces de l'analyseur.** Un fil qui rencontrait une pince faisait un grand détour, comme devant un composant. Il file maintenant tout droit : la pince surplombe le plan de travail, elle ne le bouche pas.
+- **La flèche de repli des panneaux est passée dans le panneau**, au-dessus de son ascenseur, qui est raccourci en haut et en bas pour lui laisser la place et ne plus mordre sur les bords arrondis. Une fois le panneau replié, son nom vertical est centré dans la bande, la flèche au-dessus.
 - **Le tableau des composants du README suit les catégories de la palette**.
 - **La liste des composants téléchargeables est illustrée**.
 

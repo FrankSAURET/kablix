@@ -2,12 +2,16 @@
 // (v2026.9.4.89) — bibliothèque à gauche, Propriétés/Variables à droite.
 //
 // Pourquoi une VRAIE souris ici : replier est un GESTE, le clic sur le chevron.
-// Or ce chevron vit DANS le splitter, l'élément qui écoute `pointerdown` pour
-// redimensionner la colonne. Un événement fabriqué (`new PointerEvent(...)`)
+// Ce chevron est voisin immédiat du splitter, l'élément qui écoute `pointerdown`
+// pour redimensionner la colonne. Un événement fabriqué (`new PointerEvent(...)`)
 // aurait « marché » même si le clic partait en glissement de largeur au lieu de
 // replier — c'est exactement le piège déjà payé deux fois sur le double-clic des
 // étiquettes (v.71, v.72). Chrome est donc piloté en CDP brut : ce sont ses
 // propres événements qui traversent la page.
+//
+// v2026.9.4.101 : le chevron a DÉMÉNAGÉ du splitter vers le panneau lui-même
+// (`.panel__fold`), et le contenu défilant est passé dans une enveloppe
+// `.panel__scroll` pour que l'ascenseur soit raccourci en haut et en bas.
 //
 // L'atelier monté est le VRAI : le HTML de webview-html.ts, la feuille
 // media/styles.css et le module sim.mts, avec un faux pont VS Code. Sans le vrai
@@ -28,7 +32,12 @@
 //      l'élève avait repliée lui-même ;
 //   8. réglage à faux : la simulation ne replie plus rien ;
 //   9. en simulation, la bande de droite nomme « Variables » et non « Properties »
-//      — c'est le panneau des variables qui y prend la place des propriétés.
+//      — c'est le panneau des variables qui y prend la place des propriétés ;
+//  10. l'ascenseur du panneau est RACCOURCI symétriquement en haut et en bas : il
+//      ne touche ni le bord haut ni le bord bas du panneau (arrondis préservés) ;
+//  11. le chevron déployé n'EMPIÈTE ni sur l'ascenseur ni sur le texte du panneau ;
+//  12. replié, le nom vertical est CENTRÉ horizontalement dans la bande, le
+//      chevron au-dessus de lui.
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
@@ -42,9 +51,21 @@ mkdirSync(CACHE, { recursive: true });
 
 const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
+/**
+ * Un contrôle. `cond` peut être une FONCTION : elle est alors appelée sous
+ * protection, et une exception vaut ÉCHEC, pas mort du banc. Sans cela, une
+ * mesure absente (un élément que le code remisé ne crée pas) lève au premier
+ * contrôle et le banc s'arrête AVANT d'afficher les échecs suivants — le piège
+ * exact payé au lot .100, où un `grep ❌` comptait zéro sur un banc mort.
+ */
 const ok = (nom, cond, detail = '') => {
-	checks.push({ nom, ok: !!cond, detail: String(detail) });
-	console.log(`${cond ? '✅' : '❌'} ${nom}${cond ? '' : ` — ${detail}`}`);
+	let val = cond;
+	if (typeof cond === 'function') {
+		try { val = cond(); }
+		catch (e) { val = false; detail = `mesure impossible : ${e.message}`; }
+	}
+	checks.push({ nom, ok: !!val, detail: String(detail) });
+	console.log(`${val ? '✅' : '❌'} ${nom}${val ? '' : ` — ${detail}`}`);
 };
 
 // --- Le vrai HTML de l'atelier, avec un faux module `vscode` ------------------
@@ -151,16 +172,24 @@ try {
 		await ev('(window.__msgs || []).some((m) => m && m.type === "ready") && window.__err.length === 0'),
 		await ev('JSON.stringify(window.__err)'));
 
-	/** Mesure d'un panneau : largeur réelle, repli, contenu visible, nom vertical. */
-	const mesurer = (sel, splitter) => ev(`(() => {
-		const p = document.querySelector('${sel}');
-		const s = document.querySelector('${splitter}');
-		const btn = s && s.querySelector('.splitter__fold');
-		const lab = btn && btn.querySelector('.splitter__fold-label');
-		const enfants = p ? [...p.children].filter((c) => !c.hidden) : [];
+	// Mesure commune aux deux côtés, injectée dans la page. Le chevron vit
+	// désormais DANS le panneau : c'est lui qu'on interroge, pas le splitter.
+	// `contenu` est le nombre d'enfants visibles AUTRES que le bouton de repli —
+	// celui-ci reste affiché même replié (c'est par lui qu'on rouvre).
+	const MESURE = `(p, s) => {
+		const btn = p && p.querySelector(':scope > .panel__fold');
+		const lab = btn && btn.querySelector('.panel__fold-label');
+		const chev = btn && btn.querySelector('.panel__chevron');
+		const scroll = p && p.querySelector(':scope > .panel__scroll');
+		const enfants = p ? [...p.children].filter((c) => !c.hidden && c !== btn) : [];
 		const visibles = enfants.filter((c) => getComputedStyle(c).display !== 'none').length;
-		return JSON.stringify({
-			w: p ? Math.round(p.getBoundingClientRect().width) : -1,
+		const bp = p ? p.getBoundingClientRect() : null;
+		const bb = btn ? btn.getBoundingClientRect() : null;
+		const bs = scroll ? scroll.getBoundingClientRect() : null;
+		const bl = lab ? lab.getBoundingClientRect() : null;
+		const bc = chev ? chev.getBoundingClientRect() : null;
+		return {
+			w: bp ? Math.round(bp.width) : -1,
 			plie: p ? p.classList.contains('is-folded') : null,
 			splitPlie: s ? s.classList.contains('splitter--folded') : null,
 			visibles,
@@ -168,33 +197,45 @@ try {
 			nomVertical: lab ? getComputedStyle(lab).writingMode.startsWith('vertical') : null,
 			nom: lab ? lab.textContent.trim() : '',
 			titre: btn ? btn.getAttribute('title') : '',
-		});
-	})()`).then(JSON.parse);
+			// Géométrie, pour les contrôles d'ascenseur et de centrage.
+			panneau: bp ? { x: bp.left, y: bp.top, w: bp.width, h: bp.height } : null,
+			btnBox: bb ? { x: bb.left, y: bb.top, w: bb.width, h: bb.height } : null,
+			scrollBox: bs ? { x: bs.left, y: bs.top, w: bs.width, h: bs.height } : null,
+			labBox: bl ? { x: bl.left, y: bl.top, w: bl.width, h: bl.height } : null,
+			chevBox: bc ? { x: bc.left, y: bc.top, w: bc.width, h: bc.height } : null,
+			// Un ascenseur natif occupe la hauteur de son conteneur : la marge
+			// haute et la marge basse de l'enveloppe le raccourcissent d'autant.
+			margeHaut: bs && bp ? Math.round(bs.top - bp.top) : -1,
+			margeBas: bs && bp ? Math.round(bp.bottom - bs.bottom) : -1,
+			deborde: scroll ? scroll.scrollHeight > scroll.clientHeight + 1 : null,
+			// Le panneau lui-même ne doit PAS défiler : sinon la barre reprendrait
+			// toute la hauteur, arrondis compris.
+			panneauDefile: p ? getComputedStyle(p).overflowY !== 'visible'
+				&& p.scrollHeight > p.clientHeight + 1 : null,
+		};
+	}`;
+	/** Mesure d'un panneau : largeur réelle, repli, contenu visible, nom vertical. */
+	const mesurer = (sel, splitter) => ev(`JSON.stringify((${MESURE})(
+		document.querySelector('${sel}'), document.querySelector('${splitter}')))`).then(JSON.parse);
 	const gauche = () => mesurer('#palette', '#splitter-palette');
 	/** À droite, le panneau visible est l'inspecteur, ou Variables en simulation. */
 	const droite = () => ev(`(() => {
 		const insp = document.getElementById('inspector');
 		const dbg = document.getElementById('debug');
 		const p = getComputedStyle(insp).display === 'none' ? dbg : insp;
-		const s = document.querySelector('#splitter-inspector');
-		const lab = s && s.querySelector('.splitter__fold-label');
-		const visibles = [...p.children].filter((c) => getComputedStyle(c).display !== 'none').length;
-		return JSON.stringify({
-			quel: p.id,
-			w: Math.round(p.getBoundingClientRect().width),
-			plie: p.classList.contains('is-folded'),
-			splitPlie: s ? s.classList.contains('splitter--folded') : null,
-			visibles,
-			nom: lab ? lab.textContent.trim() : '',
-			// Un panneau caché ne doit PAS garder la classe de repli : il
-			// reviendrait replié sans que le chevron le dise.
-			autrePlie: (p === insp ? dbg : insp).classList.contains('is-folded'),
-		});
+		const m = (${MESURE})(p, document.querySelector('#splitter-inspector'));
+		m.quel = p.id;
+		// Un panneau caché ne doit PAS garder la classe de repli : il
+		// reviendrait replié sans que le chevron le dise.
+		m.autrePlie = (p === insp ? dbg : insp).classList.contains('is-folded');
+		return JSON.stringify(m);
 	})()`).then(JSON.parse);
 
-	/** Coordonnées écran du centre du chevron d'un splitter. */
-	const centreChevron = async (splitter) => JSON.parse(await ev(`(() => {
-		const b = document.querySelector('${splitter} .splitter__fold').getBoundingClientRect();
+	/** Coordonnées écran du centre du chevron d'un panneau (null s'il n'existe pas). */
+	const centreChevron = async (panneau) => JSON.parse(await ev(`(() => {
+		const el = document.querySelector('${panneau} > .panel__fold');
+		if (!el) return 'null'; // bouton absent : le banc doit ÉCHOUER, pas mourir
+		const b = el.getBoundingClientRect();
 		return JSON.stringify({ x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2) });
 	})()`));
 
@@ -206,9 +247,15 @@ try {
 		await cdp('Input.dispatchMouseEvent', { ...base, type: 'mouseReleased', buttons: 0 });
 		await attendre(150);
 	};
-	const clicChevron = async (splitter) => {
-		const p = await centreChevron(splitter);
+	const clicChevron = async (panneau) => {
+		const p = await centreChevron(panneau);
+		if (!p) { ok(`le chevron de ${panneau} existe pour être cliqué`, false, 'bouton introuvable'); return; }
 		await clic(p.x, p.y);
+	};
+	/** Chevron de la colonne de DROITE : celui du panneau réellement affiché. */
+	const clicChevronDroite = async () => {
+		const quel = (await droite()).quel;
+		await clicChevron('#' + quel);
 	};
 	/** Dernier message `saveUiState` posté (la persistance du repli se lit là). */
 	const dernierEtat = () => ev(`(() => {
@@ -220,15 +267,59 @@ try {
 	let g = await gauche();
 	let d = await droite();
 	ok('la bibliothèque démarre DÉPLOYÉE', g.plie === false && g.w > 80, JSON.stringify(g));
-	ok('et son chevron de repli est bien dans le splitter', g.bouton === true, JSON.stringify(g));
+	ok('et son chevron de repli est bien DANS le panneau', g.bouton === true, JSON.stringify(g));
 	ok('le panneau de droite démarre DÉPLOYÉ aussi', d.plie === false && d.w > 80, JSON.stringify(d));
 	ok('et c est bien Propriétés qui occupe la colonne hors simulation',
 		d.quel === 'inspector', d.quel);
 	const largeurGauche = g.w;
 	const largeurDroite = d.w;
 
+	// --- 10. L'ascenseur est RACCOURCI en haut ET en bas ----------------------
+	// L'ascenseur est celui de .panel__scroll et occupe TOUTE sa hauteur : ses
+	// marges haute et basse sont donc, au pixel près, le raccourcissement demandé.
+	// Il faut d'abord que la bibliothèque déborde, sans quoi il n'y a pas de barre
+	// à mesurer et le contrôle serait vert sur du vide.
+	ok('la bibliothèque déborde : il y a bien un ascenseur à raccourcir',
+		g.deborde === true, JSON.stringify({ deborde: g.deborde, scroll: g.scrollBox }));
+	ok('le panneau lui-même ne défile PAS (la barre y courrait sur les arrondis)',
+		g.panneauDefile === false, JSON.stringify({ panneauDefile: g.panneauDefile }));
+	ok('l ascenseur est raccourci EN HAUT (place du chevron)',
+		g.margeHaut >= 18, g.margeHaut + ' px de marge haute');
+	ok('l ascenseur est raccourci EN BAS (arrondi préservé)',
+		g.margeBas >= 4, g.margeBas + ' px de marge basse');
+
+	// --- 11. Le chevron déployé n'empiète sur rien ----------------------------
+	// « Sans ascenseur, la flèche ne doit pas empiéter sur le texte » : le seul
+	// moyen de le garantir est qu'elle soit AU-DESSUS du contenu, pas dessus.
+	{
+		const empiete = (a, b) => !(a.x + a.w <= b.x || b.x + b.w <= a.x
+			|| a.y + a.h <= b.y || b.y + b.h <= a.y);
+		ok('déployé, le chevron est AU-DESSUS de la zone de défilement, pas dessus',
+			() => g.btnBox.y + g.btnBox.h <= g.scrollBox.y + 1,
+			JSON.stringify({ btn: g.btnBox, scroll: g.scrollBox }));
+		ok('il ne recouvre donc AUCUN contenu du panneau',
+			() => !empiete(g.btnBox, g.scrollBox), JSON.stringify({ btn: g.btnBox, scroll: g.scrollBox }));
+		// Et il reste DANS le panneau : posé dans la gouttière, il retomberait sur
+		// le canvas ou sur la bordure arrondie (l'état d'avant la v.101).
+		ok('et il reste à l intérieur du panneau',
+			() => g.btnBox.x >= g.panneau.x && g.btnBox.x + g.btnBox.w <= g.panneau.x + g.panneau.w + 1,
+			JSON.stringify({ btn: g.btnBox, panneau: g.panneau }));
+		// Cas « SANS ascenseur », celui que Frank nomme : les Propriétés ne
+		// débordent pas au démarrage. La flèche ne doit pas non plus y mordre sur
+		// le texte — c'est vrai par construction (elle est AU-DESSUS de la zone de
+		// contenu), et c'est ce qu'on mesure, sur l'autre panneau donc.
+		ok('le panneau de droite ne déborde PAS : c est bien le cas « sans ascenseur »',
+			() => d.deborde === false, JSON.stringify({ deborde: d.deborde }));
+		ok('et là aussi la flèche est au-dessus du contenu, pas dessus',
+			() => d.btnBox.y + d.btnBox.h <= d.scrollBox.y + 1,
+			JSON.stringify({ btn: d.btnBox, scroll: d.scrollBox }));
+		ok('son ascenseur potentiel est raccourci des DEUX côtés lui aussi',
+			() => d.margeHaut >= 18 && d.margeBas >= 4,
+			JSON.stringify({ haut: d.margeHaut, bas: d.margeBas }));
+	}
+
 	// --- 2. Un vrai clic replie la bibliothèque -------------------------------
-	await clicChevron('#splitter-palette');
+	await clicChevron('#palette');
 	g = await gauche();
 	ok('un VRAI clic sur le chevron replie la bibliothèque', g.plie === true, JSON.stringify(g));
 	ok('et elle devient une BANDE étroite (moins de 30 px)',
@@ -239,6 +330,29 @@ try {
 	ok('le splitter suit (plus de poignée de largeur)', g.splitPlie === true, JSON.stringify(g));
 	ok('l infobulle du chevron propose de RÉAFFICHER le panneau',
 		/show/i.test(g.titre), g.titre);
+
+	// --- 12. Replié : le nom est CENTRÉ dans la bande, chevron au-dessus -------
+	// Avant la v.101 le bouton vivait dans la gouttière : le nom vertical
+	// s'écrivait À CÔTÉ de la bande vide, pas dedans. On mesure donc les deux
+	// centres, et l'ordre vertical chevron/texte.
+	{
+		const centreBande = () => g.panneau.x + g.panneau.w / 2;
+		ok('le nom vertical est DANS la bande repliée',
+			() => g.labBox.x >= g.panneau.x - 1
+				&& g.labBox.x + g.labBox.w <= g.panneau.x + g.panneau.w + 1,
+			JSON.stringify({ nom: g.labBox, bande: g.panneau }));
+		ok('et il y est CENTRÉ horizontalement (moins de 2 px d écart)',
+			() => Math.abs((g.labBox.x + g.labBox.w / 2) - centreBande()) < 2,
+			JSON.stringify({ nom: g.labBox, bande: g.panneau }));
+		// La flèche elle-même, pas sa zone cliquable : repliée, celle-ci occupe
+		// toute la bande et la comparer au nom serait vrai quoi qu'il arrive.
+		ok('la FLÈCHE est au-dessus du nom, sans le chevaucher',
+			() => g.chevBox.y + g.chevBox.h <= g.labBox.y + 1,
+			JSON.stringify({ chevron: g.chevBox, nom: g.labBox }));
+		ok('et la flèche est centrée dans la bande elle aussi',
+			() => Math.abs((g.chevBox.x + g.chevBox.w / 2) - centreBande()) < 2,
+			JSON.stringify({ chevron: g.chevBox, bande: g.panneau }));
+	}
 	// Le panneau de droite n'a pas bougé : les deux replis sont indépendants.
 	d = await droite();
 	ok('replier à gauche ne touche PAS le panneau de droite',
@@ -267,7 +381,7 @@ try {
 	}
 
 	// --- 3. Second clic : la bibliothèque revient à sa largeur -----------------
-	await clicChevron('#splitter-palette');
+	await clicChevron('#palette');
 	g = await gauche();
 	ok('un second clic la ROUVRE', g.plie === false, JSON.stringify(g));
 	ok('et elle retrouve sa largeur d avant', g.w === largeurGauche,
@@ -278,7 +392,7 @@ try {
 		etat && etat.paletteFolded === false, JSON.stringify(etat));
 
 	// --- 4. Le même geste à droite --------------------------------------------
-	await clicChevron('#splitter-inspector');
+	await clicChevronDroite();
 	d = await droite();
 	g = await gauche();
 	ok('le chevron de droite replie le panneau des propriétés',
@@ -288,7 +402,7 @@ try {
 		g.plie === false, JSON.stringify(g));
 	etat = await dernierEtat();
 	ok('le repli de droite est persisté', etat && etat.inspectorFolded === true, JSON.stringify(etat));
-	await clicChevron('#splitter-inspector');
+	await clicChevronDroite();
 	d = await droite();
 	ok('et il se rouvre au clic suivant', d.plie === false && d.w === largeurDroite, JSON.stringify(d));
 
@@ -350,7 +464,7 @@ try {
 
 	// Bibliothèque repliée par l'ÉLÈVE : la simulation n'y touche pas, et son
 	// arrêt ne la rouvre pas (sinon son choix serait annulé par un run).
-	await clicChevron('#splitter-palette');
+	await clicChevron('#palette');
 	ok('la bibliothèque est repliée à la main avant le run', (await gauche()).plie === true);
 	await demarrer();
 	ok('la simulation la laisse repliée', (await gauche()).plie === true);
@@ -358,7 +472,7 @@ try {
 	g = await gauche();
 	ok('et l arrêt NE la rouvre pas : le choix de l élève tient',
 		g.plie === true, JSON.stringify(g));
-	await clicChevron('#splitter-palette'); // remise à plat pour le contrôle suivant
+	await clicChevron('#palette'); // remise à plat pour le contrôle suivant
 
 	// --- 8. Réglage à faux : la simulation ne replie plus rien ----------------
 	await ev(`window.dispatchEvent(new MessageEvent('message', { data: {

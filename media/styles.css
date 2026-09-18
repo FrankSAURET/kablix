@@ -255,15 +255,13 @@ textarea {
   min-height: 0;
 }
 
-/* Poignée de redimensionnement entre la bibliothèque/inspecteur et le canvas. */
-/* GOUTTIÈRE de 14 px, et non une poignée de largeur nulle : le bouton de repli
-   y tient en entier. Avant, le splitter était large de 0 px et le bouton
-   débordait DANS le panneau — il tombait sur l'ascenseur de la bibliothèque et
-   sur le titre « Propriétés », donc invisible. La zone de préhension reste
-   élargie de ±4 px par le ::before. */
+/* Poignée de redimensionnement entre la bibliothèque/inspecteur et le canvas.
+   GOUTTIÈRE de 8 px, vide : depuis la v2026.9.4.101 le bouton de repli vit DANS
+   le panneau (coin haut, au-dessus de l'ascenseur), la gouttière n'a donc plus à
+   l'héberger. La zone de préhension reste élargie de ±4 px par le ::before. */
 .splitter {
   position: relative;
-  flex: 0 0 14px;
+  flex: 0 0 8px;
   align-self: stretch;
   cursor: col-resize;
 }
@@ -277,77 +275,6 @@ textarea {
   right: -4px;
 }
 
-/* Bouton de repli du panneau voisin, CENTRÉ dans la gouttière : il ne recouvre
-   plus rien. Fond opaque (couleur du panneau voisin) pour rester lisible même
-   au-dessus de la grille du canvas. Au-dessus du ::before de préhension
-   (z-index) sinon le clic partirait en glissement de largeur. */
-.splitter__fold {
-  position: absolute;
-  top: 0.45rem;
-  left: 0;
-  right: 0;
-  margin: 0 auto;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: 0.15rem;
-  padding: 0;
-  width: 14px;
-  height: 26px;
-  justify-content: center;
-  border: 1px solid var(--vscode-panel-border, #444);
-  border-radius: 4px;
-  background: var(--vscode-editorWidget-background, rgba(255, 255, 255, 0.04));
-  color: inherit;
-  opacity: 0.85;
-  cursor: pointer;
-}
-
-.splitter__fold:hover {
-  opacity: 1;
-  background: var(--vscode-toolbar-hoverBackground, rgba(255, 255, 255, 0.1));
-}
-
-/* Chevron dessiné en CSS (bordures) : il tourne selon le sens de pliage, sans
-   dépendre d'une police ni d'une image. Gros et épais — à 6 px et 1,6 px il ne
-   se voyait pas. */
-.splitter__chevron {
-  width: 9px;
-  height: 9px;
-  border-right: 2.4px solid currentColor;
-  border-bottom: 2.4px solid currentColor;
-  transform: rotate(135deg); /* pointe vers la GAUCHE : replie la bibliothèque */
-  transition: transform 0.12s ease;
-}
-
-#splitter-inspector .splitter__chevron {
-  transform: rotate(-45deg); /* pointe vers la DROITE : replie les propriétés */
-}
-
-/* Nom du panneau : invisible tant qu'il est déployé (le panneau porte déjà son
-   titre), écrit à la verticale quand il est replié. */
-.splitter__fold-label {
-  display: none;
-}
-
-/* --- Panneaux repliés ------------------------------------------------------- */
-/* Le panneau garde sa place dans le flux (bande étroite) : son titre vertical
-   reste lisible et le bouton revient au même endroit pour le rouvrir. */
-.palette.is-folded,
-.inspector.is-folded,
-.debug--side.is-folded {
-  flex: 0 0 22px !important; /* prime sur la largeur en ligne posée par le splitter */
-  padding: 0.6rem 0.1rem;
-  overflow: hidden;
-}
-
-/* Contenu masqué plutôt que détruit : rouvrir ne coûte aucun nouveau rendu. */
-.palette.is-folded > *,
-.inspector.is-folded > *,
-.debug--side.is-folded > * {
-  display: none !important;
-}
-
 .splitter--folded {
   cursor: default;
 }
@@ -356,15 +283,129 @@ textarea {
   display: none; /* plus de préhension : un panneau replié ne se redimensionne pas */
 }
 
-.splitter--folded .splitter__fold {
-  width: 22px;
+/* --- Bouton de repli, DANS le panneau --------------------------------------- */
+/* Il est posé en absolu dans le coin haut du panneau, du côté du canvas, et
+   l'enveloppe de défilement lui laisse la place (marge haute). Il ne recouvre
+   donc ni le titre, ni l'ascenseur, ni l'arrondi de la bordure. */
+.panel__fold {
+  position: absolute;
+  top: 4px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  padding: 0;
+  width: 18px;
+  height: 20px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  opacity: 0.75;
+  cursor: pointer;
+}
+
+/* Côté du bouton : contre le canvas, donc à droite pour la bibliothèque et à
+   gauche pour les panneaux de droite. */
+.palette > .panel__fold {
+  right: 4px;
+}
+
+.inspector > .panel__fold,
+.debug--side > .panel__fold {
+  left: 4px;
+}
+
+/* En bandeau BAS, le panneau Variables n'est pas une colonne : rien à replier
+   latéralement, le chevron n'a plus de sens. */
+.debug:not(.debug--side) > .panel__fold {
+  display: none;
+}
+
+.panel__fold:hover {
+  opacity: 1;
+  background: var(--vscode-toolbar-hoverBackground, rgba(255, 255, 255, 0.1));
+}
+
+/* Chevron dessiné en CSS (bordures) : il tourne selon le sens de pliage, sans
+   dépendre d'une police ni d'une image. Gros et épais — à 6 px et 1,6 px il ne
+   se voyait pas. */
+.panel__chevron {
+  width: 9px;
+  height: 9px;
+  border-right: 2.4px solid currentColor;
+  border-bottom: 2.4px solid currentColor;
+  transform: rotate(135deg); /* pointe vers la GAUCHE : replie la bibliothèque */
+  transition: transform 0.12s ease;
+}
+
+.inspector > .panel__fold .panel__chevron,
+.debug--side > .panel__fold .panel__chevron {
+  transform: rotate(-45deg); /* pointe vers la DROITE : replie les propriétés */
+}
+
+/* Nom du panneau : invisible tant qu'il est déployé (le panneau porte déjà son
+   titre), écrit à la verticale quand il est replié. */
+.panel__fold-label {
+  display: none;
+}
+
+/* --- Enveloppe de défilement ------------------------------------------------ */
+/* Le panneau ne défile plus lui-même : l'ascenseur vit ici. Les marges haute et
+   basse le raccourcissent SYMÉTRIQUEMENT — il ne mord plus sur les arrondis de
+   la bordure et laisse la place au bouton de repli au-dessus. */
+.panel__scroll {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-height: 0;
+  /* 26 px en haut = 4 (décalage du bouton) + 20 (sa hauteur) + 2 de dégagement :
+     le contenu commence SOUS le chevron, qui ne recouvre donc rien. */
+  margin: 26px 0 6px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* --- Panneaux repliés ------------------------------------------------------- */
+/* Le panneau garde sa place dans le flux (bande étroite) : son titre vertical
+   reste lisible et le bouton revient au même endroit pour le rouvrir. */
+.palette.is-folded,
+.inspector.is-folded,
+.debug--side.is-folded {
+  flex: 0 0 26px !important; /* prime sur la largeur en ligne posée par le splitter */
+  padding: 0.4rem 0;
+  overflow: hidden;
+}
+
+/* Contenu masqué plutôt que détruit : rouvrir ne coûte aucun nouveau rendu.
+   Le bouton de repli, lui, RESTE — c'est par lui qu'on rouvre. */
+.palette.is-folded > *:not(.panel__fold),
+.inspector.is-folded > *:not(.panel__fold),
+.debug--side.is-folded > *:not(.panel__fold) {
+  display: none !important;
+}
+
+/* Replié, le bouton occupe TOUTE la bande : chevron en haut, nom du panneau à la
+   verticale en dessous, l'ensemble centré horizontalement dans le mini panneau
+   (demande de Frank — avant, il était calé dans la gouttière, donc à côté de la
+   bande et non dedans). */
+.is-folded > .panel__fold {
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
   height: auto;
   flex-direction: column;
-  padding: 0.3rem 0;
+  justify-content: flex-start;
+  padding: 0.35rem 0;
+  gap: 0.3rem;
   opacity: 0.9;
 }
 
-.splitter--folded .splitter__fold-label {
+.is-folded > .panel__fold .panel__fold-label {
   display: block;
   writing-mode: vertical-rl;
   font-size: 0.72rem;
@@ -377,31 +418,30 @@ textarea {
 }
 
 /* Replié, le chevron pointe dans l'autre sens : il rouvre. */
-#splitter-palette.splitter--folded .splitter__chevron {
+.palette.is-folded > .panel__fold .panel__chevron {
   transform: rotate(-45deg);
 }
 
-#splitter-inspector.splitter--folded .splitter__chevron {
+.inspector.is-folded > .panel__fold .panel__chevron,
+.debug--side.is-folded > .panel__fold .panel__chevron {
   transform: rotate(135deg);
 }
 
-/* Replié, le bouton reste centré dans la gouttière (left/right/margin auto de
-   la règle de base) : plus de calage latéral, il ne mord sur aucun panneau. */
-
 .palette {
+  position: relative; /* repère du bouton de repli en absolu */
   flex: 0 0 150px;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  padding: 0.6rem;
+  padding: 0 0.6rem;
   background: var(--vscode-editorWidget-background, rgba(255, 255, 255, 0.04));
   border: 1px solid var(--vscode-panel-border, #444);
   border-radius: 8px;
   align-self: stretch;
-  /* Ascenseur : la bibliothèque ne déborde plus de la fenêtre */
+  /* L'ascenseur est dans .panel__scroll, pas ici : il y serait à ras des
+     arrondis et sous le bouton de repli. */
   max-height: 100%;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .palette h3 {
@@ -1343,17 +1383,18 @@ textarea {
 
 /* --- Inspecteur (éditeur de composants) ------------------------------------- */
 .inspector {
+  position: relative; /* repère du bouton de repli en absolu */
   flex: 0 0 190px;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  padding: 0.6rem;
+  padding: 0 0.6rem;
   background: var(--vscode-editorWidget-background, rgba(255, 255, 255, 0.04));
   border: 1px solid var(--vscode-panel-border, #444);
   border-radius: 8px;
   align-self: stretch;
   max-height: 100%;
-  overflow-y: auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .inspector h3 {
@@ -3043,12 +3084,14 @@ body.vscode-light .inspector__ref--nouveau {
 /* Pendant la simulation : le panneau Variables occupe la colonne de droite
    (à la place des Propriétés). */
 .debug--side {
+  position: relative; /* repère du bouton de repli en absolu */
   flex: 0 0 220px;
   margin-top: 0;
   align-self: stretch;
   max-height: 100%;
   overflow-y: auto;
-  padding: 0.6rem;
+  /* Marge haute : la place du bouton de repli, qui est posé DANS le panneau. */
+  padding: 26px 0.6rem 0.6rem;
   background: var(--vscode-editorWidget-background, rgba(255, 255, 255, 0.04));
   border: 1px solid var(--vscode-panel-border, #444);
   border-radius: 8px;

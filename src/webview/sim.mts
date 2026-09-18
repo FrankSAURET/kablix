@@ -266,6 +266,11 @@ const toggleFaultsBtn = document.getElementById('toggle-faults') as HTMLButtonEl
 const closePlotterBtn = document.getElementById('close-plotter') as HTMLButtonElement;
 const canvas = document.getElementById('canvas') as HTMLDivElement;
 const palette = document.getElementById('palette') as HTMLDivElement;
+// Enveloppes de défilement : c'est LÀ que la bibliothèque et l'inspecteur sont
+// rendus (replaceChildren), pas dans le panneau — sinon le bouton de repli, qui
+// est leur frère, serait effacé à chaque rendu.
+const paletteScroll = document.getElementById('palette-scroll') as HTMLDivElement;
+const inspectorScroll = document.getElementById('inspector-scroll') as HTMLDivElement;
 const wiresSvg = document.getElementById('wires') as unknown as SVGSVGElement;
 const inspector = document.getElementById('inspector') as HTMLDivElement;
 const codeFileBtn = document.getElementById('code-file') as HTMLButtonElement;
@@ -279,7 +284,7 @@ const toggleGridBtn = document.getElementById('toggle-grid') as HTMLButtonElemen
 const internalToggleBtn = document.getElementById('internal-toggle') as HTMLButtonElement;
 internalToggleBtn.innerHTML = KABLIX_BADGE;
 
-const editor = new Editor(canvas, palette, wiresSvg, inspector);
+const editor = new Editor(canvas, paletteScroll, wiresSvg, inspectorScroll);
 
 // Bouton ☢ de la barre d'outils : affiché seulement quand le composant sélectionné
 // dispose d'un câblage interne / poster de brochage ; agit sur ce composant.
@@ -4950,7 +4955,9 @@ const splitterPalette = document.getElementById('splitter-palette');
 const splitterInspector = document.getElementById('splitter-inspector');
 const foldPaletteBtn = document.getElementById('fold-palette');
 const foldInspectorBtn = document.getElementById('fold-inspector');
-const foldInspectorLabel = document.getElementById('fold-inspector-label');
+// Le panneau Variables porte SON propre bouton : en colonne de droite il prend
+// la place des Propriétés, et le bouton vit désormais dans le panneau.
+const foldDebugBtn = document.getElementById('fold-debug');
 let paletteFolded = false;
 let inspectorFolded = false;
 /** Replier la bibliothèque au démarrage de la simulation (réglage de l'extension). */
@@ -4977,16 +4984,13 @@ function applyPanelFolds(): void {
   debugSection.classList.remove('is-folded');
   right.classList.toggle('is-folded', inspectorFolded);
   splitterInspector?.classList.toggle('splitter--folded', inspectorFolded);
-  // Libellé de la bande : il nomme le panneau réellement derrière.
-  if (foldInspectorLabel) {
-    foldInspectorLabel.textContent = right === debugSection ? t('Variables') : t('Properties');
-  }
   const paletteTitle = paletteFolded ? t('Show the component library') : t('Collapse the component library');
   foldPaletteBtn?.setAttribute('title', paletteTitle);
   const rightTitle = inspectorFolded
     ? t('Show the properties panel')
     : t('Collapse the properties panel');
   foldInspectorBtn?.setAttribute('title', rightTitle);
+  foldDebugBtn?.setAttribute('title', rightTitle);
 }
 
 function setPaletteFolded(folded: boolean, persist = true): void {
@@ -5010,15 +5014,17 @@ foldInspectorBtn?.addEventListener('click', (e) => {
   e.stopPropagation();
   setInspectorFolded(!inspectorFolded);
 });
+foldDebugBtn?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  setInspectorFolded(!inspectorFolded);
+});
 
 // Redimensionnement des colonnes (bibliothèque / propriétés-variables) par glissement.
 function setupSplitter(id: string, which: 'palette' | 'inspector'): void {
   const splitter = document.getElementById(id);
   if (!splitter) return;
   splitter.addEventListener('pointerdown', (e) => {
-    // Le chevron de repli est DANS le splitter : son appui ne doit pas lancer un
-    // glissement de largeur, et un panneau replié ne se redimensionne pas.
-    if ((e.target as HTMLElement | null)?.closest('.splitter__fold')) return;
+    // Un panneau replié ne se redimensionne pas.
     if (which === 'palette' ? paletteFolded : inspectorFolded) return;
     e.preventDefault();
     const startX = (e as PointerEvent).clientX;

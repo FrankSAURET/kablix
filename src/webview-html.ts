@@ -160,17 +160,22 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
 
   <main class="stage">
     <div class="workshop">
-      <aside id="palette" class="palette"></aside>
-      <!-- Poignée de largeur ET bouton de repli du panneau. Le bouton vit dans le
-           splitter et non dans le panneau : le contenu des panneaux est refait à
-           chaque rendu (replaceChildren), il y serait effacé. Replié, le panneau
-           devient une bande étroite et le bouton porte son nom à la verticale. -->
-      <div class="splitter" id="splitter-palette" data-target="palette" title="${l10n.t('Drag to resize')}">
-        <button class="splitter__fold" id="fold-palette" data-target="palette" title="${l10n.t('Collapse the component library')}">
-          <span class="splitter__chevron" aria-hidden="true"></span>
-          <span class="splitter__fold-label">${l10n.t('Components')}</span>
+      <!-- Le panneau ne défile PAS lui-même : son contenu vit dans un
+           .panel__scroll, seul à porter l'ascenseur. Sans cette enveloppe, la
+           barre de défilement courrait sur toute la hauteur du panneau, mordrait
+           les arrondis et passerait sous le bouton de repli. Le bouton est frère
+           de l'enveloppe : le rendu de la bibliothèque (replaceChildren) ne
+           touche que l'enveloppe, le bouton survit. -->
+      <aside id="palette" class="palette">
+        <button class="panel__fold" id="fold-palette" data-target="palette" title="${l10n.t('Collapse the component library')}">
+          <span class="panel__chevron" aria-hidden="true"></span>
+          <span class="panel__fold-label">${l10n.t('Components')}</span>
         </button>
-      </div>
+        <div id="palette-scroll" class="panel__scroll"></div>
+      </aside>
+      <!-- Poignée de largeur seule : le bouton de repli est passé DANS le panneau
+           (v2026.9.4.101), la gouttière n'a plus à l'héberger. -->
+      <div class="splitter" id="splitter-palette" data-target="palette" title="${l10n.t('Drag to resize')}"></div>
       <div id="canvas" class="canvas">
         <!-- Commandes de simulation en surimpression du canvas (icônes + bulle). -->
         <div class="canvas-controls" role="toolbar">
@@ -246,18 +251,26 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
         </div>
         <svg id="wires" class="wires"></svg>
       </div>
-      <!-- Même poignée à droite. Le panneau visé change pendant la simulation
-           (Variables prend la place des Propriétés) : le libellé du bouton suit. -->
-      <div class="splitter" id="splitter-inspector" data-target="inspector" title="${l10n.t('Drag to resize')}">
-        <button class="splitter__fold" id="fold-inspector" data-target="inspector" title="${l10n.t('Collapse the properties panel')}">
-          <span class="splitter__chevron" aria-hidden="true"></span>
-          <span class="splitter__fold-label" id="fold-inspector-label">${l10n.t('Properties')}</span>
+      <!-- Même poignée à droite, sans bouton : chaque panneau de droite porte le
+           sien (Variables prend la place des Propriétés pendant la simulation). -->
+      <div class="splitter" id="splitter-inspector" data-target="inspector" title="${l10n.t('Drag to resize')}"></div>
+      <aside id="inspector" class="inspector">
+        <button class="panel__fold" id="fold-inspector" data-target="inspector" title="${l10n.t('Collapse the properties panel')}">
+          <span class="panel__chevron" aria-hidden="true"></span>
+          <span class="panel__fold-label">${l10n.t('Properties')}</span>
         </button>
-      </div>
-      <aside id="inspector" class="inspector"></aside>
+        <div id="inspector-scroll" class="panel__scroll"></div>
+      </aside>
     </div>
 
     <section id="debug" class="debug" hidden>
+      <!-- Bouton de repli propre au panneau Variables : en colonne de droite il
+           remplace les Propriétés, et doit donc porter son propre chevron. Masqué
+           par le CSS quand le panneau est en bandeau bas. -->
+      <button class="panel__fold" id="fold-debug" data-target="inspector" title="${l10n.t('Collapse the properties panel')}">
+        <span class="panel__chevron" aria-hidden="true"></span>
+        <span class="panel__fold-label">${l10n.t('Variables')}</span>
+      </button>
       <div class="debug__head">
         <div class="debug__titlebar">
           <!-- Titre cliquable : ouvre la liste des variables masquées (œil de
