@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { randomBytes } from 'node:crypto';
-import { versionAffichee } from './version';
+import { versionAffichee, enDeveloppement } from './version';
 
 const l10n = vscode.l10n;
 
@@ -57,6 +57,11 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
   const nonce = getNonce();
   // Public en production, public + numéro de build en développement (voir version.ts).
   const version = versionAffichee();
+  // L'heure de construction est un repère de test F5 : elle ne doit PAS suivre
+  // l'extension chez l'utilisateur. Elle est figée dans le paquet au moment du
+  // `npm run build`, donc la webview ne peut pas s'en passer toute seule — c'est
+  // l'hôte, qui connaît `ExtensionMode`, qui l'autorise par cet attribut.
+  const dev = enDeveloppement();
   // Couleur de sélection réglable (composants/fils/coudes) : variable CSS --kx-select.
   const rawSelColor = vscode.workspace
     .getConfiguration('kablix')
@@ -99,7 +104,7 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
   <style>:root { --kx-select: ${selColor}; --kx-help-icon: url("${aideIconUri}"); }</style>
   <title>Kablix</title>
 </head>
-<body>
+<body${dev ? ' data-kx-dev="1"' : ''}>
   <header class="toolbar">
     <span class="brand" id="brand" title="${l10n.t('Open the GitHub repository')}">
       <strong class="brand__name">Kablix</strong>

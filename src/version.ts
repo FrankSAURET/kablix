@@ -24,6 +24,20 @@ function manifeste(): { version?: string; buildNumber?: number | string } {
   return vscode.extensions.getExtension('electropol-fr.kablix')?.packageJSON ?? {};
 }
 
+/**
+ * Vrai hors production — donc pendant un F5 de développement et dans une
+ * fenêtre d'extension de test, faux dans une extension installée depuis la
+ * place de marché.
+ *
+ * La webview ne peut pas répondre à cette question toute seule : elle n'a pas
+ * `vscode.ExtensionMode`, et la construction qui produit son paquet est la même
+ * dans les deux cas. C'est donc l'hôte qui le lui dit (attribut du `body` dans
+ * `webview-html.ts`).
+ */
+export function enDeveloppement(): boolean {
+  return modeDeveloppement;
+}
+
 /** Numéro public seul : `2026.8.102`. Chaîne vide si introuvable. */
 export function versionPublique(): string {
   return manifeste().version ?? '';

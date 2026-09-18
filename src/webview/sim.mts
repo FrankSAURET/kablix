@@ -4862,9 +4862,18 @@ if (textModeBtn) {
 
 // Heure de build (injectée par esbuild) affichée sous la version : repère visuel
 // pendant les tests F5 pour confirmer qu'on exécute bien le dernier build.
+//
+// SEULEMENT HORS PRODUCTION (demande de Frank, item 1.1 du 18/09). L'heure est
+// figée dans le paquet au moment du `npm run build` : publiée telle quelle, elle
+// affichait à l'utilisateur l'heure à laquelle le paquet a été fabriqué, ce qui
+// ne lui dit rien et vieillit mal. La webview ne sait pas d'elle-même où elle
+// tourne — la même construction sert aux deux — donc l'hôte le lui dit par
+// `data-kx-dev` sur le `body` (voir `webview-html.ts` et `enDeveloppement()`).
 declare const __BUILD_TIME__: string;
 {
-  const brandVersion = document.querySelector('.brand__version');
+  const brandVersion = document.body.hasAttribute('data-kx-dev')
+    ? document.querySelector('.brand__version')
+    : null;
   if (brandVersion) {
     const t0 = document.createElement('small');
     t0.className = 'brand__buildtime';

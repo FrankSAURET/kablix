@@ -1,6 +1,5 @@
 # À faire
 1. J'ai rajouté 1 composants (dans composants2D.svg) en 2 versions (CI et Étanche). Le choix se fait dans les propriétés. C'est un DSB1820. En simulation il trouve un curseur de température (-55 à +125 +-0,5°C), protocole 1-wire. Il se met dans la bibliothèque externe.
-  1. L'heure du build ne dois pas apparaitre dans une version publiée.
 1. Nos 3 platines d'essais sont fausses. L'écart entre les lignes du haut et du bas doit être de 3 pas (pour nous 30px) actuellement il n'y en a que 2. Corrige. En même temps tu fais un schéma interne qui montre les liaison entre les trous, matérialisé par des lignes jaunes orangé semi transparentes qui relient les trous.
 1. kablix_components
     1. Y a t'il un intéret à la migrer vers un repo dedié ?
@@ -11,6 +10,22 @@
         1. Fais moi un scenario (à la racine "créer un composant 2D.md" et "créer un composant 3D.md) pour le 2D une carte joy-it SBC-MotorDriver3 et pour le 3D un petit véhicule simple découpé en pmma avec une pico pi, la carte moteur 2d , 4 moteurs, la platine et les rous directement sur l'axe des moteurs.
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# >>>>  v2026.9.4.103 — L'heure de fabrication reste au développement
+
+1. ✅ **Item 1.1 : l'heure de construction ne part plus chez l'utilisateur.** `esbuild.js` la fige dans le paquet (`__BUILD_TIME__`) et `sim.mts` l'écrivait sous le nom Kablix sans condition : la version publiée affichait l'heure à laquelle le `.vsix` a été fabriqué.
+2. ℹ️ **La webview ne pouvait pas trancher seule.** La construction qui produit `dist/webview.js` est la MÊME en développement et pour la publication — rien dans le paquet ne distingue les deux. Seul l'hôte le sait (`vscode.ExtensionMode`).
+3. ✅ **`enDeveloppement()` ajoutée à [version.ts](src/version.ts)**, lue par [webview-html.ts](src/webview-html.ts) qui pose `data-kx-dev` sur le `body`. La webview ne dessine l'heure que si l'attribut est là.
+4. ✅ **Le repère de F5 est conservé.** Masquer l'heure partout aurait satisfait la demande en supprimant le moyen de savoir quel paquet tourne pendant les tests. Un contrôle l'exige explicitement : les deux ne peuvent pas être verts par accident ensemble.
+5. ✅ **[verify-heure-build.mjs](scripts/verify-heure-build.mjs) : 10 contrôles, contre-épreuve 3 échecs.** La vraie page est rendue dans Chrome DANS LES DEUX MODES — pas un `if` relu dans le source, qui peut être écrit à l'envers. Sur l'ancien code : « élément présent, texte "build 03:14:15" » en production, exactement le défaut signalé.
+6. ℹ️ **Contrôle rouge pour une raison fausse, corrigé.** Le balayage cherchait l'heure dans `document.body.textContent`, qui inclut le texte du script de mesure — lequel contient justement l'heure cherchée. Remplacé par un parcours du texte VISIBLE, `script` et `style` exclus.
+7. ✅ **Le numéro de build interne est couvert au passage.** Même fichier, même règle : le 4e segment ne doit pas fuir non plus. Numéros FICTIFS dans le banc (`2050.1.7` / `4242`) pour qu'il ne soit pas à refaire au prochain bump.
+8. ℹ️ **Le `.projix` était déjà propre** : `panel.ts` y écrit `versionPublique()`, jamais le numéro interne.
+9. ⏳ **Traductions : aucune chaîne neuve.** Dette `verify:i18n` **inchangée** (7 échecs).
+10. ✅ **Suite complète : 119 bancs sur 120.** Seul échec : `verify:i18n`, la dette connue.
+11. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 103. CHANGELOG complété sous `2026.9.5 (prochaine publication)`.
 
 ---
 
