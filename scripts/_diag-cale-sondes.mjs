@@ -45,15 +45,16 @@ async function run() {
 		const r = dot.getBoundingClientRect();
 		return { x: r.left + r.width / 2 - wr.left, y: r.top + r.height / 2 - wr.top };
 	};
-	// Échelle du monde : le zoom multiplie tout. On la DÉDUIT d'une sonde, dont
-	// on connaît exactement la position de la pastille dans son propre repère
-	// (SONDE_PIN = 10,70) : pas de dimension DOM à interpréter.
-	const echelle = (() => {
-		const s = editor.diagram.parts.find((p) => /sonde/i.test(p.type));
-		const g = s && brut(s.id, 'G');
-		if (!g) return 1;
-		return g.x / (s.x + 10);
-	})();
+	// Échelle du monde : le zoom multiplie tout, on le demande à l'éditeur.
+	//
+	// CORRIGÉ LE 18/09 — la version précédente DÉDUISAIT l'échelle d'une sonde,
+	// en supposant sa pastille à x + 10 (SONDE_PIN.x). Ce n'est vrai qu'à
+	// rotation 0 : dès qu'une sonde est tournée — le cas de toutes celles de
+	// sonde-logique-pico depuis le lot .98 — la pastille n'est plus là, et
+	// l'échelle sortait à 13,5 au lieu de 1. TOUTES les mesures suivaient, et la
+	// cible glissait d'une passe à l'autre, ce qui rendait le recalage impossible
+	// à faire converger. Le zoom réel ne se devine pas, il se lit.
+	const echelle = (editor.getCamera && editor.getCamera().zoom) || 1;
 	const pin = (partId, nom) => {
 		const r = brut(partId, nom);
 		return r && { x: r.x / echelle, y: r.y / echelle };

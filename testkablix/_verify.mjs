@@ -179,6 +179,53 @@ for (const t of TESTS) {
     }
   }
 
+  // Le .projix livré doit DIRE CE QUE DIT LA SPEC — pour ce qui SIMULE.
+  //
+  // `_generate.mjs` recopie `test.parts` tel quel : les deux sont censés
+  // coïncider. Rien ne le vérifiait, et un .projix retouché à la main pouvait
+  // s'éloigner de sa spec sans qu'aucun banc ne bronche — c'est ce qui est
+  // arrivé au lot .98, où SD4 de sonde-logique-pico a changé d'accroche
+  // (U1/GP26 → R1/1) en contradiction avec son propre `expect` (« pin: GP26 »),
+  // et est passé vert pendant un lot entier.
+  //
+  // On contrôle donc la présence, le type et les ATTRIBUTS : ce sont eux qui
+  // décident du comportement simulé (`accroche`, `value`, `color`…), et une
+  // divergence y est toujours un défaut.
+  //
+  // La GÉOMÉTRIE, elle, n'est contrôlée que pour les tests listés dans
+  // GEOMETRIE_A_JOUR. Les planches ont été retouchées à la souris pendant des
+  // mois sans report dans la spec : exiger la position partout lèverait ~470
+  // échecs d'un coup, tous connus et sans effet sur la simulation, et un banc
+  // qui crie autant ne protège plus rien. Un test dont la spec est remise
+  // d'aplomb s'ajoute à la liste, et il est alors tenu au pixel.
+  {
+    const GEOMETRIE_A_JOUR = new Set(['sonde-logique-pico']);
+    const vu = new Map(diagram.parts.map((p) => [p.id, p]));
+    for (const attendu of t.parts) {
+      const p = vu.get(attendu.id);
+      if (!p) {
+        check(`${t.name} : ${attendu.id} présent dans le .projix`, false, 'absent — régénérer ce test');
+        continue;
+      }
+      check(`${t.name} : ${attendu.id} de type ${attendu.type}`, p.type === attendu.type, `.projix=${p.type}`);
+      for (const [cle, valeur] of Object.entries(attendu.attrs ?? {})) {
+        check(`${t.name} : ${attendu.id}.${cle}`, String((p.attrs ?? {})[cle]) === String(valeur),
+          `.projix=${(p.attrs ?? {})[cle]} spec=${valeur}`);
+      }
+      if (!GEOMETRIE_A_JOUR.has(t.name)) continue;
+      // Une valeur absente vaut 0 ou false des DEUX côtés, sinon `rotation: 90`
+      // côté spec ne se compare pas à l'`undefined` côté fichier. Tolérance
+      // d'un dixième de carreau : un glissé souris laisse des décimales
+      // (490.0089 pour 490.0085) qui ne déplacent rien de visible.
+      const pres = (a, b) => Math.abs((a ?? 0) - (b ?? 0)) < 1;
+      const geo = (o) => `${o.x ?? 0},${o.y ?? 0} rot=${o.rotation ?? 0}${o.flipH ? ' H' : ''}${o.flipV ? ' V' : ''}`;
+      check(`${t.name} : ${attendu.id} posé comme la spec le dit`,
+        pres(p.x, attendu.x) && pres(p.y, attendu.y) && (p.rotation ?? 0) === (attendu.rotation ?? 0)
+        && !!p.flipH === !!attendu.flipH && !!p.flipV === !!attendu.flipV,
+        `.projix=${geo(p)} spec=${geo(attendu)}`);
+    }
+  }
+
   // Extrémités de fils : composant existant + broche valide.
   const partById = new Map(diagram.parts.map((p) => [p.id, p]));
   const mcuPinSet = new Set(catalog.mcuPins(t.board));

@@ -60,17 +60,30 @@ Changer de réglage **réarme** l'attente.
 
 ## Le décodage
 
-Sélecteur **Décoder** : `I²C`, `SPI` ou `DMX512`. Il faut ensuite dire **quelle voie joue quel rôle** :
+Sélecteur **Décoder** : `I²C / TWI`, `SPI`, `UART`, `1-Wire` ou `DMX512`. Il faut ensuite dire **quelle voie joue quel rôle** :
 
 | Protocole | Rôles à désigner |
 |-----------|------------------|
-| **I²C** | l'horloge (SCL) et la donnée (SDA) |
+| **I²C / TWI** | l'horloge (SCL) et la donnée (SDA) |
 | **SPI** | l'horloge (SCK), MOSI, MISO, la sélection (CS), plus le **mode** 0 à 3 |
+| **UART** | la ligne série (TX ou RX), plus le **format** (`8N1`, `7E1`…) et la **vitesse** |
+| **1-Wire** | la ligne unique (DQ) |
 | **DMX512** | la ligne de données |
 
-Les octets et les repères de trame (`START`, `STOP`, `ACK`, numéros de canaux DMX) s'écrivent alors **sous la piste**, chacun à sa place dans le temps. Le décodage ne porte que sur la **partie visible** : zoomez sur la trame qui vous intéresse.
+`I²C` et `TWI` sont **le même bus** : seul le nom change d'une bibliothèque à l'autre. Un seul décodage suffit pour les deux.
+
+Les octets et les repères de trame (`START`, `STOP`, `ACK`, `RESET`, numéros de canaux DMX) s'écrivent alors **sous la piste**, chacun à sa place dans le temps. Le décodage ne porte que sur la **partie visible** : zoomez sur la trame qui vous intéresse.
+
+### Ce qui se règle et ne se devine pas
 
 Le mode SPI ne se devine pas depuis les créneaux — deux modes donnent les mêmes fronts et des octets différents. C'est un réglage, comme sur un appareil du commerce.
+
+La **vitesse** et le **format** d'une ligne UART non plus : deux vitesses voisines produisent les mêmes fronts et des octets différents, et un même signal lu en `8N1` ou en `7E1` ne donne pas les mêmes caractères. Des octets en charabia : c'est presque toujours la vitesse qu'il faut revoir en premier (elle se saisit dans les réglages de la **voie**, pas du décodage — deux lignes série d'un montage ne tournent pas forcément à la même allure).
+
+### Ce que chaque décodage montre
+
+- **UART** — chaque caractère sort avec sa valeur et, quand il est imprimable, le caractère lui-même : `0x48 'H'`. Un bit d'arrêt manquant est signalé `cadrage`, une parité fausse `parité` — l'octet reste affiché, à vous de juger.
+- **1-Wire** — une seule ligne, aucune horloge : c'est la **durée du creux** qui porte le bit. Le décodeur repère le `RESET` et nomme les commandes courantes en clair (`SKIP ROM`, `CONVERT T`, `READ SCRATCHPAD`…), parce que `0x44` ne dit rien alors que `CONVERT T` dit tout. Il ne distingue pas qui parle du maître ou de l'esclave : sur le fil, c'est le même creux, et un appareil du commerce ne fait pas mieux avec une seule pince.
 
 ## Ce qu'une pince ne peut pas montrer
 
@@ -84,7 +97,8 @@ L'analyseur ne se tait jamais : une voie qui ne trace rien **dit pourquoi**, en 
 ## Utilisation
 
 - Une pince sur `8`, une sur `9`, étiquetées, et l'on voit d'un coup d'œil laquelle bat deux fois plus vite que l'autre.
-- Pour un bus I²C : une pince sur `SDA`, une sur `SCL`, décodage `I²C`, et les adresses des composants s'écrivent en clair sous les créneaux.
+- Pour un bus I²C : une pince sur `SDA`, une sur `SCL`, décodage `I²C / TWI`, et les adresses des composants s'écrivent en clair sous les créneaux.
+- Pour voir ce que `Serial.print()` envoie vraiment : une pince sur la broche `TX`, décodage `UART`, vitesse réglée sur celle du `Serial.begin()`, et le texte apparaît caractère par caractère sous les créneaux.
 - Pour attraper un événement rare : déclenchement sur son front, puis on zoome autour de l'instant 0.
 - Créneau trop serré ou trop étalé : molette. La règle donne toujours l'échelle réelle (s, ms, µs, ns).
 

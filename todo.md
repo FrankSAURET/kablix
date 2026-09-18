@@ -1,6 +1,6 @@
 # À faire
 1. Analyseur logique
-    1. Ajouter décodage Twi; 1-wire et UART.
+    1. ✅ Ajouter décodage Twi, 1-wire, single-bus (dht11 et dht22 zt tu le nommera "DHT11/DHT22") et UART. — TWI = I²C (même bus, un seul décodeur, renommé « I²C / TWI ») ; UART et 1-Wire ajoutés. ⬜ Reste le single-bus DHT11/DHT22, qui n'est PAS du 1-Wire malgré l'apparence : trame de 40 bits sans adressage ni commande, le bit se lit à la durée du niveau HAUT et non du creux.
 1. Repliement des panneaux :
     1. je t'ai fais une image avant aprés de ce que je veux ici "repliement panneaux.png"
     1. Tu notera en haut ce qu'on voit actuellement à gauche déplié et à droite replié et en dessous ce que je veux
@@ -8,8 +8,31 @@
         1. Ascenseurs du panneau de gauche diminués symétriquement en haut et en bas pour avoir la place de mettre la flèche en haut et ne pas mordre sur l'arrondi. Attention ce doit être la même chose si un ascenseur apparait dans le paneau de droite.
         1. Fleche au dessus de l'ascenseur pour replier, si il y a un ascenseur sans ascenseur elle ne doit pas empièter sur le texte. 
         1. Une fois replié, le texte devient verticale et est centré dans le mini panneau avec la flêche au dessus
+  1. J'ai rajouté 1 composants (dans composants2D.svg) en 2 versions (CI et Étanche). Le choix se fait dans les propriétés. C'est un DSB1820. En simulation il trouve un curseur de température (-55 à +125 +-0,5°C), protocole 1-wire. Il se met dans la bibliothèque externe.
 ## ne pas faire pour l'instant
-- Ajouter ds18b20
+1. Ajouter ds18b20 (item 3 ci-dessus).
+
+---
+
+# >>>>  v2026.9.4.99 — UART et 1-Wire décodés, et la spec qui ment enfin détectée
+
+1. ✅ **Item 1.5 : TWI et I²C sont le MÊME bus.** Un seul décodeur, pas deux : seul le nom de la bibliothèque Arduino change (brevet Philips oblige). Il s'appelle désormais « I²C / TWI » dans la liste déroulante — la demande est satisfaite sans une ligne de décodage en plus.
+2. ✅ **Item 1.5 : décodage UART.** Format réglable (8N1, 8N2, 8E1, 8O1, 7N1, 7E1, 7O1), vitesse reprise du réglage par voie. Chaque octet s'affiche en hexadécimal, suivi de son caractère quand il est imprimable (`0x48 'H'`). Un bit d'arrêt à 0 donne `cadrage`, une parité fausse est annotée.
+3. ℹ️ **Échantillonnage au milieu du bit, avec recalage sur CHAQUE front descendant** — et pas le comptage de paliers du DMX. Raison : le DMX enchaîne ses octets dans une trame ouverte par un BREAK, une ligne série ordinaire laisse des silences arbitraires entre caractères. Sans recalage, le décodage dérive après le premier silence. Prouvé par un contrôle à silence de 40 temps-bit.
+4. ✅ **Item 1.5 : décodage 1-Wire.** Aucune horloge sur ce bus : c'est la **durée du creux** qui porte le bit (moins de 30 µs = 1, plus = 0, au-delà de 480 µs = RESET). Le premier octet après un RESET est nommé en clair (SKIP ROM, CONVERT T, READ SCRATCHPAD…), les suivants en hexadécimal. Un octet resté incomplet à la fin d'une transaction est signalé tel quel (`3 bits`).
+5. ✅ **Dix-neuf contrôles neufs** dans [verify-analyseur.mjs](scripts/verify-analyseur.mjs), dont un **aller-retour moteur → décodeur** : `frontsDeTrame` et `decoderUart` vivent dans deux fichiers sans rien en commun, et chacun testé isolément resterait vert sur deux conventions de bits CONTRAIRES. Le contrôle croisé les met d'accord, en 8N1 et en 8E1.
+6. ℹ️ **Un de ces contrôles était faux et ne discriminait rien.** « La même trame lue en 8N1 ne rend pas A puis B » : raté, 0x41 et 0x42 ont un nombre pair de uns, leur bit de parité paire vaut 0, et relus en 8N1 ils rendent le même octet. Le contrôle passait pour une raison arithmétique, pas parce que le code marchait. Refait avec 0x43 et 0x45, dont la parité vaut 1 — ils deviennent 0xC3 et 0xC5, et là le contrôle mord.
+7. ✅ **Reprise du ⏳ du lot .98 : positions des sondes reportées dans [_spec.mjs](testkablix/_spec.mjs).** Sans ce report, la première régénération les reperdait. La planche entière y passe, pas seulement les sondes : U1 et R1 portent les décimales d'un glissé souris de Frank, elles sont recopiées **telles quelles** — les arrondir déplacerait le schéma, ce que la règle « un schéma retouché garde ses emplacements » interdit.
+8. ✅ **Dérive du lot .98 découverte et réparée : SD4 avait changé d'accroche**, de `U1/GP26` à `R1/1`. Non demandé, et en contradiction avec son propre `expect` (« pin: GP26 », le cas de l'entrée analogique). Prouvé par `git show 348df11`. Aucun banc ne relisait ce `.projix` : la dérive est passée verte pendant un lot entier.
+9. ✅ **Garde-fou posé dans [_verify.mjs](testkablix/_verify.mjs) : le `.projix` doit dire ce que dit la spec.** Présence, type et **attributs** de chaque composant sont désormais comparés — ce sont eux qui décident du comportement simulé. Contre-épreuve au `git stash` : **5 échecs avant, 23 après**, et la dérive exacte de SD4 est attrapée nommément (position ET accroche).
+10. ℹ️ **La géométrie n'est contrôlée que pour `sonde-logique-pico`, à dessein.** Premier jet : contrôle au pixel partout → **476 échecs**, presque tous du bruit de glissé (490,0089 contre 490,0085) sur des planches retouchées à la souris pendant des mois. Un banc qui crie 476 fois ne protège plus rien, il se contourne. La liste `GEOMETRIE_A_JOUR` s'allonge d'un test chaque fois qu'une spec est remise d'aplomb, et ce test est alors tenu au pixel.
+11. ⏳ **Dix-huit divergences spec / `.projix` révélées, non corrigées** : dette ancienne, sans effet sur la simulation (attributs de GBF, d'oscilloscope, parts absentes de `dmx-pico2` et `oscillo-pico2`). Hors périmètre de ce lot, à traiter pour elle-même.
+12. ✅ **Défaut de mesure corrigé dans [_diag-cale-sondes.mjs](scripts/_diag-cale-sondes.mjs), sans quoi rien de tout cela ne convergeait.** L'échelle du monde était DÉDUITE d'une sonde, en supposant sa pastille à `x + 10` — vrai seulement à rotation 0. Toutes les sondes étant tournées depuis le lot .98, l'échelle sortait à **13,5 au lieu de 10** : toutes les mesures suivaient, et la cible glissait d'une passe à l'autre. Le zoom ne se devine pas, il se lit (`getCamera().zoom`).
+13. ℹ️ **Piège du gabarit à backticks déclenché une quatrième fois**, dans le commentaire même de cette correction.
+14. ✅ **Fiche d'aide [sonde-logique.md](docs/fr/composants/sonde-logique.md) complétée** : tableau des cinq protocoles, ce qui se règle et ne se devine pas (vitesse et format UART), et ce que chaque décodage montre. `verify:docs` : 25 contrôles OK.
+15. ⏳ **`sonde-logique-uno` toujours sans `.projix`** : déclaré dans la spec, jamais généré, alors que le CLAUDE.md exige un test Arduino ET un test Pico par composant. Rien à recaler tant qu'il n'existe pas.
+16. ⏳ **Traductions en attente** : `t('Format')` est une chaîne neuve, en anglais (langue de base). Dette `verify:i18n` à verser au lot d'avant publication.
+17. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 99. CHANGELOG complété sous `2026.9.5 (prochaine publication)`.
 
 ---
 

@@ -49,8 +49,14 @@ export interface Annotation {
   voie?: number;
 }
 
-/** Protocoles décodables. */
-export type Protocole = 'i2c' | 'spi' | 'dmx';
+/**
+ * Protocoles décodables.
+ *
+ * `i2c` couvre aussi ce que l'Arduino appelle TWI : c'est le même bus, seul le
+ * nom de la bibliothèque change (brevet Philips oblige). Un seul décodeur donc,
+ * présenté sous les deux noms dans l'interface.
+ */
+export type Protocole = 'i2c' | 'spi' | 'dmx' | 'uart' | 'onewire';
 
 /** Affectation des voies à un décodeur (indices de voie, -1 = non affectée). */
 export interface ReglageDecodage {
@@ -65,8 +71,14 @@ export interface ReglageDecodage {
   selection?: number;
   /** SPI : mode 0..3 (CPOL/CPHA). */
   mode?: 0 | 1 | 2 | 3;
-  /** DMX : vitesse en bauds (250 000 par la norme). */
+  /** DMX, UART : vitesse en bauds (250 000 par la norme DMX, 9600 par défaut). */
   bauds?: number;
+  /** UART : nombre de bits de données (5 à 9, 8 par défaut). */
+  bitsDonnees?: 5 | 6 | 7 | 8 | 9;
+  /** UART : parité. `none` par défaut — c'est le 8N1 de tout le monde. */
+  parite?: 'none' | 'even' | 'odd';
+  /** UART : nombre de bits d'arrêt (1 ou 2). */
+  bitsArret?: 1 | 2;
   /**
    * Tolérance relative sur la durée d'un bit (0,25 = ±25 %). Un palier qui
    * tombe au-delà est signalé comme mal cadré au lieu d'être arrondi en
@@ -519,6 +531,226 @@ function decoderDmx(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
   return out;
 }
 
+// --- UART (série asynchrone) --------------------------------------------------
+
+/**
+ * Caractère imprimable d'un octet, pour l'afficher à côté de sa valeur. Hors de
+ * l'ASCII imprimable on ne montre rien : un « ÿ » ou un carré de remplacement
+ * ferait croire à une donnée texte là où il n'y en a pas.
+ */
+function litteral(n: number): string {
+  if (n === 10) return '\\n';
+  if (n === 13) return '\\r';
+  if (n === 9) return '\\t';
+  if (n >= 32 && n <= 126) return String.fromCharCode(n);
+  return '';
+}
+
+/**
+ * UART : une ligne série asynchrone, sans horloge. C'est le protocole du
+ * `Serial.print()` de l'Arduino et de tout module qui parle en TX/RX.
+ *
+ * Il n'y a AUCUN moyen de deviner la vitesse depuis les créneaux — deux vitesses
+ * voisines produisent les mêmes fronts avec des octets différents. Elle est donc
+ * réglée, comme sur un analyseur du commerce, et c'est le premier réglage à
+ * vérifier quand les octets sortent en charabia.
+ *
+ * Le cadrage : la ligne au repos est HAUTE. Un front descendant ouvre le start
+ * bit, puis viennent les bits de données LSB D'ABORD (l'inverse de l'I²C et du
+ * SPI, source classique d'erreur), la parité si elle est réglée, et un ou deux
+ * bits d'arrêt à 1.
+ *
+ * On échantillonne au MILIEU de chaque bit plutôt que de compter les paliers
+ * comme le fait le DMX : le DMX découpe une trame ouverte par un BREAK, dont les
+ * octets s'enchaînent sans repos, alors qu'une ligne série ordinaire laisse des
+ * silences arbitraires entre caractères. Se recaler sur chaque front descendant
+ * évite que le décodage dérive après un long silence.
+ */
+function decoderUart(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
+  const v = voie(voies, r.donnees);
+  if (!v) return [];
+
+  const bauds = r.bauds && r.bauds > 0 ? r.bauds : 9600;
+  /** Durée d'un bit, en ms simulées. */
+  const bitMs = 1000 / bauds;
+  const nbData = r.bitsDonnees ?? 8;
+  const parite = r.parite ?? 'none';
+  const nbStop = r.bitsArret ?? 1;
+  const tol = r.tolerance && r.tolerance > 0 ? r.tolerance : 0.25;
+
+  const out: Annotation[] = [];
+  const lect = new Lecteur(v.fronts, v.niveauInitial);
+  /** Instant au-delà duquel le caractère en cours est terminé. */
+  let finCourante = -Infinity;
+
+  for (const f of v.fronts) {
+    if (f.niveau !== 0) continue; // seul un front descendant ouvre un caractère
+    if (f.t < finCourante) continue; // déjà à l'intérieur d'un caractère en cours
+
+    const t0 = f.t;
+    // Le start bit doit encore valoir 0 en son milieu : un front descendant
+    // suivi d'une remontée immédiate est une glitch, pas un caractère.
+    if (lect.a(t0 + bitMs * 0.5) !== 0) continue;
+
+    let acc = 0;
+    let uns = 0;
+    let coupe = false;
+    for (let i = 0; i < nbData; i++) {
+      const b = lect.a(t0 + bitMs * (1.5 + i));
+      if (b === null) {
+        coupe = true;
+        break;
+      }
+      if (b === 1) {
+        acc |= 1 << i; // UART : LSB en premier
+        uns += 1;
+      }
+    }
+    if (coupe) break; // capture terminée au milieu d'un caractère
+
+    let rang = 1 + nbData;
+    let pariteFausse = false;
+    if (parite !== 'none') {
+      const p = lect.a(t0 + bitMs * (0.5 + rang));
+      const attendu = parite === 'even' ? uns % 2 : 1 - (uns % 2);
+      pariteFausse = p !== null && p !== attendu;
+      rang += 1;
+    }
+    // Le bit d'arrêt doit valoir 1. À 0, c'est un « framing error » : vitesse
+    // mal réglée neuf fois sur dix, d'où l'annotation explicite plutôt qu'un
+    // octet faux affiché sans avertissement.
+    const stop = lect.a(t0 + bitMs * (0.5 + rang));
+    const t1 = t0 + bitMs * (rang + nbStop);
+    finCourante = t0 + bitMs * (rang + nbStop - 1 + (1 - tol));
+
+    if (stop === 0) {
+      out.push({ t0, t1, texte: 'cadrage', nature: 'erreur' });
+      continue;
+    }
+    const car = litteral(acc);
+    out.push({
+      t0,
+      t1,
+      texte: car === '' ? hex2(acc) : `${hex2(acc)} '${car}'`,
+      nature: 'donnee',
+    });
+    if (pariteFausse) {
+      out.push({ t0, t1, texte: 'parité', nature: 'erreur' });
+    }
+  }
+  return out;
+}
+
+// --- 1-Wire -------------------------------------------------------------------
+
+/** Durées de la norme 1-Wire, en µs. */
+const OW = {
+  /** Impulsion de RESET : le maître tire la ligne bas au moins 480 µs. */
+  reset: 400,
+  /** Au-delà de ce creux, le bit vaut 0 ; en deçà, il vaut 1. */
+  seuilBit: 30,
+  /** Un creux plus court que cela n'est pas un slot : c'est du parasite. */
+  miniSlot: 1,
+  /** Silence qui referme un octet resté incomplet (fin de transaction). */
+  repos: 200,
+} as const;
+
+/**
+ * 1-Wire (Dallas/Maxim, le bus du DS18B20). Une seule ligne, tirée au +5 V par
+ * une résistance : tout le monde ne fait que la mettre à la masse, maître comme
+ * esclave. Il n'y a donc pas d'horloge du tout, c'est la DURÉE du creux qui
+ * porte l'information — d'où un décodeur qui ne regarde que ça :
+ *
+ *  - creux ≥ 480 µs  → RESET, la transaction recommence ;
+ *  - creux court dans le slot qui suit → le maître écrit (ou l'esclave répond) ;
+ *    un creux de moins de ~30 µs est un 1, un creux long est un 0.
+ *
+ * On ne distingue PAS qui parle, et c'est normal : sur le fil, une réponse
+ * d'esclave et une écriture du maître sont le même creux. Un vrai analyseur ne
+ * fait pas mieux avec une seule pince. Ce qui se lit, en revanche, ce sont les
+ * octets — LSB d'abord — et les commandes courantes sont nommées, parce que
+ * « 0x44 » ne dit rien à un élève alors que « CONVERT T » dit tout.
+ */
+const OW_COMMANDES: Record<number, string> = {
+  0x33: 'READ ROM',
+  0x55: 'MATCH ROM',
+  0xcc: 'SKIP ROM',
+  0xf0: 'SEARCH ROM',
+  0xec: 'ALARM SEARCH',
+  0x44: 'CONVERT T',
+  0x4e: 'WRITE SCRATCHPAD',
+  0xbe: 'READ SCRATCHPAD',
+  0x48: 'COPY SCRATCHPAD',
+  0xb8: 'RECALL E²',
+  0xb4: 'READ POWER',
+};
+
+function decoderOneWire(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
+  const v = voie(voies, r.donnees);
+  if (!v || v.fronts.length === 0) return [];
+
+  const usMs = 1 / 1000; // un µs en ms simulées
+  const out: Annotation[] = [];
+
+  let acc = 0;
+  let bits = 0;
+  let tOctet = 0;
+  /** Vrai quand le prochain octet complet suit un RESET : c'est une commande. */
+  let attendCommande = false;
+  /** Instant du dernier front montant : sert à mesurer le silence qui suit. */
+  let tHaut = -Infinity;
+
+  /** Referme un octet incomplet quand la transaction s'arrête en route. */
+  const clore = (t: number): void => {
+    if (bits === 0) return;
+    out.push({ t0: tOctet, t1: t, texte: `${bits} bits`, nature: 'erreur' });
+    bits = 0;
+    acc = 0;
+  };
+
+  for (let i = 0; i < v.fronts.length; i++) {
+    const f = v.fronts[i]!;
+    if (f.niveau !== 0) {
+      tHaut = f.t;
+      continue;
+    }
+    // Un creux : sa longueur est tout ce qui compte.
+    const suivant = v.fronts.slice(i + 1).find((x) => x.niveau === 1);
+    if (!suivant) break; // creux jamais refermé : la capture s'arrête dedans
+    const creuxUs = (suivant.t - f.t) / usMs;
+    // Un long silence HAUT avant ce creux referme la transaction précédente : un
+    // octet à moitié lu n'appartient pas à celui qui commence.
+    if (tHaut > -Infinity && (f.t - tHaut) / usMs >= OW.repos) clore(tHaut);
+
+    if (creuxUs >= OW.reset) {
+      clore(f.t);
+      out.push({ t0: f.t, t1: suivant.t, texte: 'RESET', nature: 'cadre' });
+      attendCommande = true;
+      continue;
+    }
+    if (creuxUs < OW.miniSlot) continue; // trop bref pour être un slot
+
+    const bit = creuxUs < OW.seuilBit ? 1 : 0;
+    if (bits === 0) tOctet = f.t;
+    if (bit === 1) acc |= 1 << bits; // 1-Wire : LSB en premier
+    bits += 1;
+    if (bits === 8) {
+      const nom = attendCommande ? OW_COMMANDES[acc] : undefined;
+      out.push({
+        t0: tOctet,
+        t1: suivant.t,
+        texte: nom ? `${hex2(acc)} ${nom}` : hex2(acc),
+        nature: 'donnee',
+      });
+      attendCommande = false;
+      bits = 0;
+      acc = 0;
+    }
+  }
+  clore(v.fronts[v.fronts.length - 1]!.t);
+  return out;
+}
+
 // --- Entrée publique ---------------------------------------------------------
 
 /**
@@ -535,6 +767,10 @@ export function decoder(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
         return decoderSpi(voies, r);
       case 'dmx':
         return decoderDmx(voies, r);
+      case 'uart':
+        return decoderUart(voies, r);
+      case 'onewire':
+        return decoderOneWire(voies, r);
     }
   })();
   // Chaque annotation part avec SA voie de données : c'est ce qui permet à la
@@ -599,6 +835,10 @@ export function rolesDe(p: Protocole): Array<{ cle: keyof ReglageDecodage; nom: 
       ];
     case 'dmx':
       return [{ cle: 'donnees', nom: 'DMX', obligatoire: true }];
+    case 'uart':
+      return [{ cle: 'donnees', nom: 'TX/RX', obligatoire: true }];
+    case 'onewire':
+      return [{ cle: 'donnees', nom: 'DQ', obligatoire: true }];
   }
 }
 

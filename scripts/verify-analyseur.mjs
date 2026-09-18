@@ -587,6 +587,197 @@ check('SPI : quatre rôles proposés (SCK, MOSI, MISO, CS)',
     textes.join(' | '));
 }
 
+// --- UART ------------------------------------------------------------------------
+/**
+ * Fabrique les fronts d'une ligne série. `format` suit la notation Arduino
+ * (8N1, 7E1…). Les silences entre caractères sont VOLONTAIREMENT irréguliers :
+ * c'est ce qui distingue une ligne série d'un flux DMX, et c'est là que se
+ * cassait un décodeur qui compterait les paliers sans se recaler sur le start.
+ */
+const serieDe = (octets, bauds, bits, parite, stop, silences) => {
+  const BIT = 1000 / bauds;
+  const fronts = [];
+  let t = 1.0;
+  let niveau = 1;
+  const palier = (n, nb) => {
+    if (n !== niveau) {
+      fronts.push([t, n]);
+      niveau = n;
+    }
+    t += nb * BIT;
+  };
+  palier(1, 4); // repos avant le premier caractère
+  octets.forEach((o, i) => {
+    palier(0, 1); // start bit
+    let uns = 0;
+    for (let k = 0; k < bits; k++) {
+      const b = (o >> k) & 1; // LSB d'abord
+      if (b) uns += 1;
+      palier(b, 1);
+    }
+    if (parite !== 'none') {
+      const p = parite === 'even' ? uns % 2 : 1 - (uns % 2);
+      palier(p, 1);
+    }
+    palier(1, stop);
+    palier(1, silences ? silences[i] ?? 3 : 3); // silence entre caractères
+  });
+  palier(1, 20);
+  return fronts;
+};
+
+{
+  // « Hi » en 8N1 à 9600 bauds, avec un long silence entre les deux caractères.
+  const fronts = serieDe([0x48, 0x69], 9600, 8, 'none', 1, [40, 3]);
+  const voies = [voieDe(0, 'TX', fronts, 1)];
+  const textes = decoder(voies, { protocole: 'uart', donnees: 0, bauds: 9600 })
+    .map((a) => a.texte);
+  check('UART : les deux octets sont décodés malgré un long silence entre eux',
+    textes.length === 2 && textes[0].startsWith('0x48') && textes[1].startsWith('0x69'),
+    textes.join(' | '));
+  check("UART : le caractère imprimable s'affiche à côté de la valeur",
+    textes[0] === "0x48 'H'" && textes[1] === "0x69 'i'", textes.join(' | '));
+  check('UART : LSB en premier (0x48 lu à l\'envers donnerait 0x12)',
+    !textes.some((x) => x.startsWith('0x12')), textes.join(' | '));
+  check('UART : un seul rôle de voie, obligatoire',
+    rolesDe('uart').length === 1 && rolesDe('uart')[0].obligatoire === true);
+  check('UART : sans voie de données le réglage est incomplet',
+    !reglageComplet({ protocole: 'uart' }) &&
+    reglageComplet({ protocole: 'uart', donnees: 0 }));
+}
+{
+  // La vitesse ne se devine PAS : la même ligne lue à 19200 doit rendre autre
+  // chose que les octets attendus. C'est la contre-épreuve du réglage de bauds —
+  // sans elle, un décodeur qui ignorerait `bauds` passerait le contrôle ci-dessus.
+  const fronts = serieDe([0x48, 0x69], 9600, 8, 'none', 1);
+  const voies = [voieDe(0, 'TX', fronts, 1)];
+  const faux = decoder(voies, { protocole: 'uart', donnees: 0, bauds: 19200 })
+    .map((a) => a.texte);
+  check('UART : lue au double de sa vitesse, la trame ne rend PAS les bons octets',
+    !(faux[0] === "0x48 'H'" && faux[1] === "0x69 'i'"), faux.join(' | '));
+}
+{
+  // 7E1 : sept bits de données et une parité paire. Le même signal lu en 8N1
+  // décale tout — le format est un réglage, pas une déduction.
+  //
+  // C et E sont choisis à dessein : leur parité PAIRE vaut 1. Lus en 8N1 ce bit
+  // devient leur bit 7 et les change en 0xC3 / 0xC5. Avec A et B (parité 0) le
+  // contrôle passait des deux façons et ne prouvait rien.
+  const fronts = serieDe([0x43, 0x45], 9600, 7, 'even', 1);
+  const voies = [voieDe(0, 'TX', fronts, 1)];
+  const bons = decoder(voies, {
+    protocole: 'uart', donnees: 0, bauds: 9600, bitsDonnees: 7, parite: 'even', bitsArret: 1,
+  }).map((a) => a.texte);
+  check('UART 7E1 : les deux octets sortent justes, sans erreur de parité',
+    bons.length === 2 && bons[0] === "0x43 'C'" && bons[1] === "0x45 'E'", bons.join(' | '));
+  const en8n1 = decoder(voies, { protocole: 'uart', donnees: 0, bauds: 9600 })
+    .map((a) => a.texte);
+  check('UART : la même trame lue en 8N1 rend 0xC3/0xC5 (le bit de parité passe en bit 7)',
+    en8n1[0] === '0xC3' && en8n1[1] === '0xC5', en8n1.join(' | '));
+}
+{
+  // Parité fausse : on fabrique du 8E1 en posant la parité à l'envers. Le
+  // décodeur doit LE DIRE, pas taire l'anomalie ni jeter l'octet.
+  const fronts = serieDe([0x41], 9600, 8, 'odd', 1);
+  const voies = [voieDe(0, 'TX', fronts, 1)];
+  const textes = decoder(voies, {
+    protocole: 'uart', donnees: 0, bauds: 9600, bitsDonnees: 8, parite: 'even', bitsArret: 1,
+  }).map((a) => a.texte);
+  check('UART : une parité fausse est signalée, et l\'octet reste affiché',
+    textes.includes('parité') && textes.some((x) => x.startsWith('0x41')),
+    textes.join(' | '));
+}
+
+// --- 1-Wire ----------------------------------------------------------------------
+/**
+ * Fabrique les fronts d'un bus 1-Wire. Tout le monde ne fait que tirer la ligne
+ * à la masse : un creux court est un 1, un creux long un 0, un creux de 480 µs
+ * un RESET. Les durées sont celles de la fiche du DS18B20.
+ */
+const oneWireDe = (sequence) => {
+  const US = 0.001; // un µs en ms simulées
+  const fronts = [];
+  let t = 1.0;
+  const creux = (dureeUs, reposUs) => {
+    fronts.push([t, 0]);
+    t += dureeUs * US;
+    fronts.push([t, 1]);
+    t += reposUs * US;
+  };
+  t += 50 * US;
+  for (const e of sequence) {
+    if (e === 'reset') {
+      creux(480, 480); // impulsion de reset + fenêtre de présence
+      continue;
+    }
+    for (let k = 0; k < 8; k++) {
+      const b = (e >> k) & 1; // LSB d'abord
+      if (b) creux(6, 64); // slot « 1 » : creux bref
+      else creux(60, 10); // slot « 0 » : creux long
+    }
+  }
+  t += 300 * US;
+  return fronts;
+};
+
+{
+  // La séquence de tout démarrage de DS18B20 : RESET, SKIP ROM (0xCC),
+  // CONVERT T (0x44).
+  const fronts = oneWireDe(['reset', 0xcc, 0x44]);
+  const voies = [voieDe(0, 'DQ', fronts, 1)];
+  const textes = decoder(voies, { protocole: 'onewire', donnees: 0 }).map((a) => a.texte);
+  check('1-Wire : le RESET est repéré (creux ≥ 480 µs)',
+    textes.includes('RESET'), textes.join(' | '));
+  check('1-Wire : la commande qui suit le RESET est nommée en clair',
+    textes.some((x) => x.includes('SKIP ROM')), textes.join(' | '));
+  check('1-Wire : les octets suivants sortent en hexadécimal',
+    textes.some((x) => x.startsWith('0x44')), textes.join(' | '));
+  check('1-Wire : LSB en premier (0xCC relu à l\'envers donnerait 0x33)',
+    !textes.some((x) => x.startsWith('0x33')), textes.join(' | '));
+  check('1-Wire : un seul rôle de voie, obligatoire',
+    rolesDe('onewire').length === 1 && rolesDe('onewire')[0].obligatoire === true);
+  check('1-Wire : sans voie de données le réglage est incomplet',
+    !reglageComplet({ protocole: 'onewire' }) &&
+    reglageComplet({ protocole: 'onewire', donnees: 0 }));
+}
+{
+  // Un octet resté à moitié envoyé (transaction interrompue) doit être SIGNALÉ,
+  // pas fondu dans l'octet suivant : c'est exactement ce qu'on voit quand une
+  // pince est posée sur la mauvaise broche.
+  const US = 0.001;
+  const fronts = [];
+  let t = 1.0;
+  const creux = (dureeUs, reposUs) => {
+    fronts.push([t, 0]);
+    t += dureeUs * US;
+    fronts.push([t, 1]);
+    t += reposUs * US;
+  };
+  t += 50 * US;
+  creux(480, 480); // RESET
+  for (let k = 0; k < 3; k++) creux(6, 64); // trois bits seulement
+  t += 400 * US; // long silence : la transaction s'arrête là
+  const textes = decoder([voieDe(0, 'DQ', fronts, 1)], { protocole: 'onewire', donnees: 0 })
+    .map((a) => a.texte);
+  check('1-Wire : un octet laissé incomplet est signalé, pas recollé au suivant',
+    textes.includes('3 bits'), textes.join(' | '));
+}
+{
+  // Deux décodages sur la même capture, dont un des nouveaux protocoles : c'est
+  // le cas d'un montage qui parle en série ET porte une sonde 1-Wire.
+  const uart = serieDe([0x4f], 9600, 8, 'none', 1);
+  const ow = oneWireDe(['reset', 0xcc]);
+  const voies = [voieDe(0, 'TX', uart, 1), voieDe(1, 'DQ', ow, 1)];
+  const ann = decoderTous(voies, [
+    { protocole: 'uart', donnees: 0, bauds: 9600 },
+    { protocole: 'onewire', donnees: 1 },
+  ]);
+  check('Multi : UART et 1-Wire décodés ensemble, chacun sous SA voie',
+    ann.some((a) => a.texte.startsWith('0x4F') && a.voie === 0) &&
+    ann.some((a) => a.texte === 'RESET' && a.voie === 1),
+    ann.map((a) => `${a.texte}@${a.voie}`).join(' | '));
+}
+
 // --- Rendu : géométrie et graduations -------------------------------------------
 // Le tracé lui-même se vérifie à l'œil (et par les gestes dans verify:souris) ;
 // ici on prouve les CONVERSIONS, parce qu'un réticule décalé de 100 px vient
@@ -937,6 +1128,41 @@ check('SPI : quatre rôles proposés (SCK, MOSI, MISO, CS)',
     /brochesTx\(\)/.test(avr) && /const TX = this\.brochesTx\(\)/.test(avr));
   check('série (AVR) : le chaînage évite l\'empilement au même instant',
     /Math\.max\(maintenant, this\.uartFinTrameUs\.get\(pin\)/.test(avr));
+
+  // ALLER-RETOUR : ce que le MOTEUR synthétise, le DÉCODEUR doit le relire.
+  // Les deux morceaux vivent dans deux fichiers sans rien en commun, et rien
+  // n'obligeait le décodeur UART à retenir la même convention de bits que la
+  // synthèse (LSB d'abord, parité paire = 0 sur un nombre pair de uns). Chacun
+  // testé isolément resterait vert sur deux conventions contraires ; c'est ce
+  // contrôle-ci qui les met d'accord, sur du 8N1 ET sur du 8E1.
+  const relire = (valeurs, forme) => {
+    const us = 0.001; // un µs en ms simulées
+    const paires = [];
+    let base = 1.0;
+    for (const v of valeurs) {
+      const bruts = appel(frontsDeTrame, { value: v, ...forme }) ?? [];
+      for (let i = 0; i < bruts.length; i += 2) {
+        paires.push([base + bruts[i] * us, bruts[i + 1]]);
+      }
+      base += (appel(dureeTrameUs, { value: v, ...forme }) ?? 0) * us + 0.5;
+    }
+    return decoder([voieDe(0, 'TX', paires, 1)], {
+      protocole: 'uart',
+      donnees: 0,
+      bauds: forme.baudRate,
+      bitsDonnees: forme.dataBits,
+      parite: forme.parity,
+      bitsArret: forme.stopBits,
+    }).map((a) => a.texte);
+  };
+  const ar8n1 = relire([0x4b, 0x6f], { baudRate: 9600, dataBits: 8, stopBits: 1, parity: 'none' });
+  check('aller-retour : les trames synthétisées par le moteur se relisent en 8N1',
+    ar8n1.length === 2 && ar8n1[0] === "0x4B 'K'" && ar8n1[1] === "0x6F 'o'",
+    ar8n1.join(' | '));
+  const ar8e1 = relire([0x4b, 0x6f], { baudRate: 19_200, dataBits: 8, stopBits: 1, parity: 'even' });
+  check('aller-retour : idem en 8E1 à 19200, sans erreur de parité',
+    ar8e1.length === 2 && ar8e1[0] === "0x4B 'K'" && ar8e1[1] === "0x6F 'o'",
+    ar8e1.join(' | '));
 }
 
 console.log(failures === 0 ? '\nTout est vert.' : `\n${failures} échec(s).`);

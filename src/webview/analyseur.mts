@@ -342,6 +342,36 @@ function majDecodages(): void {
   for (const d of decodages) zoneDecodages.append(groupeDecodage(d));
 }
 
+/**
+ * Formats série proposés, écrits comme dans un programme Arduino
+ * (`SERIAL_8N1`). On s'en tient aux formats réellement rencontrés : les
+ * combinaisons exotiques (5 bits, parité impaire sur 9 bits) n'apprennent rien
+ * et allongent la liste jusqu'à la rendre illisible.
+ */
+const FORMATS_UART: Array<{
+  cle: string;
+  bits: 5 | 6 | 7 | 8 | 9;
+  parite: 'none' | 'even' | 'odd';
+  stop: 1 | 2;
+}> = [
+  { cle: '8N1', bits: 8, parite: 'none', stop: 1 },
+  { cle: '8N2', bits: 8, parite: 'none', stop: 2 },
+  { cle: '8E1', bits: 8, parite: 'even', stop: 1 },
+  { cle: '8O1', bits: 8, parite: 'odd', stop: 1 },
+  { cle: '7N1', bits: 7, parite: 'none', stop: 1 },
+  { cle: '7E1', bits: 7, parite: 'even', stop: 1 },
+  { cle: '7O1', bits: 7, parite: 'odd', stop: 1 },
+];
+
+/** Clé du format courant d'un décodage UART, 8N1 s'il n'a rien de réglé. */
+function formatUart(d: ReglageDecodage): string {
+  const bits = d.bitsDonnees ?? 8;
+  const parite = d.parite ?? 'none';
+  const stop = d.bitsArret ?? 1;
+  const f = FORMATS_UART.find((x) => x.bits === bits && x.parite === parite && x.stop === stop);
+  return f ? f.cle : '8N1';
+}
+
 /** Un décodage dans la barre : son protocole, ses rôles de voie, sa croix. */
 function groupeDecodage(d: ReglageDecodage): HTMLElement {
   const boite = document.createElement('div');
@@ -352,8 +382,10 @@ function groupeDecodage(d: ReglageDecodage): HTMLElement {
   labProto.textContent = t('Decode');
   const selProto = document.createElement('select');
   for (const [v, nom] of [
-    ['i2c', 'I²C'],
+    ['i2c', 'I²C / TWI'],
     ['spi', 'SPI'],
+    ['uart', 'UART'],
+    ['onewire', '1-Wire'],
     ['dmx', 'DMX512'],
   ] as Array<[Protocole, string]>) {
     const o = document.createElement('option');
@@ -413,6 +445,34 @@ function groupeDecodage(d: ReglageDecodage): HTMLElement {
     sel.value = String(d.mode ?? 0);
     sel.addEventListener('change', () => {
       d.mode = Number(sel.value) as 0 | 1 | 2 | 3;
+      dessiner();
+      envoyerReglages();
+    });
+    lab.append(sel);
+    boite.append(lab);
+  }
+
+  if (d.protocole === 'uart') {
+    // Le format (bits de données, parité, bits d'arrêt) ne se devine pas depuis
+    // les créneaux : 8N1 et 7E1 donnent les mêmes fronts et des octets
+    // différents. Une liste unique plutôt que trois réglages — c'est ainsi que
+    // l'élève l'écrit dans son programme (`Serial.begin(9600, SERIAL_8N1)`).
+    const lab = document.createElement('label');
+    lab.className = 'role';
+    lab.textContent = t('Format');
+    const sel = document.createElement('select');
+    for (const f of FORMATS_UART) {
+      const o = document.createElement('option');
+      o.value = f.cle;
+      o.textContent = f.cle;
+      sel.append(o);
+    }
+    sel.value = formatUart(d);
+    sel.addEventListener('change', () => {
+      const f = FORMATS_UART.find((x) => x.cle === sel.value) ?? FORMATS_UART[0]!;
+      d.bitsDonnees = f.bits;
+      d.parite = f.parite;
+      d.bitsArret = f.stop;
       dessiner();
       envoyerReglages();
     });

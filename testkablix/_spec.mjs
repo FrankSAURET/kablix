@@ -5902,13 +5902,26 @@ while True:
   test({
     name: 'sonde-logique-pico', board: 'pico', ext: 'py',
     parts: [
-      MCU('pico'),
-      { id: 'R1', type: 'resistor', x: 400, y: 320, attrs: { value: '1000' } },
-      { id: 'L1', type: 'led', x: 400, y: 420, attrs: { color: 'red' } },
-      { id: 'SD1', type: 'sonde-logique', x: 220, y: 10, attrs: { voie: '0', accroche: 'U1/GP14', etiquette: 'horloge' } },
-      { id: 'SD2', type: 'sonde-logique', x: 300, y: 10, attrs: { voie: '1', accroche: 'U1/GP15' } },
-      { id: 'SD3', type: 'sonde-logique', x: 380, y: 10, attrs: { voie: '2', accroche: 'U1/GND.4' } },
-      { id: 'SD4', type: 'sonde-logique', x: 460, y: 240, attrs: { voie: '3', accroche: 'U1/GP26' } },
+      // Planche RETOUCHÉE À LA SOURIS par Frank : ces coordonnées sont relevées
+      // dans le .projix, pas choisies ici. Les décimales de U1 et R1 sont la
+      // trace du glissé — les arrondir DÉPLACERAIT la planche, ce que la règle
+      // « un schéma retouché garde ses emplacements » interdit.
+      MCU('pico', 36.749985493315556, 53.60937975189704),
+      { id: 'R1', type: 'resistor', x: 169.84378378614903, y: 160, rotation: 180, attrs: { value: '1000' } },
+      { id: 'L1', type: 'led', x: 50, y: 130, attrs: { color: 'red' } },
+      // Positions MESURÉES (node scripts/_diag-cale-sondes.mjs), pas écrites à
+      // la main : la pastille de chaque pince tombe à 0,02 px de la sienne. Les
+      // valeurs d'origine la posaient jusqu'à 171 px à côté — le modèle résolvait
+      // quand même, puisque `accroche` ne regarde pas le dessin, d'où des pinces
+      // qui « marchaient » en pendant dans le vide.
+      //
+      // Les rotations sont là pour la même raison : quatre pinces de 80 px sur
+      // des broches espacées de 10 px se recouvrent forcément ; en éventail,
+      // chacune reste identifiable.
+      { id: 'SD1', type: 'sonde-logique', x: 160, y: 120, rotation: 180, attrs: { voie: '0', accroche: 'U1/GP14', etiquette: 'horloge' } },
+      { id: 'SD2', type: 'sonde-logique', x: 170, y: 60, rotation: 270, attrs: { voie: '1', accroche: 'U1/GP15' } },
+      { id: 'SD3', type: 'sonde-logique', x: 210, y: 50, rotation: 90, attrs: { voie: '2', accroche: 'U1/GND.4' } },
+      { id: 'SD4', type: 'sonde-logique', x: 130, y: 50, rotation: 90, attrs: { voie: '3', accroche: 'U1/GP26' } },
     ],
     wires: () => [
       w('R1', '1', 'U1', 'GP15', 'green'),

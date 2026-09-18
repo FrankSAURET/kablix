@@ -9,3 +9,5 @@
         1. Ascenseurs du panneau de gauche diminués symétriquement en haut et en bas pour avoir la place de mettre la flèche en haut et ne pas mordre sur l'arrondi. Attention ce doit être la même chose si un ascenseur apparait dans le paneau de droite.
         1. Fleche au dessus de l'ascenseur pour replier, si il y a un ascenseur sans ascenseur elle ne doit pas empièter sur le texte. 
         1. Une fois replié, le texte devient verticale et est centré dans le mini panneau avec la flêche au dessus
+        1. 
+    1. J'ai rajouté 1 composants (dans composants2D.svg) en 2 versions (CI et Étanche). Le choix se fait dans les propriétés. C'est un DSB1820. En simulation il trouve un curseur de température (-55 à +125 +-0,5°C), protocole 1-wire
