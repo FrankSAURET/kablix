@@ -421,7 +421,7 @@ export class PicoEngine implements SimEngine {
   // l'unité de temps du Pico. Cf. avr.mts pour le même branchement en cycles.
   private ds18b20: Array<{
     id: string; pin: string; index: number; auto: Ds18b20;
-    etaitBas: boolean; tenuJusquaNanos: number;
+    etaitBas: boolean;
   }> = [];
 
   constructor(program: PicoProgram, famille: PicoFamily = 'rp2040') {
@@ -880,7 +880,7 @@ export class PicoEngine implements SimEngine {
       const auto = new Ds18b20(s.id, 1000);
       auto.temperatureC = s.temperatureC;
       this.ds18b20.push({
-        id: s.id, pin: s.pin, index: i, auto, etaitBas: false, tenuJusquaNanos: 0,
+        id: s.id, pin: s.pin, index: i, auto, etaitBas: false,
       });
       // Ligne DQ au repos = HAUT (résistance de tirage).
       this.setInput(s.pin, true);
@@ -898,11 +898,15 @@ export class PicoEngine implements SimEngine {
     const nowNanos = this.sim.clock.nanos;
     let pose = false;
     for (const d of this.ds18b20) {
-      // Tant que le CAPTEUR tient le fil bas, ce bas est le sien : y répondre
-      // ferait dialoguer l'automate avec sa propre impulsion. Garde défensive,
-      // comme dans avr.mts — cf. le commentaire détaillé là-bas.
-      if (nowNanos < d.tenuJusquaNanos) continue;
-      const bas = this.mcu.gpio[d.index].value === GPIOPinState.Low;
+      // C'EST LE MAÎTRE QU'ON SUIT, PAS LE FIL. Regarder le niveau du fil
+      // (`value`) revenait à écouter aussi NOTRE propre impulsion : pendant que
+      // le capteur tient le bas, la remontée du maître passait inaperçue,
+      // `etaitBas` restait vrai et le créneau SUIVANT n'était plus vu comme un
+      // front — un bit sur deux se perdait et la ROM sortait en bruit. Le maître
+      // tire la ligne en mettant sa broche en SORTIE BASSE : cet état-là ne
+      // dépend que de lui, et l'ancienne garde `tenuJusquaNanos` devient inutile.
+      const pin = this.mcu.gpio[d.index];
+      const bas = pin.outputEnable && !pin.outputValue;
       if (bas && !d.etaitBas) {
         d.etaitBas = true;
         pose = this.appliquerDs18b20(d, d.auto.frontDescendant(nowNanos)) || pose;
@@ -919,17 +923,33 @@ export class PicoEngine implements SimEngine {
 
   /** Pose sur le fil une impulsion demandée par l'automate (BAS puis relâche). */
   private appliquerDs18b20(
-    d: { pin: string; tenuJusquaNanos: number },
+    d: { pin: string },
     imp: { debut: number; fin: number } | null
   ): boolean {
     if (!imp) return false;
+    const maintenant = this.sim.clock.nanos;
+    // UN CRÉNEAU DE LECTURE SE JOUE EN QUELQUES MICROSECONDES. Le maître tire la
+    // ligne bas ~6 µs, la relâche, puis lit vers 15 µs : l'esclave doit tenir le
+    // fil AVANT ce relâchement. Or la file `scheduled` n'est vidée qu'entre deux
+    // lots d'instructions — le bas arrivait après coup, le maître ne lisait que
+    // la résistance de tirage, et la ROM sortait en pur bruit (READ ROM rendait
+    // 6a… au lieu de 28…, d'où un `scan()` toujours vide). Une impulsion qui
+    // part MAINTENANT se pose donc directement, sans passer par la file.
+    if (imp.debut <= maintenant) {
+      this.setInput(d.pin, false);
+      // Seule la relâche est programmée. Elle est datée depuis l'instant réel du
+      // bas, sans quoi la durée que le maître mesure varierait avec le retard.
+      this.scheduled.push({
+        nanos: maintenant + (imp.fin - imp.debut), name: d.pin, value: true,
+      });
+      return true;
+    }
     // La relâche pend au front BAS : sa durée est ce que le maître mesure, elle
     // ne doit pas dépendre du retard avec lequel le bas est réellement appliqué.
     this.scheduled.push({
       nanos: imp.debut, name: d.pin, value: false,
       suite: [{ apres: imp.fin - imp.debut, value: true }],
     });
-    d.tenuJusquaNanos = imp.fin;
     return true;
   }
 

@@ -57,6 +57,19 @@ export const PRESENCE_DELAI_US = 30;
 export const PRESENCE_DUREE_US = 110;
 /** Instant (µs après le front) où l'esclave échantillonne un bit ÉCRIT. */
 export const ECHANTILLON_US = 30;
+/**
+ * Seuil (µs) qui sépare un « 1 » écrit d'un « 0 », mesuré sur la DURÉE du BAS.
+ *
+ * La puce réelle ne mesure rien : elle regarde le fil à `ECHANTILLON_US`. Nous,
+ * nous ne voyons que des fronts, et leur date dépend de la finesse du moteur.
+ * Le cœur RP2350 avance son horloge par paquets de cycles : un « 1 » que le
+ * maître tient 1 µs nous arrive étiré jusqu'à 50 µs (mesuré), et le seuil à 30
+ * le classait en « 0 » — le capteur ne comprenait plus une seule commande sur
+ * Pico 2. Les deux populations restent pourtant nettement séparées (au pire
+ * 50 µs pour un « 1 », au mieux 60 µs pour un « 0 ») : 55 µs passe entre les
+ * deux sur les deux cartes, et reste sous le « 0 » le plus court de la spec.
+ */
+const SEUIL_ECRITURE_US = 55;
 /** Durée (µs) pendant laquelle l'esclave tient BAS pour émettre un « 0 ». */
 export const LECTURE_ZERO_US = 30;
 /**
@@ -194,7 +207,9 @@ type Phase =
   /** Le maître lit des octets qu'on lui envoie (ROM ou scratchpad). */
   | 'emission'
   /** Le maître écrit des octets qu'on absorbe (MATCH ROM, WRITE SCRATCHPAD). */
-  | 'absorbe';
+  | 'absorbe'
+  /** SEARCH ROM en cours : on rend l'adresse bit par bit, par trios de créneaux. */
+  | 'recherche';
 
 /**
  * Automate 1-Wire d'un DS18B20.
@@ -230,6 +245,10 @@ export class Ds18b20 {
   private absorbeVus: number[] = [];
   /** Une conversion a-t-elle été demandée (CONVERT T) ? */
   private converti = false;
+  /** SEARCH ROM : rang du bit d'adresse en cours (0 à 63). */
+  private chercheBit = 0;
+  /** SEARCH ROM : position dans le trio de créneaux (0 = bit, 1 = complément, 2 = choix). */
+  private chercheEtape: 0 | 1 | 2 = 0;
 
   constructor(idComposant: string, cyclesParUs: number) {
     this.rom = ds18b20Rom(idComposant);
@@ -252,6 +271,8 @@ export class Ds18b20 {
     this.absorbeRestant = 0;
     this.absorbeVus = [];
     this.converti = false;
+    this.chercheBit = 0;
+    this.chercheEtape = 0;
   }
 
   /**
@@ -263,6 +284,21 @@ export class Ds18b20 {
    */
   frontDescendant(cycle: number): ImpulsionDs18b20 | null {
     this.descenteA = cycle;
+    // SEARCH ROM : les deux premiers créneaux du trio sont des LECTURES, donc
+    // c'est ici que l'esclave décide de tenir la ligne ou non. Le troisième est
+    // une écriture du maître : rien à faire au front descendant.
+    if (this.phase === 'recherche') {
+      if (this.chercheEtape > 1) return null;
+      const bit = this.bitRom(this.chercheBit);
+      // Étape 0 : le bit ; étape 1 : son complément. L'ÉTAPE N'AVANCE PAS ICI :
+      // elle avance au front montant, à la fermeture du créneau. L'avancer dès
+      // le descendant faisait lire le choix du maître sur la remontée du MÊME
+      // créneau — un créneau de lecture, court, donc pris pour un « 1 » : le
+      // capteur se croyait écarté au tout premier bit et le scan rendait vide.
+      const aEmettre = this.chercheEtape === 0 ? bit : bit ^ 1;
+      if (aEmettre) return null; // « 1 » : on laisse la résistance de tirage.
+      return { debut: cycle, fin: cycle + LECTURE_ZERO_US * this.cyclesParUs };
+    }
     if (this.phase !== 'emission') return null;
     const octet = this.aEmettre[0];
     if (octet === undefined) {
@@ -304,12 +340,38 @@ export class Ds18b20 {
       this.phase = 'repos';
       return null;
     }
+    if (this.phase === 'recherche') {
+      // Seul le TROISIÈME créneau du trio porte une information : le bit que le
+      // maître retient. S'il ne vaut pas le nôtre, l'adresse qu'il explore n'est
+      // pas la nôtre et on se tait jusqu'au prochain reset — c'est ainsi que
+      // plusieurs capteurs se démêlent sur un même fil.
+      if (this.chercheEtape < 2) {
+        // Fermeture d'un créneau de lecture : on passe au suivant du trio.
+        this.chercheEtape = this.chercheEtape === 0 ? 1 : 2;
+        return null;
+      }
+      const choisi = dureeUs < SEUIL_ECRITURE_US ? 1 : 0;
+      if (choisi !== this.bitRom(this.chercheBit)) {
+        this.phase = 'repos';
+        return null;
+      }
+      this.chercheEtape = 0;
+      this.chercheBit++;
+      // Les 64 bits rendus : le maître nous a identifiés et peut enchaîner sur
+      // une commande de fonction sans repasser par un MATCH ROM.
+      if (this.chercheBit >= 64) this.phase = 'attend-fonction';
+      return null;
+    }
     if (this.phase === 'attend-rom' || this.phase === 'attend-fonction' || this.phase === 'absorbe') {
-      // Écriture : court = 1, long = 0. Le seuil est celui où le vrai composant
-      // échantillonne.
-      this.recevoirBit(dureeUs < ECHANTILLON_US ? 1 : 0);
+      // Écriture : court = 1, long = 0 (cf. SEUIL_ECRITURE_US).
+      this.recevoirBit(dureeUs < SEUIL_ECRITURE_US ? 1 : 0);
     }
     return null;
+  }
+
+  /** Bit de rang `n` de la ROM, LSB de l'octet 0 d'abord (ordre du 1-Wire). */
+  private bitRom(n: number): number {
+    return (this.rom[n >> 3] >> (n & 7)) & 1;
   }
 
   /** Le maître a envoyé un reset : tout repart, la conversion reste acquise. */
@@ -321,6 +383,8 @@ export class Ds18b20 {
     this.emisBit = 0;
     this.absorbeRestant = 0;
     this.absorbeVus = [];
+    this.chercheBit = 0;
+    this.chercheEtape = 0;
   }
 
   /** Empile un bit reçu et traite l'octet dès qu'il est complet. */
@@ -376,11 +440,12 @@ export class Ds18b20 {
           this.absorbeVus = [];
           return;
         case CMD_SEARCH_ROM:
-          // La recherche d'adresses n'est pas simulée : elle demande que
-          // plusieurs esclaves répondent EN MÊME TEMPS sur le même fil, bit à
-          // bit. Un seul capteur sur le bus se trouve très bien par SKIP ROM,
-          // ce que fait toute bibliothèque quand la recherche ne rend rien.
-          this.phase = 'repos';
+          // La recherche d'adresses : c'est par elle, et par elle seule, que
+          // `ds18x20.scan()` de MicroPython énumère le bus. Le maître ouvre un
+          // trio de créneaux par bit d'adresse (bit, complément, choix retenu).
+          this.chercheBit = 0;
+          this.chercheEtape = 0;
+          this.phase = 'recherche';
           return;
         default:
           this.phase = 'repos';

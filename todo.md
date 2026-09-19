@@ -1,5 +1,5 @@
 # À faire
-1. DSB1820 ne marche toujours pas
+1. DSB1820 : reste le côté Arduino (même défaut probable dans `avr.mts`) et le test `ds18b20-uno` manquant
 1. Platine d'essais tous les trous ok et ne doivent pas bouger mais la rigole est plus étroite. 
 1. Analyseur logique
     1. Donne moi un moyen de corriger tout seul la position  de la pastille de la sonde tu n'y arrive pas. Dis moi ou changer le x et le y.
@@ -14,6 +14,22 @@
         1. Fais moi un scenario (à la racine "créer un composant 2D.md" et "créer un composant 3D.md) pour le 2D une carte joy-it SBC-MotorDriver3 et pour le 3D un petit véhicule simple découpé en pmma avec une pico pi, la carte moteur 2d , 4 moteurs, la platine et les roues directement sur l'axe des moteurs. Pas à pas c'est pour faire une vidéo explicative. Le scenario 2d n'inclut pas le dessin  svg (juste "dessiner la carte"). Le scenario 3d inclut ce qu'il faut marquer comme étiquette pour chaque pièce, et le nom et descriptif des images à ajouter pour les cartes voire pour rendre joli le véhicule. Le scenario inclut la creation  du beahvior pour la simulation (par IA et sans IA).
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# >>>>  v2026.9.4.111 — Le DS18B20 se fait enfin trouver sur Pico
+
+1. ✅ **Trois défauts distincts, tous sur le chemin du `scan()`** — d'où le « capteurs trouves : 0 » que rien ne rattrapait.
+2. ✅ **SEARCH ROM n'était pas simulé du tout** dans [ds18b20.mts](src/webview/engines/ds18b20.mts) : le `case CMD_SEARCH_ROM` mettait l'automate au repos, avec un commentaire disant qu'un capteur seul « se trouve très bien par SKIP ROM ». C'est faux : `ds18x20.scan()` de MicroPython n'utilise QUE SEARCH ROM. Nouvelle phase `recherche`, trio de créneaux par bit d'adresse (bit, complément, choix du maître), abandon silencieux sur désaccord, passage en `attend-fonction` après les 64 bits.
+3. ✅ **L'esclave lisait le choix du maître un créneau trop tôt** : `chercheEtape` avançait dès le front DESCENDANT, si bien que la remontée du MÊME créneau — une lecture, donc courte — passait pour un « 1 » écrit. Le capteur se croyait écarté au premier bit. L'étape avance maintenant au front montant.
+4. ✅ **L'impulsion du capteur arrivait après que le maître avait lu**, dans [pico.mts](src/webview/engines/pico.mts) : elle passait par la file `scheduled`, qui n'est vidée qu'entre deux lots d'instructions, alors qu'un créneau de lecture dure ~6 µs. `READ ROM` rendait `6aabd65a75dbd7d5` au lieu de `282461f58c7eace7`. Une impulsion qui commence maintenant est désormais posée directement ; seule la relâche reste programmée.
+5. ✅ **`sampleDs18b20` suit le MAÎTRE, plus le fil.** Il regardait `pin.value === Low`, ce qui inclut notre propre impulsion : pendant que le capteur tenait le bas, la remontée du maître passait inaperçue, `etaitBas` restait vrai et le créneau suivant n'était plus vu comme un front — un bit sur deux se perdait. On lit maintenant `outputEnable && !outputValue`, qui ne dépend que du maître. La garde `tenuJusquaNanos`, devenue sans objet, est retirée.
+6. ✅ **Seuil 0/1 porté à 55 µs** (`SEUIL_ECRITURE_US`, distinct de `ECHANTILLON_US` qui reste la constante de spec). Le cœur RP2350 avance son horloge par paquets : mesuré sur 48 créneaux, un « 1 » y est étiré jusqu'à 50 µs et l'ancien seuil de 30 le classait en « 0 » — sur Pico 2 le capteur ne comprenait plus une seule commande. Les deux populations restent séparées (1 : 5,4–50,1 µs ; 0 : 60,5–159,4 µs), 55 passe entre les deux sur les deux cartes.
+7. ✅ **Nouveau banc [verify-ds18b20-e2e.mjs](scripts/verify-ds18b20-e2e.mjs)** : vrai firmware MicroPython, vrais modules `onewire`/`ds18x20`, le programme de [ds18b20-pico.py](testkablix/ds18b20-pico.py). Cinq contrôles × deux cartes, tous verts. Les deux bancs existants ne jouaient jamais `scan()` : ils restaient verts sur un capteur introuvable.
+8. ✅ **Contre-épreuve au `git stash`** : ÉCHEC sur l'ancien code (2 cas), OK avec le correctif. Non-régression : `verify:ds18b20` (29), `verify:ds18b20-moteur` (12), `verify:dht-e2e` et `typecheck` verts.
+9. ✅ **`verify:ds18b20-e2e` enregistré** dans package.json et ajouté à `verify:all:serie`.
+10. ⬜ **Côté Arduino, rien n'est prouvé.** [avr.mts](src/webview/engines/avr.mts) porte les deux mêmes faiblesses (lecture de `pinState` incluant notre propre bas, impulsion passée par `scheduled`), et son banc ne joue pas non plus de `scan()`. Le test `ds18b20-uno` manque aussi. Reporté en tête de « À faire ».
+11. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 111. CHANGELOG complété sous `2026.9.5 (prochaine publication)`.
 
 ---
 
