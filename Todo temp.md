@@ -10,7 +10,10 @@
 
 
 
-
+1. Colore en blanc légèrement grisé le fond de l'ellipse du projecteur DMX PAR 38. Je parle de la zone ou sont les led (actuellement transparente). Le dessin ses led (ellipse grise) sera un peu foncé afin d'etre visible avec le même effet 3 D que quand elle s'allument mais en  gris clair. Elles restent visibles ar dessus le fond grisé que tu viens de rajouter.
+1. DSB1820 ne marche toujours pas
+1. Platine d'essais tous les trous ok et ne doivent pas bouger mais la rigole est plus étroite. 
 1. Analyseur logique
     1. Donne moi un moyen de corriger tout seul la position  de la pastille de la sonde tu n'y arrive pas. Dis moi ou changer le x et le y.
-    1. une pince reliée par un fil prend enfin sa voie -> Non Toujours pas !
+    1. une pince reliée par un fil prend enfin sa voie -> Non Toujours pas ! En tout cas elle ne change pas de couleur même reliée. Et pour l'instant je ne vois toujours rien du tout dans l'onglet analyseur logique
+    1. Fais moi un tuto pas à pas sur comment utiliser l'analyseur logique. Je ne vois jamais aucune courbe.
