@@ -35,6 +35,38 @@ const MARGE_D = 12;
 /** Hauteur de la règle de temps, en haut. */
 const REGLE_H = 22;
 
+/**
+ * Corps du nom de voie, en pixels. Deux fois et demie la graduation : le nom
+ * est ce qu'on cherche des yeux en passant d'une piste à l'autre, et à 10 px il
+ * se confondait avec les étiquettes de décodage (demande de Frank).
+ */
+const NOM_PX = 15;
+
+/** Côté d'un bouton de la colonne de gauche (T, P, pastille de teinte). */
+const BOUTON = 18;
+/** Écart entre deux boutons de la colonne. */
+const BOUTON_GAP = 4;
+/** Marge gauche avant le nom et la rangée de boutons. */
+const COL_X = 8;
+
+/**
+ * Rangée de boutons d'une voie, dans sa piste. Le nom occupe le haut, les
+ * boutons le bas : chaque voie porte DONC son propre déclenchement et son
+ * propre protocole, au lieu d'une barre unique en haut qui obligeait à choisir
+ * de quelle voie on parlait avant de pouvoir régler quoi que ce soit.
+ */
+export type BoutonVoie = 'teinte' | 'declenchement' | 'protocole';
+
+/** Où tombe chaque bouton d'une voie, dans le repère du canvas. */
+export interface ZoneBouton {
+  voie: number;
+  quoi: BoutonVoie;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 /** Ce qu'une voie non traçable doit expliquer, tel que le modèle le classe. */
 export type ProblemeVoie = 'nowhere' | 'not-mcu' | 'power';
 
@@ -65,6 +97,17 @@ export interface VoieVue {
    * pince, qui reste le lien visuel avec le schéma.
    */
   couleur?: number;
+  /**
+   * Sens de déclenchement RÉGLÉ SUR CETTE VOIE, ou null si elle ne déclenche
+   * pas. Le bouton de la colonne montre alors une marche montante ou
+   * descendante à la place de son « T ».
+   */
+  declenchement?: 'rising' | 'falling' | null;
+  /**
+   * Nom court du protocole décodé sur cette voie (« I²C », « DMX »…), ou null.
+   * Le bouton « P » l'affiche à sa place quand un décodage est posé.
+   */
+  protocole?: string | null;
 }
 
 /** État du zoom / défilement, conservé entre deux rendus. */
@@ -139,7 +182,32 @@ export interface EtatRendu {
 }
 
 export class AnalyseurVue {
+  /**
+   * Zones cliquables de la colonne de gauche, refaites à chaque rendu. La page
+   * les relit pour savoir sur quel bouton un clic est tombé : les boutons sont
+   * DESSINÉS (ils doivent suivre exactement la piste de leur voie, qui bouge
+   * dès qu'on masque une voie), pas posés en HTML par-dessus.
+   */
+  private zones: ZoneBouton[] = [];
+
   constructor(private readonly canvas: HTMLCanvasElement) {}
+
+  /** Bouton de la colonne de gauche sous un point, ou null. */
+  boutonA(x: number, y: number): ZoneBouton | null {
+    return (
+      this.zones.find((z) => x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h) ?? null
+    );
+  }
+
+  /**
+   * Zone d'un bouton précis, telle que le dernier rendu l'a posée.
+   *
+   * Sert à rouvrir un panneau au même endroit après un changement de réglage
+   * qui en modifie le contenu (changer de bus ajoute ou retire des rôles).
+   */
+  zoneDe(voie: number, quoi: BoutonVoie): ZoneBouton | null {
+    return this.zones.find((z) => z.voie === voie && z.quoi === quoi) ?? null;
+  }
 
   /** Hauteur totale nécessaire pour n voies (l'appelant dimensionne le canvas). */
   hauteurPour(nVoies: number): number {
@@ -177,6 +245,7 @@ export class AnalyseurVue {
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
+    this.zones = [];
 
     const sombre = themeSombre();
     const style = getComputedStyle(document.body);
@@ -289,12 +358,26 @@ export class AnalyseurVue {
     const yBas = haut + (PISTE_H + CRENEAU_H) / 2;
     const yHaut = haut + (PISTE_H - CRENEAU_H) / 2;
 
-    // Nom, dans la couleur de la pince : c'est le lien visuel avec le schéma.
+    // Nom en haut de la piste, dans la couleur de la pince : c'est le lien
+    // visuel avec le schéma. Deux fois et demie la graduation — c'est ce qu'on
+    // cherche des yeux en descendant d'une voie à l'autre.
     ctx.save();
     ctx.fillStyle = couleur;
     ctx.textAlign = 'left';
-    ctx.fillText(this.tronquer(ctx, nomVoie(vv), MARGE_G - 14), 8, haut + PISTE_H / 2);
+    ctx.font = `600 ${NOM_PX}px ${getComputedStyle(document.body).getPropertyValue('--vscode-font-family').trim() || 'sans-serif'}`;
+    ctx.fillText(
+      this.tronquer(ctx, nomVoie(vv), MARGE_G - COL_X - 6),
+      COL_X,
+      haut + NOM_PX / 2 + 3
+    );
     ctx.restore();
+
+    // Rangée de boutons SOUS le nom : teinte, déclenchement, protocole. Chaque
+    // voie porte ainsi ses propres réglages, au lieu d'une barre unique en haut
+    // qui forçait à désigner la voie avant de pouvoir régler quoi que ce soit.
+    // Une voie en défaut ne garde que sa pastille de réglages : ni déclencher
+    // ni décoder n'a de sens sur une pince qui n'écoute rien.
+    this.boutonsVoie(ctx, vv, haut, couleur, fg, sombre, vv.probleme === null);
 
     // Séparateur de piste.
     ctx.save();
@@ -333,6 +416,130 @@ export class AnalyseurVue {
       ctx.fillText(e.textes.analogique, w - MARGE_D - 2, haut + 8);
       ctx.restore();
     }
+  }
+
+  /**
+   * Les trois boutons d'une voie, sous son nom : teinte (réglages), « T »
+   * (déclenchement) et « P » (protocole).
+   *
+   * Un bouton RÉGLÉ ne dit plus sa lettre mais son état : le « T » devient une
+   * marche montante ou descendante, le « P » prend le nom court du protocole.
+   * L'élève voit donc d'un coup d'œil, sans rien déplier, quelle voie déclenche
+   * et laquelle est décodée — c'est ce que la barre du haut ne savait pas
+   * montrer, puisqu'elle ne parlait que d'une voie à la fois.
+   */
+  private boutonsVoie(
+    ctx: CanvasRenderingContext2D,
+    vv: VoieVue,
+    haut: number,
+    couleur: string,
+    fg: string,
+    sombre: boolean,
+    tracable: boolean
+  ): void {
+    const y = haut + NOM_PX + 8;
+    const bord = sombre ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.3)';
+    const fond = sombre ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.05)';
+    let x = COL_X;
+
+    const cadre = (actif: boolean): void => {
+      ctx.beginPath();
+      ctx.roundRect(x + 0.5, y + 0.5, BOUTON - 1, BOUTON - 1, 3);
+      ctx.fillStyle = actif ? couleur : fond;
+      ctx.fill();
+      // Un bouton réglé est ÉPAIS : Frank demande qu'on le voie bien, et
+      // l'épaisseur du trait est ce qui se lit à distance sur un fond chargé.
+      ctx.lineWidth = actif ? 2 : 1.4;
+      ctx.strokeStyle = actif ? couleur : bord;
+      ctx.stroke();
+    };
+    const zone = (quoi: BoutonVoie): void => {
+      this.zones.push({ voie: vv.voie, quoi, x, y, w: BOUTON, h: BOUTON });
+      x += BOUTON + BOUTON_GAP;
+    };
+
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Pastille de teinte : c'est elle qui ouvre les réglages de la voie (nom,
+    // couleur, sens au repos, masquage, vitesse) — le rôle qu'avait la puce de
+    // l'ancienne légende, gardé au même endroit visuel.
+    ctx.beginPath();
+    ctx.roundRect(x + 0.5, y + 0.5, BOUTON - 1, BOUTON - 1, 3);
+    ctx.fillStyle = couleur;
+    ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = bord;
+    ctx.stroke();
+    zone('teinte');
+    if (!tracable) {
+      ctx.restore();
+      return;
+    }
+
+    // Déclenchement : « T » au repos, la marche réelle une fois réglé.
+    const decl = vv.declenchement ?? null;
+    cadre(decl !== null);
+    if (decl === null) {
+      ctx.fillStyle = fg;
+      ctx.font = `bold 12px ${getComputedStyle(document.body).getPropertyValue('--vscode-font-family').trim() || 'sans-serif'}`;
+      ctx.fillText('T', x + BOUTON / 2, y + BOUTON / 2 + 0.5);
+    } else {
+      this.marche(ctx, x, y, decl, sombre ? '#111' : '#fff');
+    }
+    zone('declenchement');
+
+    // Protocole : « P » au repos, le nom court du bus une fois décodé.
+    const proto = vv.protocole ?? null;
+    cadre(proto !== null);
+    ctx.fillStyle = proto === null ? fg : sombre ? '#111' : '#fff';
+    if (proto === null) {
+      ctx.font = `bold 12px ${getComputedStyle(document.body).getPropertyValue('--vscode-font-family').trim() || 'sans-serif'}`;
+      ctx.fillText('P', x + BOUTON / 2, y + BOUTON / 2 + 0.5);
+    } else {
+      // Le nom du bus est plus long que le bouton : on l'écrit petit et
+      // resserré plutôt que tronqué — « I²C » et « DMX » restent lisibles.
+      ctx.font = `bold 8px ${getComputedStyle(document.body).getPropertyValue('--vscode-font-family').trim() || 'sans-serif'}`;
+      ctx.fillText(proto.slice(0, 4), x + BOUTON / 2, y + BOUTON / 2 + 0.5);
+    }
+    zone('protocole');
+
+    ctx.restore();
+  }
+
+  /** Marche montante ou descendante dessinée dans un bouton de déclenchement. */
+  private marche(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    sens: 'rising' | 'falling',
+    trait: string
+  ): void {
+    const g = x + 4;
+    const d = x + BOUTON - 4;
+    const m = x + BOUTON / 2;
+    const bas = y + BOUTON - 5;
+    const ht = y + 5;
+    ctx.save();
+    ctx.strokeStyle = trait;
+    ctx.lineWidth = 1.8;
+    ctx.lineJoin = 'miter';
+    ctx.lineCap = 'butt';
+    ctx.beginPath();
+    if (sens === 'rising') {
+      ctx.moveTo(g, bas);
+      ctx.lineTo(m, bas);
+      ctx.lineTo(m, ht);
+      ctx.lineTo(d, ht);
+    } else {
+      ctx.moveTo(g, ht);
+      ctx.lineTo(m, ht);
+      ctx.lineTo(m, bas);
+      ctx.lineTo(d, bas);
+    }
+    ctx.stroke();
+    ctx.restore();
   }
 
   /**
@@ -555,4 +762,15 @@ export class AnalyseurVue {
 }
 
 /** Constantes de disposition exposées pour les bancs et l'interface. */
-export const DISPOSITION = { PISTE_H, ANNOT_H, MARGE_G, MARGE_D, REGLE_H, CRENEAU_H };
+export const DISPOSITION = {
+  PISTE_H,
+  ANNOT_H,
+  MARGE_G,
+  MARGE_D,
+  REGLE_H,
+  CRENEAU_H,
+  NOM_PX,
+  BOUTON,
+  BOUTON_GAP,
+  COL_X,
+};

@@ -1,7 +1,41 @@
 # À faire
-1. (rien en attente)
+
+1. ⬜ **`verify:align` : qui fait foi, le dessin ou le banc ?** Le recalage de la sonde que tu as posé (`{ x: 0.5, y: 0 }`) laisse 1,2 px entre la pointe de la mâchoire et la pastille, et le banc exige la coïncidence exacte. Rien touché des deux côtés. Voir le détail en v2026.9.4.116, item 14.
+
+## fait
+
+1. ✅ **kablix_components ne migre PAS vers un dépôt dédié** — analyse ajoutée au README. Je l'ai supprimé aucunintéret sauf pour moi.
+1. ✅ Dessin de la sonde logique recalé. On ni touche plus.
+1. ✅ Pour le ds18b20 en double cliquant sur le slider ou la valeur, on peut saisir la valeur au clavier (. et , indifféremment)
+1. Analyseur logique :
+    1. ✅ Pour le DMX j'ai bien le signal en sortie de la carte pico mais rien en sortie de la carte DMX
+    1. ✅ Met le nom de la voie plus gros
+    1. ✅ Sous le nom affiche un bouton T (un peu épais pour qu'on le voie bien) Si on clic sur ce bouton, on peut choisir montant ou descendant. Le T du bouton est alors remplacé par un front montant ou descendant les autres reviennent à T
+    1. ✅ Ajoute à coté un bouton  P¨(un peu épais pour qu'on le voie bien) cliquer dessus fait apparaitre la liste déroulante pour choisir le protocole
+    1. ✅ Du coup pas de ligne de légende en haut
+    1. ✅ pas non plus trigger et rising ni decode
+    1. ✅ Par contre un bouton  pour choisir la fréquence d'horloge 'dans la barre du haut'
+
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.4.116
+1. ✅ **Saisie au clavier sur un curseur de simulation** (item 3). Double-clic sur le curseur OU sur la valeur, dans [custom-part.mts](src/webview/composants/custom-part.mts) : `ouvrirSaisie()` remplace la valeur par un champ **texte** — surtout pas `type="number"`, qui refuse la virgule sur un clavier français et rend une chaîne **vide** en silence. Point et virgule normalisés à la main, Entrée valide, Échap annule, perte du focus = validation, hors bornes ramené dans la course.
+2. ✅ Le geste est **prouvé à la vraie souris** : 8 contrôles ajoutés à [verify-souris.mjs](scripts/verify-souris.mjs) (§11), composant de bibliothèque monté seul avec `simulating`. Sans ce banc, rien ne prouvait que `dblclick` arrive jusqu'au curseur — l'atelier appelle `preventDefault()` sur `pointerdown`, ce qui tue `dblclick`, et c'est exactement ce qui avait fait livrer deux lots verts sur un double-clic mort (v.71, v.72).
+3. ✅ **DMX : la sonde ne voyait rien en sortie de la carte** (item 4.1). Cause racine : `dmx-grove` porte un SP3485, qui prend un signal TTL asymétrique sur `SIG` et sort une paire différentielle sur `+` / `-`. Ces pattes ne sont sur **aucun nœud commun** — et c'est juste : les relier dans la netlist court-circuiterait la sortie sur son entrée. Une sonde sur `+` ne trouvait donc aucune broche de carte (`not-mcu`).
+4. ✅ Solution : **`probeMirrors`**, table « la patte X reflète le signal de la patte Y », lue **uniquement par l'analyseur**, jamais par la netlist électrique. Chaîne complète : [_sources.json](kablix_components/_sources.json) → [build-kompix.mjs](scripts/build-kompix.mjs) → `.kompix` → [kompixLibrary.ts](src/kompixLibrary.ts) → [catalog.mts](src/webview/diagram/catalog.mts) → `refletDeSonde()` dans [model.mts](src/webview/diagram/model.mts), qui remonte la chaîne avec une borne de 8 sauts. `dmx-grove` passe en `2026.9.1` avec `{ "+": "SIG", "-": "SIG" }`.
+5. ✅ 5 contrôles ajoutés à [verify-analyseur.mjs](scripts/verify-analyseur.mjs) : entrée, les deux sorties, la carte **non reliée** qui doit rester muette (le reflet ne doit pas inventer de signal), et la déclaration dans le paquet publié. **Contre-épreuve faite : 3 échecs sur l'ancien code**, dont les deux `not-mcu` du défaut de Frank.
+6. ℹ️ Le banc construisait le modèle et le catalogue en **deux paquets esbuild séparés**, donc avec deux catalogues distincts : un composant enregistré dans l'un restait inconnu de l'autre. Les deux sont maintenant réunis en un seul paquet, par un module `stdin`. Piège rencontré : `export *` sur les deux modules **fait pendre** la résolution (le modèle importe déjà le catalogue) — l'export du catalogue est donc **nommé**.
+7. ✅ **Boutons T et P sur les pistes** (items 4.2 à 4.7). Le nom de voie passe à 15 px, et deux boutons épais de 18 px sont **dessinés dans le canvas** sous lui — pas posés en HTML : ils doivent suivre la piste, qui se déplace dès qu'une voie est masquée. `ZoneBouton` relues par `vue.boutonA(x, y)`, panneaux HTML flottants ancrés par-dessus (une liste, un champ texte et huit pastilles se font mal au canvas et y perdraient le clavier). Un seul panneau à la fois, refermé au clic à côté, à Échap et quand les voies changent.
+8. ✅ **T** montre le sens du déclenchement (front montant ou descendant dessiné à la place de la lettre, les autres voies revenant à T), **P** le protocole décodé sur cette voie. La barre du haut perd donc légende, sélecteurs `trigger`/`rising` et bouton « + Decode ».
+9. ✅ **Fréquence d'échantillonnage** dans la barre du haut (item 4.7). Kablix date les fronts au cycle, il n'échantillonne pas : le réglage **retire** ce qu'un instrument de cette vitesse n'aurait pas vu, appliqué **en sortie** comme l'inversion — revenir en « illimité » retrouve tout. Front daté au **tic** qui suit, avec une marge d'un échantillon à gauche de la fenêtre pour ne pas perdre un front lu juste après le bord.
+10. ℹ️ Le **décodeur** ([analyseur-decodage.mts](src/webview/analyseur-decodage.mts)) lit toujours la capture **brute**, non échantillonnée. Laissé tel quel volontairement : mélanger les deux demanderait de refaire toute la chaîne, pour un gain douteux.
+11. ✅ Le réglage est **enregistré avec le projet** (`echantillonnage` dans `ProjixAnalyseur`) et repris à la réouverture.
+12. ✅ Bancs de l'analyseur remis d'aplomb : [verify-analyseur.mjs](scripts/verify-analyseur.mjs) (5 contrôles d'échantillonnage, 3 réécrits pour les nouveaux boutons) et [verify-analyseur-rendu.mjs](scripts/verify-analyseur-rendu.mjs), dont le contrôle de légende devient un **comptage de pixels peints** dans la colonne de gauche. **Contre-épreuve faite : 1 échec sur l'ancienne vue** (189 px peints contre plus de 200).
+13. ⏳ Traductions (`docs/en/`, `l10n/bundle.l10n.fr.json`) : rien de traduit, conformément à la règle — tout en un lot avant publication. `npm run verify:i18n` est donc rouge (7 contrôles) : c'est **attendu**, pas un défaut.
+14. ⏳ **`npm run verify:align` est rouge sur UN contrôle** — « la pointe de la mâchoire tombe PILE sur la pastille », pointe (11,23 ; 69,25) contre pastille (10 ; 70). La cause n'est pas ce lot : c'est le `RECALAGE` de [sonde-logique-element.mts](src/webview/composants/sonde-logique-element.mts), que **Frank a recalé lui-même** à `{ x: 0.5, y: 0 }` (`-0.73 ; 0.75` auparavant) — « Dessin de la sonde logique recalé. On ni touche plus. » Le banc, lui, exige que la pointe du dessin coïncide **exactement** avec le point de connexion. **Question pour Frank** : c'est le dessin qui fait foi (alors le banc doit tolérer un écart d'environ 1,2 px), ou le banc (alors le recalage est à reprendre) ? Rien n'a été touché des deux côtés en attendant.
 
 ---
 

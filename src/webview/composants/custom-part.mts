@@ -211,10 +211,12 @@ export class CustomPartElement extends HTMLElement {
     val.className = 'val val--wide';
     const unite = this.control.unit;
     if (this.control.type === 'slider') {
+      const min = this.control.min ?? 0;
+      const max = this.sliderMax();
       const input = document.createElement('input');
       input.type = 'range';
-      input.min = String(this.control.min ?? 0);
-      input.max = String(this.sliderMax());
+      input.min = String(min);
+      input.max = String(max);
       input.step = String(this.control.step ?? 1);
       input.value = String(this.controlValue);
       val.textContent = valeurLisible(this.controlValue, unite);
@@ -224,6 +226,18 @@ export class CustomPartElement extends HTMLElement {
         val.textContent = valeurLisible(this.controlValue, unite);
         this.dispatchEvent(new Event('input'));
       });
+      // SAISIE AU CLAVIER. Un curseur long de 44 px ne sait pas viser 25,5 °C :
+      // sur une course de 200 degrés, un pixel en vaut quatre. Le double-clic
+      // (sur le curseur OU sur la valeur, les deux sont le même réglage vu de
+      // l'élève) ouvre donc un champ à la place de la valeur.
+      const saisir = (e: MouseEvent): void => {
+        e.stopPropagation();
+        e.preventDefault();
+        this.ouvrirSaisie(box, val, input, min, max, unite);
+      };
+      input.addEventListener('dblclick', saisir);
+      val.addEventListener('dblclick', saisir);
+      val.style.cursor = 'text';
       box.append(input, val);
     } else {
       // Interrupteur : case à cocher native (lisible à petite taille).
@@ -241,6 +255,67 @@ export class CustomPartElement extends HTMLElement {
     }
     this.shadowRoot?.appendChild(box);
     this.controlBox = box;
+  }
+
+  /**
+   * Remplace la valeur par un champ de saisie, le temps d'y taper un nombre.
+   *
+   * POURQUOI LA VIRGULE ET LE POINT VALENT PAREIL. Un `<input type="number">`
+   * refuse la virgule sur un clavier français : il rend une chaîne vide, et la
+   * valeur tapée est perdue en silence. On prend donc un champ TEXTE et on
+   * normalise nous-mêmes — l'élève tape « 25,5 » ou « 25.5 », c'est le même
+   * quart de degré.
+   *
+   * Entrée valide, Échap annule, la perte du focus vaut validation (c'est ce
+   * que fait tout champ de tableur). Hors bornes, la valeur est ramenée dans la
+   * course du curseur plutôt que refusée : un capteur à −80 °C affiche sa borne,
+   * il ne reste pas muet.
+   */
+  private ouvrirSaisie(
+    box: HTMLDivElement,
+    val: HTMLSpanElement,
+    curseur: HTMLInputElement,
+    min: number,
+    max: number,
+    unite?: string
+  ): void {
+    if (box.querySelector('input.saisie')) return; // déjà ouverte
+    const champ = document.createElement('input');
+    champ.type = 'text';
+    champ.className = 'val val--wide saisie';
+    champ.value = String(this.controlValue);
+    val.style.display = 'none';
+    box.insertBefore(champ, val);
+    champ.focus();
+    champ.select();
+
+    let clos = false;
+    const fermer = (valider: boolean): void => {
+      if (clos) return;
+      clos = true;
+      if (valider) {
+        const n = Number(champ.value.trim().replace(',', '.'));
+        if (Number.isFinite(n)) {
+          this.controlValue = Math.min(max, Math.max(min, n));
+          curseur.value = String(this.controlValue);
+          this.dispatchEvent(new Event('input'));
+        }
+      }
+      val.textContent = valeurLisible(this.controlValue, unite);
+      val.style.display = '';
+      champ.remove();
+    };
+
+    champ.addEventListener('keydown', (e) => {
+      // Les touches ne doivent pas remonter à l'atelier : Suppr y efface le
+      // composant sélectionné, et les flèches le déplacent.
+      e.stopPropagation();
+      if (e.key === 'Enter') fermer(true);
+      else if (e.key === 'Escape') fermer(false);
+    });
+    champ.addEventListener('blur', () => fermer(true));
+    // Le clic dans le champ ne doit ni sélectionner ni déplacer le composant.
+    champ.addEventListener('pointerdown', (e) => e.stopPropagation());
   }
 
   /**

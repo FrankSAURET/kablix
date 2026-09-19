@@ -1469,23 +1469,28 @@ export class SimulatorPanel {
           declenchement?: ProjixAnalyseur['declenchement'];
           decodages?: unknown[];
           voiesReglages?: Record<string, unknown>;
+          echantillonnage?: number;
         }
       | null;
     const voies = cap?.voies;
     const decodages = Array.isArray(reg?.decodages) ? reg.decodages : [];
     const aDesDecodages = decodages.length > 0;
     const aDesReglagesVoies = Object.keys(reg?.voiesReglages ?? {}).length > 0;
+    // 0 = illimitée, le réglage d'origine : inutile de l'écrire dans le projet.
+    const echantillonnage = reg?.echantillonnage ?? 0;
     const aQuelqueChose =
       (voies && voies.length > 0) ||
       reg?.declenchement != null ||
       aDesDecodages ||
-      aDesReglagesVoies;
+      aDesReglagesVoies ||
+      echantillonnage > 0;
     if (!aQuelqueChose) return undefined;
     return {
       ...(voies && voies.length > 0 ? { voies } : {}),
       ...(reg?.declenchement != null ? { declenchement: reg.declenchement } : {}),
       ...(aDesDecodages ? { decodages } : {}),
       ...(aDesReglagesVoies ? { voiesReglages: reg?.voiesReglages } : {}),
+      ...(echantillonnage > 0 ? { echantillonnage } : {}),
     };
   }
 
@@ -1506,9 +1511,13 @@ export class SimulatorPanel {
         ? [a.decodage]
         : [];
     const voiesReglages = (a.voiesReglages ?? {}) as Record<string, unknown>;
+    const echantillonnage = a.echantillonnage ?? 0;
     this.analyseurReglages =
-      a.declenchement != null || decodages.length > 0 || Object.keys(voiesReglages).length > 0
-        ? { declenchement: a.declenchement ?? null, decodages, voiesReglages }
+      a.declenchement != null ||
+      decodages.length > 0 ||
+      Object.keys(voiesReglages).length > 0 ||
+      echantillonnage > 0
+        ? { declenchement: a.declenchement ?? null, decodages, voiesReglages, echantillonnage }
         : null;
     // Un onglet déjà ouvert (projet rechargé dans la même session) reçoit
     // directement la capture : sinon il garderait celle du projet précédent.
@@ -1550,6 +1559,7 @@ export class SimulatorPanel {
             declenchement: m.declenchement,
             decodages: m.decodages,
             voiesReglages: m.voiesReglages,
+            echantillonnage: m.echantillonnage,
           };
         }
       }

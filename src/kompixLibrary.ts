@@ -140,6 +140,26 @@ interface KompixManifest {
   /** Sortie à collecteur ouvert : elle ne sait que tirer à la masse, un rappel
    *  au plus est indispensable. `supplies` = paires [V+, GND] à alimenter. */
   openDrain?: { out: string; supplies: Array<[string, string]> };
+  /**
+   * REFLETS DE SONDE : « la patte X porte le même signal que la patte Y ».
+   *
+   * Lu par l'ANALYSEUR LOGIQUE seul, jamais par la netlist électrique. Une
+   * carte d'interface n'est pas un fil : le SP3485 de la carte DMX prend un
+   * signal TTL asymétrique sur `SIG` et en sort une paire différentielle sur
+   * `+` / `-`. Électriquement, ces pattes ne sont sur aucun nœud commun — et
+   * c'est juste, les relier dans la netlist court-circuiterait la sortie sur
+   * son entrée.
+   *
+   * Mais à l'oscilloscope comme à l'analyseur, le MOTIF sorti est bien celui
+   * qui est entré : c'est ce que Frank constatait (« j'ai bien le signal en
+   * sortie de la carte pico mais rien en sortie de la carte DMX »). Une sonde
+   * posée sur `+` doit donc montrer ce que montre `SIG`, et une sonde posée sur
+   * `-` le même signal inversé.
+   *
+   * `{ "+": "SIG", "-": "SIG" }` : la clé est la patte SONDÉE, la valeur la
+   * patte dont elle reflète le signal.
+   */
+  probeMirrors?: Record<string, string>;
   /** Carte fille (Grove Shield…) : socle, pistes internes, interrupteur. */
   shield?: KompixShield;
   /** Bascules du dessin : pièces qu'un clic déplace (cavalier, badge RFID…).
@@ -200,6 +220,8 @@ interface CustomPartData {
   control?: any;
   /** Sortie à collecteur ouvert (voir KompixManifest.openDrain). */
   openDrain?: { out: string; supplies: Array<[string, string]> };
+  /** Reflets de sonde (voir KompixManifest.probeMirrors). */
+  probeMirrors?: Record<string, string>;
   /** Carte fille (voir KompixManifest.shield). */
   shield?: KompixShield;
   /** Bascules du dessin (voir KompixManifest.toggles). */
@@ -467,6 +489,7 @@ export class KompixLibrary {
         params: traduit.params,
         control: traduit.control,
         openDrain: manifest.openDrain,
+        probeMirrors: manifest.probeMirrors,
         shield: manifest.shield,
         toggles: manifest.toggles,
         rfid: manifest.rfid,
@@ -898,6 +921,7 @@ export class KompixLibrary {
       params: data.params,
       control: data.control ?? null,
       openDrain: data.openDrain,
+      probeMirrors: data.probeMirrors,
       shield: data.shield,
       toggles: data.toggles,
       rfid: data.rfid,

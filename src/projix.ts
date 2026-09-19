@@ -53,6 +53,8 @@ export interface ProjixAnalyseur {
   decodages?: unknown;
   /** Réglages d'affichage et de seuils, par indice de voie. */
   voiesReglages?: unknown;
+  /** Fréquence d'échantillonnage simulée, en hertz ; 0 = illimitée. */
+  echantillonnage?: number;
 }
 
 /** Manifeste écrit dans `kablix.json` à la racine de l'archive. */

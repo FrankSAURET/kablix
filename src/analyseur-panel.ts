@@ -58,6 +58,8 @@ export type AnalyseurVersHote =
       decodages: unknown[];
       /** Réglages d'affichage et de seuils, par indice de voie. */
       voiesReglages: Record<string, unknown>;
+      /** Fréquence d'échantillonnage simulée, en hertz ; 0 = illimitée. */
+      echantillonnage: number;
     };
 
 /** Ce que l'atelier veut faire parvenir à l'onglet. */
@@ -245,6 +247,9 @@ export class AnalyseurPanel {
 <style>
   body {
     margin: 0; padding: 0;
+    /* Les panneaux flottants s'ancrent en absolu sur le corps de la page : ils
+       suivent le bouton dessiné qui les ouvre, où qu'il soit dans le canvas. */
+    position: relative;
     font: var(--vscode-font-weight) var(--vscode-font-size) var(--vscode-font-family);
     color: var(--vscode-foreground);
     background: var(--vscode-editor-background);
@@ -263,70 +268,73 @@ export class AnalyseurPanel {
   }
   .barre button { cursor: pointer; }
   .barre button:hover { background: var(--vscode-toolbar-hoverBackground, rgba(128,128,128,.2)); }
-  #decodages { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-  .deco {
-    display: inline-flex; align-items: center; gap: 4px;
-    padding: 1px 4px; border-radius: 4px;
-    border: 1px solid var(--vscode-dropdown-border, rgba(128,128,128,.4));
-  }
-  .deco .role { gap: 3px; }
-  .deco .oter {
-    border: none; background: none; padding: 0 2px;
-    opacity: .6; cursor: pointer; font-size: 1.1em; line-height: 1;
-  }
-  .deco .oter:hover { opacity: 1; background: none; }
   #etat { opacity: .7; margin-left: auto; }
-  #legende { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 5px 10px 0; }
-  .chip { display: inline-flex; align-items: center; gap: 5px; opacity: .95; }
-  .chip i {
-    width: 10px; height: 10px; border-radius: 2px; display: inline-block;
-    border: none; padding: 0; cursor: pointer;
-  }
-  .chip--muet { opacity: .45; text-decoration: line-through; }
-  /* Réglages d'une voie : dépliés sous la légende, au clic sur sa pastille. */
-  .reglages {
+  /* Panneau flottant : réglages d'une voie, choix d'un front, choix d'un
+     protocole. Il s'ouvre SOUS le bouton dessiné qui l'appelle — les boutons
+     vivent dans le canvas, un panneau ancré à la barre du haut aurait obligé à
+     faire l'aller-retour des yeux entre la voie et son réglage. */
+  .flottant {
+    position: absolute; z-index: 20;
     display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px;
-    margin: 4px 10px 0; padding: 5px 8px;
-    border: 1px solid var(--vscode-dropdown-border, rgba(128,128,128,.4));
+    max-width: 460px; padding: 6px 8px;
+    border: 1px solid var(--vscode-dropdown-border, rgba(128,128,128,.55));
     border-radius: 4px;
+    background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+    box-shadow: 0 2px 8px rgba(0,0,0,.35);
   }
-  .reglages label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
-  .reglages input, .reglages select, .reglages button {
+  .flottant label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .flottant input, .flottant select, .flottant button {
     font: inherit; color: var(--vscode-foreground);
     background: var(--vscode-input-background, transparent);
     border: 1px solid var(--vscode-dropdown-border, rgba(128,128,128,.4));
     border-radius: 3px; padding: 1px 4px;
   }
-  .reglages input[type=checkbox] { padding: 0; }
-  .reglages .teintes { display: inline-flex; gap: 3px; }
-  .reglages .teintes button { width: 14px; height: 14px; padding: 0; border-radius: 2px; cursor: pointer; }
-  .reglages .teintes button[aria-pressed=true] { outline: 2px solid var(--vscode-focusBorder, #07f); }
+  .flottant button { cursor: pointer; }
+  .flottant input[type=checkbox] { padding: 0; }
+  .flottant .teintes { display: inline-flex; gap: 3px; }
+  .flottant .teintes button { width: 14px; height: 14px; padding: 0; border-radius: 2px; cursor: pointer; }
+  .flottant .teintes button[aria-pressed=true] { outline: 2px solid var(--vscode-focusBorder, #07f); }
+  /* Choix d'un front ou d'un protocole : une colonne d'entrées, pas une
+     rangée — on choisit dans une liste, on ne règle pas plusieurs champs. */
+  .flottant--liste { flex-direction: column; align-items: stretch; gap: 2px; max-width: 240px; }
+  .flottant--liste button {
+    display: flex; align-items: center; gap: 8px;
+    text-align: left; border: none; background: none; padding: 3px 6px;
+  }
+  .flottant--liste button:hover { background: var(--vscode-list-hoverBackground, rgba(128,128,128,.2)); }
+  .flottant--liste button[aria-pressed=true] { outline: 1px solid var(--vscode-focusBorder, #07f); }
+  .flottant--liste svg { flex: none; }
   #trace { display: block; width: 100%; }
   .aide { padding: 4px 10px 8px; opacity: .6; }
 </style>
 </head>
 <body>
 <div class="barre">
-  <label>${l.t('Trigger')}
-    <select id="decl-voie"></select>
-    <select id="decl-sens">
-      <option value="rising">${l.t('rising')}</option>
-      <option value="falling">${l.t('falling')}</option>
+  <!-- Ni déclenchement ni décodage ici : ils sont passés SUR LA VOIE, boutons
+       « T » et « P » sous son nom (demande de Frank, 19/09). Une barre unique
+       obligeait à désigner la voie avant de pouvoir régler quoi que ce soit, et
+       ne montrait jamais d'un coup d'œil laquelle déclenchait. -->
+  <label title="${l.t('Sampling rate of the analyzer: edges closer together than one sample are merged, exactly as on a real instrument. Unlimited shows every edge the simulation produced.')}">${l.t('Sampling')}
+    <select id="horloge">
+      <option value="0">${l.t('Unlimited')}</option>
+      <option value="1000000000">1 GHz</option>
+      <option value="100000000">100 MHz</option>
+      <option value="24000000">24 MHz</option>
+      <option value="10000000">10 MHz</option>
+      <option value="1000000">1 MHz</option>
+      <option value="100000">100 kHz</option>
+      <option value="10000">10 kHz</option>
+      <option value="1000">1 kHz</option>
     </select>
   </label>
-  <!-- Plusieurs décodages de front : un montage porte souvent deux bus, et
-       devoir choisir lequel regarder empêchait de voir ce qui les relie. -->
-  <div id="decodages"></div>
-  <button id="ajout-decodage" type="button" title="${l.t('Decode one more bus at the same time: each decoding writes under its own data channel.')}">${l.t('+ Decode')}</button>
   <!-- Deux boutons nommés en clair : « Fit » et « Follow » ne disaient pas ce
        qu'ils font une fois dans un analyseur (retour Frank, .91). -->
   <button id="tout" type="button" title="${l.t('Zoom out until the whole capture, from the start to the last edge, fits the window.')}">${l.t('Whole capture')}</button>
   <button id="suivre" type="button" title="${l.t('Keep the window on the last captured edges: the view scrolls by itself while the simulation runs. Zooming with the wheel turns it off.')}">${l.t('Follow live')}</button>
   <span id="etat"></span>
 </div>
-<div id="legende"></div>
 <canvas id="trace"></canvas>
-<div class="aide">${l.t('Wheel to zoom, drag to pan.')}</div>
+<div class="aide">${l.t('Wheel to zoom, drag to pan. Under each channel name: T sets the trigger edge, P picks the bus to decode.')}</div>
 <script nonce="${n}">window.KABLIX_LANG = ${JSON.stringify(vscode.env.language)};</script>
 <script nonce="${n}" src="${script}"></script>
 </body>

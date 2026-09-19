@@ -31,7 +31,11 @@
 //      attribue sa teinte de voie — le choix des voies de l'analyseur est un
 //      GESTE, pas une liste à cocher, donc il se prouve à la vraie souris ;
 //  10. une pose depuis la palette = UN composant, jamais une pile invisible
-//      (c'était la cause des « propriétés triplées », v2026.9.4.94).
+//      (c'était la cause des « propriétés triplées », v2026.9.4.94) ;
+//  11. un double-clic sur le CURSEUR de simulation d'un composant, ou sur sa
+//      valeur, ouvre la saisie au clavier — le même piège qu'aux lots .71/.72,
+//      cette fois sur `custom-part` : l'atelier arrête `pointerdown` sur les
+//      composants, et un banc à événements fabriqués ne le verrait jamais.
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
@@ -53,6 +57,9 @@ import '../../src/webview/composants/resistor-element.mjs';
 // éléments, aucune pastille n'existe, donc aucune superposition à résoudre.
 import '../../src/webview/composants/arduino-uno-element.mjs';
 import '../../src/webview/composants/sonde-logique-element.mjs';
+// Le composant de bibliothèque sert au contrôle du CURSEUR (§11) : c'est lui
+// qui porte la saisie au clavier, et il se monte seul, sans passer par l'atelier.
+import '../../src/webview/composants/custom-part.mjs';
 const canvas = document.getElementById('canvas');
 const editor = new Editor(canvas, document.getElementById('palette'),
 	document.getElementById('wires'), document.getElementById('inspector'));
@@ -557,6 +564,128 @@ try {
 		const apresC = JSON.parse(await poses());
 		ok('le geste normal (appui, glissé, relâché) pose toujours UN composant',
 			apresC.length === 1 && apresC[0].startsWith('resistor@'), apresC.join(' | '));
+	}
+	// --- 11. Le CURSEUR de simulation : double-clic = saisie au clavier -------
+	//
+	// Frank : « pour le ds18b20 en double cliquant sur le slider ou la valeur, on
+	// peut saisir la valeur au clavier (. et , indifféremment) ». Un curseur long
+	// de 44 px ne sait pas viser 25,5 °C ; sur les 180 degrés de course d'un
+	// DS18B20, un pixel en vaut quatre.
+	//
+	// Pourquoi ICI et pas dans un banc ordinaire : `dblclick` n'existe que si
+	// personne n'a appelé `preventDefault()` sur le premier `pointerdown`, et
+	// l'atelier le fait sur les composants. Aucun événement fabriqué ne peut
+	// prouver ce point — c'est exactement ce qui a fait livrer deux lots verts
+	// sur un double-clic mort (voir l'en-tête).
+	{
+		// Un composant minimal, monté SEUL : le curseur ne dépend ni du schéma ni
+		// du moteur, juste de l'attribut `simulating`.
+		await ev(`(() => {
+			document.querySelectorAll('#banc-curseur').forEach((n) => n.remove());
+			const el = document.createElement('kablix-custom-part');
+			el.id = 'banc-curseur';
+			el.style.cssText = 'position:absolute;left:700px;top:600px;z-index:99';
+			el.definition = {
+				type: 'thermo-essai', label: 'Thermo', kind: 'passive',
+				custom: {
+					svg: '<svg width="60" height="30" viewBox="0 0 60 30"></svg>',
+					pins: [{ name: 'OUT', x: 0, y: 0 }],
+					control: { type: 'slider', min: -55, max: 125, step: 0.5, unit: '°C' },
+				},
+			};
+			el.setAttribute('simulating', '');
+			document.body.appendChild(el);
+			return true;
+		})()`);
+		await attendre(250);
+
+		// Les deux cibles du geste : la barre du curseur et le nombre affiché.
+		const cible = async (sel) => {
+			const r = await ev(`(() => {
+				const e = document.getElementById('banc-curseur');
+				const n = e && e.shadowRoot && e.shadowRoot.querySelector(${JSON.stringify(sel)});
+				if (!n) return JSON.stringify(null);
+				const b = n.getBoundingClientRect();
+				return JSON.stringify({ x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2) });
+			})()`);
+			return JSON.parse(r);
+		};
+		const saisieOuverte = () => ev(`(() => {
+			const e = document.getElementById('banc-curseur');
+			const c = e && e.shadowRoot && e.shadowRoot.querySelector('input.saisie');
+			return c ? 'ouverte' : 'absente';
+		})()`);
+		const valeur = () => ev(`document.getElementById('banc-curseur').controlValue`);
+		// Taper dans la saisie SANS jeter si elle n'est pas ouverte : un champ
+		// absent est un ÉCHEC nommé, pas une exception qui emporte la suite du
+		// banc (sinon la contre-épreuve ne joue qu'un contrôle sur huit).
+		const taper = (texte, touche) => ev(`(() => {
+			const e = document.getElementById('banc-curseur');
+			const c = e && e.shadowRoot && e.shadowRoot.querySelector('input.saisie');
+			if (!c) return false;
+			c.value = ${JSON.stringify(texte)};
+			c.dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(touche)}, bubbles: true }));
+			return true;
+		})()`);
+
+		const surCurseur = await cible('input[type=range]');
+		ok('le curseur de simulation est bien monté sous le composant',
+			!!surCurseur, JSON.stringify(surCurseur));
+
+		// (a) Double-clic sur la BARRE du curseur.
+		await attendre(700);
+		await doubleClic(surCurseur.x, surCurseur.y);
+		await attendre(220);
+		ok('un VRAI double-clic sur le curseur ouvre la saisie au clavier',
+			(await saisieOuverte()) === 'ouverte', await saisieOuverte());
+
+		// (b) La virgule vaut le point : c'est la demande explicite de Frank, et un
+		// `<input type=number>` rendrait une chaîne vide sur un clavier français.
+		await taper('25,5', 'Enter');
+		await attendre(200);
+		ok('« 25,5 » tapé à la virgule est retenu tel quel', (await valeur()) === 25.5, String(await valeur()));
+
+		// (c) Et au point, le même quart de degré.
+		await attendre(700);
+		await doubleClic(surCurseur.x, surCurseur.y);
+		await attendre(220);
+		await taper('30.25', 'Enter');
+		await attendre(200);
+		ok('« 30.25 » tapé au point vaut exactement pareil', (await valeur()) === 30.25, String(await valeur()));
+
+		// (d) Double-clic sur la VALEUR : même réglage vu de l'élève, donc même geste.
+		await attendre(700);
+		const surValeur = await cible('.val');
+		await doubleClic(surValeur.x, surValeur.y);
+		await attendre(220);
+		ok('un double-clic sur la VALEUR ouvre la même saisie',
+			(await saisieOuverte()) === 'ouverte', await saisieOuverte());
+
+		// (e) Échap annule : la valeur d'avant est reprise, pas celle tapée.
+		await taper('99', 'Escape');
+		await attendre(200);
+		ok('Échap referme SANS retenir ce qui était tapé',
+			(await valeur()) === 30.25 && (await saisieOuverte()) === 'absente', String(await valeur()));
+
+		// (f) Hors bornes : ramené dans la course, jamais refusé en silence.
+		await attendre(700);
+		await doubleClic(surCurseur.x, surCurseur.y);
+		await attendre(220);
+		await taper('900', 'Enter');
+		await attendre(200);
+		ok('une valeur hors course est ramenée à la borne (pas de champ muet)',
+			(await valeur()) === 125, String(await valeur()));
+
+		// (g) Un clic SIMPLE ne doit rien ouvrir : sinon le curseur serait inutilisable.
+		await attendre(700);
+		await ev(`(() => { const e = document.getElementById('banc-curseur');
+			e.controlValue = 10; return true; })()`);
+		await souris(surValeur.x, surValeur.y);
+		await attendre(220);
+		ok('un clic simple sur la valeur n ouvre RIEN',
+			(await saisieOuverte()) === 'absente', await saisieOuverte());
+
+		await ev(`(() => { document.getElementById('banc-curseur').remove(); return true; })()`);
 	}
 } catch (e) {
 	// Sans ce filet, une exception (sélecteur disparu, éditeur non monté, page

@@ -58,4 +58,16 @@ export const simControlStyles = css`
   .sim-control .val--wide {
     width: 58px;
   }
+  /* Saisie au clavier : le champ prend la place de la valeur (double-clic sur
+     le curseur ou sur le nombre). Fond opaque et bord net, pour qu'on voie
+     qu'on est en train de taper. */
+  .sim-control input.saisie {
+    font: inherit;
+    color: #111;
+    background: #fff;
+    border: 1px solid #4a90d9;
+    border-radius: 2px;
+    padding: 0 2px;
+    text-align: right;
+  }
 `;

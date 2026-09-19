@@ -405,6 +405,26 @@ export interface PartDef {
     hasHelp?: boolean;
     /** Sortie à collecteur ouvert : alimentation et rappel au plus contrôlés. */
     openDrain?: CustomOpenDrain;
+  /**
+   * REFLETS DE SONDE : « la patte X porte le même signal que la patte Y ».
+   *
+   * Lu par l'ANALYSEUR LOGIQUE seul, jamais par la netlist électrique. Une
+   * carte d'interface n'est pas un fil : le SP3485 de la carte DMX prend un
+   * signal TTL asymétrique sur `SIG` et en sort une paire différentielle sur
+   * `+` / `-`. Électriquement, ces pattes ne sont sur aucun nœud commun — et
+   * c'est juste, les relier dans la netlist court-circuiterait la sortie sur
+   * son entrée.
+   *
+   * Mais à l'oscilloscope comme à l'analyseur, le MOTIF sorti est bien celui
+   * qui est entré : c'est ce que Frank constatait (« j'ai bien le signal en
+   * sortie de la carte pico mais rien en sortie de la carte DMX »). Une sonde
+   * posée sur `+` doit donc montrer ce que montre `SIG`, et une sonde posée sur
+   * `-` le même signal inversé.
+   *
+   * `{ "+": "SIG", "-": "SIG" }` : la clé est la patte SONDÉE, la valeur la
+   * patte dont elle reflète le signal.
+   */
+  probeMirrors?: Record<string, string>;
     /** Carte fille : socle, pistes internes et interrupteur (voir shield.mts). */
     shield?: ShieldSpec;
     /** Bascules du dessin : pièces déplacées par un clic (cavalier, badge…). */
@@ -458,6 +478,8 @@ export interface CustomPartData {
   hasHelp?: boolean;
   /** Sortie à collecteur ouvert (voir CustomOpenDrain). */
   openDrain?: CustomOpenDrain;
+  /** Reflets de sonde : « cette patte porte le même signal que celle-là ». */
+  probeMirrors?: Record<string, string>;
   /** Carte fille : socle, pistes internes et interrupteur (voir shield.mts). */
   shield?: ShieldSpec;
   /** Bascules du dessin (voir CustomToggle). */
@@ -1652,6 +1674,7 @@ export function registerCustomPart(data: CustomPartData): PartDef {
       category: data.category,
       hasHelp: data.hasHelp,
       openDrain: data.openDrain,
+      probeMirrors: data.probeMirrors,
       shield: data.shield,
       toggles: data.toggles,
       rfid: data.rfid,

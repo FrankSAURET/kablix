@@ -3778,11 +3778,44 @@ export interface LogicProbeVoie {
  * pont diviseur doit rester muet, pas afficher le créneau de la broche qui
  * l'attaque — ce serait montrer un signal que le point pincé n'a pas.
  */
+/**
+ * Remonte un REFLET DE SONDE : « cette patte porte le même signal que celle-là ».
+ *
+ * Une carte d'interface n'est pas un fil. Le SP3485 de la carte Grove DMX512
+ * prend un signal TTL asymétrique sur `SIG` et en sort une paire différentielle
+ * sur `+` / `-` : ces pattes ne sont sur aucun nœud commun, et les y mettre
+ * court-circuiterait la sortie sur son entrée. Une sonde posée sur `+` ne
+ * trouvait donc AUCUNE broche de carte et restait muette — ce que Frank
+ * constate : « j'ai bien le signal en sortie de la carte pico mais rien en
+ * sortie de la carte DMX ».
+ *
+ * Le motif, lui, traverse bel et bien : ce qui sort est ce qui est entré. Le
+ * manifeste du composant le déclare (`probeMirrors`), et SEUL l'analyseur le
+ * lit — la netlist électrique n'en sait rien et garde ses deux nœuds séparés.
+ *
+ * Un reflet peut en désigner un autre (une carte qui en traverse une seconde) :
+ * on remonte la chaîne, avec une borne pour qu'un manifeste mal écrit qui se
+ * référencerait lui-même ne fasse pas tourner l'éditeur dans le vide.
+ */
+function refletDeSonde(
+  diagram: Diagram,
+  point: { partId: string; pin: string },
+): { partId: string; pin: string } {
+  for (let saut = 0; saut < 8; saut++) {
+    const part = diagram.parts.find((p) => p.id === point.partId);
+    const reflet = part && partDef(part.type).custom?.probeMirrors?.[point.pin];
+    if (!reflet || reflet === point.pin) return point;
+    point = { partId: point.partId, pin: reflet };
+  }
+  return point;
+}
+
 function suivreFilVersMcu(
   diagram: Diagram,
   point: { partId: string; pin: string },
 ): { pin: string; analogique: boolean } | null {
   if (!point.partId || !point.pin) return null;
+  point = refletDeSonde(diagram, point);
   const nets = buildNets(diagram, false);
   const net = nets.netOf(point);
   for (const { part, board } of mcuParts(diagram)) {

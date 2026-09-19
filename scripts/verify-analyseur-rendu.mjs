@@ -72,7 +72,6 @@ const page = `<!doctype html><meta charset=utf8>
 <style>
  body { margin:0; padding:0; font:13px sans-serif; }
  .barre { display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:6px 10px; border-bottom:1px solid #ccc; }
- #legende { display:flex; flex-wrap:wrap; gap:4px 12px; padding:5px 10px 0; }
  #trace { display:block; width:100%; }
  .aide { padding:4px 10px 8px; opacity:.6; }
  /* Reproduit l'onglet en SECOND PLAN : VS Code ne cache pas le document, il
@@ -84,15 +83,11 @@ const page = `<!doctype html><meta charset=utf8>
 </style>
 <body style="width:0;overflow:hidden">
 <div class="barre">
- <label>Trigger <select id="decl-voie"></select>
-  <select id="decl-sens"><option value="rising">rising</option><option value="falling">falling</option></select></label>
- <div id="decodages"></div>
- <button id="ajout-decodage" type="button">+ Decode</button>
+ <label>Sampling <select id="horloge"><option value="0">Unlimited</option><option value="1000000">1 MHz</option></select></label>
  <button id="tout" type="button">Whole capture</button>
  <button id="suivre" type="button">Follow live</button>
  <span id="etat"></span>
 </div>
-<div id="legende"></div>
 <canvas id="trace"></canvas>
 <div class="aide">Wheel to zoom, drag to pan.</div>
 <script>
@@ -151,7 +146,17 @@ const page = `<!doctype html><meta charset=utf8>
   mesures.viveHauteur = cv.clientHeight;
   mesures.attrW = cv.width;
   mesures.attrH = cv.height;
-  mesures.legende = document.getElementById('legende').textContent.trim().slice(0, 120);
+  // Les noms de voie ne sont plus du texte HTML : ils sont PEINTS dans la
+  // colonne de gauche du canvas, avec leurs boutons (« T » et « P »). On
+  // compte donc les pixels peints dans cette colonne — deux pistes nommées
+  // en noircissent forcément quelques centaines, une colonne vide aucun.
+  mesures.colonne = (() => {
+   const g = cv.getContext('2d');
+   const d = g.getImageData(0, 0, Math.min(100, cv.width), cv.height).data;
+   let n = 0;
+   for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++;
+   return n;
+  })();
   mesures.erreurs = erreurs.join(' | ').slice(0, 300);
   const out = document.createElement('pre');
   out.id = 'measures';
@@ -210,8 +215,8 @@ check('le canvas est redimensionné à la largeur retrouvée, pas laissé à ses
 // peinture manque — et l'écrire sépare les deux causes possibles du gris.
 check('la hauteur porte les DEUX voies reçues pendant que l\'onglet était caché',
 	r.viveHauteur === 150, `hauteur ${r.viveHauteur}`);
-check('la légende porte les deux voies',
-	r.legende.includes('GP0') && r.legende.includes('GP1'), r.legende);
+check('les noms de voie sont PEINTS dans la colonne de gauche du canvas',
+	r.colonne > 200, `${r.colonne} px peints dans les 100 px de gauche`);
 
 console.log(failures === 0 ? '\nTout est vert.' : `\n${failures} échec(s).`);
 process.exit(failures === 0 ? 0 : 1);

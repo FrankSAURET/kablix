@@ -49,7 +49,7 @@ export const SONDE_PIN = { x: 10, y: 70 };
  * subit pas ce décalage, et c'est ainsi que dessin et point de connexion se
  * retrouvent enfin au même endroit.
  */
-const RECALAGE = { x: -0.73, y: 0.75 };
+const RECALAGE = { x: 0.5, y: 0 };
 
 /**
  * Les huit teintes VERTES du dessin de Frank, et leur rôle dans la pince.

@@ -18,7 +18,14 @@
 // que l'élève avait mesuré la veille.
 
 import { AnalyseurCapture } from './analyseur-capture.mjs';
-import { AnalyseurVue, type Fenetre, type TextesVue, type VoieVue } from './analyseur-vue.mjs';
+import {
+  AnalyseurVue,
+  type BoutonVoie,
+  type Fenetre,
+  type TextesVue,
+  type VoieVue,
+  type ZoneBouton,
+} from './analyseur-vue.mjs';
 import {
   decoderTous,
   rolesDe,
@@ -87,6 +94,8 @@ export interface EtatSerialise {
   decodages?: ReglageDecodage[];
   /** Réglages d'affichage et de seuils, par indice de voie. */
   voiesReglages?: ReglagesVoies;
+  /** Fréquence d'échantillonnage simulée, en hertz ; 0 = illimitée. */
+  echantillonnage?: number;
 }
 
 const vscode = window.acquireVsCodeApi?.();
@@ -252,12 +261,21 @@ function redessinerMaintenant(): void {
 
 /** Voies effectivement dessinées : les masquées gardent leur capture, pas leur piste. */
 function voiesVisibles(): VoieVue[] {
+  const decl = capture.reglageDeclenchement;
   return diagnostics
     .filter((d) => !reglagesVoies[d.voie]?.masquee)
     .map((d) => ({
       ...d,
       nomChoisi: reglagesVoies[d.voie]?.nom,
       couleur: reglagesVoies[d.voie]?.couleur,
+      // Les deux boutons de la colonne de gauche lisent leur état ici : le
+      // déclenchement n'appartient qu'à UNE voie, le protocole est celui du
+      // décodage dont cette voie porte les données.
+      declenchement: decl?.voie === d.voie ? decl.sens : null,
+      protocole: (() => {
+        const p = decodageDe(d.voie)?.protocole;
+        return p ? NOMS_PROTOCOLE[p] : null;
+      })(),
     }));
 }
 
@@ -276,7 +294,24 @@ function rendu(): void {
     textes: textes(),
     lang: locale(),
   });
-  majEtiquettes();
+  majEtat();
+}
+
+/**
+ * Texte d'état de la barre du haut.
+ *
+ * C'est tout ce qui reste de l'ancienne légende : les noms de voie, leur
+ * teinte, leur déclenchement et leur décodage sont passés SUR la piste, à
+ * gauche du tracé (demande de Frank du 19/09). Une ligne de plus en haut ne
+ * servait qu'à répéter ce que la piste montre déjà.
+ */
+function majEtat(): void {
+  const fin = capture.tFin;
+  etatTexte.textContent = enCours
+    ? t('Capturing… {0}', fin.toFixed(1))
+    : capture.aDesDonnees
+      ? t('Last capture: {0} ms', fin.toFixed(1))
+      : '';
 }
 
 /**
@@ -324,12 +359,8 @@ function calculerAnnotations(): Annotation[] {
 
 // --- Barre d'outils ----------------------------------------------------------
 
-const selDeclVoie = document.getElementById('decl-voie') as HTMLSelectElement;
-const selDeclSens = document.getElementById('decl-sens') as HTMLSelectElement;
-const zoneDecodages = document.getElementById('decodages') as HTMLDivElement;
-const boutonAjoutDecodage = document.getElementById('ajout-decodage') as HTMLButtonElement;
+const selHorloge = document.getElementById('horloge') as HTMLSelectElement;
 const etatTexte = document.getElementById('etat') as HTMLSpanElement;
-const legende = document.getElementById('legende') as HTMLDivElement;
 
 /** Remplit un sélecteur de voie avec les voies traçables. */
 function remplirVoies(sel: HTMLSelectElement, aucun: string): void {
@@ -355,10 +386,190 @@ function nomAffiche(d: VoieVue): string {
   return n === '' ? d.nom : n;
 }
 
-/** Reconstruit la zone des décodages : un groupe par décodage actif. */
-function majDecodages(): void {
-  zoneDecodages.textContent = '';
-  for (const d of decodages) zoneDecodages.append(groupeDecodage(d));
+/** Nom court d'un protocole, tel que le bouton « P » d'une voie l'affiche. */
+const NOMS_PROTOCOLE: Record<Protocole, string> = {
+  i2c: 'I²C',
+  spi: 'SPI',
+  uart: 'UART',
+  onewire: '1-W',
+  dht: 'DHT',
+  dmx: 'DMX',
+};
+
+/** Protocoles proposés, dans l'ordre du menu du bouton « P ». */
+const PROTOCOLES: Array<[Protocole, string]> = [
+  ['i2c', 'I²C / TWI'],
+  ['spi', 'SPI'],
+  ['uart', 'UART'],
+  ['onewire', '1-Wire'],
+  ['dht', 'DHT11 / DHT22'],
+  ['dmx', 'DMX512'],
+];
+
+/** Décodage dont CETTE voie porte les données, ou undefined. */
+function decodageDe(voie: number): ReglageDecodage | undefined {
+  return decodages.find((d) => d.donnees === voie);
+}
+
+// --- Panneaux flottants ------------------------------------------------------
+//
+// Les trois boutons d'une voie (teinte, « T », « P ») sont DESSINÉS dans le
+// canvas, sous le nom de la voie : ils doivent suivre exactement la piste, qui
+// se déplace dès qu'on masque une voie. Leurs menus, eux, sont du HTML — une
+// liste déroulante, un champ de saisie et huit pastilles de couleur se font
+// mal à la main sur un canvas, et perdraient le clavier.
+//
+// Un seul panneau à la fois : ouvrir le « P » d'une voie ferme le « T » d'une
+// autre. Il se ferme au clic à côté, à la touche Échap, et dès que la vue
+// change de taille (sinon il resterait accroché au vide).
+
+/** Panneau ouvert, ou null. */
+let panneau: HTMLDivElement | null = null;
+/** Ce que le panneau ouvert montre — sert à refermer au second clic. */
+let panneauPour: { voie: number; quoi: BoutonVoie } | null = null;
+
+/** Ferme le panneau flottant s'il y en a un. */
+function fermerPanneau(): void {
+  panneau?.remove();
+  panneau = null;
+  panneauPour = null;
+}
+
+/**
+ * Ouvre un panneau ancré SOUS un bouton du canvas.
+ *
+ * L'ancrage se fait en coordonnées de page : le canvas défile avec elle, et un
+ * panneau posé aux coordonnées du canvas seul finirait décalé dès que la liste
+ * des voies dépasse la hauteur de la fenêtre.
+ */
+function ouvrirPanneau(z: ZoneBouton, contenu: HTMLElement, liste: boolean): void {
+  fermerPanneau();
+  const r = canvas.getBoundingClientRect();
+  const boite = document.createElement('div');
+  boite.className = liste ? 'flottant flottant--liste' : 'flottant';
+  boite.append(contenu);
+  document.body.append(boite);
+  // Posé d'abord, mesuré ensuite : sa largeur dépend de son contenu, et il ne
+  // doit pas dépasser le bord droit de la page.
+  const x = r.left + window.scrollX + z.x;
+  const y = r.top + window.scrollY + z.y + z.h + 4;
+  const largeur = boite.offsetWidth;
+  boite.style.left = `${Math.max(4, Math.min(x, window.scrollX + document.documentElement.clientWidth - largeur - 6))}px`;
+  boite.style.top = `${y}px`;
+  panneau = boite;
+  panneauPour = { voie: z.voie, quoi: z.quoi };
+}
+
+/** Une entrée de menu : un dessin optionnel, un libellé, un état enfoncé. */
+function entreeMenu(
+  libelle: string,
+  actif: boolean,
+  action: () => void,
+  dessin?: SVGElement
+): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.setAttribute('aria-pressed', String(actif));
+  if (dessin) b.append(dessin);
+  b.append(document.createTextNode(libelle));
+  b.addEventListener('click', () => {
+    action();
+    fermerPanneau();
+  });
+  return b;
+}
+
+/** Marche montante ou descendante, en SVG, pour les entrées du menu « T ». */
+function dessinMarche(sens: 'rising' | 'falling'): SVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', '18');
+  svg.setAttribute('height', '14');
+  svg.setAttribute('viewBox', '0 0 18 14');
+  const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  p.setAttribute('d', sens === 'rising' ? 'M2 11 H9 V3 H16' : 'M2 3 H9 V11 H16');
+  p.setAttribute('fill', 'none');
+  p.setAttribute('stroke', 'currentColor');
+  p.setAttribute('stroke-width', '1.8');
+  svg.append(p);
+  return svg;
+}
+
+/**
+ * Menu du bouton « T » d'une voie : aucun déclenchement, front montant, front
+ * descendant.
+ *
+ * Le déclenchement reste UNIQUE pour toute la capture — c'est ainsi que
+ * fonctionne un analyseur, et `AnalyseurCapture` n'en tient qu'un. Choisir un
+ * front sur une voie le retire donc de celle qui l'avait : les autres boutons
+ * reviennent à leur « T », ce que Frank décrit exactement.
+ */
+function menuDeclenchement(z: ZoneBouton): void {
+  const boite = document.createElement('div');
+  boite.style.display = 'contents';
+  const courant = capture.reglageDeclenchement;
+  const sur = courant && courant.voie === z.voie ? courant.sens : null;
+  boite.append(
+    entreeMenu(t('No trigger'), sur === null, () => {
+      capture.reglerDeclenchement(null);
+      dessiner();
+      envoyerReglages();
+    }),
+    entreeMenu(
+      t('Rising edge'),
+      sur === 'rising',
+      () => {
+        capture.reglerDeclenchement({ voie: z.voie, sens: 'rising' });
+        dessiner();
+        envoyerReglages();
+      },
+      dessinMarche('rising')
+    ),
+    entreeMenu(
+      t('Falling edge'),
+      sur === 'falling',
+      () => {
+        capture.reglerDeclenchement({ voie: z.voie, sens: 'falling' });
+        dessiner();
+        envoyerReglages();
+      },
+      dessinMarche('falling')
+    )
+  );
+  ouvrirPanneau(z, boite, true);
+}
+
+/**
+ * Menu du bouton « P » d'une voie : quel bus décoder sur elle.
+ *
+ * La voie cliquée devient la voie de DONNÉES du décodage — c'est toujours elle
+ * qu'on regarde. Les rôles complémentaires (l'horloge d'un I²C, le CS d'un SPI)
+ * et les options du protocole (mode, format, modèle de capteur) se règlent dans
+ * le second panneau, celui qui s'ouvre quand un décodage est déjà posé.
+ */
+function menuProtocole(z: ZoneBouton): void {
+  const existant = decodageDe(z.voie);
+  if (existant) {
+    ouvrirPanneau(z, panneauDecodage(existant, z.voie), false);
+    return;
+  }
+  const boite = document.createElement('div');
+  boite.style.display = 'contents';
+  boite.append(
+    entreeMenu(t('No decoding'), true, () => {
+      /* déjà le cas : le menu se referme sans rien changer */
+    })
+  );
+  for (const [cle, nom] of PROTOCOLES) {
+    boite.append(
+      entreeMenu(nom, false, () => {
+        idDecodage += 1;
+        decodages.push({ protocole: cle, id: `d${idDecodage}`, donnees: z.voie });
+        dessiner();
+        envoyerReglages();
+      })
+    );
+  }
+  ouvrirPanneau(z, boite, true);
 }
 
 /**
@@ -391,23 +602,26 @@ function formatUart(d: ReglageDecodage): string {
   return f ? f.cle : '8N1';
 }
 
-/** Un décodage dans la barre : son protocole, ses rôles de voie, sa croix. */
-function groupeDecodage(d: ReglageDecodage): HTMLElement {
+/**
+ * Réglages d'un décodage POSÉ sur une voie : son protocole, les voies de ses
+ * autres rôles, ses options, et de quoi l'ôter.
+ *
+ * La voie de données n'y figure pas : c'est la voie du bouton qu'on a cliqué,
+ * et la déplacer ici ferait sauter le réglage sur une piste qu'on ne regarde
+ * pas.
+ */
+function panneauDecodage(d: ReglageDecodage, voie: number): HTMLElement {
   const boite = document.createElement('div');
-  boite.className = 'deco';
+  boite.style.display = 'contents';
+  const refaire = (): void => {
+    dessiner();
+    envoyerReglages();
+  };
 
   const labProto = document.createElement('label');
-  labProto.className = 'role';
-  labProto.textContent = t('Decode');
+  labProto.textContent = t('Bus');
   const selProto = document.createElement('select');
-  for (const [v, nom] of [
-    ['i2c', 'I²C / TWI'],
-    ['spi', 'SPI'],
-    ['uart', 'UART'],
-    ['onewire', '1-Wire'],
-    ['dht', 'DHT11 / DHT22'],
-    ['dmx', 'DMX512'],
-  ] as Array<[Protocole, string]>) {
+  for (const [v, nom] of PROTOCOLES) {
     const o = document.createElement('option');
     o.value = v;
     o.textContent = nom;
@@ -416,21 +630,24 @@ function groupeDecodage(d: ReglageDecodage): HTMLElement {
   selProto.value = d.protocole;
   selProto.addEventListener('change', () => {
     // Changer de protocole vide les rôles : les voies d'un I²C (SCL/SDA) ne
-    // veulent rien dire pour un DMX, et les garder ferait décoder n'importe quoi.
+    // veulent rien dire pour un DMX, et les garder ferait décoder n'importe
+    // quoi. La voie de données, elle, reste — c'est celle qu'on regarde.
     const id = d.id;
     for (const k of Object.keys(d)) delete (d as unknown as Record<string, unknown>)[k];
     d.protocole = selProto.value as Protocole;
     d.id = id;
-    majDecodages();
-    dessiner();
-    envoyerReglages();
+    d.donnees = voie;
+    refaire();
+    // Le panneau montre d'autres rôles selon le bus : on le refait sur place.
+    const z = zoneDe(voie, 'protocole');
+    if (z) ouvrirPanneau(z, panneauDecodage(d, voie), false);
   });
   labProto.append(selProto);
   boite.append(labProto);
 
   for (const role of rolesDe(d.protocole)) {
+    if (role.cle === 'donnees') continue; // c'est la voie du bouton cliqué
     const lab = document.createElement('label');
-    lab.className = 'role';
     lab.textContent = role.nom;
     const sel = document.createElement('select');
     remplirVoies(sel, role.obligatoire ? '—' : t('none'));
@@ -438,11 +655,10 @@ function groupeDecodage(d: ReglageDecodage): HTMLElement {
     if (typeof courant === 'number') sel.value = String(courant);
     sel.addEventListener('change', () => {
       const v = sel.value === '' ? -1 : Number(sel.value);
-      // Les rôles de voie (`horloge`, `donnees`…) sont tous des indices de voie :
-      // l'écriture indexée est sûre, le nom de clé vient de `rolesDe`.
+      // Les rôles de voie (`horloge`, `selection`…) sont tous des indices de
+      // voie : l'écriture indexée est sûre, le nom de clé vient de `rolesDe`.
       (d as unknown as Record<string, number>)[role.cle] = v;
-      dessiner();
-      envoyerReglages();
+      refaire();
     });
     lab.append(sel);
     boite.append(lab);
@@ -453,7 +669,6 @@ function groupeDecodage(d: ReglageDecodage): HTMLElement {
     // modes donnent les mêmes fronts et des octets différents. C'est un réglage,
     // comme sur un analyseur du commerce.
     const lab = document.createElement('label');
-    lab.className = 'role';
     lab.textContent = t('Mode');
     const sel = document.createElement('select');
     for (const m of [0, 1, 2, 3]) {
@@ -465,8 +680,7 @@ function groupeDecodage(d: ReglageDecodage): HTMLElement {
     sel.value = String(d.mode ?? 0);
     sel.addEventListener('change', () => {
       d.mode = Number(sel.value) as 0 | 1 | 2 | 3;
-      dessiner();
-      envoyerReglages();
+      refaire();
     });
     lab.append(sel);
     boite.append(lab);
@@ -478,7 +692,6 @@ function groupeDecodage(d: ReglageDecodage): HTMLElement {
     // différents. Une liste unique plutôt que trois réglages — c'est ainsi que
     // l'élève l'écrit dans son programme (`Serial.begin(9600, SERIAL_8N1)`).
     const lab = document.createElement('label');
-    lab.className = 'role';
     lab.textContent = t('Format');
     const sel = document.createElement('select');
     for (const f of FORMATS_UART) {
@@ -493,8 +706,7 @@ function groupeDecodage(d: ReglageDecodage): HTMLElement {
       d.bitsDonnees = f.bits;
       d.parite = f.parite;
       d.bitsArret = f.stop;
-      dessiner();
-      envoyerReglages();
+      refaire();
     });
     lab.append(sel);
     boite.append(lab);
@@ -505,7 +717,6 @@ function groupeDecodage(d: ReglageDecodage): HTMLElement {
     // sur le fil ne dit lequel parle. Seule l'interprétation des octets change
     // — d'où un réglage, comme le mode SPI ou le format UART.
     const lab = document.createElement('label');
-    lab.className = 'role';
     lab.textContent = t('Sensor');
     const sel = document.createElement('select');
     for (const [v, nom] of [
@@ -520,8 +731,7 @@ function groupeDecodage(d: ReglageDecodage): HTMLElement {
     sel.value = d.modele ?? 'dht22';
     sel.addEventListener('change', () => {
       d.modele = sel.value as 'dht11' | 'dht22';
-      dessiner();
-      envoyerReglages();
+      refaire();
     });
     lab.append(sel);
     boite.append(lab);
@@ -529,12 +739,11 @@ function groupeDecodage(d: ReglageDecodage): HTMLElement {
 
   const oter = document.createElement('button');
   oter.type = 'button';
-  oter.className = 'oter';
-  oter.textContent = '×';
+  oter.textContent = t('Remove');
   oter.title = t('Remove this decoding');
   oter.addEventListener('click', () => {
     decodages = decodages.filter((x) => x !== d);
-    majDecodages();
+    fermerPanneau();
     dessiner();
     envoyerReglages();
   });
@@ -542,73 +751,66 @@ function groupeDecodage(d: ReglageDecodage): HTMLElement {
   return boite;
 }
 
-boutonAjoutDecodage.addEventListener('click', () => {
-  idDecodage += 1;
-  decodages.push({ protocole: 'i2c', id: `d${idDecodage}` });
-  majDecodages();
-  dessiner();
-  envoyerReglages();
-});
+/**
+ * Renvoie les réglages à l'hôte pour qu'ils soient enregistrés dans le .projix :
+ * retrouver son déclenchement et son décodage à la réouverture fait partie de
+ * l'instrument (personne ne rerègle un analyseur à chaque ouverture).
+ */
+function envoyerReglages(): void {
+  vscode?.postMessage({
+    type: 'analyseurReglages',
+    declenchement: capture.reglageDeclenchement,
+    decodages,
+    voiesReglages: reglagesVoies,
+    echantillonnage,
+  });
+}
 
-/** Voie dont les réglages sont dépliés sous la légende, ou null. */
-let voieReglee: number | null = null;
+// --- Fréquence d'échantillonnage --------------------------------------------
 
-/** Légende : une puce de la couleur de la pince, son nom, sa broche. */
-function majEtiquettes(): void {
-  const sombre = themeSombre();
-  legende.textContent = '';
-  for (const d of diagnostics) {
-    const chip = document.createElement('span');
-    chip.className = 'chip';
-    // La pastille est un BOUTON : c'est là qu'on règle la voie (nom, teinte,
-    // sens de lecture, masquage, vitesse). Régler la courbe au même endroit
-    // qu'on la reconnaît évite un panneau de plus dans la barre.
-    const puce = document.createElement('button');
-    puce.type = 'button';
-    puce.style.background = couleurVoie(reglagesVoies[d.voie]?.couleur ?? d.voie, sombre);
-    puce.title = t('Channel settings');
-    puce.addEventListener('click', () => {
-      voieReglee = voieReglee === d.voie ? null : d.voie;
-      majEtiquettes();
-    });
-    chip.append(puce);
-    // « SD2 · GP3 ↝ » : la flèche dit que la pince n'est pas sur la broche
-    // nommée mais sur un point relié à elle. L'infobulle l'écrit en toutes
-    // lettres — un symbole seul n'explique rien.
-    const base = nomAffiche(d);
-    const nom = d.pin ? `${base} · ${d.pin}` : base;
-    chip.append(document.createTextNode(d.suivi ? `${nom} ↝` : nom));
-    if (d.suivi) chip.title = t('Clipped away from the board: this point is wired to {0}.', d.pin);
-    if (d.probleme || reglagesVoies[d.voie]?.masquee) chip.classList.add('chip--muet');
-    legende.append(chip);
-  }
-  if (voieReglee !== null) {
-    const d = diagnostics.find((x) => x.voie === voieReglee);
-    if (d) legende.append(panneauReglages(d));
-    else voieReglee = null;
-  }
-  const fin = capture.tFin;
-  etatTexte.textContent = enCours
-    ? t('Capturing… {0}', fin.toFixed(1))
-    : capture.aDesDonnees
-      ? t('Last capture: {0} ms', fin.toFixed(1))
-      : '';
+/**
+ * Fréquence d'échantillonnage simulée, en hertz. 0 = illimitée (réglage par
+ * défaut).
+ *
+ * Kablix date ses fronts au CYCLE du processeur : il n'échantillonne pas, il
+ * sait exactement quand chaque broche a basculé. Un vrai analyseur, lui, regarde
+ * ses entrées à intervalle fixe, et deux fronts plus rapprochés qu'un
+ * échantillon se confondent — c'est ainsi qu'on rate une impulsion trop brève
+ * en sondant un bus SPI à 1 MHz. Le réglage reproduit cette limite : il n'ajoute
+ * rien à la capture, il en RETIRE ce qu'un instrument de cette fréquence
+ * n'aurait pas vu. L'élève découvre ainsi pourquoi son analyseur du commerce
+ * doit échantillonner bien plus vite que le signal qu'il observe.
+ */
+let echantillonnage = 0;
+
+/** Répercute la fréquence choisie sur la capture. */
+function majEchantillonnage(): void {
+  capture.reglerEchantillonnage(echantillonnage);
+}
+
+// --- Boutons dessinés sur les pistes -----------------------------------------
+
+/** Zone d'un bouton de voie, telle que le dernier rendu l'a posée. */
+function zoneDe(voie: number, quoi: BoutonVoie): ZoneBouton | null {
+  return vue.zoneDe(voie, quoi);
 }
 
 /**
- * Réglages d'UNE voie, dépliés sous la légende. Tout y est propre à la voie :
- * ce qu'elle montre (nom, teinte, masquage) et comment elle se lit (sens au
- * repos, vitesse). Rien de tout cela ne dépend d'un protocole — une voie garde
- * son nom et son sens même sans décodage.
+ * Menu de la pastille de teinte : tous les réglages propres à la voie (nom,
+ * couleur, sens au repos, masquage, vitesse, tolérance).
+ *
+ * Ils étaient dans la légende du haut, qui n'existe plus : régler une voie se
+ * fait maintenant là où on la regarde.
  */
-function panneauReglages(d: VoieVue): HTMLElement {
+function menuVoie(z: ZoneBouton): void {
+  const d = diagnostics.find((x) => x.voie === z.voie);
+  if (!d) return;
   const sombre = themeSombre();
   const boite = document.createElement('div');
-  boite.className = 'reglages';
+  boite.style.display = 'contents';
   const r = (reglagesVoies[d.voie] ??= {});
   const change = (): void => {
     majInversions();
-    majEtiquettes();
     dessiner();
     envoyerReglages();
   };
@@ -624,9 +826,6 @@ function panneauReglages(d: VoieVue): HTMLElement {
   champNom.addEventListener('input', () => {
     r.nom = champNom.value;
     change();
-    // Réécrire la légende reprend le focus : on le rend au champ, sinon on ne
-    // peut pas taper deux lettres de suite.
-    (legende.querySelector('.reglages input[type=text]') as HTMLInputElement | null)?.focus();
   });
   labNom.append(champNom);
   boite.append(labNom);
@@ -644,6 +843,10 @@ function panneauReglages(d: VoieVue): HTMLElement {
     b.setAttribute('aria-pressed', String((r.couleur ?? d.voie) === i));
     b.addEventListener('click', () => {
       r.couleur = i === d.voie ? undefined : i;
+      for (const autre of teintes.querySelectorAll('button')) {
+        autre.setAttribute('aria-pressed', 'false');
+      }
+      b.setAttribute('aria-pressed', 'true');
       change();
     });
     teintes.append(b);
@@ -672,6 +875,8 @@ function panneauReglages(d: VoieVue): HTMLElement {
   caseMasque.checked = r.masquee === true;
   caseMasque.addEventListener('change', () => {
     r.masquee = caseMasque.checked;
+    // La piste disparaît : le panneau était ancré dessus, il n'a plus d'appui.
+    fermerPanneau();
     change();
   });
   labMasque.append(caseMasque, document.createTextNode(t('Hide')));
@@ -713,37 +918,47 @@ function panneauReglages(d: VoieVue): HTMLElement {
   labTol.append(champTol);
   boite.append(labTol);
 
-  return boite;
-}
-
-/** Applique le réglage de déclenchement choisi dans la barre. */
-function majDeclenchement(): void {
-  const v = selDeclVoie.value;
-  if (v === '') {
-    capture.reglerDeclenchement(null);
-  } else {
-    capture.reglerDeclenchement({
-      voie: Number(v),
-      sens: selDeclSens.value === 'falling' ? 'falling' : 'rising',
-    });
-  }
-  dessiner();
-  envoyerReglages();
+  ouvrirPanneau(z, boite, false);
 }
 
 /**
- * Renvoie les réglages à l'hôte pour qu'ils soient enregistrés dans le .projix :
- * retrouver son déclenchement et son décodage à la réouverture fait partie de
- * l'instrument (personne ne rerègle un analyseur à chaque ouverture).
+ * Clic sur le canvas : s'il tombe sur un bouton de voie, il ouvre son menu.
+ *
+ * Posé en capture, AVANT le `pointerdown` qui commence un glissé : cliquer un
+ * bouton ne doit pas faire défiler l'enregistrement de quelques millisecondes
+ * au passage.
  */
-function envoyerReglages(): void {
-  vscode?.postMessage({
-    type: 'analyseurReglages',
-    declenchement: capture.reglageDeclenchement,
-    decodages,
-    voiesReglages: reglagesVoies,
-  });
-}
+canvas.addEventListener(
+  'pointerdown',
+  (ev) => {
+    const r = canvas.getBoundingClientRect();
+    const z = vue.boutonA(ev.clientX - r.left, ev.clientY - r.top);
+    if (!z) return;
+    ev.stopPropagation();
+    ev.preventDefault();
+    // Second clic sur le même bouton : on referme, comme tout menu.
+    if (panneauPour && panneauPour.voie === z.voie && panneauPour.quoi === z.quoi) {
+      fermerPanneau();
+      return;
+    }
+    if (z.quoi === 'teinte') menuVoie(z);
+    else if (z.quoi === 'declenchement') menuDeclenchement(z);
+    else menuProtocole(z);
+  },
+  true
+);
+
+// Clic à côté, ou touche Échap : le panneau se referme, comme tout menu.
+document.addEventListener(
+  'pointerdown',
+  (ev) => {
+    if (panneau && !panneau.contains(ev.target as Node)) fermerPanneau();
+  },
+  true
+);
+window.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Escape') fermerPanneau();
+});
 
 // --- Entrées de l'hôte -------------------------------------------------------
 
@@ -766,8 +981,9 @@ window.addEventListener('message', (ev) => {
           .filter((d) => !d.probleme && d.pin)
           .map((d) => ({ voie: d.voie, pin: d.pin, nom: d.nom }))
       );
-      remplirVoies(selDeclVoie, t('none'));
-      majDecodages();
+      // Les voies ont changé : un panneau ouvert pointerait une piste qui n'est
+      // peut-être plus là, et resterait posé dans le vide.
+      fermerPanneau();
       dessiner();
       return;
     }
@@ -824,12 +1040,8 @@ function restaurer(etat: EtatSerialise): void {
       analogique: false,
       suivi: false,
     }));
-    remplirVoies(selDeclVoie, t('none'));
   }
-  if (etat.declenchement) {
-    selDeclVoie.value = String(etat.declenchement.voie);
-    selDeclSens.value = etat.declenchement.sens;
-  }
+  capture.reglerDeclenchement(etat.declenchement ?? null);
   // `decodages` depuis v2026.9.4.94 ; `decodage` (un seul) est ce qu'ont écrit
   // les .projix d'avant, qui doivent rouvrir avec leur réglage.
   decodages = etat.decodages ?? (etat.decodage ? [etat.decodage] : []);
@@ -840,8 +1052,10 @@ function restaurer(etat: EtatSerialise): void {
     }
   }
   reglagesVoies = etat.voiesReglages ?? {};
+  echantillonnage = etat.echantillonnage ?? 0;
+  selHorloge.value = String(echantillonnage);
+  majEchantillonnage();
   majInversions();
-  majDecodages();
   ajuster();
 }
 
@@ -890,8 +1104,12 @@ canvas.addEventListener('pointerup', (ev) => {
 
 // --- Câblage de la barre -----------------------------------------------------
 
-selDeclVoie.addEventListener('change', majDeclenchement);
-selDeclSens.addEventListener('change', majDeclenchement);
+selHorloge.addEventListener('change', () => {
+  echantillonnage = Number(selHorloge.value) || 0;
+  majEchantillonnage();
+  dessiner();
+  envoyerReglages();
+});
 document.getElementById('tout')?.addEventListener('click', ajuster);
 document.getElementById('suivre')?.addEventListener('click', suivreFinDemande);
 window.addEventListener('resize', () => dessiner());

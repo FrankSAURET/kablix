@@ -29,7 +29,11 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const tmp = mkdtempSync(join(tmpdir(), 'kablix-analyseur-'));
 const buildTo = async (entry, outfile) => {
   await esbuild.build({
-    entryPoints: [join(root, entry)],
+    // `entry` est soit un chemin de source, soit un petit module écrit ici même
+    // (`{ contents, resolveDir }`) qui réunit plusieurs sources en un paquet.
+    ...(typeof entry === 'string'
+      ? { entryPoints: [join(root, entry)] }
+      : { stdin: { ...entry, loader: 'ts' } }),
     outfile: join(tmp, outfile),
     bundle: true,
     platform: 'node',
@@ -40,8 +44,22 @@ const buildTo = async (entry, outfile) => {
   return import(pathToFileURL(join(tmp, outfile)).href);
 };
 
-const { logicProbeVoies, pulseMonitorPins } = await buildTo('src/webview/diagram/model.mts', 'model.mjs');
-const { partDef, partCategory } = await buildTo('src/webview/diagram/catalog.mts', 'catalog.mjs');
+// Un SEUL paquet pour le modèle et le catalogue : chaque `buildTo` embarque sa
+// propre copie des modules, donc un composant enregistré dans un paquet resterait
+// inconnu de l'autre. Le module ci-dessous les réunit.
+const { logicProbeVoies, pulseMonitorPins, partDef, partCategory, registerCustomPart } =
+  await buildTo(
+    {
+      resolveDir: join(root, 'src/webview/diagram'),
+      contents: [
+        `export * from './model.mjs';`,
+        // Nommé, pas `export *` : le modèle importe DÉJÀ le catalogue, et deux
+        // étoiles sur des modules ainsi chaînés font pendre la résolution.
+        `export { partDef, partCategory, registerCustomPart } from './catalog.mjs';`,
+      ].join('\n'),
+    },
+    'model.mjs',
+  );
 const { AnalyseurCapture, VOIES_MAX } = await buildTo('src/webview/analyseur-capture.mts', 'capture.mjs');
 const { decoder, decoderTous, reglageComplet, rolesDe } = await buildTo('src/webview/analyseur-decodage.mts', 'decodage.mjs');
 const { PALETTE_LIGHT, PALETTE_DARK, couleurVoie } = await buildTo('src/webview/voies-couleurs.mts', 'couleurs.mjs');
@@ -206,6 +224,71 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   check('modèle : les voies sortent dans l\'ordre des couleurs, pas de création',
     v.map((x) => x.voie).join(',') === '1,3', v.map((x) => x.voie).join(','));
 }
+// --- Reflets de sonde : la sortie d'une carte d'interface ----------------------
+//
+// Frank, 19/09 : « pour le DMX j'ai bien le signal en sortie de la carte pico
+// mais rien en sortie de la carte DMX ». Cause trouvée : la carte Grove DMX512
+// porte un SP3485, qui prend un signal TTL asymétrique sur `SIG` et en sort une
+// paire différentielle sur `+` / `-`. Ces pattes ne sont sur AUCUN nœud commun
+// — et c'est juste : les relier dans la netlist court-circuiterait la sortie sur
+// son entrée. Une sonde posée sur `+` ne trouvait donc aucune broche de carte.
+//
+// Le motif, lui, traverse : ce qui sort est ce qui est entré. Le manifeste le
+// déclare (`probeMirrors`), et SEUL l'analyseur le lit.
+{
+  // Une carte d'interface minimale, à l'image de la Grove DMX512 : une entrée
+  // TTL, deux sorties de ligne, et rien qui les relie électriquement.
+  registerCustomPart({
+    type: 'carte-ligne',
+    label: 'Carte de ligne',
+    kind: 'passive',
+    svg: '<svg viewBox="0 0 100 100"></svg>',
+    pins: [
+      { name: 'SIG', x: 10, y: 50 },
+      { name: '+', x: 90, y: 40 },
+      { name: '-', x: 90, y: 60 },
+    ],
+    probeMirrors: { '+': 'SIG', '-': 'SIG' },
+  });
+  const avecCarte = (sondes, fils = []) => ({
+    parts: [
+      { id: 'uno1', type: 'uno', x: 0, y: 0, attrs: {} },
+      { id: 'k1', type: 'carte-ligne', x: 300, y: 0, attrs: {} },
+      ...sondes,
+    ],
+    wires: fils,
+  });
+  // La broche 1 de la carte (TX) pilote l'entrée de la carte de ligne.
+  const filTx = [{ id: 'w1', a: { partId: 'uno1', pin: '1' }, b: { partId: 'k1', pin: 'SIG' }, path: [] }];
+
+  const e = logicProbeVoies(avecCarte([sonde('s1', 0, 'k1/SIG')], filTx));
+  check('reflet : sur l\'ENTRÉE de la carte, la sonde voit la broche qui la pilote',
+    !e[0].probleme && e[0].pin === '1', JSON.stringify(e[0]));
+
+  const plus = logicProbeVoies(avecCarte([sonde('s1', 0, 'k1/+')], filTx));
+  check('reflet : sur la SORTIE « + », la sonde voit le même signal (c\'était le défaut DMX)',
+    !plus[0].probleme && plus[0].pin === '1', JSON.stringify(plus[0]));
+
+  const moins = logicProbeVoies(avecCarte([sonde('s1', 0, 'k1/-')], filTx));
+  check('reflet : et pareil sur la SORTIE « - » de la paire',
+    !moins[0].probleme && moins[0].pin === '1', JSON.stringify(moins[0]));
+
+  // Le reflet ne doit PAS inventer de signal : sans fil à l'entrée, la sortie
+  // reste muette. Sinon une carte posée sur la paillasse mais reliée à rien
+  // montrerait des créneaux venus de nulle part.
+  const nu = logicProbeVoies(avecCarte([sonde('s1', 0, 'k1/+')]));
+  check('reflet : carte non reliée, la sortie reste muette (pas de signal inventé)',
+    nu[0].probleme === 'not-mcu', JSON.stringify(nu[0]));
+
+  // Et le reflet est bien déclaré dans le PAQUET publié, pas seulement dans le
+  // banc : sans cela, rien ne marcherait pour l'élève.
+  const paquet = readFileSync(join(root, 'kablix_components', '_sources.json'), 'utf8');
+  const dmx = JSON.parse(paquet).components.find((c) => c.type === 'dmx-grove');
+  check('reflet : la carte Grove DMX512 publiée déclare ses deux reflets',
+    dmx?.probeMirrors?.['+'] === 'SIG' && dmx?.probeMirrors?.['-'] === 'SIG',
+    JSON.stringify(dmx?.probeMirrors));
+}
+
 {
   // Sans cette ligne, `samplePulses` ne balaierait pas la broche et l'analyseur
   // resterait vide sans rien signaler : c'est LE défaut silencieux de la chaîne.
@@ -265,12 +348,14 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   // porte son numéro, sa broche et son nom —, et c'est d'elle que `restaurer()`
   // dresse les pistes tant que rien d'autre ne l'a fait.
   const src = readFileSync(join(root, 'src', 'webview', 'analyseur.mts'), 'utf8');
-  const bloc = src.slice(src.indexOf('function restaurer'), src.indexOf('function restaurer') + 1400);
+  const bloc = src.slice(src.indexOf('function restaurer'), src.indexOf('function restaurer') + 2200);
   check('réouverture : restaurer() dresse les pistes quand la liste est vide',
     /diagnostics\.length === 0 && etat\.voies\.length > 0/.test(bloc) &&
       /diagnostics = etat\.voies\.map/.test(bloc));
-  check('réouverture : et le sélecteur de déclenchement est regarni avec elles',
-    /remplirVoies\(selDeclVoie/.test(bloc));
+  check('réouverture : et le déclenchement enregistré est rendu à la capture',
+    /capture\.reglerDeclenchement\(etat\.declenchement/.test(bloc));
+  check('réouverture : la fréquence d\'échantillonnage est reprise elle aussi',
+    /echantillonnage = etat\.echantillonnage/.test(bloc));
   // Le message `voies`, quand il arrive, doit reprendre la main sans condition :
   // c'est lui qui porte les DIAGNOSTICS de câblage, que la capture ignore.
   const surVoies = src.slice(src.indexOf("case 'voies'"), src.indexOf("case 'voies'") + 700);
@@ -1164,14 +1249,24 @@ const dhtDe = (tempC, humidity, model) => {
   const page = readFileSync(join(root, 'src', 'analyseur-panel.ts'), 'utf8');
   check('par courbe : le sélecteur de protocole UNIQUE a disparu de la page',
     !/id="proto"/.test(page));
-  check('par courbe : la page porte la zone des décodages et son bouton d\'ajout',
-    /id="decodages"/.test(page) && /id="ajout-decodage"/.test(page));
+  // Déclenchement et décodage sont passés SUR la piste (boutons « T » et « P »
+  // sous le nom de la voie, demande de Frank du 19/09) : plus de ligne de
+  // légende ni de barre de décodage en haut. La barre ne garde que ce qui vaut
+  // pour TOUTE la capture — la fréquence d'échantillonnage et le cadrage.
+  check('par courbe : la barre du haut n\'a plus ni légende ni décodages',
+    !/id="decodages"/.test(page) && !/id="ajout-decodage"/.test(page) &&
+      !/id="legende"/.test(page));
+  check('par courbe : ni sélecteur de déclenchement dans la barre',
+    !/id="decl-voie"/.test(page) && !/id="decl-sens"/.test(page));
+  check('par courbe : mais la barre porte le choix de la fréquence d\'échantillonnage',
+    /id="horloge"/.test(page));
 
   const js = readFileSync(join(root, 'src', 'webview', 'analyseur.mts'), 'utf8');
   check('par courbe : la page décode TOUS les réglages, pas un seul',
     /decoderTous\(/.test(js) && !/\bdecoder\(tranche/.test(js));
-  check('par courbe : la pastille de la légende ouvre les réglages de la voie',
-    /voieReglee/.test(js) && /panneauReglages/.test(js));
+  check('par courbe : les boutons dessinés sur la piste ouvrent les trois menus',
+    /vue\.boutonA\(/.test(js) && /menuVoie\(z\)/.test(js) &&
+      /menuDeclenchement\(z\)/.test(js) && /menuProtocole\(z\)/.test(js));
   check('par courbe : le panneau porte les quatre réglages d\'affichage et de seuils',
     /r\.nom\s*=/.test(js) && /r\.couleur\s*=/.test(js) && /r\.repos\s*=/.test(js) &&
       /r\.masquee\s*=/.test(js) && /r\.bauds\s*=/.test(js) && /r\.tolerance\s*=/.test(js));
@@ -1193,7 +1288,62 @@ const dhtDe = (tempC, humidity, model) => {
     /a\.voie !== undefined \? rang\.get\(a\.voie\)/.test(vue));
   check('par courbe : le suivi du dernier x occupé est PAR piste, plus global',
     /occupe = new Map/.test(vue) && /occupe\.set\(piste/.test(vue));
+
+  check('par courbe : les boutons de voie sont DESSINÉS, pas posés en HTML',
+    /boutonA\(/.test(vue) && /zoneDe\(/.test(vue) && /zones: ZoneBouton\[\]/.test(vue));
 }
+
+// --- Fréquence d'échantillonnage ---------------------------------------------
+//
+// Kablix date ses fronts au CYCLE du processeur : il sait exactement quand
+// chaque broche a basculé, là où un vrai analyseur ne regarde ses entrées qu'à
+// intervalle fixe. Le réglage de la barre du haut reproduit cette limite — deux
+// fronts trop rapprochés se confondent, une impulsion plus brève qu'un
+// échantillon disparaît. C'est ainsi que l'élève découvre pourquoi son
+// analyseur du commerce doit échantillonner bien plus vite que le signal.
+{
+  const c = new AnalyseurCapture();
+  c.declarerVoies([{ voie: 0, pin: 'GP0', nom: 'SIG' }]);
+  // Une impulsion de 100 ns (0,0001 ms) : brève, mais bien réelle.
+  c.verser({ GP0: [1.0, 1, 1.0001, 0, 2.0, 1] });
+
+  check('échantillonnage : illimité, la capture rend TOUS ses fronts',
+    c.fenetre(0, 0, 3).fronts.length === 3,
+    String(c.fenetre(0, 0, 3).fronts.length));
+
+  // 1 MHz = un échantillon par microseconde (0,001 ms). L'impulsion de 100 ns
+  // tombe entre deux tics : l'instrument ne la voit jamais.
+  c.reglerEchantillonnage(1_000_000);
+  const a1 = c.fenetre(0, 0, 3).fronts;
+  check('échantillonnage : à 1 MHz, l\'impulsion de 100 ns disparaît',
+    a1.length === 1 && a1[0].niveau === 1,
+    JSON.stringify(a1));
+
+  // 100 MHz = un échantillon toutes les 10 ns : l'impulsion est dix fois plus
+  // longue qu'un échantillon, l'instrument la voit.
+  c.reglerEchantillonnage(100_000_000);
+  check('échantillonnage : à 100 MHz, la même impulsion est bien vue',
+    c.fenetre(0, 0, 3).fronts.length === 3,
+    String(c.fenetre(0, 0, 3).fronts.length));
+
+  // Le réglage s'applique EN SORTIE : la capture garde tous ses fronts, et
+  // revenir en illimité les retrouve sans rien recapturer.
+  c.reglerEchantillonnage(0);
+  check('échantillonnage : revenir en illimité retrouve les fronts d\'origine',
+    c.fenetre(0, 0, 3).fronts.length === 3);
+
+  // Un front est rendu à l'instant du TIC qui le lit, pas à son instant vrai :
+  // c'est ce décalage qui fait la « gigue » d'un analyseur réel.
+  const d = new AnalyseurCapture();
+  d.declarerVoies([{ voie: 0, pin: 'GP0', nom: 'SIG' }]);
+  d.verser({ GP0: [1.0004, 1] });
+  d.reglerEchantillonnage(1_000_000);
+  const cale = d.fenetre(0, 0, 3).fronts;
+  check('échantillonnage : le front est daté au tic qui le lit, pas avant',
+    cale.length === 1 && Math.abs(cale[0].t - 1.001) < 1e-9,
+    JSON.stringify(cale));
+}
+
 
 // --- La ligne série porte enfin des fronts ------------------------------------
 //

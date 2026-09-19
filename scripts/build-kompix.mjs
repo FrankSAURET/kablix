@@ -271,6 +271,13 @@ async function main() {
       // [V+, GND] à alimenter. Sans ce bloc, Kablix ne saurait pas qu'il faut
       // un rappel au plus pour que le composant marche.
       openDrain: comp.openDrain,
+      // Reflets de sonde : « cette patte porte le meme signal que celle-la ».
+      // Lu par l'ANALYSEUR seul, jamais par la netlist electrique — une carte
+      // d'interface n'est pas un fil (le SP3485 de la carte DMX sort une paire
+      // differentielle a partir d'un signal TTL asymetrique, les relier
+      // court-circuiterait sa sortie sur son entree). Sans ce bloc, une sonde
+      // posee sur la sortie de la carte reste muette.
+      probeMirrors: comp.probeMirrors,
       // Bascules du DESSIN : les pièces qu'un clic déplace (le cavalier de mode
       // d'une carte RFID, la flèche qui pousse le badge dans la boucle). Rien à
       // voir avec la simulation : c'est de la mécanique, décrite une fois ici.

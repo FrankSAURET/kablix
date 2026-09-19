@@ -245,6 +245,60 @@ export class AnalyseurCapture {
     this.inversees = new Set(voies);
   }
 
+  /**
+   * Période d'un échantillon, en MILLISECONDES simulées. 0 = pas de limite.
+   *
+   * Kablix date ses fronts au cycle du processeur : il sait exactement quand
+   * chaque broche a basculé, là où un vrai analyseur ne regarde ses entrées
+   * qu'à intervalle fixe. Ce réglage reproduit cette limite — comme
+   * l'inversion, il s'applique EN SORTIE : la capture garde tous ses fronts, et
+   * revenir en « illimitée » les retrouve sans rien recapturer.
+   */
+  private periode = 0;
+
+  /** Fréquence d'échantillonnage simulée, en hertz ; 0 = illimitée. */
+  reglerEchantillonnage(hz: number): void {
+    this.periode = hz > 0 ? 1000 / hz : 0;
+  }
+
+  /**
+   * Fronts vus par un instrument échantillonnant à la période réglée.
+   *
+   * Un échantillonneur ne rend qu'UN niveau par échantillon : celui qu'il lit
+   * à l'instant du tic. Deux fronts tombés dans le même intervalle se
+   * confondent donc, et une impulsion plus brève qu'un échantillon disparaît
+   * purement et simplement — c'est exactement ce qui arrive quand on sonde un
+   * bus SPI à 1 MHz avec un analyseur à 1 MHz.
+   *
+   * On découpe donc le temps en INTERVALLES d'une période, et on ne rend qu'une
+   * lecture par intervalle : le niveau laissé par le DERNIER front qui y est
+   * tombé, daté au tic de fin. Un front qui ne change rien à cette lecture — une
+   * impulsion montée et redescendue dans le même intervalle — ne ressort pas :
+   * l'instrument ne l'a jamais vue.
+   */
+  private echantillonner(fronts: Front[], entrant: 0 | 1 | null): Front[] {
+    if (this.periode <= 0 || fronts.length === 0) return fronts;
+    const sortie: Front[] = [];
+    let niveau = entrant;
+    let i = 0;
+    while (i < fronts.length) {
+      // Intervalle de ce front, puis le tic qui le termine : c'est à ce moment
+      // que l'instrument lit sa broche.
+      const k = Math.floor(fronts[i]!.t / this.periode);
+      const tic = (k + 1) * this.periode;
+      let dernier = fronts[i]!;
+      while (i < fronts.length && Math.floor(fronts[i]!.t / this.periode) === k) {
+        dernier = fronts[i]!;
+        i++;
+      }
+      if (dernier.niveau !== niveau) {
+        niveau = dernier.niveau;
+        sortie.push({ t: tic, niveau: dernier.niveau });
+      }
+    }
+    return sortie;
+  }
+
   /** Vrai si la voie est lue à l'envers. */
   estInversee(voie: number): boolean {
     return this.inversees.has(voie);
@@ -283,9 +337,17 @@ export class AnalyseurCapture {
   fenetre(voie: number, t0: number, t1: number): { entrant: 0 | 1 | null; fronts: Front[] } {
     const v = this.voies.get(voie);
     if (!v) return { entrant: null, fronts: [] };
-    const fronts = v.fronts.filter((f) => f.t >= t0 && f.t <= t1);
+    const entrant = this.niveauA(voie, t0);
+    // Une marge d'un échantillon à gauche : un front tombé juste avant `t0`
+    // peut être LU après lui (l'instrument le rend à son tic), et sans cette
+    // marge il manquerait au bord gauche de l'écran.
+    const marge = this.periode;
+    const fronts = this.echantillonner(
+      v.fronts.filter((f) => f.t >= t0 - marge && f.t <= t1),
+      this.niveauBrut(voie, t0 - marge)
+    ).filter((f) => f.t >= t0 && f.t <= t1);
     return {
-      entrant: this.niveauA(voie, t0),
+      entrant,
       fronts: this.inversees.has(voie)
         ? fronts.map((f) => ({ t: f.t, niveau: (f.niveau === 1 ? 0 : 1) as 0 | 1 }))
         : fronts,
