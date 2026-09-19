@@ -25,8 +25,8 @@ Voir [kompix_specification.md](../docs/kompix_specification.md) pour les détail
 | [Format .kompix](../docs/kompix_specification.md) | La spécification du paquet : manifeste, SVG, comportement, aide, traductions |
 
 Deux scénarios de bout en bout, dessin compris :
-- [Créer un composant 2D.md](../Créer%20un%20composant%202D.md) — une carte moteur Joy-it SBC-MotorDriver3
-- [Créer un composant 3D.md](../Créer%20un%20composant%203D.md) — un petit véhicule découpé en PMMA
+- [Créer un composant 2D.md](../Créer%20un%20composant%202D.md) — une carte moteur Joy-it SBC-MotoDriver3 (I²C, 4 moteurs)
+- [Créer un composant 3D.md](../Créer%20un%20composant%203D.md) — un petit véhicule découpé en PMMA (Pico, carte moteur, 4 roues)
 
 ## Composants disponibles
 
@@ -38,8 +38,8 @@ Composants de cette bibliothèque, à installer depuis Kablix (**⚙ Gérer les 
 | | Type | Label | Version | Catégorie | Description |
 |---|------|-------|---------|-----------|-------------|
 | <img src="thumbnails/dmx-grove.webp" alt="Grove DMX512" width="64"> | `dmx-grove` | Grove DMX512 | 2026.8.1 | Misc | Grove DMX512 shield (SP3485 line driver): turns the board UART into a DMX512 output on a 3-pin XLR socket. |
-| <img src="thumbnails/ds18b20.webp" alt="Temperature sensor DS18B20 (TO-92)" width="64"> | `ds18b20` | Temperature sensor DS18B20 (TO-92) **(expérimental)** | 2026.9.0 | Sensors | Dallas DS18B20 digital temperature sensor (-55 to +125 °C, ±0.5 °C): it talks over a single data wire… |
-| <img src="thumbnails/ds18b20-etanche.webp" alt="Temperature sensor DS18B20 (waterproof probe)" width="64"> | `ds18b20-etanche` | Temperature sensor DS18B20 (waterproof probe) **(expérimental)** | 2026.9.0 | Sensors | Dallas DS18B20 digital temperature sensor (-55 to +125 °C, ±0.5 °C): it talks over a single data wire… |
+| <img src="thumbnails/ds18b20.webp" alt="Temperature sensor DS18B20 (TO-92)" width="64"> | `ds18b20` | Temperature sensor DS18B20 (TO-92) | 2026.9.1 | Sensors | Dallas DS18B20 digital temperature sensor (-55 to +125 °C, ±0.5 °C): it talks over a single data wire… |
+| <img src="thumbnails/ds18b20-etanche.webp" alt="Temperature sensor DS18B20 (waterproof probe)" width="64"> | `ds18b20-etanche` | Temperature sensor DS18B20 (waterproof probe) | 2026.9.1 | Sensors | Dallas DS18B20 digital temperature sensor (-55 to +125 °C, ±0.5 °C): it talks over a single data wire… |
 | <img src="thumbnails/grove-light-sensor.webp" alt="Grove light sensor" width="64"> | `grove-light-sensor` | Grove light sensor | 2026.9.1 | Sensors | Grove ambient light sensor (LS06-S phototransistor): the analog output rises with the light falling on it. In… |
 | <img src="thumbnails/grove-rfid.webp" alt="Grove 125 kHz RFID reader" width="64"> | `grove-rfid` | Grove 125 kHz RFID reader | 2026.9.1 | Sensors | Grove 125 kHz RFID reader (EM4100 tags): while a tag sits in the antenna loop the module keeps sending its… |
 | <img src="thumbnails/grove-uno.webp" alt="Grove Shield (Uno)" width="64"> | `grove-uno` | Grove Shield (Uno) | 2026.9.1 | Boards | Grove Base Shield V2 for Arduino Uno: 16 Grove sockets (4 analog, 7 digital, 4 I2C, 1 UART) wired to the… |
@@ -152,6 +152,32 @@ Pour proposer un composant :
 3. Exporter en **⇩** (fichier .kompix)
 4. Proposer une pull request sur le dépôt
 
+## Pourquoi cette bibliothèque reste dans le dépôt de Kablix
+
+La question se pose : un dépôt séparé ne serait-il pas plus propre ? **Non, pas
+au volume actuel.**
+
+Ce dossier **n'est pas livré dans l'extension** (il est écarté par
+`.vscodeignore`) : il est servi directement depuis GitHub, en `raw`, et
+l'extension le télécharge à la demande. Il ne pèse donc rien pour l'utilisateur,
+et ses 9 composants tiennent dans quelques centaines de kilo-octets.
+
+| Ce qu'un dépôt dédié apporterait | Ce qu'il coûterait |
+|---|---|
+| Un historique séparé de celui du code | Deux dépôts à cloner, deux à étiqueter, deux à garder en phase |
+| Des contributions externes sans accès au code | L'URL du dépôt officiel est **écrite dans le code** (`kompixLibrary.ts`) : la changer casse toutes les installations en place |
+| Un cycle de publication propre aux composants | Les scripts de construction (`build-kompix.mjs`, `build-components-index.mjs`) et les bancs (`verify:kompix`) vivent dans le dépôt du code |
+| | Un composant et le code qui le simule se modifient **ensemble** : séparés, un enregistrement sur deux devient une paire d'enregistrements à synchroniser |
+
+Le point décisif est le dernier : tant qu'un composant de bibliothèque peut
+dépendre d'une version de l'extension, les deux doivent avancer dans le même
+enregistrement.
+
+**Quand reconsidérer :** si la bibliothèque dépasse quelques dizaines de
+mégaoctets, si des contributeurs extérieurs deviennent réguliers, ou si les
+composants cessent d'être couplés aux versions de l'extension. D'ici là, le
+dossier reste ici.
+
 ---
 
-Généré le 19/09/2026 11:41:43 — Kablix v2026.9.4
+Généré le 19/09/2026 16:49:51 — Kablix v2026.9.4

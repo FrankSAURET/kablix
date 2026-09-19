@@ -2,8 +2,6 @@
 
 *[English version](README.en.md)*
 
-> Extension en cours de developpement. Et si vous trouvez que j'écris comme une IA c'est surement parce qu'il y a du vrai.
-
 > Attention Nouveauté : Les nouveaux composants sont téléchargeables via le bouton « gérer  les composants ».
 
 # Kablix

@@ -478,10 +478,9 @@
     {
       "group": "DSB1820-CI",
       "type": "ds18b20",
-      "experimental": true,
       "label": "Temperature sensor DS18B20 (TO-92)",
       "description": "Dallas DS18B20 digital temperature sensor (-55 to +125 °C, ±0.5 °C): it talks over a single data wire (1-Wire), so several sensors can share the same pin — each one carries its own factory address. A 4.7 kΩ pull-up between Data and VDD is required. This is the bare TO-92 package, for a board or a breadboard.",
-      "version": "2026.9.0",
+      "version": "2026.9.1",
       "author": "Frank Sauret",
       "reference": "https://www.analog.com/en/products/ds18b20.html",
       "kind": "onewire-temp",
@@ -489,7 +488,7 @@
       "pinRoles": { "GND": "Gnd", "Data": "Data", "VDD": "Vcc" },
       "control": {
         "type": "slider",
-        "label": "Temperature",
+        "label": "T°",
         "unit": "°C",
         "min": -55,
         "max": 125,
@@ -499,17 +498,16 @@
         "fr": {
           "label": "Capteur de température DS18B20 (TO-92)",
           "description": "Capteur de température numérique Dallas DS18B20 (−55 à +125 °C, ±0,5 °C) : il dialogue sur un seul fil de données (1-Wire), si bien que plusieurs capteurs peuvent partager la même broche — chacun porte son adresse d'usine. Une résistance de tirage de 4,7 kΩ entre Data et VDD est obligatoire. Version boîtier TO-92 nu, pour carte ou platine d'essais.",
-          "control": { "label": "Température" }
+          "control": { "label": "T°" }
         }
       }
     },
     {
       "group": "DSB1820-Etanche",
       "type": "ds18b20-etanche",
-      "experimental": true,
       "label": "Temperature sensor DS18B20 (waterproof probe)",
       "description": "Dallas DS18B20 digital temperature sensor (-55 to +125 °C, ±0.5 °C): it talks over a single data wire (1-Wire), so several sensors can share the same pin — each one carries its own factory address. A 4.7 kΩ pull-up between Data and VDD is required. This is the stainless-steel probe on a lead, for liquids and outdoor use.",
-      "version": "2026.9.0",
+      "version": "2026.9.1",
       "author": "Frank Sauret",
       "reference": "https://www.analog.com/en/products/ds18b20.html",
       "kind": "onewire-temp",
@@ -517,7 +515,7 @@
       "pinRoles": { "GND": "Gnd", "Data": "Data", "VDD": "Vcc" },
       "control": {
         "type": "slider",
-        "label": "Temperature",
+        "label": "T°",
         "unit": "°C",
         "min": -55,
         "max": 125,
@@ -527,7 +525,7 @@
         "fr": {
           "label": "Capteur de température DS18B20 (sonde étanche)",
           "description": "Capteur de température numérique Dallas DS18B20 (−55 à +125 °C, ±0,5 °C) : il dialogue sur un seul fil de données (1-Wire), si bien que plusieurs capteurs peuvent partager la même broche — chacun porte son adresse d'usine. Une résistance de tirage de 4,7 kΩ entre Data et VDD est obligatoire. Version sonde inox au bout d'un câble, pour les liquides et l'extérieur.",
-          "control": { "label": "Température" }
+          "control": { "label": "T°" }
         }
       }
     }

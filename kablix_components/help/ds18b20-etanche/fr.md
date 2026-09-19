@@ -59,9 +59,14 @@ peuvent même partager le même fil, chacune avec son adresse.
 
 ## Simulation
 
-En simulation, le composant affiche un curseur **Température**, de −55 à
-+125 °C. Ce que vous y réglez est ce que le programme lit — le capteur répond
-pour de bon au protocole 1-Wire, adresse comprise.
+En simulation, le composant affiche un curseur **T°**, de −55 à +125 °C. Ce que
+vous y réglez est ce que le programme lit — le capteur répond pour de bon au
+protocole 1-Wire, adresse comprise.
+
+À **−55 °C pile**, un programme Arduino qui utilise **DallasTemperature**
+affiche « lecture ratée » : cette bibliothèque se sert de cette valeur comme
+sentinelle pour dire « capteur absent ». Le détail est expliqué dans la
+[fiche du DS18B20](../ds18b20/fr.md).
 
 ---
 

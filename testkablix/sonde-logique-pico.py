@@ -6,8 +6,8 @@
 # s'ouvre tout seul parce qu'il y a au moins une pince sur la planche.
 #   SD1 (GP14) : cas normal, nommee « horloge » ;
 #   SD2 (GP15) : voie suivante, sans etiquette (elle s'appellera « GP15 ») ;
-#   SD3 (GND)  : broche d'alimentation, l'analyseur explique qu'il n'y a
-#                aucun front a montrer ;
+#   SD3 (GP17) : broche que le programme ne pilote pas — la voie est tracee
+#                mais reste plate, l'analyseur dit « aucun front capture » ;
 #   SD4 (GP26) : entree ADC0, lisible en numerique — tracee, mais signalee :
 #                on ne verra que 0 ou 1, pas la tension.
 from machine import Pin

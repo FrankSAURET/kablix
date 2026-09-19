@@ -128,8 +128,19 @@ export class BreadboardElement extends HTMLElement {
     }
 
     // Rigole centrale entre les rangées e et f.
-    const channelY = aPin.y + 4 * BB_STEP + 3;
-    const channelH = fPin.y - 3 - channelY;
+    //
+    // Elle est CENTRÉE dans l'espace e→f et ne fait qu'une fraction de sa
+    // largeur : sur une vraie platine, la gorge est étroite — un peu plus large
+    // que le boîtier d'un circuit intégré qui vient s'y asseoir à cheval — et
+    // non un large couloir. Elle occupait ici presque tout l'espace (24 px sur
+    // 30), ce que Frank a relevé le 19/09 : « les trous sont bons et ne doivent
+    // pas bouger, mais la rainure est plus étroite ».
+    //
+    // Les TROUS ne bougent pas d'un pixel : `breadboardPins` seul les place, et
+    // rien ici ne le touche. Seul le rectangle de fond change de hauteur.
+    const entreRangees = fPin.y - (aPin.y + 4 * BB_STEP); // l'espace e → f
+    const channelH = Math.round(entreRangees / 3);
+    const channelY = aPin.y + 4 * BB_STEP + (entreRangees - channelH) / 2;
 
     this.root.innerHTML = `
 <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">

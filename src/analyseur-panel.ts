@@ -13,6 +13,39 @@ import { randomBytes } from 'node:crypto';
 // nom pour un projet jamais enregistré) : deux projets ouverts côte à côte ont
 // chacun son analyseur, sinon les voies de l'un écraseraient celles de l'autre.
 
+/**
+ * Plafond de la file d'attente d'un onglet pas encore prêt.
+ *
+ * À 60 images de simulation par seconde, c'est un peu plus de trois secondes de
+ * salves — largement le temps qu'une webview se charge, mais pas l'infini si
+ * elle ne se charge jamais.
+ */
+export const ATTENTE_MAX = 200;
+
+/**
+ * Range un message dans la file d'un onglet pas encore prêt, en évinçant si
+ * besoin. **N'ÉVINCE QUE DES SALVES DE FRONTS.**
+ *
+ * LE DÉFAUT DU 19/09. La file jetait le plus ancien message quel qu'il soit. Or
+ * les premiers arrivés sont `voies`, `depart` et `restaure` — les seuls qui ne
+ * se rattrapent pas. Sans `voies`, la page ignore à quelle piste rattacher une
+ * broche, et `capture.verser()` jette TOUTES les salves suivantes en silence :
+ * l'onglet reste vide pour toujours, sans la moindre erreur. Perdre de vieux
+ * fronts ne coûte que le début de la mesure ; perdre `voies` coûte tout.
+ *
+ * Fonction PURE et exportée pour être éprouvée hors de VS Code (le module
+ * importe `vscode`, qui n'existe pas dans un banc Node).
+ */
+export function rangerEnAttente<T extends { type: string }>(file: T[], msg: T): T[] {
+  if (file.length >= ATTENTE_MAX) {
+    const i = file.findIndex((m) => m.type === 'fronts');
+    if (i >= 0) file.splice(i, 1);
+    else file.shift();
+  }
+  file.push(msg);
+  return file;
+}
+
 /** Message que l'onglet envoie à l'hôte. */
 export type AnalyseurVersHote =
   /** La page est prête : l'hôte lui renvoie l'état courant. */
@@ -171,10 +204,9 @@ export class AnalyseurPanel {
    */
   public envoyer(msg: HoteVersAnalyseur): void {
     if (!this.prete) {
-      // On ne garde qu'une quantité bornée : si la page ne se charge jamais, il
-      // ne faut pas que les salves fassent gonfler la mémoire de l'extension.
-      if (this.enAttente.length > 200) this.enAttente.shift();
-      this.enAttente.push(msg);
+      // File bornée (si la page ne se charge jamais, la mémoire ne doit pas
+      // gonfler), mais l'éviction ne touche QUE des salves : cf. rangerEnAttente.
+      rangerEnAttente(this.enAttente, msg);
       return;
     }
     void this.panel.webview.postMessage(msg);

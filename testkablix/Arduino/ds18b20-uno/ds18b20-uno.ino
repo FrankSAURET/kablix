@@ -4,6 +4,7 @@
 // Résistance de 4,7 kohms entre la ligne Data et 5 V : obligatoire.
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <Firmata.h>
 
 OneWire fil(2);
 DallasTemperature capteurs(&fil);

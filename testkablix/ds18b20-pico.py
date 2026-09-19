@@ -14,6 +14,6 @@ print("capteurs trouves :", len(adresses))
 while True:
     capteurs.convert_temp()
     time.sleep(0.75)   # 750 ms de conversion en 12 bits
-    for adresse in adresses:
-        print("T =", capteurs.read_temp(adresse), "C")
+    for numero, adresse in enumerate(adresses):
+        print("T{} =".format(numero), capteurs.read_temp(adresse), "C")
     time.sleep(0.25)

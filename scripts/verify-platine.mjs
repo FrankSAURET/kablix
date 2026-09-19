@@ -29,7 +29,7 @@
 // les équipotentielles.
 //
 // Usage : node scripts/verify-platine.mjs
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build as esbuild } from 'esbuild';
@@ -212,6 +212,52 @@ ok('la mini n\'a pas de rail d\'alimentation',
 ok('la half et la full ont leurs 4 rails',
 	['half', 'full'].every((t) =>
 		bb.breadboardStrips(t).filter((s) => /^[tb][pn]\./.test(s[0])).length === 4));
+
+// --- 6. La RIGOLE est étroite, et les trous n'ont pas bougé ------------------
+// Frank, 19/09 : « tous les trous sont OK et ne doivent pas bouger, mais la
+// rainure est plus étroite ». Le rectangle de fond couvrait presque tout
+// l'espace e→f (24 px sur 30) : sur une vraie platine, la gorge est étroite,
+// un peu plus large que le boîtier qui vient s'y asseoir à cheval.
+//
+// LES TROUS D'ABORD. Ils sont la contrainte dure, et ils se mesurent pour de
+// bon — c'est `breadboardPins` qui les place, la même fonction dont se sert
+// l'élément visuel. Un rétrécissement de la rigole qui les aurait déplacés
+// serait pire que le défaut qu'il corrige.
+for (const taille of ['mini', 'half', 'full']) {
+	const trous = bb.breadboardPins(taille);
+	const e = trous.filter((p) => /^e\d/.test(p.name)).map((p) => p.y);
+	const f = trous.filter((p) => /^f\d/.test(p.name)).map((p) => p.y);
+	ok(`${taille} : la rangée e est sur une seule ligne`, new Set(e).size === 1);
+	ok(`${taille} : la rangée f est sur une seule ligne`, new Set(f).size === 1);
+	ok(`${taille} : l'écart e→f vaut toujours 3 pas (les trous n'ont pas bougé)`,
+		f[0] - e[0] === 30, `${f[0] - e[0]} px`);
+	// Les trous d'une même rangée sont espacés d'un pas rond : c'est ce pas qui
+	// rend un composant posable dessus. (Les coordonnées sont LOCALES à la
+	// platine, leur origine n'a pas à tomber sur un croisement — c'est la pose
+	// du composant entier qui aligne l'ensemble.)
+	const ligneE = trous.filter((p) => /^e\d/.test(p.name)).map((p) => p.x).sort((a, b) => a - b);
+	ok(`${taille} : les trous d'une rangée gardent leur pas de 10 px`,
+		ligneE.every((x, i) => i === 0 || x - ligneE[i - 1] === 10));
+}
+// LA RIGOLE ENSUITE. Elle se dessine dans l'élément visuel, qui a besoin d'un
+// DOM : on relit donc le calcul à la source, comme pour les autres géométries
+// qu'aucun banc de navigateur ne couvre. Ce qui compte est la PROPORTION —
+// une rigole qui reprendrait toute la place entre e et f serait le défaut de
+// retour.
+const src = readFileSync(join(ROOT, 'src', 'webview', 'composants', 'breadboard.mts'), 'utf8');
+const bloc = src.match(/const entreRangees[\s\S]*?const channelY[^\n]*/);
+ok('la rigole est calculée à partir de l\'espace e→f mesuré', !!bloc,
+	'bloc de calcul introuvable — banc à réaccorder');
+if (bloc) {
+	ok('la rigole ne prend qu\'une FRACTION de cet espace (elle est étroite)',
+		/entreRangees\s*\/\s*[3-9]/.test(bloc[0]), bloc[0].slice(0, 120));
+	ok('elle est CENTRÉE entre les deux rangées',
+		/\(entreRangees - channelH\)\s*\/\s*2/.test(bloc[0]));
+	// Les trous se placent ailleurs : le bloc de la rigole ne doit toucher à
+	// rien de ce qui les positionne.
+	ok('le calcul de la rigole ne déplace aucun trou',
+		!/pin\.(x|y)\s*=|holes\s*=/.test(bloc[0]));
+}
 
 const rates = checks.filter((c) => !c.ok);
 console.log(rates.length === 0

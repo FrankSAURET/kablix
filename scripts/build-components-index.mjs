@@ -208,8 +208,8 @@ Voir [kompix_specification.md](../docs/kompix_specification.md) pour les détail
 | [Format .kompix](../docs/kompix_specification.md) | La spécification du paquet : manifeste, SVG, comportement, aide, traductions |
 
 Deux scénarios de bout en bout, dessin compris :
-- [Créer un composant 2D.md](../Créer%20un%20composant%202D.md) — une carte moteur Joy-it SBC-MotorDriver3
-- [Créer un composant 3D.md](../Créer%20un%20composant%203D.md) — un petit véhicule découpé en PMMA
+- [Créer un composant 2D.md](../Créer%20un%20composant%202D.md) — une carte moteur Joy-it SBC-MotoDriver3 (I²C, 4 moteurs)
+- [Créer un composant 3D.md](../Créer%20un%20composant%203D.md) — un petit véhicule découpé en PMMA (Pico, carte moteur, 4 roues)
 
 ## Composants disponibles
 
@@ -276,6 +276,32 @@ Pour proposer un composant :
 2. Concevoir le composant avec Kablix (bouton **+ Créer un composant**)
 3. Exporter en **⇩** (fichier .kompix)
 4. Proposer une pull request sur le dépôt
+
+## Pourquoi cette bibliothèque reste dans le dépôt de Kablix
+
+La question se pose : un dépôt séparé ne serait-il pas plus propre ? **Non, pas
+au volume actuel.**
+
+Ce dossier **n'est pas livré dans l'extension** (il est écarté par
+\`.vscodeignore\`) : il est servi directement depuis GitHub, en \`raw\`, et
+l'extension le télécharge à la demande. Il ne pèse donc rien pour l'utilisateur,
+et ses ${entries.length} composants tiennent dans quelques centaines de kilo-octets.
+
+| Ce qu'un dépôt dédié apporterait | Ce qu'il coûterait |
+|---|---|
+| Un historique séparé de celui du code | Deux dépôts à cloner, deux à étiqueter, deux à garder en phase |
+| Des contributions externes sans accès au code | L'URL du dépôt officiel est **écrite dans le code** (\`kompixLibrary.ts\`) : la changer casse toutes les installations en place |
+| Un cycle de publication propre aux composants | Les scripts de construction (\`build-kompix.mjs\`, \`build-components-index.mjs\`) et les bancs (\`verify:kompix\`) vivent dans le dépôt du code |
+| | Un composant et le code qui le simule se modifient **ensemble** : séparés, un enregistrement sur deux devient une paire d'enregistrements à synchroniser |
+
+Le point décisif est le dernier : tant qu'un composant de bibliothèque peut
+dépendre d'une version de l'extension, les deux doivent avancer dans le même
+enregistrement.
+
+**Quand reconsidérer :** si la bibliothèque dépasse quelques dizaines de
+mégaoctets, si des contributeurs extérieurs deviennent réguliers, ou si les
+composants cessent d'être couplés aux versions de l'extension. D'ici là, le
+dossier reste ici.
 
 ---
 

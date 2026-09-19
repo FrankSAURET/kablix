@@ -1719,7 +1719,14 @@ function pousserVoiesLogiques(): void {
  */
 function colorerSondesReliees(): void {
   for (const v of logicProbes) {
-    const el = document.getElementById(v.partId)?.querySelector('kablix-sonde-logique');
+    // `editor.elementOf`, et SURTOUT PAS `document.getElementById(partId)` : le
+    // conteneur d'un composant ne porte QUE la classe `.part`, jamais son
+    // identifiant de schéma (cf. editor.mts, création du conteneur). La
+    // recherche par id rendait donc `null` à tous les coups, et cette fonction
+    // ne colorait JAMAIS rien — c'est le « elle ne change pas de couleur même
+    // reliée » de Frank (19/09), qui a survécu à deux lots parce que le défaut
+    // est muet : aucune erreur, juste une boucle qui ne fait rien.
+    const el = editor.elementOf(v.partId);
     if (!el) continue;
     const parFil = !!v.pin && !v.accroche;
     if (parFil) el.setAttribute('relie', '1');

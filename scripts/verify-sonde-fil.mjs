@@ -163,6 +163,40 @@ async function run() {
 	ok('un fil entre deux AUTRES composants ne colore aucune pince',
 		!(voieSeule2 || '').trim(), 'voie=' + JSON.stringify(voieSeule2));
 
+	// --- 7. COMMENT ON ATTEINT LA PINCE DEPUIS LA SIMULATION ------------------
+	// LE DÉFAUT DE 19/09. colorerSondesReliees() (sim.mts) allait chercher sa
+	// pince par document.getElementById(partId) — or le conteneur d un composant
+	// ne porte QUE la classe .part, JAMAIS son identifiant de schéma. La
+	// recherche rendait donc null a tous les coups et la fonction ne colorait
+	// rien du tout : « elle ne change pas de couleur même reliée », deux lots
+	// durant, sans la moindre erreur pour le signaler.
+	//
+	// Les controles 1 a 6 ci-dessus ne pouvaient pas le voir : ils posent
+	// l attribut relie A LA MAIN sur l element deja en main. Ils prouvent le
+	// DESSIN de la pince, pas le CHEMIN qui y mene. On ferme ce trou ici.
+	const sonde7 = editor.addPart('sonde-logique', 700, 300);
+	await wait(120);
+	ok('editor.elementOf(id) atteint bien la pince (chemin retenu)',
+		!!editor.elementOf(sonde7.id), 'elementOf=' + typeof editor.elementOf(sonde7.id));
+	ok('document.getElementById(id) ne la trouve PAS (chemin abandonne)',
+		document.getElementById(sonde7.id) === null,
+		'getElementById=' + String(document.getElementById(sonde7.id)));
+	// Et c est bien l element de la pince, pas son conteneur : c est lui qui
+	// porte les attributs voie/relie que la simulation ecrit.
+	const el7 = editor.elementOf(sonde7.id);
+	ok('elementOf rend la balise kablix-sonde-logique elle-meme',
+		!!el7 && String(el7.tagName).toLowerCase() === 'kablix-sonde-logique',
+		'tag=' + (el7 && el7.tagName));
+	// Contre-epreuve du chemin complet : l attribut pose par ce chemin change
+	// vraiment la teinte rendue. Sans elle, on prouverait qu on ATTEINT la
+	// pince sans prouver qu on la COLORE.
+	el7.setAttribute('voie', '4');
+	el7.setAttribute('relie', '1');
+	await wait(60);
+	const teinte7 = el7.couleur;
+	ok('la pince atteinte par ce chemin prend une VRAIE couleur (plus grise)',
+		!!teinte7 && teinte7.toLowerCase() !== '#9e9e9e', 'couleur=' + teinte7);
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);
@@ -207,6 +241,38 @@ const dom = execFileSync(chrome, [
 const m = dom.match(/<pre id="measures"[^>]*>([\s\S]*?)<\/pre>/);
 if (!m) { console.log('❌ mesures introuvables — la page n\'a pas fini son script.'); console.log(dom.slice(0, 1500)); process.exit(1); }
 const rows = JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>'));
+
+// --- CONTRÔLE DE SOURCE : par où la simulation atteint la pince ------------
+// Les contrôles de la page prouvent que `editor.elementOf(id)` mène à la pince
+// et que `document.getElementById(id)` n'y mène pas. Reste à prouver que
+// `colorerSondesReliees()` emprunte bien le bon chemin — elle vit dans
+// `sim.mts`, que ce banc ne charge pas (sim.mts veut l'API VS Code).
+//
+// C'est donc le SOURCE qu'on relit. Défaut du 19/09 : la fonction allait
+// chercher sa pince par `document.getElementById(v.partId)`, qui rend `null`
+// à tous les coups puisque le conteneur d'un composant ne porte que la classe
+// `.part`. La boucle ne colorait donc jamais rien, sans la moindre erreur —
+// « elle ne change pas de couleur même reliée », deux lots durant.
+const sim = readFileSync(join(ROOT, 'src', 'webview', 'sim.mts'), 'utf8');
+const corps = sim.match(/function colorerSondesReliees\(\)[\s\S]*?\n\}/);
+rows.push({
+	name: 'colorerSondesReliees() existe toujours dans sim.mts',
+	ok: !!corps, detail: 'fonction introuvable — banc à réaccorder',
+});
+if (corps) {
+	// On retire les commentaires : ils CITENT le motif fautif pour l'expliquer.
+	const code = corps[0].replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+	rows.push({
+		name: 'elle atteint la pince par editor.elementOf (chemin qui marche)',
+		ok: /editor\.elementOf\(/.test(code), detail: 'appel absent du corps de la fonction',
+	});
+	rows.push({
+		name: 'elle n\'utilise PLUS getElementById (chemin mort du 19/09)',
+		ok: !/getElementById\(/.test(code),
+		detail: 'getElementById de retour : la fonction ne colorera plus rien',
+	});
+}
+
 let fail = 0;
 for (const r of rows) {
 	if (!r.ok) fail++;

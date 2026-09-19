@@ -52,6 +52,34 @@ L'onglet montre une **piste par voie**, dans la couleur de sa pince, avec une r�
 
 Hors simulation, l'onglet montre la **dernière capture** enregistrée dans le `.projix`, pas du vide.
 
+### Première fois : le tour complet en cinq minutes
+
+Le plus simple est de partir d'un montage déjà prêt. Ouvrez **`testkablix/sonde-logique-pico.projix`** : quatre pinces y sont posées sur un Pico, et le programme fait battre deux broches. Rien à câbler, rien à écrire.
+
+**Ce qu'il y a sur la planche.** Quatre pinces, chacune d'une couleur, posées sur quatre broches différentes — et une LED sur `GP15`, qui donne un repère visible à l'œil nu pendant que l'analyseur, lui, mesure.
+
+| Pince | Broche | Ce qu'elle va montrer |
+|-------|--------|------------------------|
+| **SD1** | `GP14` | Un créneau rapide, 200 µs de haut, 200 µs de bas. Elle est nommée **horloge** : c'est ce nom qui s'affichera, pas `GP14`. |
+| **SD2** | `GP15` | Le même créneau **deux fois plus lent** — le programme ne la fait basculer qu'un tour sur deux. Sans étiquette : elle s'appellera `GP15`. |
+| **SD3** | `GP17` | Rien. La broche existe mais le programme ne la pilote pas : la piste est tracée et reste **plate**. C'est le cas normal d'une pince posée au mauvais endroit. |
+| **SD4** | `GP26` | L'entrée analogique `ADC0`. Elle est tracée, mais la légende **prévient** : d'une tension continue on ne verra jamais que 0 ou 1. |
+
+**Le parcours.**
+
+1. **Lancez la simulation** (le bouton ▶ de l'atelier). Vous n'avez rien à cliquer pour l'analyseur : l'onglet **« Analyseur logique »** s'ouvre tout seul parce qu'il y a des pinces sur la planche.
+2. **Cliquez sur son titre** pour le mettre devant. Il naît derrière l'atelier exprès, pour ne pas vous voler le clavier pendant que la simulation démarre.
+3. **Posez-le à côté du schéma** : tirez l'onglet vers la droite de la fenêtre. On voit alors la planche et les créneaux en même temps, et c'est là que l'instrument devient utile — la pince bleue sur le dessin est la piste bleue à l'écran.
+4. **Lisez la légende**, sous la barre d'outils : quatre pastilles de couleur, **horloge**, `GP15`, `GP17`, `GP26`. C'est la carte de correspondance entre la planche et l'écran.
+5. **Regardez les deux premières pistes.** `horloge` bat régulièrement ; `GP15` fait des créneaux deux fois plus longs. Placez-les côte à côte du regard : un front de `GP15` sur deux coïncide avec un front d'`horloge`. C'est exactement ce que dit le programme.
+6. **Zoomez à la molette**, en plaçant la souris sur un créneau. Le zoom se fait **autour du point pointé** : vous restez sur ce qui vous intéresse. Descendez jusqu'à lire les 200 µs sur la règle du haut.
+7. **Survolez une piste.** Un réticule suit la souris et affiche, à gauche, l'instant exact et le niveau (0 ou 1) de **chaque** voie à cet instant. C'est ainsi qu'on lit un décalage entre deux signaux.
+8. **Cliquez sur « Ajuster »** pour revoir toute la capture d'un coup, puis sur **« Suivre »** pour recoller la vue à la fin — l'instrument redevient un moniteur en direct.
+
+**Ce qu'il faut avoir compris en sortant.** La pince ne se câble pas, elle se **pose**. La couleur de la pince sur la planche **est** la couleur de sa piste. Une voie qui ne montre rien n'est pas une panne : l'analyseur **dit toujours pourquoi**, et `GP17` en est la démonstration, sur le même écran que les deux voies qui marchent.
+
+**Pour aller plus loin, sur ce même montage.** Réglez le **Déclenchement** sur `horloge`, front montant : la règle se recale sur ce front et les deux créneaux cessent de glisser. Puis changez l'**étiquette** de SD2 dans les propriétés (sélectionnez la pince, tapez `lente`) : le nom change aussitôt dans la légende, sans relancer quoi que ce soit.
+
 ### L'onglet reste gris : le pas à pas
 
 Six étapes, dans l'ordre. Chacune dit **ce qu'il faut voir** : la première qui ne donne pas le résultat annoncé désigne la cause.
@@ -64,6 +92,8 @@ Six étapes, dans l'ordre. Chacune dit **ce qu'il faut voir** : la première qui
 6. **Un message au milieu de la piste ?** Il y en a trois, et chacun se lit au pied de la lettre : « aucune sonde » (rien n'est posé), « aucun front capturé » (la broche est immobile), « en attente du déclenchement » (le front choisi au **Déclenchement** n'est jamais venu — changez de sens, ou retirez le déclenchement).
 
 Si les six étapes passent et que l'image reste grise, c'est un défaut : **fermez l'onglet et relancez la simulation**, la capture repart de zéro.
+
+> Sur une machine lente, un onglet mettant plus de trois secondes à s'ouvrir pouvait rester **vide pour toute la durée du run** : les voies se perdaient dans la file d'attente et l'analyseur ne savait plus à quelle piste rattacher ce qu'il recevait. Corrigé — si vous retrouvez ce comportement, il est utile de le signaler.
 
 ## Le déclenchement
 

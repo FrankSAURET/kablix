@@ -6023,9 +6023,9 @@ while True:
       // dans le .projix, pas choisies ici. Les décimales de U1 et R1 sont la
       // trace du glissé — les arrondir DÉPLACERAIT la planche, ce que la règle
       // « un schéma retouché garde ses emplacements » interdit.
-      MCU('pico', 36.749985493315556, 53.60937975189704),
-      { id: 'R1', type: 'resistor', x: 169.84378378614903, y: 160, rotation: 180, attrs: { value: '1000' } },
-      { id: 'L1', type: 'led', x: 50, y: 130, attrs: { color: 'red' } },
+      MCU('pico', 66.76560963764571, 143.60938023279223),
+      { id: 'R1', type: 'resistor', x: 199.85932787862689, y: 250, rotation: 180, attrs: { value: '1000' } },
+      { id: 'L1', type: 'led', x: 80, y: 220, attrs: { color: 'red' } },
       // Positions MESURÉES (node scripts/_diag-cale-sondes.mjs), pas écrites à
       // la main : la pastille de chaque pince tombe à 0,02 px de la sienne. Les
       // valeurs d'origine la posaient jusqu'à 171 px à côté — le modèle résolvait
@@ -6035,10 +6035,17 @@ while True:
       // Les rotations sont là pour la même raison : quatre pinces de 80 px sur
       // des broches espacées de 10 px se recouvrent forcément ; en éventail,
       // chacune reste identifiable.
-      { id: 'SD1', type: 'sonde-logique', x: 160, y: 120, rotation: 180, attrs: { voie: '0', accroche: 'U1/GP14', etiquette: 'horloge' } },
-      { id: 'SD2', type: 'sonde-logique', x: 170, y: 60, rotation: 270, attrs: { voie: '1', accroche: 'U1/GP15' } },
-      { id: 'SD3', type: 'sonde-logique', x: 210, y: 50, rotation: 90, attrs: { voie: '2', accroche: 'U1/GND.4' } },
-      { id: 'SD4', type: 'sonde-logique', x: 130, y: 50, rotation: 90, attrs: { voie: '3', accroche: 'U1/GP26' } },
+      //
+      // REPRIS DU .projix (19/09). Frank a retouché la planche à la souris après
+      // la dernière génération : SD2/SD3/SD4 ont bougé et SD3 est passée de
+      // `GND.4` à `GP17`. La spec est réalignée sur SA planche, sinon la
+      // prochaine régénération défoncerait sa retouche — et la voie SD3 ne
+      // montre plus « broche d'alimentation » mais une broche que le programme
+      // ne pilote pas : piste tracée, et plate.
+      { id: 'SD1', type: 'sonde-logique', x: 190, y: 210, rotation: 180, attrs: { voie: '0', accroche: 'U1/GP14', etiquette: 'horloge' } },
+      { id: 'SD2', type: 'sonde-logique', x: 260, y: 150, rotation: 270, flipH: true, flipV: false, attrs: { voie: '1', accroche: 'U1/GP15' } },
+      { id: 'SD3', type: 'sonde-logique', x: 250, y: 80, rotation: 90, flipV: true, attrs: { voie: '2', accroche: 'U1/GP17' } },
+      { id: 'SD4', type: 'sonde-logique', x: 160, y: 80, rotation: 90, flipH: false, flipV: true, attrs: { voie: '3', accroche: 'U1/GP26' } },
     ],
     wires: () => [
       w('R1', '1', 'U1', 'GP15', 'green'),
@@ -6050,7 +6057,9 @@ while True:
       voies: [
         { partId: 'SD1', pin: 'GP14', voie: 0, etiquette: 'horloge' },
         { partId: 'SD2', pin: 'GP15', voie: 1, etiquette: '' },
-        { partId: 'SD3', probleme: 'power', voie: 2 },
+        // Broche libre, jamais pilotée par le programme : la voie est bel et
+        // bien traçable (aucun `probleme`), elle restera simplement plate.
+        { partId: 'SD3', pin: 'GP17', voie: 2 },
         { partId: 'SD4', pin: 'GP26', voie: 3 },
       ],
       // Même remarque que côté Uno : la résistance fusionne ses deux pattes.
@@ -6064,8 +6073,8 @@ while True:
 # s'ouvre tout seul parce qu'il y a au moins une pince sur la planche.
 #   SD1 (GP14) : cas normal, nommee « horloge » ;
 #   SD2 (GP15) : voie suivante, sans etiquette (elle s'appellera « GP15 ») ;
-#   SD3 (GND)  : broche d'alimentation, l'analyseur explique qu'il n'y a
-#                aucun front a montrer ;
+#   SD3 (GP17) : broche que le programme ne pilote pas — la voie est tracee
+#                mais reste plate, l'analyseur dit « aucun front capture » ;
 #   SD4 (GP26) : entree ADC0, lisible en numerique — tracee, mais signalee :
 #                on ne verra que 0 ou 1, pas la tension.
 from machine import Pin

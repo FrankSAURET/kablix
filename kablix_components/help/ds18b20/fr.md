@@ -100,12 +100,25 @@ convertir en 12 bits. Lire avant, c'est lire la mesure précédente.
 
 ## Simulation
 
-En simulation, le composant affiche un curseur **Température**, de −55 à
-+125 °C. Ce que vous y réglez est ce que le programme lit — le capteur répond
-pour de bon au protocole 1-Wire, adresse comprise, comme le ferait la puce.
+En simulation, le composant affiche un curseur **T°**, de −55 à +125 °C. Ce que
+vous y réglez est ce que le programme lit — le capteur répond pour de bon au
+protocole 1-Wire, adresse comprise, comme le ferait la puce.
 
 Bougez le curseur pendant que le programme tourne : la lecture suivante donne la
 nouvelle valeur.
+
+### Curseur tout à gauche : « lecture ratée »
+
+À **−55 °C pile**, un programme Arduino qui utilise **DallasTemperature**
+affiche « lecture ratée » (`DEVICE_DISCONNECTED_C`) au lieu de la température.
+Ce n'est pas un défaut de la simulation : cette bibliothèque se sert de −55 °C
+comme valeur sentinelle pour dire « capteur absent », si bien qu'elle confond la
+borne basse du capteur avec une panne. Un vrai DS18B20 à −55 °C donne exactement
+le même résultat.
+
+Réglez le curseur sur **−54,5 °C** pour voir la lecture aboutir. En MicroPython
+(`ds18x20`), le problème ne se pose pas : −55 °C est lu comme n'importe quelle
+autre valeur.
 
 ---
 
