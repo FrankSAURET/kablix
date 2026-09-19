@@ -35,7 +35,8 @@
             "label": "Température"
           }
         }
-      }
+      },
+      "experimental": true
     },
     {
       "type": "ds18b20",
@@ -55,7 +56,8 @@
             "label": "Température"
           }
         }
-      }
+      },
+      "experimental": true
     },
     {
       "type": "grove-light-sensor",
@@ -175,5 +177,5 @@
       }
     }
   ],
-  "generated": "2026-09-18T14:11:28.495Z"
+  "generated": "2026-09-19T08:42:50.923Z"
 }

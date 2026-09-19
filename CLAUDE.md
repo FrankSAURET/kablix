@@ -29,6 +29,13 @@ Frank dessine TOUT dans deux planches A3 à la racine :
 - **Schéma de test déjà retouché par Frank : garder les emplacements des composants** (`x`/`y` de `_spec.mjs`). Retoucher ou refaire un test ne doit pas redisposer la planche — sauf à la refaire entièrement et différemment. `_generate.mjs` écrase tout : relire la spec avant, et ne régénérer que les fichiers du lot.
 - Tout nouveau composant : **fiche d'aide obligatoire** en **FR** (`docs/fr/composants/<type>.md`), avec son illustration `docs/img/composants/<type>.webp` produite par `node scripts/_capture-part.mjs <type>` (jamais une capture d'écran à la main). La version EN (`docs/en/…`) **attend la publication** (voir Traductions) ; `npm run verify:docs` compte les fiches et signalera le manque — c'est normal.
 
+#### Règle FORTE : tout composant neuf naît `"experimental": true`
+Un composant n'est **validé que par Frank, explicitement, dans la conversation**. Tant qu'il ne l'a pas dit :
+- `"experimental": true` dans `kablix_components/_sources.json`, juste après `"type"` — **posé dès la création**, jamais ajouté après coup.
+- Ni les tests verts, ni la fiche d'aide, ni le fait que « ça marche » ne valent validation. Livrer un composant sans ce drapeau = erreur.
+- Frank valide → **retirer** la ligne, bumper la version du composant, puis `node scripts/build-kompix.mjs` et `node scripts/build-components-index.mjs`.
+- Après tout changement du drapeau : les deux scripts ci-dessus (le drapeau descend dans le `.kompix`, `index.json` et le README), et `npm run verify:kompix` le contrôle de bout en bout.
+
 ### Boîtiers partagés (TO-92 et suivants)
 Un **boîtier** (`to92`…) sert à des dizaines de composants : c'est un DESSIN, pas un composant.
 - Le dessin externe du boîtier vit dans `src/webview/composants/externe/<boîtier>.svg`, et l'élément qui l'utilise l'habille : Frank dit **quoi écrire dessus** (attribut `text`, une ligne par saut de ligne), donne le **schéma interne** (`NPN1`, `PNP1`…) et les **paramètres de simulation**.

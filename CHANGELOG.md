@@ -14,7 +14,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **La bibliothèque se replie au démarrage de la simulation** et se rouvre à l'arrêt : la place va au schéma. Un réglage désactive ce comportement.
 - **Un générateur BF.**  Il sort un **sinus**, un **triangle** ou un **carré**, de **1 Hz à 1 MHz**, jusqu'à **10 V** de crête, avec **décalage continu** de −5 à +5 V et **rapport cyclique** de 0 à 100 %. Le rapport cyclique déforme le carré **et** le triangle, jusqu'à la dent de scie. Les quatre boutons se tournent à la souris en simulation, et le curseur choisit la forme.
 - **La platine d'essai montre ses liaisons internes.** Le bouton « K » d'une platine dévoile les lamelles de cuivre cachées sous les trous, en traits jaune orangé translucides : on voit d'un coup d'œil quels trous sont reliés entre eux, colonne par colonne et le long des rails d'alimentation.
-- **Un capteur de température DS18B20**, à télécharger dans la bibliothèque de composants, en deux versions : le boîtier TO-92 et la sonde étanche sur câble. Un curseur règle la température de −55 à +125 °C, et le capteur répond pour de bon en 1-Wire : plusieurs capteurs se branchent sur le même fil, chacun avec son adresse.
+- **Un capteur de température DS18B20**, à télécharger dans la bibliothèque de composants, en deux versions : le boîtier TO-92 et la sonde étanche sur câble. Un curseur règle la température de −55 à +125 °C, et le capteur répond pour de bon en 1-Wire : plusieurs capteurs se branchent sur le même fil, chacun avec son adresse. Les deux sont marqués **Expérimental** : ils fonctionnent, mais leur dessin, leurs pattes ou leur simulation peuvent encore changer.
 
 ### Modification
 

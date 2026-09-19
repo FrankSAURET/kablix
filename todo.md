@@ -11,6 +11,18 @@
 
 ---
 
+# >>>>  v2026.9.4.108 — Un composant neuf s'annonce à l'essai
+
+1. ✅ **Les deux DS18B20 portent enfin `"experimental": true`** dans [_sources.json](kablix_components/_sources.json) — `ds18b20` et `ds18b20-etanche`. Frank ne les a jamais validés ; ils étaient livrés comme figés.
+2. ✅ **Règle FORTE ajoutée au [CLAUDE.md](CLAUDE.md) du projet** : tout composant neuf NAÎT `"experimental": true`, posé dès la création, jamais après coup. Seule une parole explicite de Frank retire le drapeau — ni les tests verts, ni la fiche d'aide, ni « ça marche » ne valent validation.
+3. ✅ **Paquets et index régénérés** : `node scripts/build-kompix.mjs` puis `node scripts/build-components-index.mjs`. Le drapeau descend dans les `.kompix`, dans [index.json](kablix_components/index.json) et dans le README de la bibliothèque (mention `**(expérimental)**`).
+4. ✅ **`npm run verify:kompix` vert : 43/43**, et il compte désormais « 2 composant(s) à l'essai sur 9 » — c'était 0 avant ce lot.
+5. ✅ **CHANGELOG complété** : l'entrée DS18B20 de `2026.9.5 (prochaine publication)` dit maintenant que les deux sont marqués Expérimental.
+6. ⏳ **Les autres composants récents restent non marqués** (`ir-barrier`, `grove-uno`, `soil-moisture-sensor`, `grove-light-sensor`, `grove-rfid`, `dmx-grove`, `spot`) : Frank n'a nommé que les DS18B20. À trancher un par un.
+7. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 108.
+
+---
+
 # >>>>  v2026.9.4.107 — Sous le nom, la version puis le numéro de lot
 
 1. ✅ **Deux lignes sous « Kablix » : `v2026.9.4` puis `build 107`.** L'heure de construction a disparu de l'affichage, remplacée par le numéro de lot, et elle reste affichée PARTOUT — .vsix et publication compris.
