@@ -23,7 +23,7 @@
       "type": "spot",
       "label": "DMX PAR 38 spotlight",
       "description": "PAR 38 LED spotlight driven over DMX512 (Contest): the LED array takes the colour sent on its channels.",
-      "version": "2026.8.1",
+      "version": "2026.9.0",
       "author": "Frank Sauret",
       "reference": "https://www.contest-lighting.com/",
       "kind": "passive",

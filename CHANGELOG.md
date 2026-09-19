@@ -33,6 +33,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **La flèche de repli des panneaux est passée dans le panneau**, au-dessus de son ascenseur, qui est raccourci en haut et en bas pour lui laisser la place et ne plus mordre sur les bords arrondis. Une fois le panneau replié, son nom vertical est centré dans la bande, la flèche au-dessus.
 - **Le tableau des composants du README suit les catégories de la palette**.
 - **La liste des composants téléchargeables est illustrée**.
+- **Le projecteur DMX PAR 38 montre son bloc de LED éteint.** La face était transparente et ses LED presque invisibles ; elle reçoit un fond blanc grisé et les LED s'y dessinent en gris clair bombé. Allumées, elles prennent toujours la couleur reçue.
 
 ### Correction
 

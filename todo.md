@@ -1,4 +1,10 @@
 # À faire
+1. DSB1820 ne marche toujours pas
+1. Platine d'essais tous les trous ok et ne doivent pas bouger mais la rigole est plus étroite. 
+1. Analyseur logique
+    1. Donne moi un moyen de corriger tout seul la position  de la pastille de la sonde tu n'y arrive pas. Dis moi ou changer le x et le y.
+    1. une pince reliée par un fil prend enfin sa voie -> Non Toujours pas ! En tout cas elle ne change pas de couleur même reliée. Et pour l'instant je ne vois toujours rien du tout dans l'onglet analyseur logique
+    1. Fais moi un tuto pas à pas sur comment utiliser l'analyseur logique à partir du fichier sonde-logique-pico. Je ne vois jamais aucune courbe.
 1. kablix_components
     1. Y a t'il un intéret à la migrer vers un repo dedié ?
     1. Modifie le readme de ce dossier
@@ -8,6 +14,19 @@
         1. Fais moi un scenario (à la racine "créer un composant 2D.md" et "créer un composant 3D.md) pour le 2D une carte joy-it SBC-MotorDriver3 et pour le 3D un petit véhicule simple découpé en pmma avec une pico pi, la carte moteur 2d , 4 moteurs, la platine et les roues directement sur l'axe des moteurs. Pas à pas c'est pour faire une vidéo explicative. Le scenario 2d n'inclut pas le dessin  svg (juste "dessiner la carte"). Le scenario 3d inclut ce qu'il faut marquer comme étiquette pour chaque pièce, et le nom et descriptif des images à ajouter pour les cartes voire pour rendre joli le véhicule. Le scenario inclut la creation  du beahvior pour la simulation (par IA et sans IA).
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# >>>>  v2026.9.4.110 — Le projecteur DMX montre ses LED éteintes
+
+1. ✅ **Fond blanc grisé sous le bloc de LED** dans [Composants2D.svg](Composants2D.svg) : nouveau chemin `spot-fond-led` (`fill:#e9e9e9`) inséré **avant** `path344` dans le groupe `Spot`. Son tracé reprend à l'identique le contour INTERNE de l'anneau `path344`, donc le fond s'arrête pile au bord et ne mord pas sur le métal.
+2. ✅ **LED éteintes en gris clair bombé.** `linearGradient730` passait de blanc alpha 0 à blanc alpha 0,4 : sur fond transparent les LED étaient presque invisibles, sur fond gris elles l'auraient été tout à fait. Il va maintenant de `#d5d5d5` (centre) à `#9a9a9a` (bord) en pleine opacité. Ce dégradé sert **uniquement** aux 9 dégradés radiaux des LED du spot (vérifié : 9 `xlink:href` dans toute la planche), rien d'autre ne bouge.
+3. ✅ **`opacity:0.62` et `fill-opacity:0.8` retirés des 9 formes du groupe `LED`** : gardés, le gris aurait été délavé sur le fond clair.
+4. ✅ **Allumage intact.** `setGroupColor` ne peint que `#LED` : le fond gris reste visible entre les LED allumées, comme demandé. Vérifié au rendu Chrome headless, éteint sur fond sombre et clair, puis allumé en rouge avec halo.
+5. ✅ **Commentaire corrigé dans [custom-part.mts](src/webview/composants/custom-part.mts#L313)** : il citait les valeurs d'opacité qu'on vient d'enlever. Il dit maintenant la règle sans les chiffres.
+6. ✅ **`spot` bumpé en `2026.9.0`** dans [_sources.json](kablix_components/_sources.json), `build-kompix.mjs` + `build-components-index.mjs` relancés. Les 8 autres `.kompix` reconstruits à l'identique ont été restaurés (zip non déterministe) : seul `spot.kompix`, sa vignette et l'index changent.
+7. ✅ **`npm run typecheck`, `verify:kompix` (43/43) et `verify-dmx.mjs` (73 contrôles) verts.**
+8. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 110. CHANGELOG complété sous `2026.9.5 (prochaine publication)`.
 
 ---
 

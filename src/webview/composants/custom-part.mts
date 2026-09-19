@@ -310,8 +310,8 @@ export class CustomPartElement extends HTMLElement {
         this.savedStyles.set(el, el.getAttribute('style'));
       }
       el.style.setProperty('fill', paint, 'important');
-      // Le dessin peint ses LED éteintes en translucide (fill-opacity 0,8 sur
-      // opacity 0,62) : allumées, elles doivent être franches.
+      // Un dessin peut peindre ses LED éteintes en translucide : allumées,
+      // elles doivent être franches quelle que soit leur opacité d'origine.
       el.style.setProperty('fill-opacity', '1', 'important');
       el.style.setProperty('opacity', '1', 'important');
     }

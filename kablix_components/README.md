@@ -45,7 +45,7 @@ Composants de cette bibliothèque, à installer depuis Kablix (**⚙ Gérer les 
 | <img src="thumbnails/grove-uno.webp" alt="Grove Shield (Uno)" width="64"> | `grove-uno` | Grove Shield (Uno) | 2026.9.1 | Boards | Grove Base Shield V2 for Arduino Uno: 16 Grove sockets (4 analog, 7 digital, 4 I2C, 1 UART) wired to the… |
 | <img src="thumbnails/ir-barrier.webp" alt="Through-beam IR barrier" width="64"> | `ir-barrier` | Through-beam IR barrier | 2026.9.0 | Sensors | Through-beam infrared barrier (emitter + receiver): while the beam reaches the receiver its output transistor… |
 | <img src="thumbnails/soil-moisture-sensor.webp" alt="Soil moisture sensor" width="64"> | `soil-moisture-sensor` | Soil moisture sensor | 2026.9.1 | Sensors | Resistive soil moisture probe (two prongs): wet soil conducts, so the analog output rises with moisture. In… |
-| <img src="thumbnails/spot.webp" alt="DMX PAR 38 spotlight" width="64"> | `spot` | DMX PAR 38 spotlight | 2026.8.1 | Systems | PAR 38 LED spotlight driven over DMX512 (Contest): the LED array takes the colour sent on its channels. |
+| <img src="thumbnails/spot.webp" alt="DMX PAR 38 spotlight" width="64"> | `spot` | DMX PAR 38 spotlight | 2026.9.0 | Systems | PAR 38 LED spotlight driven over DMX512 (Contest): the LED array takes the colour sent on its channels. |
 
 </details>
 
@@ -154,4 +154,4 @@ Pour proposer un composant :
 
 ---
 
-Généré le 19/09/2026 10:42:51 — Kablix v2026.9.4
+Généré le 19/09/2026 11:41:43 — Kablix v2026.9.4
