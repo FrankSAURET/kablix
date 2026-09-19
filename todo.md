@@ -1,10 +1,9 @@
 # À faire
-1. DSB1820 — DÉCISION À PRENDRE : le test `ds18b20-uno` manque et ne peut pas être écrit. Kablix ne livre aucune bibliothèque OneWire et le compilateur n'en gère aucune. Soit on embarque les bibliothèques Arduino courantes, soit on acte que certains composants n'auront pas de test `-uno`. (Le moteur, lui, est prouvé : v2026.9.4.112.)
-1. Platine d'essais tous les trous ok et ne doivent pas bouger mais la rigole est plus étroite. 
 1. Analyseur logique
     1. Donne moi un moyen de corriger tout seul la position  de la pastille de la sonde tu n'y arrive pas. Dis moi ou changer le x et le y.
     1. une pince reliée par un fil prend enfin sa voie -> Non Toujours pas ! En tout cas elle ne change pas de couleur même reliée. Et pour l'instant je ne vois toujours rien du tout dans l'onglet analyseur logique
     1. Fais moi un tuto pas à pas sur comment utiliser l'analyseur logique à partir du fichier sonde-logique-pico. Je ne vois jamais aucune courbe.
+1. Platine d'essais tous les trous ok et ne doivent pas bouger mais la rigole est plus étroite. 
 1. kablix_components
     1. Y a t'il un intéret à la migrer vers un repo dedié ?
     1. Modifie le readme de ce dossier
@@ -14,6 +13,18 @@
         1. Fais moi un scenario (à la racine "créer un composant 2D.md" et "créer un composant 3D.md) pour le 2D une carte joy-it SBC-MotorDriver3 et pour le 3D un petit véhicule simple découpé en pmma avec une pico pi, la carte moteur 2d , 4 moteurs, la platine et les roues directement sur l'axe des moteurs. Pas à pas c'est pour faire une vidéo explicative. Le scenario 2d n'inclut pas le dessin  svg (juste "dessiner la carte"). Le scenario 3d inclut ce qu'il faut marquer comme étiquette pour chaque pièce, et le nom et descriptif des images à ajouter pour les cartes voire pour rendre joli le véhicule. Le scenario inclut la creation  du beahvior pour la simulation (par IA et sans IA).
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# >>>>  v2026.9.4.113 — Le DS18B20 répond enfin au vrai sketch Arduino
+
+1. ✅ **Le vrai sketch compilé est maintenant joué contre le moteur.** Banc neuf [verify-ds18b20-uno-e2e.mjs](scripts/verify-ds18b20-uno-e2e.mjs) : le `.hex` de `ds18b20-uno.ino`, avec les **vraies** bibliothèques OneWire et DallasTemperature liées, tourne sur `avr.mts` avec les deux capteurs du schéma. Il reproduisait à l'identique le « capteurs trouves : 0 » de Frank — le premier banc à le faire.
+2. ✅ **Cause trouvée : le moteur avalait le relâchement du maître.** [avr.mts](src/webview/engines/avr.mts) sautait tout front tant que l'impulsion du capteur courait (`tenuJusqua`). Or `OneWire::read_bit()` n'ouvre son créneau que **3 µs**, quand la réponse « 0 » du capteur en dure 30 : le relâchement du maître tombait en plein dans la tenue du capteur et se perdait. La durée se comptait alors depuis l'ouverture du créneau — **67,75 µs mesurées au lieu de 3** —, un créneau de lecture passait pour un « 0 » écrit, le trio du SEARCH ROM se décalait et l'automate partait en `repos` dès le premier bit. RESET et impulsion de présence, eux, étaient parfaits : d'où un défaut invisible aux trois bancs existants.
+3. ✅ **Correction : tous les fronts du maître sont pris en compte.** Seul `pinState === Low` vaut « le maître tire » (la broche repasse en `Input` au relâchement, jamais à `High` : bus à collecteur ouvert). Résultat mesuré : créneaux de lecture ramenés à 2,1–2,6 µs, SEARCH ROM qui avance bit à bit, **deux capteurs démêlés sur un seul fil**, températures exactes (23,50 °C et −10,00 °C).
+4. ✅ **Contre-épreuve au `git stash`** : avec l'ancien `avr.mts`, les 4 contrôles de fond échouent (`capteurs trouves : 0`, dépassement à 180 s) ; avec le nouveau, tout passe en 1,6 s.
+5. ✅ **Non-régressions** : `verify:ds18b20` (30), `verify:ds18b20-moteur` (17), `verify:ds18b20-e2e` (Pico), `verify:dht22`, `verify:dht-e2e` — tous verts, plus `typecheck` propre.
+6. ℹ️ **Le test `ds18b20-uno` n'était PAS impossible.** La v112 l'avait conclu à tort : l'`arduino-cli` de la machine résout tout seul les bibliothèques installées par l'utilisateur, et `testkablix/.build/` contenait déjà le `.hex` avec `OneWire.cpp.o` lié. Le banc consomme ce `.hex` s'il existe et se met en SKIP sinon — il n'impose aucune bibliothèque à `verify:all`. La question « embarquer des bibliothèques Arduino » ne se pose plus pour ce test.
+7. ℹ️ **Scripts jetables de la mise au point** déplacés (jamais effacés) dans [A Examiner/scripts-jetables-ds18b20/](A%20Examiner/scripts-jetables-ds18b20/) — 14 fichiers `_bind_*`, `_cmp`, `_trace*`.
 
 ---
 

@@ -49,8 +49,25 @@ export const CMD_COPY_SCRATCHPAD = 0x48;
 /** Code famille du DS18B20 dans l'octet de tête de sa ROM (fiche technique). */
 export const FAMILLE_DS18B20 = 0x28;
 
-/** Durée minimale (µs) de l'état BAS que le maître doit tenir pour un RESET. */
-export const RESET_MIN_US = 480;
+/**
+ * Durée minimale (µs) de l'état BAS au-delà de laquelle on reconnaît un RESET.
+ *
+ * LA SPEC DIT 480, ET C'EST EXACTEMENT LE PIÈGE. La bibliothèque `onewire` de
+ * MicroPython vise 480 µs PILE : la durée qui nous parvient tombe donc tantôt à
+ * 480,04 µs, tantôt à 479,95 µs selon la granularité du lot d'instructions en
+ * cours. Un seuil à 480 en fait un tirage à pile ou face — mesuré : le capteur
+ * répondait aux quatre premiers resets puis ratait le cinquième à 479,952 µs, et
+ * `convert_temp()` levait `OneWireError` au beau milieu d'un programme qui
+ * marchait. Selon ce que le programme avait fait juste avant (un calcul, un
+ * affichage), le régime du moteur changeait et le défaut se déplaçait : d'où un
+ * capteur qui « marche une fois sur deux » sans rien changer au schéma.
+ *
+ * 400 µs met le seuil hors de portée de cette dérive tout en restant très
+ * au-dessus du « 0 » écrit le plus long que la spec autorise (120 µs) : aucun
+ * créneau de bit légitime ne peut l'atteindre, et rien entre 240 et 480 µs n'est
+ * un signal 1-Wire valide de toute façon.
+ */
+export const RESET_MIN_US = 400;
 /** Attente (µs) avant l'impulsion de présence, une fois la ligne relâchée. */
 export const PRESENCE_DELAI_US = 30;
 /** Durée (µs) de l'impulsion de présence. */

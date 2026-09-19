@@ -38,6 +38,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 ### Correction
 
 - **Le DS18B20 se fait enfin trouver sur Pico.** `scan()` ne rendait aucun capteur, sur Pico 1 comme sur Pico 2 : le programme annonçait « capteurs trouvés : 0 » et ne lisait jamais de température. La recherche d'adresses sur le fil 1-Wire est maintenant simulée pour de bon.
+- **Le DS18B20 se fait aussi trouver sur Arduino.** Avec les bibliothèques OneWire et DallasTemperature, `getDeviceCount()` rendait 0 et aucune température n'arrivait. Plusieurs capteurs branchés sur le même fil sont maintenant reconnus, chacun avec sa mesure.
 - **Les composants de la bibliothèque officielle ne demandent plus votre autorisation.** La question « ce composant exécute du code d'une source distante » était posée pour les composants publiés avec Kablix, au même titre que ceux d'un dépôt inconnu. Elle reste posée, elle, pour toute autre source.
 - **Les trois platines d'essai ont retrouvé leur bonne rigole.** L'espace entre les deux blocs de trous ne faisait que deux pas au lieu de trois : un circuit intégré ne tombait pas juste, ses pattes ne trouvaient pas les trous de part et d'autre.
 - **L'heure de fabrication n'apparaît plus sous le nom Kablix.** C'est un repère de mise au point : elle reste affichée pendant le développement de l'extension, plus dans la version installée.

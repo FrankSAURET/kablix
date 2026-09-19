@@ -203,6 +203,22 @@ ok('en deçà de −55 °C, le capteur sature au lieu de replier',
 	ok('un BAS de 100 µs n\'est PAS pris pour un reset', !m.basseA(m.t + 70));
 }
 {
+	// LE RESET QUI TOMBE UN CHEVEU SOUS LA SPEC. La bibliothèque `onewire` de
+	// MicroPython vise 480 µs PILE : selon la granularité du lot d'instructions
+	// en cours, la durée qui parvient à l'automate tombe à 479,95 µs aussi
+	// souvent qu'à 480,04. Avec un seuil à 480 le capteur répondait aux premiers
+	// resets puis ratait le suivant, et `convert_temp()` levait `OneWireError`
+	// au milieu d'un programme qui marchait — un capteur « qui marche une fois
+	// sur deux » sans rien changer au schéma. Le banc jouait 500 µs : il ne
+	// pouvait pas le voir.
+	const { e, m } = banc();
+	m.noter(e.frontDescendant(m.t));
+	m.t += 479.952; // mesuré sur le moteur Pico, au reset qui échouait
+	m.noter(e.frontMontant(m.t));
+	ok('un RESET de 479,95 µs est reconnu (dérive du moteur, pas un bit)',
+		m.basseA(m.t + 70));
+}
+{
 	// READ ROM : le capteur décline son identité. C'est le premier échange
 	// bidirectionnel — il prouve que l'esclave reçoit ET émet.
 	const { e, m } = banc('part-7');

@@ -1145,28 +1145,29 @@ export class AvrEngine implements SimEngine {
     for (const d of this.ds18b20) {
       const map = this.pinMap[d.pin];
       if (!map) continue;
+      // ON SUIT CE QUE LE MAÎTRE PILOTE, JAMAIS LE NIVEAU DU FIL.
+      //
+      // Le 1-Wire est un bus à collecteur ouvert : maître et capteur tirent tous
+      // deux la même ligne vers le bas. Le niveau résultant ne dit donc PAS qui
+      // parle. Mais `pinState` n'est pas ce niveau : c'est l'état piloté par le
+      // MCU — Low(0) quand il tire, Input(2)/InputPullUp(3) quand il relâche
+      // (la vraie `OneWire.cpp` relâche ainsi, par `DIRECT_MODE_INPUT`, jamais
+      // en écrivant un 1). C'est exactement le signal qu'il nous faut, et c'est
+      // `Low` seul qui vaut « le maître tire ».
+      //
+      // NE JAMAIS IGNORER UN FRONT PENDANT QUE LE CAPTEUR TIENT. C'était le
+      // défaut : un `continue` sautait tout front tant que `tenuJusqua` courait.
+      // Or un créneau de lecture de `OneWire::read_bit()` ne dure que 3 µs de
+      // bas, quand la réponse « 0 » du capteur en dure 30. Le relâchement du
+      // maître tombait donc EN PLEIN dans la tenue du capteur et se faisait
+      // avaler ; au réveil, `etaitBas` valait encore vrai et la durée se
+      // comptait depuis l'ouverture du créneau — mesuré 67,75 µs au lieu de 3.
+      // Un créneau de lecture devenait un « 0 » écrit, le trio du SEARCH ROM se
+      // décalait, l'automate se croyait écarté dès le premier bit et partait en
+      // `repos` : « capteurs trouves : 0 » avec un RESET et une présence
+      // parfaits. Les fronts du maître sont donc TOUS pris en compte ; c'est la
+      // seule façon de mesurer ses durées juste.
       const bas = this.ports[map[0]]?.pinState(map[1]) === PinState.Low;
-      // Tant que le CAPTEUR tient le fil bas, le bas qu'on lit est le sien : le
-      // prendre pour un créneau du maître ferait répondre l'automate à sa propre
-      // voix. On attend donc la fin de l'impulsion posée.
-      //
-      // Garde DÉFENSIVE : mesuré, `fireScheduled` ne redéclenche pas ce listener,
-      // donc le cas ne se produit pas aujourd'hui (retirer cette ligne laisse le
-      // banc vert). Elle reste parce que le jour où l'application d'une action
-      // programmée réveillera les écoutes — c'est le chemin normal des autres
-      // capteurs — le dialogue se mettrait à bégayer sans elle, et le défaut
-      // serait très pénible à retrouver.
-      //
-      // POURQUOI CE MONTAGE TIENT ICI ET PAS SUR PICO. Le moteur Pico a dû poser
-      // l'impulsion SANS passer par sa file, et suivre `outputEnable` plutôt que
-      // le niveau du fil (cf. `appliquerDs18b20` dans pico.mts) : sa file n'est
-      // vidée qu'entre deux lots d'instructions, soit bien après les ~6 µs d'un
-      // créneau de lecture. Ici, `fireScheduled` tourne après CHAQUE instruction,
-      // donc ~0,06 µs : l'impulsion sort à temps. Mesuré — le dialogue reste juste
-      // jusqu'à ~5 µs de granularité et se met à rendre du bruit à 20 µs. Si un
-      // jour cette boucle exécute les instructions par paquets, ce code casse et
-      // il faudra reprendre le montage du Pico.
-      if (now < d.tenuJusqua) continue;
       if (bas && !d.etaitBas) {
         d.etaitBas = true;
         this.appliquerDs18b20(d, d.auto.frontDescendant(now));
