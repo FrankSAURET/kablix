@@ -1156,6 +1156,16 @@ export class AvrEngine implements SimEngine {
       // programmée réveillera les écoutes — c'est le chemin normal des autres
       // capteurs — le dialogue se mettrait à bégayer sans elle, et le défaut
       // serait très pénible à retrouver.
+      //
+      // POURQUOI CE MONTAGE TIENT ICI ET PAS SUR PICO. Le moteur Pico a dû poser
+      // l'impulsion SANS passer par sa file, et suivre `outputEnable` plutôt que
+      // le niveau du fil (cf. `appliquerDs18b20` dans pico.mts) : sa file n'est
+      // vidée qu'entre deux lots d'instructions, soit bien après les ~6 µs d'un
+      // créneau de lecture. Ici, `fireScheduled` tourne après CHAQUE instruction,
+      // donc ~0,06 µs : l'impulsion sort à temps. Mesuré — le dialogue reste juste
+      // jusqu'à ~5 µs de granularité et se met à rendre du bruit à 20 µs. Si un
+      // jour cette boucle exécute les instructions par paquets, ce code casse et
+      // il faudra reprendre le montage du Pico.
       if (now < d.tenuJusqua) continue;
       if (bas && !d.etaitBas) {
         d.etaitBas = true;

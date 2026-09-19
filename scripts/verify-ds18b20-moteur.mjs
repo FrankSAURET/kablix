@@ -12,6 +12,17 @@
 // OneWire, et relit PIND. C'est le protocole qui est mis à l'épreuve, pas la
 // chaîne de compilation.
 //
+// POURQUOI LE MOTEUR AVR N'A PAS EU BESOIN DU CORRECTIF DU PICO (v2026.9.4.111).
+// Côté Pico, l'impulsion du capteur devait être posée SANS passer par la file
+// d'actions programmées, cette file n'étant vidée qu'entre deux lots
+// d'instructions — bien après les ~6 µs d'un créneau de lecture. Ici, `avr.mts`
+// appelle `fireScheduled()` après CHAQUE instruction, soit une finesse de
+// ~0,06 µs : l'impulsion sort à temps par la file. Mesuré en faisant varier
+// artificiellement le pas : juste jusqu'à ~5 µs, faux à 20 µs. Conclusion :
+// ne pas « corriger » `avr.mts` sur le modèle de `pico.mts` — il n'a pas le
+// défaut. Seul le SEARCH ROM manquait, et il vit dans le module partagé
+// `ds18b20.mts` : la section 9 ci-dessous le prouve côté Arduino.
+//
 // Usage : node scripts/verify-ds18b20-moteur.mjs
 import esbuild from 'esbuild';
 import { mkdtempSync } from 'node:fs';
@@ -285,7 +296,95 @@ const lireScratchpad = (m) => {
     poseAvecCapteur > 0, 'le capteur n\'a rien posé — les contrôles ci-dessus mesurent autre chose');
 }
 
+// --- 9. SEARCH ROM : la DÉCOUVERTE des adresses ------------------------------
+// LE TROU QUE CE BANC AVAIT. Le cas 7 interroge deux capteurs par MATCH ROM,
+// mais avec des adresses qu'il connaît d'avance : il ne prouve rien sur la façon
+// dont une bibliothèque les TROUVE. Or c'est là que tout se jouait côté Pico —
+// `scan()` rendait une liste vide et le programme annonçait « 0 capteur » — sans
+// qu'aucun banc ne rougisse.
+//
+// L'algorithme est celui de toute bibliothèque 1-Wire : pour chacun des 64 bits
+// d'adresse, le maître ouvre TROIS créneaux — il lit le bit, lit son complément,
+// puis écrit celui qu'il retient. Deux capteurs qui divergent rendent 0 ET 0 (le
+// « conflit ») ; le maître choisit 0, note le rang, et repassera par là pour
+// prendre 1. Un capteur dont le bit diffère du choix se tait jusqu'au reset.
+/**
+ * Énumère le fil comme le ferait `OneWire::search()`.
+ *
+ * @returns la liste des adresses trouvées, chacune en 8 octets.
+ */
+const chercherAdresses = (m) => {
+  const trouvees = [];
+  let dernierConflit = -1;
+  // Garde-fou : un automate cassé pourrait faire tourner la boucle sans fin.
+  for (let tour = 0; tour < 8; tour++) {
+    if (!m.reset()) break;
+    m.ecrireOctet(M.CMD_SEARCH_ROM);
+    const rom = new Array(8).fill(0);
+    let conflit = -1;
+    let abandon = false;
+    for (let i = 0; i < 64; i++) {
+      const bit = m.lireBit();
+      const complement = m.lireBit();
+      let choix;
+      if (bit !== complement) {
+        choix = bit; // tout le monde est d'accord
+      } else if (bit === 1) {
+        abandon = true; // 1 et 1 : plus personne ne répond
+        break;
+      } else if (i < dernierConflit) {
+        choix = (rom[i >> 3] >> (i & 7)) & 1; // on refait le même chemin
+      } else if (i === dernierConflit) {
+        choix = 1; // la branche qu'on avait laissée de côté
+      } else {
+        choix = 0;
+        conflit = i; // à explorer au tour suivant
+      }
+      if (choix) rom[i >> 3] |= 1 << (i & 7);
+      m.ecrireBit(choix);
+    }
+    if (abandon) break;
+    trouvees.push(rom);
+    dernierConflit = conflit;
+    if (conflit < 0) break; // plus aucune branche en attente
+  }
+  return trouvees;
+};
+
+{
+  const { m } = monter(25, 'part-9');
+  const trouvees = chercherAdresses(m);
+  const attendu = M.ds18b20Rom('part-9');
+  check('SEARCH ROM sur la broche : le capteur seul est TROUVÉ',
+    trouvees.length === 1, `${trouvees.length} adresse(s) trouvée(s) au lieu de 1`);
+  check('SEARCH ROM : l\'adresse découverte est bien la sienne',
+    trouvees[0]?.join() === attendu.join(),
+    `trouvé ${trouvees[0]?.join() ?? '(rien)'}, attendu ${attendu.join()}`);
+  check('SEARCH ROM : l\'adresse porte le code famille 0x28',
+    trouvees[0]?.[0] === 0x28, `0x${(trouvees[0]?.[0] ?? 0).toString(16)}`);
+}
+
+// Deux capteurs : c'est le cas qui met l'algorithme à l'épreuve, puisqu'il
+// faut démêler les deux adresses bit à bit sur un seul fil.
+{
+  const eng = new AvrEngine(new Uint16Array(4096), null, 'avr328');
+  eng.setDs18b20([
+    { id: 'part-c', pin: '2', temperatureC: 10 },
+    { id: 'part-d', pin: '2', temperatureC: 40 },
+  ]);
+  const m = new Maitre(eng);
+  m.relacher();
+  m.avancer(100);
+  const trouvees = chercherAdresses(m).map((r) => r.join());
+  const attendues = [M.ds18b20Rom('part-c').join(), M.ds18b20Rom('part-d').join()];
+  check('SEARCH ROM : DEUX capteurs sur un fil sont démêlés',
+    trouvees.length === 2, `${trouvees.length} adresse(s) au lieu de 2`);
+  check('SEARCH ROM : les deux adresses trouvées sont les bonnes',
+    attendues.every((a) => trouvees.includes(a)),
+    `trouvé [${trouvees.join(' | ')}], attendu [${attendues.join(' | ')}]`);
+}
+
 console.log(failures
   ? `ds18b20-moteur : ${failures} échec(s).`
-  : `ds18b20-moteur : 12 contrôles OK — le capteur répond sur la broche du MCU.`);
+  : `ds18b20-moteur : 17 contrôles OK — le capteur répond sur la broche du MCU.`);
 process.exit(failures ? 1 : 0);

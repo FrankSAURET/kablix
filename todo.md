@@ -1,5 +1,5 @@
 # À faire
-1. DSB1820 : reste le côté Arduino (même défaut probable dans `avr.mts`) et le test `ds18b20-uno` manquant
+1. DSB1820 — DÉCISION À PRENDRE : le test `ds18b20-uno` manque et ne peut pas être écrit. Kablix ne livre aucune bibliothèque OneWire et le compilateur n'en gère aucune. Soit on embarque les bibliothèques Arduino courantes, soit on acte que certains composants n'auront pas de test `-uno`. (Le moteur, lui, est prouvé : v2026.9.4.112.)
 1. Platine d'essais tous les trous ok et ne doivent pas bouger mais la rigole est plus étroite. 
 1. Analyseur logique
     1. Donne moi un moyen de corriger tout seul la position  de la pastille de la sonde tu n'y arrive pas. Dis moi ou changer le x et le y.
@@ -17,6 +17,17 @@
 
 ---
 
+# >>>>  v2026.9.4.112 — Le DS18B20 se fait aussi trouver côté Arduino
+
+1. ✅ **La découverte d'adresses est maintenant éprouvée côté AVR.** Nouvelle section 9 dans [verify-ds18b20-moteur.mjs](scripts/verify-ds18b20-moteur.mjs) : l'algorithme complet de `OneWire::search()` joué contre le vrai moteur — trio de créneaux par bit, résolution de conflit par index du dernier désaccord, tours successifs. Cinq contrôles neufs, banc passé de 12 à **17 contrôles**.
+2. ✅ **Deux capteurs sur un seul fil sont démêlés** par la recherche — cas que le banc Pico ne joue pas (il n'en déclare qu'un). Le cas 7 existant interrogeait bien deux capteurs, mais par MATCH ROM avec des adresses connues d'avance : il ne prouvait rien sur la façon dont une bibliothèque les TROUVE.
+3. ✅ **Contre-épreuve au `git stash`** : [ds18b20.mts](src/webview/engines/ds18b20.mts) ramené à son état d'avant v111 → les 5 contrôles neufs échouent tous (« 0 adresse(s) trouvée(s) au lieu de 1 »), les 12 anciens restent verts. Le défaut touchait donc bien l'Arduino aussi, et le correctif partagé le couvre.
+4. ✅ **`avr.mts` n'a PAS le défaut du Pico — et ne doit pas être « corrigé ».** Le soupçon de la v111 (impulsion passée par `scheduled`, lecture du niveau du fil) est mesuré faux : `fireScheduled()` y est appelé après CHAQUE instruction ([avr.mts:1508](src/webview/engines/avr.mts#L1508)), soit une finesse de ~0,06 µs, très en deçà des ~6 µs d'un créneau de lecture. Banc de mesure à pas forcé : juste jusqu'à ~5 µs, faux à 20 µs. Le constat est consigné en commentaire dans [avr.mts](src/webview/engines/avr.mts) et en tête du banc, pour que personne ne recopie le montage du Pico sans raison.
+5. ⏳ **Le test `ds18b20-uno` reste impossible en l'état.** Kablix ne livre aucune bibliothèque OneWire/DallasTemperature et [compiler.ts](src/compiler.ts) n'a aucune gestion de bibliothèques : un sketch `ds18b20-uno` ne compilerait que si Frank installe OneWire dans son propre `arduino-cli`. C'est une décision produit (embarquer des bibliothèques Arduino ou non), pas une correction de défaut — Frank tranche.
+6. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 112. Lot d'épreuves seulement : rien à ajouter au CHANGELOG côté utilisateur (la correction est déjà annoncée en v111).
+
+---
+
 # >>>>  v2026.9.4.111 — Le DS18B20 se fait enfin trouver sur Pico
 
 1. ✅ **Trois défauts distincts, tous sur le chemin du `scan()`** — d'où le « capteurs trouves : 0 » que rien ne rattrapait.
@@ -28,7 +39,7 @@
 7. ✅ **Nouveau banc [verify-ds18b20-e2e.mjs](scripts/verify-ds18b20-e2e.mjs)** : vrai firmware MicroPython, vrais modules `onewire`/`ds18x20`, le programme de [ds18b20-pico.py](testkablix/ds18b20-pico.py). Cinq contrôles × deux cartes, tous verts. Les deux bancs existants ne jouaient jamais `scan()` : ils restaient verts sur un capteur introuvable.
 8. ✅ **Contre-épreuve au `git stash`** : ÉCHEC sur l'ancien code (2 cas), OK avec le correctif. Non-régression : `verify:ds18b20` (29), `verify:ds18b20-moteur` (12), `verify:dht-e2e` et `typecheck` verts.
 9. ✅ **`verify:ds18b20-e2e` enregistré** dans package.json et ajouté à `verify:all:serie`.
-10. ⬜ **Côté Arduino, rien n'est prouvé.** [avr.mts](src/webview/engines/avr.mts) porte les deux mêmes faiblesses (lecture de `pinState` incluant notre propre bas, impulsion passée par `scheduled`), et son banc ne joue pas non plus de `scan()`. Le test `ds18b20-uno` manque aussi. Reporté en tête de « À faire ».
+10. ✅ **Côté Arduino, rien n'était prouvé.** Traité en v2026.9.4.112 : le moteur AVR n'a PAS les faiblesses soupçonnées, et le SEARCH ROM y est désormais éprouvé. Voir la section ci-dessus.
 11. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 111. CHANGELOG complété sous `2026.9.5 (prochaine publication)`.
 
 ---
