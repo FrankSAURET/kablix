@@ -4896,24 +4896,20 @@ if (textModeBtn) {
   });
 }
 
-// Heure de build (injectée par esbuild) affichée sous la version : repère visuel
-// pendant les tests F5 pour confirmer qu'on exécute bien le dernier build.
+// Numéro de build (injecté par esbuild depuis le manifeste) affiché sous la
+// version, sur sa propre ligne : « v2026.9.4 » puis « build 106 ».
 //
-// SEULEMENT HORS PRODUCTION (demande de Frank, item 1.1 du 18/09). L'heure est
-// figée dans le paquet au moment du `npm run build` : publiée telle quelle, elle
-// affichait à l'utilisateur l'heure à laquelle le paquet a été fabriqué, ce qui
-// ne lui dit rien et vieillit mal. La webview ne sait pas d'elle-même où elle
-// tourne — la même construction sert aux deux — donc l'hôte le lui dit par
-// `data-kx-dev` sur le `body` (voir `webview-html.ts` et `enDeveloppement()`).
-declare const __BUILD_TIME__: string;
+// Il reste affiché PARTOUT, .vsix et publication compris (demande de Frank du
+// 19/09) : il remplace l'heure de construction, qui ne valait que pour les tests
+// F5 et ne disait rien à l'utilisateur une fois publiée. Un numéro de lot, lui,
+// identifie ce qui tourne — utile dans un rapport de défaut.
+declare const __BUILD_NUMBER__: string;
 {
-  const brandVersion = document.body.hasAttribute('data-kx-dev')
-    ? document.querySelector('.brand__version')
-    : null;
-  if (brandVersion) {
+  const brandVersion = document.querySelector('.brand__version');
+  if (brandVersion && __BUILD_NUMBER__) {
     const t0 = document.createElement('small');
     t0.className = 'brand__buildtime';
-    t0.textContent = `build ${__BUILD_TIME__}`;
+    t0.textContent = `build ${__BUILD_NUMBER__}`;
     t0.style.cssText = 'display:block;opacity:.6;font-size:.85em;';
     brandVersion.after(t0);
   }

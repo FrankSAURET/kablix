@@ -111,7 +111,7 @@ window.acquireVsCodeApi = () => ({
 const b = await esbuild({
 	entryPoints: [join(ROOT, 'src', 'webview', 'sim.mts')],
 	bundle: true, format: 'iife', write: false,
-	define: { __BUILD_TIME__: JSON.stringify('test') },
+	define: { __BUILD_NUMBER__: JSON.stringify('test') },
 	loader: { '.svg': 'text', '.webp': 'dataurl', '.png': 'dataurl', '.gif': 'dataurl', '.mp4': 'dataurl', '.ico': 'dataurl' },
 	absWorkingDir: ROOT,
 });

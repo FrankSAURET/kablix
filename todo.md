@@ -5,9 +5,23 @@
         1. Ajoute des liens vers les fichiers d'aide à la création
         1. Ajoute une section "Composants inclus dans Kablix" au même format que celle composants disponibles
         1. Rends les deux section  de composants repliables
-        1. Fais moi un scenario (à la racine "créer un composant 2D.md" et "créer un composant 3D.md) pour le 2D une carte joy-it SBC-MotorDriver3 et pour le 3D un petit véhicule simple découpé en pmma avec une pico pi, la carte moteur 2d , 4 moteurs, la platine et les rous directement sur l'axe des moteurs. Pas à pas c'est pour faire une vidéo explicative.
+        1. Fais moi un scenario (à la racine "créer un composant 2D.md" et "créer un composant 3D.md) pour le 2D une carte joy-it SBC-MotorDriver3 et pour le 3D un petit véhicule simple découpé en pmma avec une pico pi, la carte moteur 2d , 4 moteurs, la platine et les rous directement sur l'axe des moteurs. Pas à pas c'est pour faire une vidéo explicative. Le scenario 2d n'inclut pas le dessin  svg (juste "dessiner la carte"). Le scenario 3d inclut ce qu'il faut marquer comme étiquette pour chaque pièce, et le nom et descriptif des images à ajouter pour les cartes voire pour rendre joli le véhicule. Le scenario inclut la creation  du beahvior pour la simulation (par IA et sans IA).
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# >>>>  v2026.9.4.107 — Sous le nom, la version puis le numéro de lot
+
+1. ✅ **Deux lignes sous « Kablix » : `v2026.9.4` puis `build 107`.** L'heure de construction a disparu de l'affichage, remplacée par le numéro de lot, et elle reste affichée PARTOUT — .vsix et publication compris.
+2. ℹ️ **Pourquoi l'heure partait.** Elle était figée dans le paquet au `npm run build` : publiée, elle annonçait à l'utilisateur l'heure de fabrication du .vsix, ce qui ne lui dit rien. Le numéro de lot, lui, identifie ce qui tourne — utile dans un rapport de défaut, donc il n'y a plus de raison de le cacher.
+3. ✅ **`esbuild.js` injecte `__BUILD_NUMBER__`** (lu dans le manifeste) à la place de `__BUILD_TIME__` ; `sim.mts` écrit la seconde ligne sans plus regarder le mode.
+4. ✅ **Ligne 1 repassée à `versionPublique()`** dans [webview-html.ts](src/webview-html.ts) : avec `versionAffichee()`, la page aurait montré « v2026.9.4.107 » PUIS « build 107 » — deux fois la même chose.
+5. ✅ **Ménage de ce qui n'a plus d'objet** : l'attribut `data-kx-dev` du `body` et la fonction `versionAffichee()` de [version.ts](src/version.ts), plus aucun appelant. `enDeveloppement()` et `memoriserModeExtension()` restent, utilisées côté hôte.
+6. ✅ **[verify-heure-build.mjs](scripts/verify-heure-build.mjs) réécrit** : il vérifiait l'inverse de la nouvelle règle (l'heure masquée en production) et serait devenu faux. 12 contrôles, rendus dans Chrome dans les DEUX modes — ligne 1 nue, ligne « build » présente à l'identique des deux côtés, aucune heure nulle part. Il garde le piège de la double écriture du build.
+7. ✅ **Contre-épreuve `git stash` concluante : 5 échecs sur l'ancien code.** Note : les deux contrôles « aucune heure » y passaient quand même, l'ancien `sim.mts` recevant un `__BUILD_TIME__` non substitué — ils ne sont verts que grâce au code neuf, les 5 autres portent la preuve.
+8. ✅ **`verify:panneaux` et `verify:reouverture` suivent le renommage** du `define` (sans lui, ReferenceError au chargement du module). Les deux passent.
+9. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 107. CHANGELOG complété sous `2026.9.5 (prochaine publication)`.
 
 ---
 

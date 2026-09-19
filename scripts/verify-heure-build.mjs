@@ -1,25 +1,24 @@
-// L'heure de construction ne doit PAS apparaître dans une version publiée.
+// Sous le nom « Kablix » : la version publique, puis le NUMÉRO DE BUILD.
 //
-// LA DEMANDE. Frank, item 1.1 du 18/09 : « L'heure du build ne dois pas
-// apparaitre dans une version publiée. »
+// LA DEMANDE. Frank, 19/09 : « ligne 1 "v2026.9.4", ligne 2 "build 105", c'est
+// tout, pas d'heure, et ça reste dans les .vsix et à la publication. »
 //
-// D'OÙ VIENT CETTE HEURE. `esbuild.js` fige l'heure du `npm run build` dans le
-// paquet de la webview (`__BUILD_TIME__`), et `sim.mts` l'écrit sous le nom
-// « Kablix » — un repère de test F5 pour savoir quel paquet on exécute. Elle
-// partait donc telle quelle chez l'utilisateur, qui lisait l'heure à laquelle
-// le .vsix a été fabriqué.
+// CE QUI A CHANGÉ. Avant, la seconde ligne portait l'HEURE du `npm run build`,
+// et l'hôte la cachait en production (`data-kx-dev` sur le `body`) : publiée,
+// elle n'aurait dit à l'utilisateur que l'heure de fabrication du paquet. Le
+// numéro de lot, lui, garde son sens partout — il identifie ce qui tourne dans
+// un rapport de défaut. Le filtrage par mode a donc disparu, et avec lui
+// l'attribut `data-kx-dev` et `versionAffichee()`.
 //
-// POURQUOI LA WEBVIEW NE PEUT PAS TRANCHER SEULE. La construction qui produit
-// `dist/webview.js` est la MÊME en développement et pour la publication : rien
-// dans le paquet ne distingue les deux. Seul l'hôte le sait, par
-// `vscode.ExtensionMode`. Il le dit donc à la page par `data-kx-dev` sur le
-// `body`, et la webview ne dessine l'heure que si l'attribut est là.
+// LES DEUX PIÈGES QUE CE BANC GARDE. D'abord l'heure, qui ne doit revenir dans
+// aucun des deux modes. Ensuite la DOUBLE écriture du build : si la ligne 1
+// repassait à `versionAffichee()`, la page afficherait « v2026.9.4.106 » puis
+// « build 106 » — deux fois la même chose, alors que Frank a demandé la version
+// nue en ligne 1.
 //
 // CE QU'ON MESURE. Pas la présence d'un `if` dans le source — un `if` peut être
 // écrit à l'envers. On rend la VRAIE page dans Chrome, dans les DEUX modes, et
-// on regarde si l'élément existe. Les deux sens comptent : absent en
-// production (la demande), présent en développement (le repère de F5, qu'on ne
-// veut pas perdre au passage).
+// on lit ce qui s'affiche.
 //
 // Usage : node scripts/verify-heure-build.mjs
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
@@ -48,9 +47,14 @@ const ok = (nom, cond, detail = '') => {
 const PUBLIQUE = '2050.1.7';
 const BUILD = 4242;
 
+// Une heure RECONNAISSABLE, qu'on cherchera dans la page : elle ne doit plus
+// apparaître nulle part. Le banc l'injecte lui-même pour prouver que même
+// fournie, elle n'est pas dessinée.
+const HEURE = '03:14:15';
+
 // --- Le vrai HTML de l'atelier, avec un faux module `vscode` ------------------
-// `ExtensionMode` doit exister ici : c'est l'énumération que lit `version.ts`
-// pour savoir où tourne l'extension, et c'est tout l'objet du banc.
+// `ExtensionMode` doit exister ici : c'est l'énumération que lit `version.ts`,
+// et le banc rend les deux modes pour prouver qu'ils affichent la MÊME chose.
 const fauxVscode = {
 	name: 'faux-vscode',
 	setup(build) {
@@ -77,8 +81,9 @@ const fauxVscode = {
  * Rend le HTML de l'atelier dans le mode demandé.
  *
  * On passe par un point d'entrée fabriqué qui appelle `memoriserModeExtension`
- * AVANT `buildWebviewHtml` : c'est l'ordre réel (`activate` le fait en premier),
- * et c'est ce qui décide de l'attribut.
+ * AVANT `buildWebviewHtml` : c'est l'ordre réel (`activate` le fait en premier).
+ * Le mode ne doit plus rien changer à l'affichage — c'est justement ce qu'on
+ * vérifie.
  */
 async function htmlDuMode(mode, nomFichier) {
 	const entree = join(CACHE, `entree-${nomFichier}.ts`);
@@ -101,10 +106,9 @@ async function htmlDuMode(mode, nomFichier) {
 	return mod.html;
 }
 
-// --- Le paquet de la webview, avec une heure RECONNAISSABLE -------------------
-// Une heure quelconque ne prouverait rien : il faut pouvoir la chercher dans la
-// page rendue et être certain que c'est bien celle-là qu'on a trouvée.
-const HEURE = '03:14:15';
+// --- Le paquet de la webview -------------------------------------------------
+// `__BUILD_NUMBER__` est ce qu'injecte `esbuild.js` depuis le manifeste ; on lui
+// donne ici le numéro fictif.
 const pont = `
 window.acquireVsCodeApi = () => ({
 	postMessage: () => {}, getState: () => undefined, setState: () => {},
@@ -113,7 +117,7 @@ window.acquireVsCodeApi = () => ({
 const bundle = await esbuild({
 	entryPoints: [join(ROOT, 'src', 'webview', 'sim.mts')],
 	bundle: true, format: 'iife', write: false,
-	define: { __BUILD_TIME__: JSON.stringify(HEURE) },
+	define: { __BUILD_NUMBER__: JSON.stringify(String(BUILD)) },
 	loader: { '.svg': 'text', '.webp': 'dataurl', '.png': 'dataurl', '.gif': 'dataurl', '.mp4': 'dataurl', '.ico': 'dataurl' },
 	absWorkingDir: ROOT,
 });
@@ -133,12 +137,13 @@ function rendre(html, nomFichier) {
 		// La CSP de la webview interdirait nos scripts locaux sans nonce.
 		.replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, '');
 	// Le rapport est écrit APRÈS le chargement complet du paquet, pour que
-	// `sim.mts` ait eu le temps de poser (ou non) son élément.
+	// `sim.mts` ait eu le temps de poser son élément.
 	// `document.body.textContent` inclurait le texte de CE script, qui contient
 	// l'heure cherchée : le contrôle serait rouge quoi qu'il arrive. On balaie
 	// donc le texte VISIBLE, en sautant les balises `script` et `style`.
 	page += `<script>window.addEventListener('load', () => setTimeout(() => {
 		const e = document.querySelector('.brand__buildtime');
+		const v = document.querySelector('.brand__version');
 		const marche = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
 			acceptNode: (n) => /^(SCRIPT|STYLE)$/.test(n.parentNode && n.parentNode.nodeName)
 				? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
@@ -150,8 +155,8 @@ function rendre(html, nomFichier) {
 		p.textContent = JSON.stringify({
 			present: !!e,
 			texte: e ? e.textContent : '',
-			attribut: document.body.hasAttribute('data-kx-dev'),
-			corpsEntier: visible.indexOf(${JSON.stringify(HEURE)}) >= 0,
+			version: v ? v.textContent : '',
+			heureVisible: visible.indexOf(${JSON.stringify(HEURE)}) >= 0,
 		});
 		document.body.appendChild(p);
 	}, 400));</scr` + 'ipt>';
@@ -171,13 +176,25 @@ function rendre(html, nomFichier) {
 const htmlProd = await htmlDuMode('Production', 'prod');
 const htmlDev = await htmlDuMode('Development', 'dev');
 
-// --- L'attribut, lu dans le HTML que produit l'hôte --------------------------
-// Il nomme la cause : quand les mesures de page tombent, on sait tout de suite
-// si c'est l'hôte qui n'a rien dit ou la webview qui n'a pas écouté.
-ok("production : l'hôte n'annonce PAS le mode développement",
-	!/<body[^>]*data-kx-dev/.test(htmlProd), 'attribut data-kx-dev présent dans le HTML de production');
-ok("développement : l'hôte annonce le mode développement",
-	/<body[^>]*data-kx-dev/.test(htmlDev), 'attribut data-kx-dev absent du HTML de développement');
+// --- L'hôte n'annonce plus de mode à la page ---------------------------------
+// L'attribut `data-kx-dev` n'a plus de raison d'être : plus rien ne dépend du
+// mode côté webview. S'il revenait, c'est qu'un filtrage par mode revient avec.
+ok("l'hôte n'annonce plus le mode à la page (production)",
+	!/<body[^>]*data-kx-dev/.test(htmlProd), 'attribut data-kx-dev présent en production');
+ok("l'hôte n'annonce plus le mode à la page (développement)",
+	!/<body[^>]*data-kx-dev/.test(htmlDev), 'attribut data-kx-dev présent en développement');
+
+// --- Ligne 1 : la version PUBLIQUE NUE, dans les deux modes -------------------
+// Le piège : un retour à `versionAffichee()` réécrirait « v2050.1.7.4242 » ici,
+// et la page afficherait le build deux fois.
+ok('production : ligne 1 = la version publique nue',
+	htmlProd.includes(`class="brand__version">v${PUBLIQUE}<`)
+	&& !htmlProd.includes(`${PUBLIQUE}.${BUILD}`),
+	'ligne 1 incorrecte (4e segment collé à la version ?)');
+ok('développement : ligne 1 = la version publique nue, elle aussi',
+	htmlDev.includes(`class="brand__version">v${PUBLIQUE}<`)
+	&& !htmlDev.includes(`${PUBLIQUE}.${BUILD}`),
+	'ligne 1 incorrecte (4e segment collé à la version ?)');
 
 if (!chrome) {
 	console.log('Chrome introuvable — les mesures de page sont sautées.');
@@ -187,36 +204,31 @@ if (!chrome) {
 	ok('la page de production a fini son script', !!prod, 'aucune mesure rendue');
 	ok('la page de développement a fini son script', !!dev, 'aucune mesure rendue');
 
-	// LE contrôle de la demande de Frank.
-	ok("PUBLIÉE : l'heure de construction n'est nulle part dans la page",
-		prod && !prod.present && !prod.corpsEntier,
-		prod ? `élément ${prod.present ? 'présent' : 'absent'}, texte « ${prod.texte} », heure dans le corps : ${prod.corpsEntier}` : '');
-
-	// Le garde-fou : masquer l'heure PARTOUT satisferait le contrôle ci-dessus
-	// et détruirait le repère de F5 que Frank utilise pour savoir quel paquet
-	// tourne. Les deux contrôles ne peuvent pas être verts par accident ensemble.
-	ok('DÉVELOPPEMENT : le repère de F5 est toujours affiché',
-		dev && dev.present && dev.texte.includes(HEURE),
+	// LE contrôle de la demande : le build reste affiché une fois PUBLIÉ.
+	ok('PUBLIÉE : la ligne « build » est affichée',
+		prod && prod.present && prod.texte.trim() === `build ${BUILD}`,
+		prod ? `élément ${prod.present ? 'présent' : 'absent'}, texte « ${prod.texte} »` : '');
+	ok('DÉVELOPPEMENT : la ligne « build » est affichée à l\'identique',
+		dev && dev.present && dev.texte.trim() === `build ${BUILD}`,
 		dev ? `élément ${dev.present ? 'présent' : 'absent'}, texte « ${dev.texte} »` : '');
 
-	// Et l'attribut arrive bien jusqu'à la page rendue (pas seulement dans la
-	// chaîne de caractères du HTML).
-	ok("production : la page rendue ne porte pas l'attribut", prod && !prod.attribut);
-	ok("développement : la page rendue porte l'attribut", dev && dev.attribut);
-}
+	// Ligne 1 telle que la page la rend, pas seulement telle que l'hôte l'écrit.
+	ok('PUBLIÉE : ligne 1 rendue = v' + PUBLIQUE,
+		prod && prod.version.trim() === `v${PUBLIQUE}`,
+		prod ? `ligne 1 rendue « ${prod.version} »` : '');
+	ok('DÉVELOPPEMENT : ligne 1 rendue = v' + PUBLIQUE,
+		dev && dev.version.trim() === `v${PUBLIQUE}`,
+		dev ? `ligne 1 rendue « ${dev.version} »` : '');
 
-// --- Le numéro de build interne, déjà filtré : on ne le casse pas -------------
-// Même règle, même fichier : le 4e segment ne doit pas fuir non plus. Un banc
-// qui ne regarde que l'heure laisserait passer une régression sur le numéro.
-ok("production : le numéro de build interne ne fuit pas non plus",
-	htmlProd.includes(`class="brand__version">v${PUBLIQUE}<`)
-	&& !htmlProd.includes(`${PUBLIQUE}.${BUILD}`),
-	'le 4e segment apparaît dans la version publiée');
-ok('développement : le numéro de build interne est affiché',
-	htmlDev.includes(`class="brand__version">v${PUBLIQUE}.${BUILD}<`));
+	// Plus d'heure nulle part : c'est ce qui a été retiré.
+	ok("PUBLIÉE : aucune heure de construction dans la page",
+		prod && !prod.heureVisible, 'une heure est affichée dans la page publiée');
+	ok("DÉVELOPPEMENT : aucune heure de construction non plus",
+		dev && !dev.heureVisible, 'une heure est affichée en développement');
+}
 
 const fails = checks.filter((c) => !c.ok).length;
 console.log(fails
 	? `heure-build : ${fails} échec(s).`
-	: `heure-build : ${checks.length} contrôles OK — l'heure de construction reste au développement.`);
+	: `heure-build : ${checks.length} contrôles OK — version publique puis numéro de build, partout.`);
 process.exit(fails ? 1 : 0);

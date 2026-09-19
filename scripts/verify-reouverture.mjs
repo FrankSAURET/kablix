@@ -118,9 +118,9 @@ const compte = () => document.querySelectorAll('.part').length;
 const b = await esbuild({
 	entryPoints: [join(ROOT, 'src', 'webview', 'sim.mts')],
 	bundle: true, format: 'iife', write: false,
-	// `__BUILD_TIME__` est injecté par esbuild.js : sans lui le module lève une
+	// `__BUILD_NUMBER__` est injecté par esbuild.js : sans lui le module lève une
 	// ReferenceError au chargement et l'atelier reste inerte, sans rien afficher.
-	define: { __BUILD_TIME__: JSON.stringify('test') },
+	define: { __BUILD_NUMBER__: JSON.stringify('test') },
 	loader: { '.svg': 'text', '.webp': 'dataurl', '.png': 'dataurl', '.gif': 'dataurl', '.mp4': 'dataurl', '.ico': 'dataurl' },
 	absWorkingDir: ROOT,
 });

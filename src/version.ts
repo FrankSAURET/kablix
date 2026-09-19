@@ -9,8 +9,10 @@ import * as vscode from 'vscode';
  *    repart JAMAIS à zéro (ni au changement de mois, ni au bump du public).
  *    Il avance à chaque lot livré et n'intéresse que les développeurs.
  *
- * L'interface affiche `2026.8.102.7` pendant le développement, `2026.8.102` chez
- * l'utilisateur : le numéro interne ne doit jamais fuir dans une version publiée.
+ * L'interface affiche les deux sur DEUX LIGNES, partout (décision du 19/09/2026,
+ * .vsix et publication compris) : « v2026.9.4 » puis « build 106 ». La seconde
+ * ligne est écrite par la webview depuis `__BUILD_NUMBER__`, injecté par esbuild
+ * — l'hôte, lui, ne fournit que le numéro public (`versionPublique`).
  */
 
 let modeDeveloppement = false;
@@ -41,11 +43,4 @@ export function enDeveloppement(): boolean {
 /** Numéro public seul : `2026.8.102`. Chaîne vide si introuvable. */
 export function versionPublique(): string {
   return manifeste().version ?? '';
-}
-
-/** Numéro affiché : public en production, public + build en développement. */
-export function versionAffichee(): string {
-  const publique = versionPublique();
-  const build = manifeste().buildNumber;
-  return modeDeveloppement && publique && build ? `${publique}.${build}` : publique;
 }

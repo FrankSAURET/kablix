@@ -13,10 +13,11 @@ const { optimizeSvg } = require('./scripts/svgo-preset');
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
 
-// Heure de build (HH:MM:SS) injectée dans le bundle webview : repère visuel sous
-// le nom Kablix pour confirmer, pendant les tests F5, qu'on exécute bien le
-// dernier build (cf. habitude de codage). Figée à la compilation.
-const BUILD_TIME = new Date().toLocaleTimeString('fr-FR', { hour12: false });
+// Numéro de build (buildNumber du manifeste) injecté dans le bundle webview :
+// affiché sous la version, il dit quel lot on exécute. Il reste dans le .vsix et
+// à la publication — contrairement à l'heure de construction qu'il remplace, un
+// numéro de lot garde son sens chez l'utilisateur.
+const BUILD_NUMBER = String(require('./package.json').buildNumber ?? '');
 
 // Versions des bibliothèques de simulation (avr8js, rp2040js, lit…) injectées
 // dans l'extension : updates.ts les compare au registre npm. Injectées une par
@@ -118,7 +119,7 @@ const webviewConfig = {
   // — la CSP de la webview autorise déjà `img-src … data:`.
   loader: { '.svg': 'text', '.webp': 'dataurl' },
   plugins: [svgoLoader],
-  define: { __BUILD_TIME__: JSON.stringify(BUILD_TIME) },
+  define: { __BUILD_NUMBER__: JSON.stringify(BUILD_NUMBER) },
   sourcemap: !production,
   minify: production,
   logLevel: 'info',
