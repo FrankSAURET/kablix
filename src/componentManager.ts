@@ -237,6 +237,11 @@ export class ComponentManagerPanel {
     * {
       box-sizing: border-box;
     }
+    /* La page ne défile pas : seule la grille le fait, pour que le titre et
+       les boutons restent sous la main quelle que soit la liste. */
+    html, body {
+      height: 100%;
+    }
     body {
       font-family: var(--vscode-font-family);
       font-size: var(--vscode-font-size, 13px);
@@ -244,20 +249,27 @@ export class ComponentManagerPanel {
       background: var(--vscode-editor-background);
       margin: 0;
       padding: 1rem;
+      overflow: hidden;
     }
     .container {
       max-width: 1000px;
       margin: 0 auto;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
     }
     h1 {
       font-size: 1.8rem;
       margin: 0 0 1rem 0;
+      flex: none;
     }
     .controls {
       display: flex;
       gap: 1rem;
       margin-bottom: 1.5rem;
       align-items: center;
+      flex: none;
     }
     .filter {
       display: flex;
@@ -311,7 +323,12 @@ export class ComponentManagerPanel {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
       gap: var(--grid-gap);
-      margin-top: 2rem;
+      align-content: start;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      padding-right: 0.25rem;
+      padding-bottom: 1rem;
     }
     .component-card {
       border: 1px solid var(--vscode-panel-border, rgba(128,128,128,.3));
@@ -366,13 +383,18 @@ export class ComponentManagerPanel {
       text-decoration: line-through;
       opacity: 0.7;
     }
+    /* « cover » recadrait l'image pour remplir le bloc : un composant large y
+       perdait ses bords. On la met en entier dans le cadre, quitte à laisser
+       du vide autour. */
     .thumbnail {
+      display: block;
       width: 100%;
       height: 150px;
       background: var(--vscode-textCodeBlock-background, rgba(128,128,128,.15));
       border-radius: 4px;
       margin-bottom: 0.8rem;
-      object-fit: cover;
+      object-fit: contain;
+      padding: 0.4rem;
     }
     .component-label {
       font-weight: bold;

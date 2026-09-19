@@ -5,9 +5,20 @@
         1. Ajoute des liens vers les fichiers d'aide à la création
         1. Ajoute une section "Composants inclus dans Kablix" au même format que celle composants disponibles
         1. Rends les deux section  de composants repliables
-        1. Fais moi un scenario (à la racine "créer un composant 2D.md" et "créer un composant 3D.md) pour le 2D une carte joy-it SBC-MotorDriver3 et pour le 3D un petit véhicule simple découpé en pmma avec une pico pi, la carte moteur 2d , 4 moteurs, la platine et les rous directement sur l'axe des moteurs. Pas à pas c'est pour faire une vidéo explicative. Le scenario 2d n'inclut pas le dessin  svg (juste "dessiner la carte"). Le scenario 3d inclut ce qu'il faut marquer comme étiquette pour chaque pièce, et le nom et descriptif des images à ajouter pour les cartes voire pour rendre joli le véhicule. Le scenario inclut la creation  du beahvior pour la simulation (par IA et sans IA).
+        1. Fais moi un scenario (à la racine "créer un composant 2D.md" et "créer un composant 3D.md) pour le 2D une carte joy-it SBC-MotorDriver3 et pour le 3D un petit véhicule simple découpé en pmma avec une pico pi, la carte moteur 2d , 4 moteurs, la platine et les roues directement sur l'axe des moteurs. Pas à pas c'est pour faire une vidéo explicative. Le scenario 2d n'inclut pas le dessin  svg (juste "dessiner la carte"). Le scenario 3d inclut ce qu'il faut marquer comme étiquette pour chaque pièce, et le nom et descriptif des images à ajouter pour les cartes voire pour rendre joli le véhicule. Le scenario inclut la creation  du beahvior pour la simulation (par IA et sans IA).
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# >>>>  v2026.9.4.109 — Le gestionnaire garde sa barre et ses images entières
+
+1. ✅ **Les vignettes ne sont plus rognées** dans [componentManager.ts](src/componentManager.ts) : `object-fit: cover` remplissait le bloc de 150 px de haut en recadrant l'image, donc un composant large y perdait ses bords. Passé en `contain`, avec `display: block` et `padding: .4rem` pour ne pas coller aux angles.
+2. ✅ **Le titre et les boutons ne défilent plus.** `body` passe en `overflow: hidden` sur toute la hauteur, `.container` en colonne flex (`min-height: 0`), `h1` et `.controls` en `flex: none`, et seule `.grid` défile (`flex: 1 1 auto`, `overflow-y: auto`, `align-content: start`).
+3. ✅ **`margin-top: 2rem` retiré de la grille** : en tête d'une zone défilante il décollait le premier rang de son cadre, et `.controls` a déjà sa marge basse.
+4. ✅ **Vérifié au rendu Chrome headless**, page reconstruite depuis le vrai gabarit HTML avec des vignettes 600×120, 120×600, 300×300 : images entières, en-tête immobile après défilement à fond.
+5. ✅ **Contre-épreuve au `git stash`** : sur l'ancien code le 600×120 est bien rogné et le `scrollTop` de la grille ne fait rien (c'est la page qui défile). Le banc distingue.
+6. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 109.
 
 ---
 

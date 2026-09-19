@@ -19,6 +19,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 ### Modification
 
 - **Le numéro de version est suivi du numéro de lot**, sur une seconde ligne sous le nom Kablix. L'heure de construction qui s'y affichait a disparu.
+- **Le gestionnaire de composants montre les images en entier** : elles étaient recadrées et débordaient de leur cadre. Le titre, les filtres et les boutons restent en place quand on fait défiler la liste.
 - **Kablix retrouve l'arduino-cli installé par l'extension Arduino VS Code IDE**, y compris à son nouvel emplacement depuis la version 2026.9.3 de celle-ci. Les réglages de cette extension, Arduino IDE 2 et le PATH sont également consultés.
 - **Une commande « Kablix : Detect arduino-cli again »** relance la recherche sans redémarrer l'éditeur. Quand rien n'est trouvé, le message liste les emplacements consultés.
 - **Le panneau Variables montre les tableaux, les structures et les pointeurs** en C/Arduino. Chaque case et chaque champ a sa ligne, nommée comme on l'écrit (`notes[0]`, `p1.x`). Seules les variables simples apparaissaient jusqu'ici.

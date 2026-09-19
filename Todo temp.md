@@ -10,8 +10,7 @@
 
 
 
-1. L'image sur les cartes des composant dans le gestionnaire de composant doit être ajusté. Actuellement elle sort du cadre et j'ai l'impression que c'est ton cadre qui se voulait carré mais est finalement rectangulaire qui tronque la vue.
-1. Quand on navique dans le gestionnaire de composants la partie avec le titre et les bouton ne doit pas bouger avec l'ascenseur
+
 1. Analyseur logique
     1. Donne moi un moyen de corriger tout seul la position  de la pastille de la sonde tu n'y arrive pas. Dis moi ou changer le x et le y.
     1. une pince reliée par un fil prend enfin sa voie -> Non Toujours pas !
