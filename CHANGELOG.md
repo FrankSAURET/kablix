@@ -34,6 +34,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Correction
 
+- **Les composants de la bibliothèque officielle ne demandent plus votre autorisation.** La question « ce composant exécute du code d'une source distante » était posée pour les composants publiés avec Kablix, au même titre que ceux d'un dépôt inconnu. Elle reste posée, elle, pour toute autre source.
 - **Les trois platines d'essai ont retrouvé leur bonne rigole.** L'espace entre les deux blocs de trous ne faisait que deux pas au lieu de trois : un circuit intégré ne tombait pas juste, ses pattes ne trouvaient pas les trous de part et d'autre.
 - **L'heure de fabrication n'apparaît plus sous le nom Kablix.** C'est un repère de mise au point : elle reste affichée pendant le développement de l'extension, plus dans la version installée.
 - **L'analyseur affiche enfin ses courbes.** Son onglet restait gris, programme lancé, en pause ou arrêté : né derrière le schéma, il ne recevait aucune image, et une fois ramené devant il gardait sa page vide alors que les voies étaient bien là dans sa légende. Il se dessine maintenant dans tous les cas, et se repeint à coup sûr dès qu'on revient dessus.

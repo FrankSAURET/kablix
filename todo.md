@@ -5,9 +5,23 @@
         1. Ajoute des liens vers les fichiers d'aide à la création
         1. Ajoute une section "Composants inclus dans Kablix" au même format que celle composants disponibles
         1. Rends les deux section  de composants repliables
-        1. Fais moi un scenario (à la racine "créer un composant 2D.md" et "créer un composant 3D.md) pour le 2D une carte joy-it SBC-MotorDriver3 et pour le 3D un petit véhicule simple découpé en pmma avec une pico pi, la carte moteur 2d , 4 moteurs, la platine et les rous directement sur l'axe des moteurs.
+        1. Fais moi un scenario (à la racine "créer un composant 2D.md" et "créer un composant 3D.md) pour le 2D une carte joy-it SBC-MotorDriver3 et pour le 3D un petit véhicule simple découpé en pmma avec une pico pi, la carte moteur 2d , 4 moteurs, la platine et les rous directement sur l'axe des moteurs. Pas à pas c'est pour faire une vidéo explicative.
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# >>>>  v2026.9.4.106 — Le dépôt officiel n'a plus à se présenter
+
+1. ✅ **Les composants du dépôt officiel sont approuvés d'office.** Constante `DEPOT_OFFICIEL` et fonction `sourceOfficielle()` dans [kompixLibrary.ts](src/kompixLibrary.ts) ; `acceptedAt` est désormais posé pour `origin === 'local'` **ou** une `sourceUrl` du dépôt de l'extension, dans les deux points d'installation (`saveKompix`, `saveKompixFromBuffer`).
+2. ℹ️ **Pourquoi c'était un défaut.** `FrankSAURET/kablix` était classé `remote` au même titre que n'importe quelle URL inconnue : la fenêtre « ce composant exécute du code d'une source distante » se serait ouverte sur du code de l'extension elle-même. Une alerte qui se déclenche sur ses propres composants use la vigilance de l'utilisateur sur les vraies.
+3. ✅ **La comparaison porte sur le préfixe barre oblique COMPRISE.** Sans elle, `FrankSAURET/kablix-truc` passait pour officiel. Un banc dédié couvre ce sosie.
+4. ✅ **Rattrapage des composants DÉJÀ installés**, dans `loadIndex()`. L'index relevé sur la machine de Frank porte 9 entrées officielles sans `acceptedAt` (installées avant cette notion) : le premier de ces composants à recevoir un `behavior.mjs` aurait posé la question. Rien n'est réécrit sur le disque au chargement — la prochaine écriture de l'index s'en charge.
+5. ✅ **Trois contrôles ajoutés à [verify-kompix.mjs](scripts/verify-kompix.mjs)** (43 au total) : approbation d'office de l'officiel, refus du dépôt au nom ressemblant, rattrapage d'un index périmé. `allerRetour()` accepte maintenant une `sourceUrl`, c'est elle qui décide.
+6. ℹ️ **Le test du rattrapage a demandé un détour.** Le bouchon `vscode` du banc force `componentsFolder` sur le dossier de travail : donner un autre `globalStorageUri` à une seconde bibliothèque ne la déplace pas. L'index périmé est donc écrit À SA PLACE, puis restauré dans un `finally` — il est partagé par tous les tests.
+7. ✅ **Contre-épreuve `git stash` concluante : 41/43 sur l'ancien code**, les deux nouveaux contrôles de fond rouges, le sosie vert (il l'était déjà, il garde le préfixe honnête).
+8. ℹ️ **Diagnostic d'origine, sans rapport avec ce lot.** Le « capteurs trouves : 0 » de Frank venait de l'extension INSTALLÉE (`2026.9.4`, publiée le 13/09), antérieure au moteur 1-Wire de la v.104 — pas de l'approbation : le `.kompix` du DS18B20 n'embarque aucun `behavior.mjs`, son comportement est dans le moteur. Le souligné rouge des `#include`, lui, venait d'un `c_cpp_properties.json` périmé dans `testkablix/.vscode/`, dont l'`includePath` ne portait que le cœur AVR.
+9. ℹ️ **`version` reste `2026.9.4`**, `buildNumber` à 106. CHANGELOG complété sous `2026.9.5 (prochaine publication)`.
 
 ---
 

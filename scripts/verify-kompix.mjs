@@ -152,10 +152,18 @@ function gestionnaireNu() {
   return nu;
 }
 
-/** Empaquette une pièce, l'installe, et rend ce que la bibliothèque en relit. */
-async function allerRetour(part, origin = 'local') {
+/**
+ * Empaquette une pièce, l'installe, et rend ce que la bibliothèque en relit.
+ * `sourceUrl` permet de distinguer le dépôt officiel d'un dépôt tiers : c'est
+ * l'URL, et elle seule, qui décide si le comportement est approuvé d'office.
+ */
+async function allerRetour(part, origin = 'local', sourceUrl) {
   const buffer = await lib.createKompixBufferFromPartData(part, '1.2.3');
-  await lib.saveKompixFromBuffer(buffer, origin, origin === 'remote' ? 'https://exemple/x.kompix' : undefined);
+  await lib.saveKompixFromBuffer(
+    buffer,
+    origin,
+    origin === 'remote' ? (sourceUrl ?? 'https://exemple/x.kompix') : undefined
+  );
   const relu = lib.getComponents().find((c) => c.type === part.type);
   if (!relu) throw new Error(`« ${part.type} » n'est pas ressorti de la bibliothèque`);
   return relu;
@@ -424,6 +432,81 @@ test('un comportement DISTANT n’est pas approuvé par sa seule installation', 
   eq(relu.kompixMeta.origin, 'remote', 'origine');
   eq(relu.kompixMeta.behaviorAccepted, false, 'approbation avant confirmation');
   if (!relu.kompixMeta.behaviorHash) throw new Error('empreinte du comportement absente');
+});
+
+test('un comportement du DÉPÔT OFFICIEL est approuvé d’office', async () => {
+  // Le dépôt officiel est celui de l'extension elle-même : poser la question
+  // pour ses propres composants n'avertit de rien et use la vigilance de
+  // l'utilisateur. L'origine reste « remote » (c'est bien un téléchargement),
+  // seule l'approbation change.
+  const relu = await allerRetour({
+    type: 'test-comportement-officiel',
+    label: 'Officiel',
+    kind: 'passive',
+    pins: [],
+    svg: '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><rect width="20" height="20"/></svg>',
+    behaviorScript: 'export function tick() { /* code de l’extension */ }\n',
+  }, 'remote', 'https://raw.githubusercontent.com/FrankSAURET/kablix/main/kablix_components/x.kompix');
+  eq(relu.kompixMeta.origin, 'remote', 'origine');
+  eq(relu.kompixMeta.behaviorAccepted, true, 'approbation');
+});
+
+test('un dépôt au nom RESSEMBLANT n’est pas pris pour l’officiel', async () => {
+  // « FrankSAURET/kablix-truc » commence par « FrankSAURET/kablix » : sans la
+  // barre oblique finale dans le préfixe comparé, il passerait pour officiel.
+  const relu = await allerRetour({
+    type: 'test-comportement-sosie',
+    label: 'Sosie',
+    kind: 'passive',
+    pins: [],
+    svg: '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><rect width="20" height="20"/></svg>',
+    behaviorScript: 'export function tick() {}\n',
+  }, 'remote', 'https://raw.githubusercontent.com/FrankSAURET/kablix-truc/main/x.kompix');
+  eq(relu.kompixMeta.behaviorAccepted, false, 'approbation');
+});
+
+test('un officiel DÉJÀ installé sans approbation est rattrapé au chargement', async () => {
+  // Les composants officiels installés avant que cette source soit reconnue
+  // sont dans l'index sans `acceptedAt` (index relevé chez Frank, 9 entrées).
+  // Sans rattrapage, le premier d'entre eux à recevoir un behavior.mjs
+  // poserait la question sur du code de l'extension elle-même.
+  // Le bouchon `vscode` force `componentsFolder` sur WORK_DIR : la bibliothèque
+  // range tout là, quel que soit le globalStorageUri qu'on lui donne. On écrit
+  // donc l'index périmé À SA PLACE, puis on construit une SECONDE bibliothèque
+  // dessus — c'est son constructeur, et lui seul, qui fait le rattrapage.
+  const indexEnPlace = join(WORK_DIR, '.kompix-index.json');
+  const avant = JSON.parse(readFileSync(indexEnPlace, 'utf8'));
+  writeFileSync(
+    indexEnPlace,
+    JSON.stringify([
+      ...avant,
+      {
+        type: 'ds18b20',
+        origin: 'remote',
+        sourceUrl: 'https://raw.githubusercontent.com/FrankSAURET/kablix/main/kablix_components/ds18b20.kompix',
+        version: '2026.9.0',
+      },
+      {
+        type: 'venu-d-ailleurs',
+        origin: 'remote',
+        sourceUrl: 'https://exemple.test/venu-d-ailleurs.kompix',
+        version: '1.0.0',
+      },
+    ], null, 2),
+    'utf8'
+  );
+
+  try {
+    const autre = new KompixLibrary(contexteBidon);
+    const officiel = autre.getIndexEntry('ds18b20');
+    if (!officiel) throw new Error('l’index écrit d’avance n’a pas été relu');
+    if (!officiel.acceptedAt) throw new Error('officiel déjà installé : acceptation non rattrapée');
+    eq(autre.getIndexEntry('venu-d-ailleurs').acceptedAt, undefined, 'acceptation d’un tiers');
+  } finally {
+    // L'index est partagé par tous les tests : le rendre tel qu'il était, même
+    // en cas d'échec, sinon les suivants héritent des deux entrées bidons.
+    writeFileSync(indexEnPlace, JSON.stringify(avant, null, 2), 'utf8');
+  }
 });
 
 test('« Faire confiance » est mémorisé, et seulement pour CE code', async () => {

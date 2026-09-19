@@ -7,6 +7,27 @@ import { KompixL10nEntry, traduireKompix } from './kompixI18n';
 
 type PartKind = string; // Réutilise la même enum que catalog.mts
 
+/**
+ * Dépôt officiel Kablix. Ce qui en vient est écrit et publié par l'auteur de
+ * l'extension : demander « faites-vous confiance à ce code ? » pour SES propres
+ * composants n'avertit de rien et use la vigilance de l'utilisateur sur les
+ * vraies alertes. La question reste posée pour toute AUTRE source distante.
+ *
+ * Le préfixe est comparé à `sourceUrl`, qui est construite depuis le réglage
+ * `kablix.componentRepositories` (componentManager.ts) : un dépôt tiers ajouté
+ * là ne correspondra pas et restera soumis à confirmation.
+ */
+const DEPOT_OFFICIEL = 'https://raw.githubusercontent.com/FrankSAURET/kablix/';
+
+/**
+ * Vrai si l'URL désigne le dépôt officiel. La comparaison est faite sur
+ * l'origine exacte ET le chemin : `https://raw.githubusercontent.com/FrankSAURET/kablix-faux/`
+ * ne doit PAS passer pour officiel, d'où la barre oblique finale dans le préfixe.
+ */
+function sourceOfficielle(sourceUrl: string | undefined): boolean {
+  return typeof sourceUrl === 'string' && sourceUrl.startsWith(DEPOT_OFFICIEL);
+}
+
 /** Échappe une chaîne pour l'insérer littéralement dans une expression régulière. */
 function escapeRe(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -274,7 +295,16 @@ export class KompixLibrary {
         const data = readFileSync(this.indexPath, 'utf8');
         const parsed = JSON.parse(data);
         if (Array.isArray(parsed)) {
+          // Les composants du dépôt officiel installés AVANT que cette source
+          // soit reconnue de confiance sont dans l'index sans `acceptedAt` :
+          // sans ce rattrapage, le premier d'entre eux à recevoir un
+          // behavior.mjs poserait la question sur du code de l'extension
+          // elle-même. Rien n'est réécrit sur le disque ici : la prochaine
+          // écriture de l'index (installation, acceptation) le fera.
           for (const entry of parsed) {
+            if (!entry.acceptedAt && sourceOfficielle(entry.sourceUrl)) {
+              entry.acceptedAt = new Date().toISOString();
+            }
             this.index.set(entry.type, entry);
           }
         }
@@ -638,8 +668,12 @@ export class KompixLibrary {
         behaviorHash,
         // Un composant venu d'ailleurs n'est PAS approuvé du seul fait d'avoir
         // été installé : c'est acceptBehaviorHash() qui le marquera, après le
-        // « Faire confiance » de l'utilisateur. Le sien, en revanche, l'est.
-        acceptedAt: origin === 'local' ? new Date().toISOString() : undefined,
+        // « Faire confiance » de l'utilisateur. Le sien, en revanche, l'est —
+        // et le dépôt officiel de l'extension aussi (voir DEPOT_OFFICIEL).
+        acceptedAt:
+          origin === 'local' || sourceOfficielle(sourceUrl)
+            ? new Date().toISOString()
+            : undefined,
         version: manifest.version,
       });
       this.saveIndex();
@@ -681,8 +715,12 @@ export class KompixLibrary {
         origin,
         sourceUrl,
         behaviorHash,
-        // Voir saveKompix() : l'installation n'approuve pas un code distant.
-        acceptedAt: origin === 'local' ? new Date().toISOString() : undefined,
+        // Voir saveKompix() : l'installation n'approuve pas un code distant,
+        // sauf s'il vient du dépôt officiel.
+        acceptedAt:
+          origin === 'local' || sourceOfficielle(sourceUrl)
+            ? new Date().toISOString()
+            : undefined,
         version: manifest.version,
       });
       this.saveIndex();
