@@ -341,6 +341,53 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
     partDepuisZero < 5, `${partDepuisZero.toFixed(1)} %`);
 }
 {
+  // LA BROCHE FAIT FOI, PAS LE NUMÉRO DE VOIE. Une capture enregistrée et le
+  // schéma désignent la même sonde de deux façons : la capture par la BROCHE
+  // mesurée, le schéma par le NUMÉRO de la pince. Le numéro n'est qu'une teinte
+  // et bouge dès qu'on renumérote une pince ; la broche est l'identité du
+  // signal. Cas réel de sonde-logique-pico : schéma sur les voies 0/2/3/4,
+  // capture sur les voies 0 et 1 — les fronts de GP15 étaient rangés en voie 1,
+  // qui n'a aucune piste, pendant que la piste 2 (la pince POSÉE sur GP15)
+  // restait plate. Trois pistes muettes sur quatre.
+  // `check` d'ici n'accepte qu'un booléen : une méthode absente le ferait MOURIR
+  // au lieu d'échouer, et la contre-épreuve au `git stash` rendrait un banc muet
+  // — donc vert en apparence. C'est le piège payé aux lots .100 et .101. On
+  // enveloppe donc chaque appel : une exception vaut faux, pas la fin du banc.
+  const sans = (f, defaut = null) => { try { return f(); } catch { return defaut; } };
+  const c = new AnalyseurCapture();
+  c.declarerVoies([
+    { voie: 0, pin: 'GP14', nom: 'horloge' },
+    { voie: 1, pin: 'GP15', nom: 'GP15' },
+  ]);
+  c.verser({ GP14: [1, 1, 2, 0], GP15: [1.5, 1, 2.5, 0] });
+  sans(() => c.renumeroter(new Map([['GP14', 0], ['GP15', 2]])));
+  const parVoie = new Map(c.listeVoies.map((v) => [v.voie, v]));
+  check('renumérotage : la voie suit sa BROCHE jusqu\'au numéro du schéma',
+    parVoie.get(2)?.pin === 'GP15', JSON.stringify(c.listeVoies.map((v) => [v.voie, v.pin])));
+  check('renumérotage : et ses fronts la suivent, sans en perdre un',
+    parVoie.get(2)?.fronts.length === 2, String(parVoie.get(2)?.fronts.length));
+  check('renumérotage : la voie déjà bien numérotée ne bouge pas',
+    parVoie.get(0)?.pin === 'GP14' && parVoie.get(0)?.fronts.length === 2);
+  check('renumérotage : l\'ancien numéro est libéré',
+    !parVoie.has(1), JSON.stringify([...parVoie.keys()]));
+  // Une broche que le schéma ne sonde plus garde son numéro : ses fronts
+  // restent là si un message `voies` la ramène.
+  const d = new AnalyseurCapture();
+  d.declarerVoies([{ voie: 5, pin: 'GP7', nom: 'GP7' }]);
+  d.verser({ GP7: [1, 1] });
+  sans(() => d.renumeroter(new Map([['GP2', 0]])));
+  check('renumérotage : une broche absente du schéma garde sa place et ses fronts',
+    d.listeVoies.length === 1 && d.listeVoies[0].voie === 5 && d.listeVoies[0].fronts.length === 1);
+  // Une table vide ne doit RIEN toucher : c'est le cas du tout premier message
+  // `voies`, avant que l'atelier ait résolu la moindre sonde.
+  const e = new AnalyseurCapture();
+  e.declarerVoies([{ voie: 3, pin: 'GP9', nom: 'GP9' }]);
+  e.verser({ GP9: [1, 1] });
+  sans(() => e.renumeroter(new Map()));
+  check('renumérotage : une table vide laisse la capture intacte',
+    e.listeVoies.length === 1 && e.listeVoies[0].voie === 3 && e.listeVoies[0].fronts.length === 1);
+}
+{
   // Les PISTES de l'onglet viennent normalement du message `voies` que pousse
   // l'atelier. À la réouverture d'un projet sans relancer la simulation, rien ne
   // l'a poussé : l'onglet affichait « aucune sonde » par-dessus des milliers de
@@ -348,7 +395,7 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   // porte son numéro, sa broche et son nom —, et c'est d'elle que `restaurer()`
   // dresse les pistes tant que rien d'autre ne l'a fait.
   const src = readFileSync(join(root, 'src', 'webview', 'analyseur.mts'), 'utf8');
-  const bloc = src.slice(src.indexOf('function restaurer'), src.indexOf('function restaurer') + 2200);
+  const bloc = src.slice(src.indexOf('function restaurer'), src.indexOf('function restaurer') + 4200);
   check('réouverture : restaurer() dresse les pistes quand la liste est vide',
     /diagnostics\.length === 0 && etat\.voies\.length > 0/.test(bloc) &&
       /diagnostics = etat\.voies\.map/.test(bloc));
@@ -368,6 +415,13 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
     /diagnostics = msg\.voies\.map/.test(surVoies) && !/diagnostics\.length === 0/.test(surVoies));
   check('réouverture : mais une liste VIDE ne jette pas une capture déjà affichée',
     /msg\.voies\.length === 0 && !enCours && capture\.aDesDonnees/.test(surVoies));
+  // Les deux sens du recalage par broche : à la restauration (la capture arrive
+  // sur un schéma déjà connu) et à la réception des voies (le schéma arrive sur
+  // une capture déjà restaurée — l'atelier résout ses sondes en retard).
+  check('réouverture : restaurer() range la capture sur les voies du SCHÉMA, par broche',
+    /parPin\.get\(v\.pin\) \?\? v\.voie/.test(bloc) && /capture\.declarerVoies\(etat\.voies\.map/.test(bloc));
+  check('réouverture : et un message `voies` tardif renumérote la capture au lieu de la jeter',
+    /capture\.renumeroter\(/.test(surVoies));
 
   // L'ONGLET AU SECOND PLAN NE REÇOIT AUCUNE IMAGE (v2026.9.4.98). Frank, 18/09 :
   // « je ne vois toujours rien dans l'analyseur, que le programme tourne, soit

@@ -178,6 +178,35 @@ const page = `<!doctype html><meta charset=utf8>
   await wait(200);
   mesures.apresVoiesVides = peints();
   mesures.hauteurApresVoiesVides = cv.clientHeight;
+  // LE SCHÉMA ET LA CAPTURE NE SONT PAS D'ACCORD SUR LES NUMÉROS. Cas réel de
+  // sonde-logique-pico : les pinces du schéma sont sur les voies 0 et 2, la
+  // capture enregistrée porte les voies 0 et 1. La broche, elle, est la même
+  // des deux côtés — c'est la seule identité fiable, le numéro n'étant qu'une
+  // teinte qui bouge dès qu'on renumérote une pince.
+  // On compte les pixels PISTE PAR PISTE : une piste sans courbe garde son
+  // trait de repos et son étiquette, donc un total NON nul — un comptage global
+  // ne verrait rien. La piste du bas (voie 2, GP1) doit porter sa courbe.
+  post({ type: 'voies', voies: [
+   { voie: 0, pin: 'GP0', nom: 'GP0', probleme: null, analogique: false, suivi: false },
+   { voie: 2, pin: 'GP1', nom: 'GP1', probleme: null, analogique: false, suivi: false },
+  ] });
+  await wait(250);
+  post({ type: 'restaure', etat: ETAT });
+  await wait(250);
+  post({ type: 'repeindre' });
+  await wait(200);
+  mesures.pistesDesaccordees = (() => {
+   const g = cv.getContext('2d');
+   const h = Math.floor(cv.height / 2);
+   const out = [];
+   for (let i = 0; i < 2; i++) {
+    const d = g.getImageData(110, i * h, cv.width - 130, h).data;
+    let n = 0;
+    for (let j = 3; j < d.length; j += 4) if (d[j] > 0) n++;
+    out.push(n);
+   }
+   return out;
+  })();
   mesures.erreurs = erreurs.join(' | ').slice(0, 300);
   const out = document.createElement('pre');
   out.id = 'measures';
@@ -215,7 +244,8 @@ const r = JSON.parse(
 console.log('Analyseur — rendu de l\'onglet');
 console.log(` (mesuré : caché ${r.cacheLargeur}x${r.cacheHauteur} style=${r.cacheStyleH}, ${r.cachePeints} px peints`
 	+ ` · de retour ${r.viveLargeur}px, ${r.roPeints} px par le ResizeObserver seul`
-	+ ` puis ${r.vivePeints} après « repeindre » · canvas ${r.attrW}x${r.attrH})`);
+	+ ` puis ${r.vivePeints} après « repeindre » · canvas ${r.attrW}x${r.attrH}`
+	+ ` · numéros désaccordés : pistes ${JSON.stringify(r.pistesDesaccordees)})`);
 check('la page ne lève aucune erreur', r.erreurs === '', r.erreurs);
 check('caché, le canvas est bien de largeur nulle (la condition du défaut est reproduite)',
 	r.cacheLargeur === 0, `largeur ${r.cacheLargeur}`);
@@ -249,6 +279,22 @@ check('une liste de voies VIDE reçue après coup n\'efface pas la capture affic
 	`${r.apresVoiesVides} px après la liste vide, contre ${r.vivePeints} avant`);
 check('la liste vide ne rabat pas non plus la hauteur sur une piste unique',
 	r.hauteurApresVoiesVides === 150, `hauteur ${r.hauteurApresVoiesVides}`);
+// LES DEUX PISTES TRACENT MÊME QUAND LES NUMÉROS NE COÏNCIDENT PAS. La capture
+// est rangée par BROCHE sur les voies du schéma : GP1 capturé en voie 1 doit
+// aller se dessiner dans la piste de la voie 2, celle de la pince posée dessus.
+// Mesuré sur le cas réel avant correction : la piste qui tombait juste peignait
+// 31 348 px, les autres 2 508 — leur seul trait de repos, sans une courbe.
+// Le seuil se prend sur la PREMIÈRE piste, jamais en valeur absolue : les deux
+// voies du banc portent un nombre de fronts comparable, donc une piste qui
+// trace ressemble à l'autre (3 542 contre 4 025 ici), tandis qu'une piste
+// réduite à son trait de repos et à son étiquette décroche nettement (2 264).
+// Un seuil lâche passerait avant COMME après la correction — mesuré, et c'est
+// ce qui a failli faire livrer ce lot sur un contrôle qui ne prouvait rien.
+check('la piste dont le NUMÉRO diffère de la capture trace quand même sa courbe',
+	r.pistesDesaccordees[1] > r.pistesDesaccordees[0] * 0.75,
+	`pistes ${JSON.stringify(r.pistesDesaccordees)} — la seconde n'a que son trait de repos`);
+check('et la piste accordée n\'a rien perdu au passage',
+	r.pistesDesaccordees[0] > 500, `${r.pistesDesaccordees[0]} px sur la première piste`);
 
 console.log(failures === 0 ? '\nTout est vert.' : `\n${failures} échec(s).`);
 process.exit(failures === 0 ? 0 : 1);

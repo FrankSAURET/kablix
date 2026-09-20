@@ -43,7 +43,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Correction
 
-- **L'analyseur logique ne s'affiche plus gris à la réouverture d'un projet.** La capture enregistrée était effacée juste après avoir été affichée, et l'onglet annonçait « aucune sonde » par-dessus une mesure entière.
+- **L'analyseur logique montre de nouveau ses courbes à la réouverture d'un projet.** Deux défauts se cumulaient : la capture enregistrée était effacée juste après avoir été affichée — l'onglet annonçait « aucune sonde » par-dessus une mesure entière —, et les courbes retrouvées étaient rangées sous les mauvaises pinces quand l'ordre des sondes avait changé depuis l'enregistrement : les pistes restaient plates. Chaque courbe suit maintenant la broche sur laquelle elle a été mesurée.
 - **Une sonde logique posée directement sur une patte prend sa couleur tout de suite.** Il fallait jusqu'ici la déposer sur le schéma puis la déplacer d'un pixel pour qu'elle s'accroche et apparaisse dans l'analyseur.
 - **Le DS18B20 se fait enfin trouver sur Pico.** `scan()` ne rendait aucun capteur, sur Pico 1 comme sur Pico 2 : le programme annonçait « capteurs trouvés : 0 » et ne lisait jamais de température. La recherche d'adresses sur le fil 1-Wire est maintenant simulée pour de bon.
 - **Le DS18B20 se fait aussi trouver sur Arduino.** Avec les bibliothèques OneWire et DallasTemperature, `getDeviceCount()` rendait 0 et aucune température n'arrivait. Plusieurs capteurs branchés sur le même fil sont maintenant reconnus, chacun avec sa mesure.

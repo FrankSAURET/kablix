@@ -987,6 +987,14 @@ window.addEventListener('message', (ev) => {
         analogique: v.analogique,
         suivi: v.suivi === true,
       }));
+      // La capture suit ses BROCHES, pas ses numéros. Si ce message arrive après
+      // un `restaure` — l'atelier résout ses sondes en retard —, la capture est
+      // encore rangée sous les numéros du .projix. Or `declarerVoies` ne garde
+      // les fronts qu'à voie ET broche identiques : sans ce renumérotage, GP15
+      // capturé en voie 1 puis redéclaré en voie 2 perdrait tout.
+      capture.renumeroter(
+        new Map(diagnostics.filter((d) => d.pin).map((d) => [d.pin, d.voie]))
+      );
       // Seules les voies traçables entrent dans la capture : une sonde en l'air
       // n'a pas de broche, donc rien à quoi rattacher des fronts.
       capture.declarerVoies(
@@ -1031,7 +1039,28 @@ window.addEventListener('message', (ev) => {
 
 /** Recharge une capture enregistrée (ouverture de l'onglet hors simulation). */
 function restaurer(etat: EtatSerialise): void {
-  capture.declarerVoies(etat.voies.map((v) => ({ voie: v.voie, pin: v.pin, nom: v.nom })));
+  // LA BROCHE FAIT FOI, PAS LE NUMÉRO DE VOIE. Une capture et un schéma
+  // désignent la même sonde de deux façons : la capture par la BROCHE qu'elle a
+  // mesurée, le schéma par le NUMÉRO DE VOIE de la pince. Or le numéro n'est
+  // qu'une teinte : il change dès que Frank renumérote ses pinces, ajoute une
+  // voie ou en retire une. Les deux se désaccordent alors, et comme la vue
+  // apparie les fronts à leur piste PAR NUMÉRO, les courbes tombent dans des
+  // pistes qui n'existent pas.
+  //
+  // Mesuré sur sonde-logique-pico : schéma sur les voies 0/2/3/4, capture sur
+  // les voies 0 et 1. Les 3 988 fronts de GP15 étaient rangés en voie 1, qui
+  // n'a aucune piste, pendant que la piste 2 — la pince POSÉE sur GP15 —
+  // restait plate. Trois pistes sur quatre muettes (2 508 px de trait de repos
+  // contre 31 348 pour celle qui tombait juste), et zéro courbe dès que la voie
+  // 0 ne coïncide pas non plus. C'est la page grise de Frank.
+  //
+  // On renumérote donc la capture sur les voies du schéma, par broche. Une
+  // broche que le schéma ne sonde plus garde son numéro d'origine : sa piste
+  // n'existe pas, mais ses fronts restent là si le message `voies` la ramène.
+  const parPin = new Map<string, number>();
+  for (const d of diagnostics) if (d.pin) parPin.set(d.pin, d.voie);
+  const voieDe = (v: { voie: number; pin: string }): number => parPin.get(v.pin) ?? v.voie;
+  capture.declarerVoies(etat.voies.map((v) => ({ voie: voieDe(v), pin: v.pin, nom: v.nom })));
   const salves: Record<string, number[]> = {};
   for (const v of etat.voies) salves[v.pin] = v.fronts;
   capture.verser(salves);

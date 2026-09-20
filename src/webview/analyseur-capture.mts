@@ -100,6 +100,40 @@ export class AnalyseurCapture {
     for (const v of this.voies.values()) this.parPin.set(v.pin, v);
   }
 
+  /**
+   * Redonne à chaque voie CAPTURÉE le numéro que le schéma attribue à sa
+   * BROCHE, sans toucher aux fronts.
+   *
+   * Une capture enregistrée et un schéma désignent la même sonde de deux
+   * façons : la capture par la broche mesurée, le schéma par le numéro de voie
+   * de la pince. Ce numéro n'est qu'une teinte — il change dès qu'on renumérote
+   * une pince, qu'on en ajoute ou qu'on en retire —, alors que la broche est
+   * l'identité réelle du signal. Sans ce recalage, les fronts d'une voie se
+   * retrouvent sous un numéro qui n'a aucune piste, et la piste qui les attend
+   * reste plate : c'est la page grise du 20/09 (trois sondes muettes sur quatre
+   * dans sonde-logique-pico).
+   *
+   * Une broche absente du schéma garde son numéro : ses fronts restent là si un
+   * message `voies` la ramène. Un numéro déjà pris par une autre broche n'est
+   * pas volé — on ne troque pas une capture contre une autre.
+   */
+  renumeroter(voieParPin: Map<string, number>): void {
+    if (voieParPin.size === 0) return;
+    const vise = new Map<number, VoieCapture>();
+    const reste: VoieCapture[] = [];
+    for (const v of this.voies.values()) {
+      const n = voieParPin.get(v.pin);
+      if (n === undefined || vise.has(n)) reste.push(v);
+      else vise.set(n, { ...v, voie: n });
+    }
+    // Les voies non recalées reprennent leur place, sauf si elle vient d'être
+    // occupée par une voie recalée — celle-ci a le schéma pour elle.
+    for (const v of reste) if (!vise.has(v.voie)) vise.set(v.voie, v);
+    this.voies = vise;
+    this.parPin = new Map();
+    for (const v of this.voies.values()) this.parPin.set(v.pin, v);
+  }
+
   /** Voies déclarées, dans l'ordre des couleurs. */
   get listeVoies(): VoieCapture[] {
     return [...this.voies.values()].sort((a, b) => a.voie - b.voie);
