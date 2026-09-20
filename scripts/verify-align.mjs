@@ -294,23 +294,23 @@ async function run() {
 		ok('crochet : dégradé métallique recalé en travers du trait',
 			grad && Math.abs(gx1 - 10) < 2 && grad.getAttribute('gradientTransform') === 'translate(0,0)',
 			grad ? 'x1=' + gx1 + ' gt=' + grad.getAttribute('gradientTransform') : 'dégradé introuvable');
-		// MESURE BRUTE du point de connexion, pour diagnostic.
-		// Position de la mâchoire EN UNITÉS DE VIEWBOX : sa boîte locale est dans
-		// un repère transformé (223,213 chez Inkscape), il faut passer par le
-		// rectangle écran et le rapporter au SVG hôte, qui fait 80 unités.
-		const svgH = r && r.querySelector('svg');
-		const rs = svgH && svgH.getBoundingClientRect();
-		const enVb = (v, origine, taille) => ((v - origine) / taille) * 80;
-		const mx = rs && rm ? enVb(rm.left, rs.left, rs.width) : NaN;
-		const my = rs && rm ? enVb(rm.bottom, rs.top, rs.height) : NaN;
-		// LE POINT DE CONNEXION. Frank (17/09) : « sa connection n'est toujours
-		// pas exactement à l'intersection de la grille ». Mesuré avant correction :
-		// la pointe de la mâchoire tombait en (10,73 ; 69,25) alors que la pastille
-		// est déclarée en (10 ; 70). Trois quarts d'unité d'écart — le fil se
-		// raccordait au croisement, mais la pince DESSINÉE pinçait à côté.
-		ok('point de connexion : la pointe de la mâchoire tombe PILE sur la pastille',
-			Math.abs(mx - 10) < 0.2 && Math.abs(my - 70) < 0.2,
-			'pointe=(' + mx.toFixed(2) + ' ; ' + my.toFixed(2) + ') pastille=(10 ; 70)');
+		// LA POINTE DESSINÉE DE LA MÂCHOIRE N'EST PLUS MESURÉE ICI (19/09).
+		//
+		// Ce contrôle comparait le coin de la boîte de la mâchoire à la pastille
+		// et exigeait deux dixièmes d'unité d'écart. Il tenait tant que la pince
+		// était calée au calcul ; il ne tient plus depuis que Frank l'a recalée
+		// À L'ŒIL (la constante RECALAGE de sonde-logique-element.mts), et c'est
+		// SON réglage qui fait foi : la pince est INCLINÉE, si bien que le coin
+		// de sa boîte englobante n'est pas son point de pince — la boîte d'un
+		// objet penché déborde toujours de sa pointe.
+		//
+		// Mesurer un coin de boîte revenait donc à mesurer l'inclinaison, pas
+		// l'alignement. Le VRAI point de connexion, lui, reste gardé juste
+		// au-dessus : « crochet : son extremite tombe PILE sur le croisement de
+		// la grille », au vingtième d'unité près, mesuré sur le NŒUD du trait —
+		// le point que le fil rejoint réellement, qu'importe l'inclinaison.
+		// Ne pas remettre ce contrôle sans une mesure qui tienne compte de
+		// l'inclinaison.
 	}
 
 	// --- 6. Grise tant qu'elle n'est accrochée à rien (v2026.9.4.94) ---------

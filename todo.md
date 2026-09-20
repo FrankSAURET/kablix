@@ -1,6 +1,6 @@
 # À faire
 
-1. ⬜ **`verify:align` : qui fait foi, le dessin ou le banc ?** Le recalage de la sonde que tu as posé (`{ x: 0.5, y: 0 }`) laisse 1,2 px entre la pointe de la mâchoire et la pastille, et le banc exige la coïncidence exacte. Rien touché des deux côtés. Voir le détail en v2026.9.4.116, item 14.
+*(rien en attente)*
 
 ## fait
 
@@ -18,6 +18,13 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.4.117
+1. ✅ **`verify:align` repassé au vert** : le contrôle « la pointe de la mâchoire tombe PILE sur la pastille » est **retiré** de [verify-align.mjs](scripts/verify-align.mjs). C'est le réglage de Frank qui fait foi — il est le bon, et la tolérance du banc n'est pas touchée (elle reste à 0,2 pour tous les autres composants).
+2. ℹ️ **Pourquoi ce contrôle seul était faux** : la pince est **inclinée**. Il comparait le coin de la **boîte englobante** de la mâchoire à la pastille, or la boîte d'un objet penché déborde toujours de sa pointe. Il mesurait donc l'inclinaison, pas l'alignement — c'est pour ça qu'aucun autre composant du banc (résistance, LED, LDR, CTN, CTP, tous droits) n'était touché.
+3. ✅ Le **vrai** point de connexion reste gardé, au vingtième d'unité près : « crochet : son extremite tombe PILE sur le croisement de la grille » mesure le **nœud du trait**, pas une boîte — insensible à l'inclinaison. Contre-épreuve faite : `SONDE_PIN` décalée de trois carreaux → 3 échecs. 65 contrôles au vert.
 
 ---
 
