@@ -19,6 +19,15 @@
 // fenêtre a le focus. La page est alors « visible » pour le navigateur et large
 // de zéro pixel pour la mise en page.
 //
+// LE SECOND CAS QUI FAIT LE GRIS (20/09). Une fois la capture bien peinte,
+// l'atelier pousse une liste de voies VIDE : il le fait à chaque `onChange` du
+// schéma, or les onChange « neutres » qui suivent le chargement d'un projet
+// arrivent avant qu'aucune sonde ne soit résolue. Ce message écrasait tout —
+// `diagnostics` remis à zéro ET `capture.declarerVoies([])`, qui jette les
+// fronts. Mesuré sur la capture réelle de sonde-logique-pico : 23 897 pixels de
+// courbes tombant aux 936 du message « aucune sonde ». Le repli de
+// `restaurer()` ne rattrape rien, il ne joue qu'AU MOMENT du `restaure`.
+//
 // Usage : node scripts/verify-analyseur-rendu.mjs
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -157,6 +166,18 @@ const page = `<!doctype html><meta charset=utf8>
    for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++;
    return n;
   })();
+  // L'ATELIER POUSSE UNE LISTE DE VOIES VIDE. Il le fait à chaque changement
+  // du schéma, y compris les changements « neutres » qui suivent le chargement
+  // d'un projet — et à cet instant il n'a encore résolu aucune sonde. Ce
+  // message-là arrive donc APRÈS le restaure de l'hôte, sur une capture déjà
+  // peinte. Il ne doit rien effacer : une capture enregistrée n'appartient plus
+  // au schéma, et retirer ses pinces n'efface pas une mesure faite.
+  post({ type: 'voies', voies: [] });
+  await wait(250);
+  post({ type: 'repeindre' });
+  await wait(200);
+  mesures.apresVoiesVides = peints();
+  mesures.hauteurApresVoiesVides = cv.clientHeight;
   mesures.erreurs = erreurs.join(' | ').slice(0, 300);
   const out = document.createElement('pre');
   out.id = 'measures';
@@ -217,6 +238,17 @@ check('la hauteur porte les DEUX voies reçues pendant que l\'onglet était cach
 	r.viveHauteur === 150, `hauteur ${r.viveHauteur}`);
 check('les noms de voie sont PEINTS dans la colonne de gauche du canvas',
 	r.colonne > 200, `${r.colonne} px peints dans les 100 px de gauche`);
+// LA PAGE GRISE DU 20/09. Un message `voies` VIDE arrivant après le `restaure`
+// remettait `diagnostics` à zéro ET appelait `capture.declarerVoies([])`, qui
+// jette les fronts : la capture entière disparaissait au profit du message
+// « aucune sonde ». Mesuré sur la capture réelle de sonde-logique-pico :
+// 23 897 pixels de courbes tombant à 936. On exige donc que le dessin SURVIVE,
+// à l'identique — un seuil lâche laisserait passer le message d'accueil.
+check('une liste de voies VIDE reçue après coup n\'efface pas la capture affichée',
+	r.apresVoiesVides === r.vivePeints,
+	`${r.apresVoiesVides} px après la liste vide, contre ${r.vivePeints} avant`);
+check('la liste vide ne rabat pas non plus la hauteur sur une piste unique',
+	r.hauteurApresVoiesVides === 150, `hauteur ${r.hauteurApresVoiesVides}`);
 
 console.log(failures === 0 ? '\nTout est vert.' : `\n${failures} échec(s).`);
 process.exit(failures === 0 ? 0 : 1);

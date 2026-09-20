@@ -356,11 +356,18 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
     /capture\.reglerDeclenchement\(etat\.declenchement/.test(bloc));
   check('réouverture : la fréquence d\'échantillonnage est reprise elle aussi',
     /echantillonnage = etat\.echantillonnage/.test(bloc));
-  // Le message `voies`, quand il arrive, doit reprendre la main sans condition :
-  // c'est lui qui porte les DIAGNOSTICS de câblage, que la capture ignore.
-  const surVoies = src.slice(src.indexOf("case 'voies'"), src.indexOf("case 'voies'") + 700);
+  // Le message `voies` reprend la main dès qu'il porte QUELQUE CHOSE : c'est lui
+  // qui apporte les DIAGNOSTICS de câblage, que la capture ignore. Il ne la
+  // reprend pas quand il est VIDE sur une capture déjà là, hors simulation —
+  // l'atelier en pousse un à chaque changement du schéma, les changements
+  // « neutres » d'après chargement compris, avant d'avoir résolu la moindre
+  // sonde. Ce message-là écrasait la capture restaurée et rendait l'onglet
+  // gris (20/09) ; le contrôle de bout en bout est dans verify-analyseur-rendu.
+  const surVoies = src.slice(src.indexOf("case 'voies'"), src.indexOf("case 'voies'") + 1800);
   check('réouverture : le message `voies` de l\'atelier reprend la main',
     /diagnostics = msg\.voies\.map/.test(surVoies) && !/diagnostics\.length === 0/.test(surVoies));
+  check('réouverture : mais une liste VIDE ne jette pas une capture déjà affichée',
+    /msg\.voies\.length === 0 && !enCours && capture\.aDesDonnees/.test(surVoies));
 
   // L'ONGLET AU SECOND PLAN NE REÇOIT AUCUNE IMAGE (v2026.9.4.98). Frank, 18/09 :
   // « je ne vois toujours rien dans l'analyseur, que le programme tourne, soit

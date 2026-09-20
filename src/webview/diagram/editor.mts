@@ -2079,6 +2079,14 @@ export class Editor {
       // silent : la pose entière = UNE entrée d'historique via le notify() final.
       this.snapPartToGrid(part.id, true);
       this.plugPlacedPart(part);
+      // Une SONDE LOGIQUE lâchée ici est une pose comme une autre : si sa pointe
+      // tombe sur une pastille, elle doit s'y accrocher et prendre sa teinte.
+      // Ce chemin-là l'oubliait — seul le DÉPLACEMENT d'une sonde déjà posée
+      // appelait `poserSonde` — et la pince tirée de la palette droit sur une
+      // broche restait grise, sans voie, donc sans piste dans l'analyseur. Il
+      // fallait la déplacer d'un pixel pour qu'elle se réveille : c'est le
+      // « il faut la poser sur le schéma et la déplacer » de Frank (20/09).
+      if (partDef(part.type).kind === 'logic-probe') this.poserSonde(part);
       this.redrawWires();
       this.select({ kind: 'part', id: part.id });
       this.notify();

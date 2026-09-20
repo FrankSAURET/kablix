@@ -1,23 +1,26 @@
 # À faire
 
-*(rien en attente)*
 
 ## fait
-
-1. ✅ **kablix_components ne migre PAS vers un dépôt dédié** — analyse ajoutée au README. Je l'ai supprimé aucunintéret sauf pour moi.
-1. ✅ Dessin de la sonde logique recalé. On ni touche plus.
-1. ✅ Pour le ds18b20 en double cliquant sur le slider ou la valeur, on peut saisir la valeur au clavier (. et , indifféremment)
 1. Analyseur logique :
-    1. ✅ Pour le DMX j'ai bien le signal en sortie de la carte pico mais rien en sortie de la carte DMX
-    1. ✅ Met le nom de la voie plus gros
-    1. ✅ Sous le nom affiche un bouton T (un peu épais pour qu'on le voie bien) Si on clic sur ce bouton, on peut choisir montant ou descendant. Le T du bouton est alors remplacé par un front montant ou descendant les autres reviennent à T
-    1. ✅ Ajoute à coté un bouton  P¨(un peu épais pour qu'on le voie bien) cliquer dessus fait apparaitre la liste déroulante pour choisir le protocole
-    1. ✅ Du coup pas de ligne de légende en haut
-    1. ✅ pas non plus trigger et rising ni decode
-    1. ✅ Par contre un bouton  pour choisir la fréquence d'horloge 'dans la barre du haut'
+    1. ✅ A nouveau je ne vois plus aucune courbes dans l'analyseur logique juste la page grise
+    1. ✅ Un sonde directement posée sur une patte ne se colorent pas il faut la poser sur le schéma et la déplacer
+
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.4.118
+1. ✅ **La page grise de l'analyseur — cause racine trouvée et mesurée** (item 1.1). Un message `voies` **VIDE** arrivant après la capture écrasait tout : `diagnostics` remis à zéro **et** `capture.declarerVoies([])`, qui **jette les fronts**. L'onglet affichait alors son message « aucune sonde » par-dessus une capture entière. Mesuré sur la capture réelle de `sonde-logique-pico` : **23 897 pixels de courbes tombant à 936**.
+2. ℹ️ **D'où venait ce message vide** : l'atelier pousse ses voies à **chaque changement du schéma** ([sim.mts](src/webview/sim.mts), `pousserVoiesLogiques()` dans `editor.onChange`), et les changements « neutres » qui suivent le chargement d'un projet arrivent **avant** qu'aucune sonde ne soit résolue. Ce message partait donc **après** le `restaure` de l'hôte, sur une capture déjà peinte. Le repli écrit au lot précédent dans `restaurer()` ne rattrapait rien : il ne dresse les pistes qu'**au moment** du `restaure`, pas après.
+3. ✅ Correction dans [analyseur.mts](src/webview/analyseur.mts) : une liste vide reçue **hors simulation, sur une capture existante**, est ignorée. Pendant une capture en cours, au contraire, une liste vide veut bien dire « plus aucune pince » et vide la vue — une capture enregistrée, elle, n'appartient plus au schéma, et retirer ses pinces n'efface pas une mesure faite.
+4. ✅ Gardé par 2 contrôles de bout en bout dans [verify-analyseur-rendu.mjs](scripts/verify-analyseur-rendu.mjs) (le dessin doit survivre **à l'identique**, hauteur comprise) et 1 sur le source dans [verify-analyseur.mjs](scripts/verify-analyseur.mjs). **Contre-épreuve faite : 2 échecs sur l'ancien code** — 936 px contre 9 276, hauteur rabattue de 150 à 90.
+5. ℹ️ **Trois fausses pistes écartées par la mesure**, pas par le raisonnement : les voies du schéma désaccordées de celles de la capture (0/2/3/4 contre 0/1 dans `sonde-logique-pico`) dessinent **très bien** ; le `ResizeObserver` rattrape **bien** le passage de 0 à 884 px dès qu'un vrai navigateur sert des images ; et la largeur nulle à l'arrivée de l'état n'empêche **rien** à elle seule. Un banc en `--dump-dom` laissait croire le contraire — Chrome n'y sert aucune image, donc aucun `ResizeObserver` ne tire : ce banc-là ne peut pas départager, il faut le pilotage CDP.
+6. ✅ **La sonde tirée de la palette droit sur une pastille ne s'accrochait pas** (item 1.2). Cause racine : le lâcher d'une pose **depuis la palette** (`startPlaceFromPalette`) n'appelait jamais `poserSonde()` dans [editor.mts](src/webview/diagram/editor.mts) — seul le **déplacement** d'une pince déjà posée le faisait. La pince naissait donc sans `accroche` ni `voie` : grise sur la planche et absente de l'analyseur. C'est très exactement « il faut la poser sur le schéma et la déplacer ».
+7. ✅ Le geste est **prouvé à la vraie souris** : section 12 ajoutée à [verify-souris.mjs](scripts/verify-souris.mjs) — la pince est tirée de la palette et l'écart pointe→curseur est **mesuré en cours de geste** (`hotspotCenter`) pour viser la pastille avec la POINTE, pas avec le curseur. Exigé : `accroche`, `voie`, et l'attribut `voie` sur l'élément dessiné. **Contre-épreuve faite : 3 échecs sur l'ancien code**, les trois nouveaux et eux seuls. 53 contrôles au vert.
+8. ⏳ Traductions (`docs/en/`, `l10n/bundle.l10n.fr.json`) : rien de traduit, conformément à la règle — tout en un lot avant publication. `npm run verify:i18n` est donc rouge : c'est **attendu**, pas un défaut.
 
 ---
 

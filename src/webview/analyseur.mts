@@ -966,6 +966,19 @@ window.addEventListener('message', (ev) => {
   const msg = ev.data as MessageEntrant;
   switch (msg.type) {
     case 'voies': {
+      // LISTE VIDE, HORS SIMULATION, alors qu'une capture est affichée : on la
+      // garde. L'atelier pousse ses voies à chaque `onChange` du schéma, y
+      // compris les onChange « neutres » qui suivent le chargement d'un projet —
+      // et à cet instant il n'a encore résolu aucune sonde, donc il envoie une
+      // liste VIDE. Elle arrivait APRÈS le `restaure` de l'hôte et écrasait
+      // tout : `diagnostics` remis à zéro ET `capture.declarerVoies([])`, qui
+      // jette les fronts. Mesuré : 23 897 pixels de courbes tombant aux 936 du
+      // message « aucune sonde ». C'est la page grise de Frank (20/09).
+      // Le repli de `restaurer()` ne rattrapait rien : il ne dresse les pistes
+      // que si `diagnostics` est vide AU MOMENT du `restaure`, pas après.
+      // Pendant une capture en cours, au contraire, une liste vide veut bien
+      // dire « plus aucune pince » et doit vider la vue.
+      if (msg.voies.length === 0 && !enCours && capture.aDesDonnees) return;
       diagnostics = msg.voies.map((v) => ({
         voie: v.voie,
         nom: v.nom,

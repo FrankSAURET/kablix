@@ -36,6 +36,10 @@
 //      valeur, ouvre la saisie au clavier — le même piège qu'aux lots .71/.72,
 //      cette fois sur `custom-part` : l'atelier arrête `pointerdown` sur les
 //      composants, et un banc à événements fabriqués ne le verrait jamais.
+//  12. une sonde tirée de la PALETTE droit sur une pastille s'y accroche du
+//      premier coup — le lâcher d'une pose depuis la palette oubliait d'appeler
+//      `poserSonde`, et la pince restait grise tant qu'on ne la déplaçait pas
+//      (« il faut la poser sur le schéma et la déplacer », Frank, 20/09).
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
@@ -686,6 +690,106 @@ try {
 			(await saisieOuverte()) === 'absente', await saisieOuverte());
 
 		await ev(`(() => { document.getElementById('banc-curseur').remove(); return true; })()`);
+	}
+
+	// --- 12. Sonde tirée de la PALETTE droit sur une broche --------------------
+	//
+	// Frank (20/09) : « une sonde directement posée sur une patte ne se colore
+	// pas, il faut la poser sur le schéma et la déplacer ». Cause : le lâcher
+	// d'une pose depuis la palette (`startPlaceFromPalette`) n'appelait jamais
+	// `poserSonde` — seul le DÉPLACEMENT d'une pince déjà posée le faisait. La
+	// pince naissait donc sans accrochage et sans voie : grise sur la planche et
+	// absente de l'analyseur, alors qu'elle était pile sur la pastille.
+	//
+	// Ce geste-ci ne se fabrique pas : la pose depuis la palette naît d'un
+	// `pointerdown` sur un bouton qui bouge sous le curseur, suit la souris
+	// pendant le glissé et se résout au relâché. C'est le navigateur qui décide
+	// qui reçoit quoi.
+	{
+		await ev('window.editor.clear()');
+		await attendre(200);
+		await ev(`(() => { window.editor.loadDiagram({
+			parts: [{ id: 'uno2', type: 'uno', x: 100, y: 100, attrs: {} }],
+			wires: [],
+		}); window.editor.setCamera({ zoom: 1, panX: 0, panY: 0 }); })()`);
+		await attendre(400);
+		await ev(`(() => { for (const h of document.querySelectorAll('.palette__section--collapsed')) h.click(); })()`);
+		await attendre(300);
+
+		const btnSonde = JSON.parse(await ev(`(() => {
+			const b = [...document.querySelectorAll('.palette__item')].find((el) => (el.title || '') === 'Logic probe');
+			if (!b) return JSON.stringify(null);
+			b.scrollIntoView({ block: 'center' });
+			const r = b.getBoundingClientRect();
+			return JSON.stringify({ x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) });
+		})()`));
+		ok('le bouton « Logic probe » de la palette est atteignable à la souris',
+			!!btnSonde, JSON.stringify(btnSonde));
+
+		// La broche visée est MESURÉE sur le dessin, comme en §9 : on ne suppose
+		// jamais la position d'une pastille.
+		const centre12 = async (partId, pin) => JSON.parse(await ev(
+			`JSON.stringify(window.editor.hotspotCenter({ partId: '${partId}', pin: '${pin}' }) ?? null)`));
+		const cible12 = await centre12('uno2', '8');
+		ok('la pastille de la broche 8 est mesurable', !!cible12, JSON.stringify(cible12));
+
+		if (btnSonde && cible12) {
+			await attendre(200);
+			await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: btnSonde.x, y: btnSonde.y, button: 'none', buttons: 0 });
+			await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: btnSonde.x, y: btnSonde.y, button: 'left', buttons: 1, clickCount: 1 });
+			// Premier déplacement : la pince suit le curseur, et sa POINTE se place
+			// alors par rapport au centre du corps. On mesure cet écart EN COURS DE
+			// GESTE — il dépend de la taille réelle du dessin, connue seulement une
+			// fois l'élément rendu.
+			const milieu = await surEcran(600, 500);
+			for (let i = 1; i <= 5; i++) {
+				await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', button: 'left', buttons: 1,
+					x: Math.round(btnSonde.x + (milieu.x - btnSonde.x) * i / 5),
+					y: Math.round(btnSonde.y + (milieu.y - btnSonde.y) * i / 5) });
+			}
+			await attendre(250);
+			// Écart pointe → curseur, en coordonnées FEUILLE : le curseur est au
+			// centre du corps, la pointe ailleurs. On vise donc la pastille moins
+			// cet écart, pour que la POINTE tombe dessus au lâcher.
+			const ecart = JSON.parse(await ev(`(() => {
+				const p = window.editor.serialize().parts.find((x) => x.type === 'sonde-logique');
+				if (!p) return JSON.stringify(null);
+				const c = window.editor.hotspotCenter({ partId: p.id, pin: 'G' });
+				if (!c) return JSON.stringify(null);
+				return JSON.stringify({ id: p.id, dx: c.x - (600), dy: c.y - (500) });
+			})()`));
+			ok('la pince suit bien le curseur pendant le glissé depuis la palette',
+				!!ecart, JSON.stringify(ecart));
+			if (ecart) {
+				const arrivee12 = await surEcran(cible12.x - ecart.dx, cible12.y - ecart.dy);
+				for (let i = 1; i <= 5; i++) {
+					await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', button: 'left', buttons: 1,
+						x: Math.round(milieu.x + (arrivee12.x - milieu.x) * i / 5),
+						y: Math.round(milieu.y + (arrivee12.y - milieu.y) * i / 5) });
+				}
+				await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: arrivee12.x, y: arrivee12.y, button: 'left', buttons: 0, clickCount: 1 });
+				await attendre(450);
+				const nee = JSON.parse(await ev(`(() => {
+					const p = window.editor.serialize().parts.find((x) => x.type === 'sonde-logique');
+					if (!p) return JSON.stringify(null);
+					return JSON.stringify({ accroche: p.attrs?.accroche ?? '', voie: p.attrs?.voie ?? '' });
+				})()`));
+				ok('lâchée depuis la PALETTE sur la pastille, la pince s accroche du premier coup',
+					!!nee && nee.accroche === 'uno2/8', JSON.stringify(nee));
+				ok('et elle prend sa teinte de voie sans qu on ait à la déplacer',
+					!!nee && nee.voie === '0', JSON.stringify(nee));
+				// L'élément porte bien l'attribut : c'est LUI qui colore le dessin,
+				// pas le schéma sérialisé. Sans cela la pince serait accrochée dans
+				// le fichier et grise à l'écran — le défaut de Frank à moitié corrigé.
+				const attr = await ev(`(() => {
+					const p = window.editor.serialize().parts.find((x) => x.type === 'sonde-logique');
+					const el = p && window.editor.elementOf(p.id);
+					return el ? String(el.getAttribute('voie') ?? '') : 'pas-d-element';
+				})()`);
+				ok('l ÉLÉMENT dessiné porte l attribut « voie » (c est lui qui donne la couleur)',
+					attr === '0', String(attr));
+			}
+		}
 	}
 } catch (e) {
 	// Sans ce filet, une exception (sélecteur disparu, éditeur non monté, page

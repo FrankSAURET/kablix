@@ -43,6 +43,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Correction
 
+- **L'analyseur logique ne s'affiche plus gris à la réouverture d'un projet.** La capture enregistrée était effacée juste après avoir été affichée, et l'onglet annonçait « aucune sonde » par-dessus une mesure entière.
+- **Une sonde logique posée directement sur une patte prend sa couleur tout de suite.** Il fallait jusqu'ici la déposer sur le schéma puis la déplacer d'un pixel pour qu'elle s'accroche et apparaisse dans l'analyseur.
 - **Le DS18B20 se fait enfin trouver sur Pico.** `scan()` ne rendait aucun capteur, sur Pico 1 comme sur Pico 2 : le programme annonçait « capteurs trouvés : 0 » et ne lisait jamais de température. La recherche d'adresses sur le fil 1-Wire est maintenant simulée pour de bon.
 - **Le DS18B20 se fait aussi trouver sur Arduino.** Avec les bibliothèques OneWire et DallasTemperature, `getDeviceCount()` rendait 0 et aucune température n'arrivait. Plusieurs capteurs branchés sur le même fil sont maintenant reconnus, chacun avec sa mesure.
 - **Les composants de la bibliothèque officielle ne demandent plus votre autorisation.** La question « ce composant exécute du code d'une source distante » était posée pour les composants publiés avec Kablix, au même titre que ceux d'un dépôt inconnu. Elle reste posée, elle, pour toute autre source.
