@@ -395,9 +395,16 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   // porte son numéro, sa broche et son nom —, et c'est d'elle que `restaurer()`
   // dresse les pistes tant que rien d'autre ne l'a fait.
   const src = readFileSync(join(root, 'src', 'webview', 'analyseur.mts'), 'utf8');
-  const bloc = src.slice(src.indexOf('function restaurer'), src.indexOf('function restaurer') + 4200);
-  check('réouverture : restaurer() dresse les pistes quand la liste est vide',
-    /diagnostics\.length === 0 && etat\.voies\.length > 0/.test(bloc) &&
+  const bloc = src.slice(src.indexOf('function restaurer'), src.indexOf('function restaurer') + 5600);
+  // Le critère n'est PAS « aucune piste » mais « aucune piste POUR LES BROCHES
+  // DE CETTE CAPTURE » : un atelier où l'on ouvre un SECOND projet garde les
+  // voies du premier, l'hôte n'envoie alors que la restauration, et la capture
+  // du second n'avait nulle part où se dessiner (22/09). Le contrôle de bout en
+  // bout est dans verify-analyseur-rendu.
+  check('réouverture : restaurer() dresse les pistes quand aucune ne porte ses broches',
+    /const brochesCapturees = new Set\(etat\.voies\.map/.test(bloc) &&
+      /diagnostics\.some\(\(d\) => d\.pin && brochesCapturees\.has\(d\.pin\)\)/.test(bloc) &&
+      /!aUnePisteUtile && etat\.voies\.length > 0/.test(bloc) &&
       /diagnostics = etat\.voies\.map/.test(bloc));
   check('réouverture : et le déclenchement enregistré est rendu à la capture',
     /capture\.reglerDeclenchement\(etat\.declenchement/.test(bloc));

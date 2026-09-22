@@ -1073,7 +1073,19 @@ function restaurer(etat: EtatSerialise): void {
   // La capture est autoportante (chaque voie porte son numéro, sa broche et son
   // nom) : on s'en sert pour dresser les pistes tant que rien d'autre ne l'a
   // fait. Le message `voies`, quand il arrive, reprend la main.
-  if (diagnostics.length === 0 && etat.voies.length > 0) {
+  //
+  // Le critère n'est PAS « aucune piste » mais « aucune piste POUR LES BROCHES
+  // DE CETTE CAPTURE ». Un atelier où l'on ouvre un SECOND projet garde en
+  // place les voies du premier : l'hôte n'envoie alors que `restaure`
+  // (`chargerAnalyseur` dans panel.ts), jamais de `voies`, et l'ancien schéma
+  // reste aux commandes. Mesuré sur le scénario de Frank, projet à 1 pince sur
+  // GP21 puis ouverture de sonde-logique-pico2 : l'onglet gardait UNE piste de
+  // 90 px et 1 290 pixels de trait plat, par-dessus 16 000 fronts bien
+  // présents. C'est sa page grise — la capture était là, sa piste n'existait
+  // pas.
+  const brochesCapturees = new Set(etat.voies.map((v) => v.pin).filter(Boolean));
+  const aUnePisteUtile = diagnostics.some((d) => d.pin && brochesCapturees.has(d.pin));
+  if (!aUnePisteUtile && etat.voies.length > 0) {
     diagnostics = etat.voies.map((v) => ({
       voie: v.voie,
       nom: v.nom,

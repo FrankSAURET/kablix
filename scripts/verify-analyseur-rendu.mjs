@@ -207,6 +207,36 @@ const page = `<!doctype html><meta charset=utf8>
    }
    return out;
   })();
+  // UN SECOND PROJET OUVERT DANS LE MÊME ATELIER. L'hôte n'envoie alors que
+  // le message restaure (chargerAnalyseur dans panel.ts) : jamais de voies.
+  // Les pistes du PREMIER projet restent donc en place, et la capture du second
+  // n'a nulle part où se dessiner. Mesuré sur le cas de Frank (pince sur GP21, puis
+  // ouverture de sonde-logique-pico2) : l'onglet gardait UNE piste de 90 px et
+  // 1 290 pixels de trait plat par-dessus 16 000 fronts. C'est la page grise.
+  post({ type: 'voies', voies: [
+   { voie: 5, pin: 'GP21', nom: 'vieille', probleme: null, analogique: false, suivi: false },
+  ] });
+  await wait(250);
+  post({ type: 'repeindre' });
+  await wait(200);
+  mesures.hauteurProjet1 = cv.clientHeight;
+  post({ type: 'restaure', etat: ETAT });
+  await wait(250);
+  post({ type: 'repeindre' });
+  await wait(200);
+  mesures.hauteurProjet2 = cv.clientHeight;
+  mesures.pistesProjet2 = (() => {
+   const g = cv.getContext('2d');
+   const h = Math.floor(cv.height / 2);
+   const out = [];
+   for (let i = 0; i < 2; i++) {
+    const d = g.getImageData(110, i * h, cv.width - 130, h).data;
+    let n = 0;
+    for (let j = 3; j < d.length; j += 4) if (d[j] > 0) n++;
+    out.push(n);
+   }
+   return out;
+  })();
   mesures.erreurs = erreurs.join(' | ').slice(0, 300);
   const out = document.createElement('pre');
   out.id = 'measures';
@@ -245,7 +275,8 @@ console.log('Analyseur — rendu de l\'onglet');
 console.log(` (mesuré : caché ${r.cacheLargeur}x${r.cacheHauteur} style=${r.cacheStyleH}, ${r.cachePeints} px peints`
 	+ ` · de retour ${r.viveLargeur}px, ${r.roPeints} px par le ResizeObserver seul`
 	+ ` puis ${r.vivePeints} après « repeindre » · canvas ${r.attrW}x${r.attrH}`
-	+ ` · numéros désaccordés : pistes ${JSON.stringify(r.pistesDesaccordees)})`);
+	+ ` · numéros désaccordés : pistes ${JSON.stringify(r.pistesDesaccordees)}`
+	+ ` · second projet : ${r.hauteurProjet1}px → ${r.hauteurProjet2}px, pistes ${JSON.stringify(r.pistesProjet2)})`);
 check('la page ne lève aucune erreur', r.erreurs === '', r.erreurs);
 check('caché, le canvas est bien de largeur nulle (la condition du défaut est reproduite)',
 	r.cacheLargeur === 0, `largeur ${r.cacheLargeur}`);
@@ -295,6 +326,21 @@ check('la piste dont le NUMÉRO diffère de la capture trace quand même sa cour
 	`pistes ${JSON.stringify(r.pistesDesaccordees)} — la seconde n'a que son trait de repos`);
 check('et la piste accordée n\'a rien perdu au passage',
 	r.pistesDesaccordees[0] > 500, `${r.pistesDesaccordees[0]} px sur la première piste`);
+// UN SECOND PROJET DANS LE MÊME ATELIER (22/09). L'hôte n'envoie que `restaure`,
+// donc les pistes du premier projet tiennent la place. Le repli de `restaurer()`
+// ne jouait que sur une liste de pistes VIDE : avec un projet déjà ouvert elle
+// ne l'est pas, et la capture du second n'avait nulle part où se dessiner.
+// Mesuré avant correction : 90 px de haut, UNE piste, 1 290 px de trait plat
+// par-dessus 16 000 fronts. Après : 150 px, deux pistes, 7 507 et 15 421 px.
+// On exige la HAUTEUR (deux pistes dressées) ET les DEUX courbes : la hauteur
+// seule laisserait passer deux pistes vides.
+check('la hauteur du premier projet est bien celle d\'une piste unique (la condition est reproduite)',
+	r.hauteurProjet1 === 90, `hauteur ${r.hauteurProjet1}`);
+check('ouvrir un SECOND projet dresse les pistes de SA capture, pas celles du premier',
+	r.hauteurProjet2 === 150, `hauteur ${r.hauteurProjet2} — les pistes du projet précédent tiennent encore`);
+check('et les deux voies du second projet tracent pour de bon',
+	r.pistesProjet2[0] > 2000 && r.pistesProjet2[1] > 2000,
+	`pistes ${JSON.stringify(r.pistesProjet2)} — du trait de repos, pas des courbes`);
 
 console.log(failures === 0 ? '\nTout est vert.' : `\n${failures} échec(s).`);
 process.exit(failures === 0 ? 0 : 1);

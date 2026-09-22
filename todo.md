@@ -1,14 +1,28 @@
 # À faire
-
+1. Analyseur logique :
+    1. ✅ je ne vois toujours aucune courbes dans l'analyseur logique juste la page grise. Fais une analyse approfondit pour enfin régler ce problème.
+    1. ✅ Mes fichiers de tests sont les 5 que je viens de modifier. tu les commit et push
+    1. ⏳ La couleur de fond de la console/moniteur série et du traceur vient de changer. Tu la remets et tu analyse pourquoi. — **analysé, question posée à Frank** (voir v2026.9.4.120, points 5 à 7) : rien dans Kablix n'a touché ce fond, il vient du thème VS Code. Quelle couleur remettre ?
 
 ## fait
-1. Analyseur logique :
-    1. ✅ A nouveau je ne vois plus aucune courbes dans l'analyseur logique juste la page grise
-    1. ✅ Un sonde directement posée sur une patte ne se colorent pas il faut la poser sur le schéma et la déplacer
+
+
 
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.4.120
+1. ✅ **La page grise, la cause qui restait** (item 1.1, troisième passe). Les deux lots précédents avaient corrigé deux vrais défauts, mais aucun ne touchait le chemin emprunté par Frank : **ouvrir un SECOND projet dans un atelier déjà ouvert**. L'hôte a deux façons d'alimenter l'onglet, et elles ne se ressemblent pas. À l'ouverture de l'onglet, `pousserEtat()` ([analyseur-panel.ts](src/analyseur-panel.ts)) envoie **`voies` PUIS `restaure`** — tout va bien. Mais `chargerAnalyseur()` ([panel.ts](src/panel.ts)), appelé quand un projet remplace le précédent, n'envoie que **`restaure`**, jamais `voies`.
+2. ℹ️ **Conséquence** : les pistes restent celles du projet **précédent**. Or le repli de `restaurer()` ne les redressait que si la liste était **vide** (`diagnostics.length === 0`) — avec un projet déjà ouvert elle ne l'est pas, le repli ne jouait donc pas, et la capture du second projet n'avait **nulle part où se dessiner**. Une capture entière, par-dessus une piste qui n'est pas la sienne.
+3. ✅ Correction dans [analyseur.mts](src/webview/analyseur.mts) : le bon critère n'est pas « aucune piste » mais « **aucune piste pour les broches de cette capture** ». Si aucune piste en place ne porte une broche mesurée, les pistes sont redressées depuis la capture.
+4. ✅ **Chiffré sur le cas de Frank** (projet à une pince sur GP21, puis ouverture de `sonde-logique-pico2`) : avant, le second projet gardait **une** piste de 90 px et **1 290 px** de trait plat par-dessus 16 000 fronts — c'est très exactement sa page grise. Après : **150 px, deux pistes, 7 507 et 15 421 px** de courbes, soit **32 292** contre 4 032. Gardé par 3 contrôles de bout en bout dans [verify-analyseur-rendu.mjs](scripts/verify-analyseur-rendu.mjs) et 1 sur le source dans [verify-analyseur.mjs](scripts/verify-analyseur.mjs). **Contre-épreuve faite : 2 échecs côté rendu, 1 côté Node**, les nouveaux et eux seuls.
+5. ⏳ **Fond de la console et du traceur** (item 1.3) : **analysé, rien corrigé — question pour Frank.** Mesuré, pas supposé : les deux éléments (`.serial__out` et `.plotter__wrap`, [styles.css](media/styles.css)) partagent la même règle, `background: var(--vscode-textCodeBlock-background, rgba(0, 0, 0, 0.3))`. Cette règle **n'a jamais changé depuis la création du projet** (`git log -L` sur le bloc : trois touches, toutes antérieures à la v2026.7.35, aucune sur le fond). Le `body` n'a **jamais** porté de `background`, `.stage` non plus, et **aucun code** ne pose de fond sur ces éléments.
+6. ℹ️ **D'où vient alors la couleur** : ce fond est **translucide**, sa teinte visible est un mélange avec ce qu'il y a dessous — c'est-à-dire `--vscode-editor-background`, la couleur du **thème VS Code**. Rendu mesuré dans Chrome : un thème qui fournit `--vscode-textCodeBlock-background` donne `rgba(10, 10, 10, 0.5)`, un thème qui ne la fournit pas tombe sur le repli `rgba(0, 0, 0, 0.3)`. **Deux fonds très différents pour le même code.** Le changement vient donc de l'extérieur de Kablix : thème changé, ou mise à jour de VS Code qui fournit désormais cette variable (ou ne la fournit plus).
+7. ❓ **Question** : je peux couper la dépendance au thème et fixer un fond qui ne bouge plus, mais je ne sais pas **laquelle** des deux teintes Frank veut retrouver. Rien n'a été touché en attendant sa réponse.
+8. ⏳ Traductions : inchangé, rien de traduit avant publication.
 
 ---
 
