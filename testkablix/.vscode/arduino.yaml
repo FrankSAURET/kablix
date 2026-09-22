@@ -1,4 +1,4 @@
 board: arduino:avr:uno
-sketch: Arduino/ds18b20-uno/ds18b20-uno.ino
+sketch: Arduino/sonde-logique-uno/sonde-logique-uno.ino
 port: COM3
 output: .build
