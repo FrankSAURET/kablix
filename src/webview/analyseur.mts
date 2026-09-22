@@ -978,7 +978,33 @@ window.addEventListener('message', (ev) => {
       // que si `diagnostics` est vide AU MOMENT du `restaure`, pas après.
       // Pendant une capture en cours, au contraire, une liste vide veut bien
       // dire « plus aucune pince » et doit vider la vue.
-      if (msg.voies.length === 0 && !enCours && capture.aDesDonnees) return;
+      //
+      // MÊME SYMPTÔME, AUTRE CHEMIN (22/09) : le message peut aussi arriver
+      // PLEIN, mais de voies EN DÉFAUT. `pousserVoiesLogiques()` est appelé hors
+      // du garde `loadingProject`, donc à chaque étape du montage d'un projet :
+      // `clear()` notifie sur un schéma vide, puis les composants sont posés
+      // AVANT les fils. Une sonde reliée par un fil n'a alors aucune broche à
+      // suivre et ressort `not-mcu` / `nowhere`. Ce message passait le garde
+      // ci-dessus (la liste n'est pas vide), et `declarerVoies` ne retenant que
+      // les voies SANS défaut, toutes les pistes étaient jetées — fronts
+      // compris, donc sans retour possible quand l'atelier résout enfin.
+      // Mesuré sur sonde-logique-pico : 62 051 pixels de courbes tombant à
+      // 16 677, et 16 677 encore après résolution. La page grise de Frank.
+      //
+      // Le critère doit rester ÉTROIT : « aucune piste pour les broches
+      // capturées » ne suffit pas comme règle, car c'est aussi ce que produit un
+      // vrai changement de schéma — ouvrir un second projet, déplacer la pince
+      // ailleurs. Dans ce cas la capture DOIT céder la place. Ce qui distingue
+      // un montage en cours, c'est que ses voies sont EN DÉFAUT : l'atelier
+      // décrit un schéma qu'il n'a pas fini de lire, pas un schéma sans sonde.
+      // On n'écarte donc que le message dont AUCUNE voie n'est saine.
+      if (!enCours && capture.aDesDonnees) {
+        // Liste vide : le garde d'origine (.118) — l'atelier n'a encore rien résolu.
+        if (msg.voies.length === 0) return;
+        // Liste pleine, mais dont AUCUNE voie n'est exploitable : schéma en cours
+        // de montage. Une seule voie saine suffit à reprendre la main.
+        if (msg.voies.every((v) => v.probleme || !v.pin)) return;
+      }
       diagnostics = msg.voies.map((v) => ({
         voie: v.voie,
         nom: v.nom,

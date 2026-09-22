@@ -1,16 +1,36 @@
 # À faire
 1. Analyseur logique :
-    1. ✅ je ne vois toujours aucune courbes dans l'analyseur logique juste la page grise. Fais une analyse approfondit pour enfin régler ce problème.
-    1. ✅ Mes fichiers de tests sont les 5 que je viens de modifier. tu les commit et push
-    1. ⏳ La couleur de fond de la console/moniteur série et du traceur vient de changer. Tu la remets et tu analyse pourquoi. — **analysé, question posée à Frank** (voir v2026.9.4.120, points 5 à 7) : rien dans Kablix n'a touché ce fond, il vient du thème VS Code. Quelle couleur remettre ?
-
+    1. 1 fichier simulé vers l'analyseur logique ne se note pas comme à enregistrer et donc se quité sans sauvegarder les données.
+   
 ## fait
+- ✅ **Page grise de l'analyseur** (v2026.9.4.122) : cause racine trouvée et mesurée — l'atelier poussait ses voies pendant le montage du schéma, les sondes reliées par un fil sortaient en défaut, et la capture restaurée était détruite. Corrigé des deux côtés, gardé par un banc sur les vrais fichiers, contre-épreuve faite.
 
 
 
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.4.122
+1. ✅ **La page grise : la cause racine, enfin mesurée de bout en bout** (item 1.1, quatrième passe). Les trois lots précédents ont chacun corrigé un vrai défaut, mais aucun ne touchait le chemin réellement emprunté à l'ouverture d'un projet. Méthode changée pour ce lot : plutôt que de raisonner sur le code, j'ai **rejoué les 5 vraies captures** des `.projix` de Frank dans l'onglet réel (Chrome headless) selon **six enchaînements de messages différents**, en comptant les pixels peints **piste par piste**. Trois enchaînements sur six s'effondraient.
+2. ℹ️ **Ce que la mesure a éliminé** — et qui aurait pu coûter un lot de plus : l'enregistrement fonctionne (les 5 fichiers portent bien une capture), les broches résolues par l'atelier **coïncident exactement** avec celles des captures, et le dessin est correct en ordre nominal, en ordre de file d'attente, et onglet né caché. Trois pistes fermées par la mesure, pas par l'intuition.
+3. ℹ️ **Cause racine** : `pousserVoiesLogiques()` était appelé **hors du garde `loadingProject`** dans `editor.onChange` ([sim.mts](src/webview/sim.mts)). Il se déclenchait donc à **chaque étape du montage** d'un projet : le `clear()` notifie sur un schéma vide, puis les **composants sont posés avant les fils**. Une sonde reliée par un fil n'a alors aucune broche à suivre et ressort en défaut (`not-mcu` / `nowhere`). **4 des 5 fichiers** ont au moins une pince résolue par un fil — d'où le défaut général.
+4. ℹ️ **Pourquoi c'était irrécupérable** : ce message arrive **après** le `restaure` de l'hôte (deux canaux distincts, aucun ordre garanti entre eux). Le garde du lot .118 ne couvrait que la **liste vide** ; une liste **pleine de voies en défaut** passait au travers, et `declarerVoies()` ne retenant que les voies saines, **les fronts étaient détruits**. Quand l'atelier finissait par résoudre ses sondes, il n'y avait plus rien à dessiner.
+5. ✅ **Chiffré sur `sonde-logique-pico.projix`** : pistes à `[24527, 24370, 3228, 4282]` px en ordre nominal, tombant à `[3258, 2306, 2369, 3164]` — soit **62 051 px de courbes réduits à 16 677**, c'est-à-dire le seul quadrillage et les étiquettes. **La page grise de Frank.** Effondrement mesuré sur les 5 fichiers.
+6. ✅ **Correction à la source**, [sim.mts](src/webview/sim.mts) : `pousserVoiesLogiques()` passe **sous le garde `loadingProject`** — un schéma à moitié monté n'a pas à décrire ses sondes. Comme le `notify()` final de `loadDiagram` tombe lui aussi pendant le chargement, les voies sont poussées **explicitement une fois, après coup**, sur le schéma complet (`loadProject` et import Wokwi).
+7. ✅ **Correction de sûreté**, [analyseur.mts](src/webview/analyseur.mts) : le garde .118 est élargi de « liste vide » à « **liste qui n'apporte aucune piste pour les broches déjà capturées** ». Hors simulation, un tel message décrit un montage en cours, pas un schéma — il est ignoré. Même principe que le repli de `restaurer()`. Les deux corrections sont utiles : l'une tarit la source, l'autre protège la capture quel que soit l'expéditeur.
+8. ✅ Nouveau banc [verify-analyseur-projix.mjs](scripts/verify-analyseur-projix.mjs), ajouté à `verify:all`. Il rejoue les **vraies captures** des `.projix` de test dans **quatre enchaînements** (nominal, file d'attente, onglet caché, **séquence réelle de chargement**) et exige des pixels **rigoureusement identiques** au nominal, piste par piste. Ces scénarios ne changent que l'ordre des messages, jamais les données : toute différence est un défaut.
+9. ℹ️ **Pourquoi un banc de plus** : `verify-analyseur-rendu.mjs` se sert d'une capture **jouet** (2 voies, 5 fronts) qu'il fabrique lui-même. Il ne pouvait structurellement pas voir un défaut qui détruit les fronts d'une capture **réelle** lors d'un enchaînement **réel** — c'est pourquoi trois lots sont passés verts pendant que les 6 fichiers restaient gris.
+10. ✅ **Le banc existant a pris ma première correction en défaut, et c'est ce qui l'a sauvée.** J'avais écrit le critère « aucune piste utile pour les broches déjà capturées » — trop large : c'est aussi ce que produit un **vrai** changement de schéma (second projet, pince déplacée), où la capture DOIT céder la place. `verify-analyseur-rendu.mjs` est passé rouge sur le scénario du lot .120. Critère resserré sur ce qui distingue réellement un montage en cours : **toutes ses voies sont en défaut**. Une seule voie saine suffit à reprendre la main.
+11. ✅ [verify-analyseur.mjs](scripts/verify-analyseur.mjs) mis à jour : contrôles source des deux gardes (liste vide, liste toute en défaut) et **deux contrôles neufs côté atelier** (`pousserVoiesLogiques` sous le garde, et poussé une fois le schéma complet) — la correction de `sim.mts` n'était gardée nulle part. Motifs **ancrés en début de ligne** : sans cela un `false &&` les laissait verts, vérifié.
+12. ✅ **Contre-épreuve faite trois fois** (corrections neutralisées dans le source, jamais par `git stash`) : garde de l'onglet retiré → **5 échecs au banc de rendu, tous sur `chargement-reel`** et sur lui seul, les trois autres enchaînements restant verts ; garde de l'atelier retiré → le contrôle source correspondant passe rouge. Corrections rétablies, tout revert au vert : **5 projets, 62 051 px stables sur les 4 enchaînements**.
+13. ✅ Scripts de diagnostic jetables (`_diag-reel`, `_diag-voies`, `_diag-partiel`) **déplacés** dans `A Examiner/scripts/` — rien supprimé.
+14. ✅ **Non-régression complète** : `npm run verify:all`, **129 bancs verts sur 130** en 577 s (le nouveau banc compris). Le seul rouge est `verify:i18n`, sur les **mêmes 7 contrôles** que les lots précédents — aucun libellé nouveau dans ce lot. Au passage, deux bancs que ma première version avait fait passer rouges (`verify:analyseur`, `verify:analyseur-rendu`) sont revenus au vert après resserrement du critère.
+15. ✅ `dht11-pico.projix` conservé et versionné, comme demandé — il porte désormais une capture exploitable et sert de cas de test au nouveau banc.
+16. ⏳ Fond de la console et du traceur (item 1.3) : toujours en attente de la réponse de Frank, rien touché.
+17. ⏳ Traductions (`docs/en/`, `l10n/bundle.l10n.fr.json`) : rien de traduit, conformément à la règle — tout en un lot avant publication. `npm run verify:i18n` reste rouge sur les **mêmes 7 contrôles** : c'est **attendu**, aucun libellé nouveau dans ce lot.
 
 ---
 

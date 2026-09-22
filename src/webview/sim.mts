@@ -4714,7 +4714,14 @@ editor.onChange = () => {
   // Sondes de l'analyseur : une pince posée, déplacée ou étiquetée doit
   // apparaître dans l'onglet TOUT DE SUITE, simulation ou non. Sans cela
   // l'élève poserait sa pince et ne verrait rien avant le lancement suivant.
-  pousserVoiesLogiques();
+  //
+  // MAIS PAS PENDANT UN CHARGEMENT : `loadDiagram` notifie plusieurs fois (le
+  // `clear()` d'abord, puis le montage, les composants AVANT les fils). Une
+  // sonde reliée par un fil n'a alors aucune broche à suivre et ressortait en
+  // défaut ; l'onglet, qui ne retient que les voies saines, jetait les fronts
+  // de la capture qu'il venait de restaurer. Le chargement se termine par un
+  // `notify()` sur le schéma complet, qui pousse les vraies voies.
+  if (!loadingProject) pousserVoiesLogiques();
 };
 
 // Changement de VUE (zoom / déplacement de la page) : on persiste la caméra sans
@@ -5539,6 +5546,7 @@ window.addEventListener('message', (event: MessageEvent) => {
       loadingProject = true;
       editor.loadDiagram({ parts, wires });
       loadingProject = false;
+      pousserVoiesLogiques(); // schéma complet : voir `loadProject`
       setDirty(true); // un import Wokwi n'est pas encore un .projix enregistré
       // Adopte la carte du premier MCU reconnu dans le schéma importé.
       switchBoard(
@@ -5569,6 +5577,10 @@ window.addEventListener('message', (event: MessageEvent) => {
       const loadedDiagram = msg.diagram as Parameters<typeof editor.loadDiagram>[0];
       editor.loadDiagram(loadedDiagram);
       loadingProject = false;
+      // Le schéma est ENFIN complet (composants ET fils) : c'est le seul moment
+      // où les sondes reliées par un fil se résolvent. `onChange` s'est tu
+      // pendant tout le montage, donc on pousse ici, une fois.
+      pousserVoiesLogiques();
       // Projet fraîchement chargé = aligné sur le disque, SAUF réouverture après
       // une fermeture avec modifications non enregistrées (markDirty) : le schéma
       // restauré n'est pas encore enregistré, on garde le point « non enregistré ».

@@ -417,11 +417,23 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   // « neutres » d'après chargement compris, avant d'avoir résolu la moindre
   // sonde. Ce message-là écrasait la capture restaurée et rendait l'onglet
   // gris (20/09) ; le contrôle de bout en bout est dans verify-analyseur-rendu.
-  const surVoies = src.slice(src.indexOf("case 'voies'"), src.indexOf("case 'voies'") + 1800);
+  const surVoies = src.slice(src.indexOf("case 'voies'"), src.indexOf("case 'voies'") + 3600);
   check('réouverture : le message `voies` de l\'atelier reprend la main',
     /diagnostics = msg\.voies\.map/.test(surVoies) && !/diagnostics\.length === 0/.test(surVoies));
   check('réouverture : mais une liste VIDE ne jette pas une capture déjà affichée',
-    /msg\.voies\.length === 0 && !enCours && capture\.aDesDonnees/.test(surVoies));
+    /!enCours && capture\.aDesDonnees/.test(surVoies)
+    && /\n\s*if \(msg\.voies\.length === 0\) return;/.test(surVoies));
+  // Le garde a été ÉLARGI le 22/09 : il ne suffit pas d'écarter la liste vide.
+  // L'atelier pousse aussi, pendant le montage d'un projet, une liste PLEINE de
+  // voies EN DÉFAUT (composants posés avant les fils : une sonde reliée par un
+  // fil n'a pas encore de broche). Elle passait l'ancien garde et détruisait les
+  // fronts. Le critère reste ÉTROIT — « toutes les voies en défaut » et non
+  // « aucune piste utile » : un vrai changement de schéma (second projet, pince
+  // déplacée) n'apporte pas non plus de piste utile, et là la capture DOIT
+  // céder la place. Bout à bout : verify-analyseur-projix.mjs, scénario du
+  // chargement réel, sur les VRAIES captures des .projix de test.
+  check('réouverture : une liste dont TOUTES les voies sont en défaut ne jette pas la capture',
+    /\n\s*if \(msg\.voies\.every\(\(v\) => v\.probleme \|\| !v\.pin\)\) return;/.test(surVoies));
   // Les deux sens du recalage par broche : à la restauration (la capture arrive
   // sur un schéma déjà connu) et à la réception des voies (le schéma arrive sur
   // une capture déjà restaurée — l'atelier résout ses sondes en retard).
@@ -429,6 +441,18 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
     /parPin\.get\(v\.pin\) \?\? v\.voie/.test(bloc) && /capture\.declarerVoies\(etat\.voies\.map/.test(bloc));
   check('réouverture : et un message `voies` tardif renumérote la capture au lieu de la jeter',
     /capture\.renumeroter\(/.test(surVoies));
+
+  // CÔTÉ ATELIER (22/09) : tarir la source plutôt que filtrer à l'arrivée.
+  // `pousserVoiesLogiques()` était hors du garde `loadingProject`, donc appelé à
+  // chaque étape du montage d'un projet — clear() sur schéma vide, puis les
+  // composants AVANT les fils. Il doit maintenant être sous le garde, et poussé
+  // explicitement une fois le schéma complet (sinon plus aucune voie n'arrive,
+  // le notify() final de loadDiagram tombant lui aussi pendant le chargement).
+  const atelier = readFileSync(join(root, 'src', 'webview', 'sim.mts'), 'utf8');
+  check('chargement : l\'atelier ne pousse pas ses voies sur un schéma à moitié monté',
+    /if \(!loadingProject\) pousserVoiesLogiques\(\);/.test(atelier));
+  check('chargement : mais il les pousse une fois le schéma complet',
+    (atelier.match(/loadingProject = false;\s*(?:\/\/[^\n]*\n\s*)*pousserVoiesLogiques\(\);/g) ?? []).length >= 2);
 
   // L'ONGLET AU SECOND PLAN NE REÇOIT AUCUNE IMAGE (v2026.9.4.98). Frank, 18/09 :
   // « je ne vois toujours rien dans l'analyseur, que le programme tourne, soit

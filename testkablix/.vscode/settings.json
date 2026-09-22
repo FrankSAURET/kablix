@@ -2,11 +2,13 @@
     "workbench.colorTheme": "Arduino light",
     "python.analysis.typeshedPaths": [
         "c:\\Users\\Frank\\.vscode\\extensions\\paulober.pico-w-go-4.3.4-win32-x64\\mpy_stubs",
-        "c:\\Users\\Frank\\.vscode\\extensions\\paulober.pico-w-go-4.4.0-win32-x64\\mpy_stubs"
+        "c:\\Users\\Frank\\.vscode\\extensions\\paulober.pico-w-go-4.4.0-win32-x64\\mpy_stubs",
+        "c:\\Users\\Frank\\.vscode\\extensions\\paulober.pico-w-go-4.5.0-win32-x64\\mpy_stubs"
     ],
     "python.analysis.extraPaths": [
         "c:\\Users\\Frank\\.vscode\\extensions\\paulober.pico-w-go-4.3.4-win32-x64\\mpy_stubs",
-        "c:\\Users\\Frank\\.vscode\\extensions\\paulober.pico-w-go-4.4.0-win32-x64\\mpy_stubs"
+        "c:\\Users\\Frank\\.vscode\\extensions\\paulober.pico-w-go-4.4.0-win32-x64\\mpy_stubs",
+        "c:\\Users\\Frank\\.vscode\\extensions\\paulober.pico-w-go-4.5.0-win32-x64\\mpy_stubs"
     ],
     "python.analysis.diagnosticSeverityOverrides": {
         "reportMissingModuleSource": "none"
