@@ -655,6 +655,46 @@ export class PicoEngine implements SimEngine {
     const i = gpioIndex(name);
     if (i === null) return;
     this.mcu.gpio[i].setInputValue(value);
+    this.noterFrontEntree(name, i);
+  }
+
+  /**
+   * Front posé sur le fil PAR L'EXTÉRIEUR (capteur 1-Wire, DHT, carte série…),
+   * et non par le programme. `samplePulses()` ne voit que le maître : il lit
+   * `gpio[i].value`, qui en ENTRÉE ne rend pas un niveau mais un mode
+   * (`InputPullUp`, `Input`…) — jamais `High`. La moitié esclave d'un dialogue
+   * bidirectionnel était donc absente du journal, et une pince posée sur un bus
+   * 1-Wire n'enregistrait rien du tout (mesuré sur `ds18b20-pico2`, 22/09).
+   *
+   * Et seules les VRAIES bascules comptent : `setInput` est appelé à chaque
+   * balayage de clavier et à chaque repos de capteur, toujours avec la même
+   * valeur — les noter toutes noierait la capture sous des fronts qui
+   * n'existent pas.
+   */
+  private noterFrontEntree(name: string, i: number): void {
+    if (!this.scopePins.has(name) && !this.logicPins.has(name)) return;
+    const niveau = this.niveauDuFil(i);
+    if (this.niveauFil.get(name) === niveau) return;
+    this.niveauFil.set(name, niveau);
+    this.noteScopeEdge(name, niveau);
+  }
+
+  /**
+   * Le niveau électrique du FIL, quel que soit le sens de la broche : celui du
+   * maître tant qu'il tient sa sortie, sinon celui que l'extérieur impose.
+   *
+   * En entrée on lit INFROMPAD (bit 17 du registre STATUS, fiche technique
+   * RP2040 § 2.19.6) : le niveau du fil AVANT la logique d'entrée. Ni `value`,
+   * qui rend un MODE (`InputPullUp`, `Input`…) et jamais `High`, ni
+   * `inputValue`, qui vaut `INFROMPAD && inputEnable` et reste donc faux tant
+   * que le programme n'a pas configuré la broche en entrée. Un capteur qui
+   * répond sur un bus au repos restait invisible dans les deux cas — mesuré par
+   * `verify-analyseur-fronts.mjs`, qui a pris la première version en défaut.
+   */
+  private niveauDuFil(i: number): boolean {
+    const pin = this.mcu.gpio[i];
+    if (pin.outputEnable) return pin.outputValue;
+    return (pin.status & (1 << 17)) !== 0; // INFROMPAD
   }
 
   setKeypads(keypads: KeypadConfig[]): void {
@@ -774,6 +814,13 @@ export class PicoEngine implements SimEngine {
   // Broches écoutées par une SONDE de l'analyseur logique : même journal, mais
   // un plafond bien plus profond (une trame entière, pas un écran).
   private logicPins = new Set<string>();
+  /**
+   * Dernier niveau JOURNALISÉ de chaque broche sondée. Deux sources notent des
+   * fronts — le maître dans `samplePulses()`, l'extérieur dans `setInput()` —
+   * et elles doivent partager la même mémoire, sinon chacune redéclare comme
+   * neuf un niveau que l'autre a déjà noté et la capture double ses fronts.
+   */
+  private niveauFil = new Map<string, boolean>();
 
   setPulseMonitors(names: string[]): void {
     this.pulsePins = [];
@@ -1185,11 +1232,13 @@ export class PicoEngine implements SimEngine {
 
   setScopeProbes(names: string[]): void {
     this.scopePins = new Set(names);
+    this.niveauFil.clear(); // nouvelle mesure : le premier front doit être noté
     this.purgeLogs();
   }
 
   setLogicProbes(names: string[]): void {
     this.logicPins = new Set(names);
+    this.niveauFil.clear(); // idem — cf. setScopeProbes
     // Pince posée sur une broche TX : la ligne série lui sera synthétisée
     // (cf. verserTrameSerie). Recalculé à chaque déclaration de voies, comme le
     // reste — une pince se déplace en cours de route.
@@ -1290,12 +1339,21 @@ export class PicoEngine implements SimEngine {
     const cyclesPerUs = (this.mcu.clkSys || 125_000_000) / 1_000_000;
     const now = this.core.cycles;
     for (const pp of this.pulsePins) {
-      const high = this.mcu.gpio[pp.index].value === GPIOPinState.High;
+      const pin = this.mcu.gpio[pp.index];
+      const high = pin.value === GPIOPinState.High;
       const st = this.pulseState.get(pp.name);
       if (!st) continue;
       // Oscilloscope : la bascule est notée avant tout le reste (cf. avr.mts).
-      if (high !== st.high && (this.scopePins.has(pp.name) || this.logicPins.has(pp.name))) {
-        this.noteScopeEdge(pp.name, high);
+      // Le niveau du FIL, pas celui du maître : une broche relâchée est tenue
+      // par l'extérieur (capteur 1-Wire, DHT…), et `value` ne rend alors qu'un
+      // mode d'entrée. Le registre est partagé avec `noterFrontEntree()` pour
+      // que les deux sources ne notent pas deux fois le même front.
+      if (this.scopePins.has(pp.name) || this.logicPins.has(pp.name)) {
+        const niveau = this.niveauDuFil(pp.index);
+        if (this.niveauFil.get(pp.name) !== niveau) {
+          this.niveauFil.set(pp.name, niveau);
+          this.noteScopeEdge(pp.name, niveau);
+        }
       }
       if (high && !st.high) {
         st.high = true;

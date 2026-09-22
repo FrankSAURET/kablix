@@ -343,6 +343,13 @@ export class AvrEngine implements SimEngine {
   // Broches écoutées par une SONDE de l'analyseur logique : même journal, mais
   // un plafond bien plus profond (une trame entière, pas un écran).
   private logicPins = new Set<string>();
+  /**
+   * Dernier niveau JOURNALISÉ de chaque broche sondée. Deux sources notent des
+   * fronts — le maître dans `samplePulses()`, l'extérieur dans `setInput()` —
+   * et elles partagent cette mémoire, sinon chacune redéclarerait comme neuf un
+   * niveau que l'autre a déjà noté et la capture doublerait ses fronts.
+   */
+  private niveauFil = new Map<string, boolean>();
 
   // Capteurs ultrason + actions d'entrée programmées en temps simulé (génération ECHO).
   private ultrasonic: UltrasonicSensor[] = [];
@@ -675,6 +682,39 @@ export class AvrEngine implements SimEngine {
     if (!map) return;
     const [port, bit] = map;
     this.ports[port]?.setPin(bit, value);
+    this.noterFrontEntree(name, port, bit);
+  }
+
+  /**
+   * Niveau réel du FIL, et non de la broche vue du programme. `pinState()` ne
+   * rend un niveau que sur une sortie : en entrée il rend un MODE (`Input`,
+   * `InputPullUp`), jamais `High`. Le niveau imposé de l'extérieur vit dans le
+   * registre PIN, que `setPin()` met à jour.
+   */
+  private niveauDuFil(port: PortKey, bit: number): boolean {
+    const p = this.ports[port];
+    if (!p) return false;
+    const etat = p.pinState(bit);
+    if (etat === PinState.High) return true;
+    if (etat === PinState.Low) return false;
+    // Entrée : c'est l'extérieur qui commande (capteur 1-Wire, DHT, bouton…).
+    return (this.cpu.data[p.portConfig.PIN] & (1 << bit)) !== 0;
+  }
+
+  /**
+   * Front posé sur le fil PAR L'EXTÉRIEUR. `samplePulses()` ne suit que le
+   * maître, donc la moitié esclave d'un dialogue bidirectionnel n'entrait
+   * jamais dans le journal : une pince sur un bus 1-Wire n'enregistrait rien
+   * (mesuré sur `ds18b20-pico2`, 22/09). Seules les VRAIES bascules comptent —
+   * `setInput` est appelé à chaque balayage de clavier et à chaque repos de
+   * capteur, toujours avec la même valeur.
+   */
+  private noterFrontEntree(name: string, port: PortKey, bit: number): void {
+    if (!this.scopePins.has(name) && !this.logicPins.has(name)) return;
+    const niveau = this.niveauDuFil(port, bit);
+    if (this.niveauFil.get(name) === niveau) return;
+    this.niveauFil.set(name, niveau);
+    this.noteScopeEdge(name, this.cpu.cycles, niveau);
   }
 
   setPulseMonitors(names: string[]): void {
@@ -699,11 +739,13 @@ export class AvrEngine implements SimEngine {
 
   setScopeProbes(names: string[]): void {
     this.scopePins = new Set(names);
+    this.niveauFil.clear(); // nouvelle mesure : le premier front doit être noté
     this.purgeLogs();
   }
 
   setLogicProbes(names: string[]): void {
     this.logicPins = new Set(names);
+    this.niveauFil.clear(); // idem — cf. setScopeProbes
     // Une pince posée sur une broche TX fait naître la synthèse des fronts de la
     // ligne série : sans sonde dessus, rien n'est calculé ni journalisé.
     const TX = this.brochesTx();
@@ -1225,9 +1267,16 @@ export class AvrEngine implements SimEngine {
       const st = this.pulseState.get(pp.name);
       if (!st) continue;
       // Oscilloscope : la bascule est notée AVANT tout le reste, avec l'heure
-      // du simulateur — c'est elle qui fait la forme de la courbe.
-      if (high !== st.high && (this.scopePins.has(pp.name) || this.logicPins.has(pp.name))) {
-        this.noteScopeEdge(pp.name, now, high);
+      // du simulateur — c'est elle qui fait la forme de la courbe. On note le
+      // niveau du FIL, pas celui du maître : une broche relâchée est tenue par
+      // l'extérieur. Le registre est partagé avec `noterFrontEntree()` pour que
+      // les deux sources ne notent pas deux fois le même front.
+      if (this.scopePins.has(pp.name) || this.logicPins.has(pp.name)) {
+        const niveau = this.niveauDuFil(pp.port, pp.bit);
+        if (this.niveauFil.get(pp.name) !== niveau) {
+          this.niveauFil.set(pp.name, niveau);
+          this.noteScopeEdge(pp.name, now, niveau);
+        }
       }
       if (high && !st.high) {
         st.high = true;
