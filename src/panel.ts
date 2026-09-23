@@ -16,6 +16,7 @@ import {
 } from './compiler';
 import { pistesArduinoIde } from './arduinoCliPistes';
 import { AnalyseurPanel, type AnalyseurVersHote } from './analyseur-panel';
+import { AnalyseurJournal } from './analyseur-journal';
 import {
   packProject,
   unpackProject,
@@ -1453,6 +1454,9 @@ export class SimulatorPanel {
       return;
     }
     AnalyseurPanel.suivreProjet(ancienne, nouvelle, this.analyseurTitre());
+    // Le journal suit la même clé : sans cela il resterait rangé sous l'ancienne
+    // URI et ne serait jamais fermé — un fichier temporaire orphelin.
+    AnalyseurJournal.suivreProjet(ancienne, nouvelle);
     this.analyseurCleRangee = nouvelle;
   }
 
@@ -1461,9 +1465,27 @@ export class SimulatorPanel {
     return AnalyseurPanel.pour(this.analyseurCleRangee ?? this.analyseurCle());
   }
 
+  /**
+   * Journal CSV de session de ce projet, créé au besoin. Contrairement à
+   * l'onglet, il existe même si personne n'a ouvert l'analyseur : une mesure se
+   * fait pendant la simulation, on la regarde après.
+   */
+  private journalAnalyseur(): AnalyseurJournal {
+    return AnalyseurJournal.pour(
+      this.analyseurCle(),
+      this.projectBaseName ?? 'projet'
+    );
+  }
+
+  /** Les voies déclarées par l'atelier, réduites à ce que le journal inscrit. */
+  private voiesJournal(): { voie: number; pin: string; nom: string }[] {
+    return (this.analyseurVoies as { voie?: number; pin?: string; nom?: string }[])
+      .filter((v) => typeof v?.pin === 'string' && v.pin.length > 0)
+      .map((v) => ({ voie: v.voie ?? -1, pin: v.pin as string, nom: v.nom ?? (v.pin as string) }));
+  }
+
   /** Ce que l'analyseur grave dans le .projix, ou undefined s'il n'a rien. */
   private analyseurPourProjix(): ProjixAnalyseur | undefined {
-    const cap = this.analyseurCapture as ProjixAnalyseur | null;
     const reg = this.analyseurReglages as
       | {
           declenchement?: ProjixAnalyseur['declenchement'];
@@ -1472,21 +1494,19 @@ export class SimulatorPanel {
           echantillonnage?: number;
         }
       | null;
-    const voies = cap?.voies;
     const decodages = Array.isArray(reg?.decodages) ? reg.decodages : [];
     const aDesDecodages = decodages.length > 0;
     const aDesReglagesVoies = Object.keys(reg?.voiesReglages ?? {}).length > 0;
     // 0 = illimitée, le réglage d'origine : inutile de l'écrire dans le projet.
     const echantillonnage = reg?.echantillonnage ?? 0;
+    // La CAPTURE n'est plus gravée ici : c'est une mesure de session, elle vit
+    // dans le journal CSV (voir analyseur-journal.ts). Seuls les RÉGLAGES de
+    // l'instrument restent dans le projet — personne ne rerègle son
+    // déclenchement à chaque ouverture, et ils pèsent quelques octets.
     const aQuelqueChose =
-      (voies && voies.length > 0) ||
-      reg?.declenchement != null ||
-      aDesDecodages ||
-      aDesReglagesVoies ||
-      echantillonnage > 0;
+      reg?.declenchement != null || aDesDecodages || aDesReglagesVoies || echantillonnage > 0;
     if (!aQuelqueChose) return undefined;
     return {
-      ...(voies && voies.length > 0 ? { voies } : {}),
       ...(reg?.declenchement != null ? { declenchement: reg.declenchement } : {}),
       ...(aDesDecodages ? { decodages } : {}),
       ...(aDesReglagesVoies ? { voiesReglages: reg?.voiesReglages } : {}),
@@ -1517,7 +1537,15 @@ export class SimulatorPanel {
     if (this.analyseurEmpreinte() !== avant) this.markProjectDirty();
   }
 
-  /** Reprend la capture et les réglages gravés dans un .projix qu'on ouvre. */
+  /**
+   * Reprend les réglages gravés dans un .projix qu'on ouvre.
+   *
+   * La capture, elle, n'est PLUS écrite dans les nouveaux projets (elle vit dans
+   * le journal de session). On continue pourtant de la RELIRE : un projet
+   * enregistré avant ce changement en porte une, et la jeter ferait perdre à son
+   * auteur une mesure qu'il croyait gardée. Elle ne sera simplement pas
+   * réécrite au prochain enregistrement.
+   */
   private chargerAnalyseur(a: ProjixAnalyseur | undefined): void {
     if (!a) {
       this.analyseurCapture = null;
@@ -1826,35 +1854,29 @@ export class SimulatorPanel {
         // elles arrivent donc aussi hors simulation.
         this.analyseurVoies = Array.isArray(msg.voies) ? msg.voies : [];
         this.analyseur()?.envoyer({ type: 'voies', voies: this.analyseurVoies });
+        // Le journal a besoin des voies pour nommer ses colonnes : une pince
+        // déplacée ou renommée en cours de mesure doit s'y retrouver.
+        AnalyseurJournal.existant(this.analyseurCle())?.majVoies(this.voiesJournal());
         break;
       case 'analyseurFronts':
         if (msg.salves && typeof msg.salves === 'object') {
-          this.analyseur()?.envoyer({
-            type: 'fronts',
-            salves: msg.salves as Record<string, number[]>,
-          });
+          const salves = msg.salves as Record<string, number[]>;
+          this.analyseur()?.envoyer({ type: 'fronts', salves });
+          // AU FIL DE L'EAU : c'est tout l'intérêt du journal de session. Les
+          // fronts sont sur le disque dès qu'ils existent, donc plus aucun
+          // instant unique (un arrêt de simulation, une fermeture d'onglet) ne
+          // peut emporter la mesure avec lui.
+          this.journalAnalyseur().verser(salves);
         }
         break;
       case 'analyseurDepart':
-        // Nouveau lancement = nouvelle mesure : la capture gravée est jetée. Le
-        // fichier du disque en est changé lui aussi, d'où le ● (l'enregistrement
-        // d'avant-lancement vient de passer, il n'y a pas de ● en double).
-        this.majAnalyseur(() => {
-          this.analyseurCapture = null;
-        });
+        // Nouveau lancement = nouvelle mesure : le journal de session repart de
+        // zéro, en-tête des voies compris.
+        this.journalAnalyseur().demarrer(this.voiesJournal());
         this.analyseur()?.envoyer({ type: 'depart' });
         break;
       case 'analyseurArret':
         this.analyseur()?.envoyer({ type: 'arret' });
-        break;
-      case 'analyseurCapture':
-        // Capture à plat, envoyée par l'atelier à l'enregistrement : c'est ce que
-        // l'onglet réaffichera à la réouverture du projet. Elle est gravée dans
-        // le .projix, donc elle met le projet « à enregistrer » (sinon la mesure
-        // se perd à la fermeture, sans même une question).
-        this.majAnalyseur(() => {
-          this.analyseurCapture = msg.capture ?? null;
-        });
         break;
       case 'newProject':
         // (legacy WebviewPanel) Nouveau projet en place : la webview a déjà vidé
@@ -2789,6 +2811,10 @@ export class SimulatorPanel {
     }
 
     SimulatorPanel.panels.delete(this);
+    // Projet fermé : son journal de mesures n'a plus de raison d'être. C'est
+    // une donnée de session — ce que l'utilisateur voulait garder, il l'a
+    // exporté en CSV.
+    AnalyseurJournal.fermer(this.analyseurCleRangee ?? this.analyseurCle());
     if (SimulatorPanel.lastActive === this) SimulatorPanel.lastActive = undefined;
     if (SimulatorPanel.current === this) SimulatorPanel.current = undefined;
     this.clearDebugLine();

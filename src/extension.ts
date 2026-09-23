@@ -15,6 +15,7 @@ import { KompixLibrary } from './kompixLibrary';
 import { PicoUploader } from './picoUploader';
 import { memoriserModeExtension } from './version';
 import { redetecterArduinoCli } from './arduinoCliPistes';
+import { AnalyseurJournal } from './analyseur-journal';
 
 const l10n = vscode.l10n;
 
@@ -26,6 +27,10 @@ const STARTUP_GRACE_MS = 3000;
 export function activate(context: vscode.ExtensionContext): void {
   // Numéro de build interne visible seulement hors production (voir version.ts).
   memoriserModeExtension(context.extensionMode);
+
+  // Journaux de mesure laissés par une session qui s'est arrêtée brutalement :
+  // sans ce balayage, le dossier temporaire grossirait sans fin.
+  AnalyseurJournal.nettoyerOrphelins();
 
   // Filet du choix de l'éditeur SVG : VS Code n'inscrit les réglages d'une
   // extension qu'au chargement de la fenêtre, si bien qu'un `.vsix` installé et
@@ -337,4 +342,6 @@ async function openProjixViaDialog(context: vscode.ExtensionContext): Promise<vo
 
 export function deactivate(): void {
   SimulatorPanel.dispose();
+  // Les journaux de mesure sont des fichiers de session : ils meurent avec elle.
+  AnalyseurJournal.fermerTous();
 }

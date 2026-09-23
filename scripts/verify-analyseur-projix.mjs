@@ -10,51 +10,31 @@
 // CE QU'IL MESURE : les pixels peints, PISTE PAR PISTE, dans quatre
 // enchaînements de messages, et exige qu'ils soient identiques à l'ordre
 // nominal. Un scénario qui perd des pixels = une capture amputée.
-import { mkdirSync, writeFileSync, existsSync, readFileSync, readdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
-import zlib from 'node:zlib';
 import { build as esbuild } from 'esbuild';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const CACHE = join(tmpdir(), 'kablix-verif-analyseur-projix');
 mkdirSync(CACHE, { recursive: true });
 
-// Lecteur ZIP minimal : un .projix est une archive (kablix.json + diagram.json).
-function unzip(buf) {
-	const out = {};
-	let e = -1;
-	for (let i = buf.length - 22; i >= 0; i--) if (buf.readUInt32LE(i) === 0x06054b50) { e = i; break; }
-	if (e < 0) throw new Error('archive illisible');
-	const n = buf.readUInt16LE(e + 10);
-	let off = buf.readUInt32LE(e + 16);
-	for (let k = 0; k < n; k++) {
-		const nl = buf.readUInt16LE(off + 28), el = buf.readUInt16LE(off + 30), cl = buf.readUInt16LE(off + 32);
-		const lho = buf.readUInt32LE(off + 42);
-		const name = buf.toString('utf8', off + 46, off + 46 + nl);
-		const m = buf.readUInt16LE(off + 10), cs = buf.readUInt32LE(off + 20);
-		const ds = lho + 30 + buf.readUInt16LE(lho + 26) + buf.readUInt16LE(lho + 28);
-		const d = buf.subarray(ds, ds + cs);
-		out[name] = m === 0 ? d : zlib.inflateRawSync(d);
-		off += 46 + nl + el + cl;
-	}
-	return out;
-}
-
-const DIR = join(ROOT, 'testkablix');
+// D'OÙ VIENNENT LES CAPTURES (changé au lot .124). Elles étaient lues dans les
+// .projix de test. Ce lot les en a sorties : une mesure vit maintenant dans un
+// journal CSV de session, et un .projix réenregistré n'en porte plus. La source
+// a donc été FIGÉE dans un échantillon versionné, extrait de ces mêmes fichiers
+// — ce sont toujours de vraies mesures, issues de vraies simulations, ce qui
+// fait tout l'intérêt de ce banc face à la capture jouet de verify-analyseur-rendu.
+const ECHANTILLON = join(ROOT, 'testkablix/captures/analyseur-reelles.json');
 const cas = [];
-for (const f of readdirSync(DIR).filter((x) => x.endsWith('.projix')).sort()) {
-	let z;
-	try { z = unzip(readFileSync(join(DIR, f))); } catch { continue; }
-	let k;
-	try { k = JSON.parse(z['kablix.json'].toString('utf8')); } catch { continue; }
-	// Seuls les projets qui embarquent une capture NON VIDE nous intéressent.
+for (const ech of JSON.parse(readFileSync(ECHANTILLON, 'utf8')).cas) {
+	const k = ech;
 	const voies = k.analyseur?.voies ?? [];
 	if (!voies.some((v) => (v.fronts || []).length > 0)) continue;
 	cas.push({
-		nom: f,
+		nom: ech.nom,
 		// Ce que l'atelier pousse quand le schéma est complet : le couple
 		// voie/broche que porte déjà la capture.
 		voies: voies.map((v) => ({
@@ -65,7 +45,7 @@ for (const f of readdirSync(DIR).filter((x) => x.endsWith('.projix')).sort()) {
 	});
 }
 if (cas.length === 0) {
-	console.log('✗ aucun .projix de test ne porte de capture — banc sans objet');
+	console.log(`✗ l’échantillon ne porte aucune capture — banc sans objet (${ECHANTILLON})`);
 	process.exit(1);
 }
 

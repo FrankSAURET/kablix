@@ -1,18 +1,19 @@
-// Une mesure de l'analyseur met le projet « à enregistrer » (v2026.9.4.123).
+// Ce que l'analyseur met — ou ne met plus — « à enregistrer » (v2026.9.4.124).
 //
-// LE DÉFAUT. Frank, 23/09 : « 1 fichier simulé vers l'analyseur logique ne se
-// note pas comme à enregistrer et donc se quitte sans sauvegarder les données ».
-// La capture de l'analyseur EST gravée dans le .projix (buildProjixBytes →
-// manifest.analyseur), mais rien ne posait le point ● : à la fermeture de
-// l'onglet, VS Code ne demandait rien et la mesure partait à la poubelle.
+// HISTOIRE DE CE BANC. Au lot .123 il prouvait l'inverse de ce qu'il prouve
+// aujourd'hui : la CAPTURE était gravée dans le .projix et devait poser le
+// point ●. Au lot .124, Frank a tranché — une mesure n'est pas une pièce du
+// projet. Elle vit désormais dans un journal CSV de session
+// (src/analyseur-journal.ts), écrit au fil de l'eau et supprimé à la fermeture.
 //
-// Trois messages changent ce que le fichier contiendra :
-//   `analyseurCapture` (fin de simulation : la mesure elle-même),
-//   `analyseurReglages` (déclenchement, décodages, échantillonnage, réglages de
-//   voie — ils viennent de l'ONGLET, l'autre webview),
-//   `analyseurDepart`  (un nouveau lancement JETTE la capture gravée).
+// LE BANC EST DONC RETOURNÉ, et c'est délibéré :
+//   `analyseurCapture` NE DOIT PLUS marquer le projet (ni entrer dans les octets),
+//   `analyseurDepart`  NE DOIT PLUS marquer le projet,
+//   `analyseurReglages` DOIT TOUJOURS le marquer — déclenchement, décodages et
+//   réglages de voie restent des préférences de projet, et elles pèsent
+//   quelques octets.
 //
-// Ce banc ne lit pas des motifs de source : il bundle le VRAI panel.ts avec un
+// Il ne lit pas des motifs de source : il empaquette le VRAI panel.ts avec un
 // faux `vscode`, pose une session, lui envoie ces messages et regarde deux
 // choses à la fois — le point ● (onDocEdit) ET les octets réellement produits
 // par buildProjixBytes. Un ● sans changement d'octets serait aussi faux qu'un
@@ -20,7 +21,7 @@
 //
 // Usage : node scripts/verify-analyseur-dirty.mjs
 import esbuild from 'esbuild';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -146,41 +147,44 @@ function envoyer(p, msg) {
 const CAPTURE_A = { voies: [{ voie: 0, nom: 'SDA', pin: 'GP20', fronts: [0, 12, 40], niveauInitial: 1 }] };
 const CAPTURE_B = { voies: [{ voie: 0, nom: 'SDA', pin: 'GP20', fronts: [0, 7, 19, 33], niveauInitial: 0 }] };
 
-// 1) LE CAS DE FRANK : projet propre, on simule, l'atelier remonte sa capture.
+// 1) LE NOUVEAU CONTRAT : une mesure qui remonte NE salit plus le projet.
+//    Elle part dans le journal de session ; le .projix n'en sait rien.
 {
 	const p = session();
 	const edits = envoyer(p, { type: 'analyseurCapture', capture: CAPTURE_A });
-	check(edits === 1, 'capture : une mesure marque le projet « à enregistrer »', `${edits} edit(s)`);
-	check(p.projectDirty === true, 'capture : projectDirty passe à vrai (fermeture → VS Code demande)');
-	check(p.analyseurCapture === CAPTURE_A, 'capture : la mesure est bien rangée pour l’enregistrement');
+	check(edits === 0, 'capture : une mesure ne marque plus le projet', `${edits} edit(s)`);
+	check(p.projectDirty === false, 'capture : le projet reste propre (la mesure est hors du fichier)');
 }
 
-// 2) …et elle est RÉELLEMENT dans les octets du .projix. Un ● qui ne
-//    correspondrait à aucun changement de fichier serait un faux positif.
+// 2) …et elle n'entre PAS dans les octets du .projix. C'est ce qui évite au
+//    fichier de grossir de dizaines de milliers de fronts.
 {
 	const p = session();
-	const vide = p.analyseurPourProjix();
 	envoyer(p, { type: 'analyseurCapture', capture: CAPTURE_A });
-	const plein = p.analyseurPourProjix();
-	check(vide === undefined, 'octets : un projet sans mesure n’écrit pas de bloc analyseur');
-	check(JSON.stringify(plein?.voies) === JSON.stringify(CAPTURE_A.voies),
-		'octets : la mesure entre dans ce qui sera gravé (manifest.analyseur)');
+	const grave = p.analyseurPourProjix();
+	check(grave === undefined || grave.voies === undefined,
+		'octets : la mesure n’est plus gravée dans le .projix');
 }
 
-// 3) Une capture IDENTIQUE ne salit pas : sinon rouvrir un projet et relancer la
-//    même mesure demanderait un enregistrement sans rien avoir changé.
+// 3) Quelle que soit la mesure — identique, différente, plus longue — le projet
+//    ne bouge pas. Avant le lot .124, une capture différente posait le ●.
 {
-	const p = session({ capture: CAPTURE_A });
-	const edits = envoyer(p, { type: 'analyseurCapture', capture: JSON.parse(JSON.stringify(CAPTURE_A)) });
-	check(edits === 0, 'capture : une mesure identique ne marque rien', `${edits} edit(s)`);
-	check(p.projectDirty === false, 'capture identique : le projet reste propre');
-}
-
-// 4) Une capture DIFFÉRENTE salit (deuxième run, fronts différents).
-{
-	const p = session({ capture: CAPTURE_A });
+	const p = session();
+	envoyer(p, { type: 'analyseurCapture', capture: CAPTURE_A });
 	const edits = envoyer(p, { type: 'analyseurCapture', capture: CAPTURE_B });
-	check(edits === 1, 'capture : une mesure différente marque le projet', `${edits} edit(s)`);
+	check(edits === 0, 'capture : une mesure différente ne marque pas davantage', `${edits} edit(s)`);
+	check(p.projectDirty === false, 'capture : deux mesures de suite laissent le projet propre');
+}
+
+// 4) L'empreinte — ce qui décide du ● — doit être AVEUGLE à la mesure. Deux
+//    sessions aux captures opposées mais aux mêmes réglages sont identiques
+//    pour le .projix : c'est ce qui garantit qu'aucune mesure ne peut le salir.
+{
+	const reglages = { declenchement: { voie: 0, sens: 'montant' }, decodages: [], voiesReglages: {}, echantillonnage: 0 };
+	const pa = session({ capture: CAPTURE_A, reglages });
+	const pb = session({ capture: CAPTURE_B, reglages });
+	check(pa.analyseurEmpreinte() === pb.analyseurEmpreinte(),
+		'empreinte : deux mesures différentes donnent la même empreinte de projet');
 }
 
 // 5) RÉGLAGES venus de l'onglet (déclenchement, décodage, échantillonnage) : ils
@@ -208,16 +212,13 @@ const CAPTURE_B = { voies: [{ voie: 0, nom: 'SDA', pin: 'GP20', fronts: [0, 7, 1
 	}
 }
 
-// 6) DÉPART : un nouveau lancement jette la capture gravée — le fichier du disque
-//    en est changé, donc ●. Mais sans capture en place, il n'y a rien à jeter.
+// 6) DÉPART : relancer une simulation ne touche plus au fichier du projet.
+//    C'est le journal de session qui repart de zéro, pas le .projix.
 {
 	const p = session({ capture: CAPTURE_A });
 	const edits = envoyer(p, { type: 'analyseurDepart' });
-	check(edits === 1, 'départ : relancer jette la mesure gravée et marque le projet', `${edits} edit(s)`);
-	check(p.analyseurCapture === null, 'départ : la capture précédente est bien oubliée');
-	const vierge = session();
-	const e0 = envoyer(vierge, { type: 'analyseurDepart' });
-	check(e0 === 0, 'départ : sans mesure gravée, rien à jeter, pas de ●', `${e0} edit(s)`);
+	check(edits === 0, 'départ : relancer ne marque plus le projet', `${edits} edit(s)`);
+	check(p.projectDirty === false, 'départ : le projet reste propre au lancement');
 }
 
 // 7) OUVERTURE d'un projet : la capture relue du fichier ne salit RIEN (sinon
@@ -229,20 +230,26 @@ const CAPTURE_B = { voies: [{ voie: 0, nom: 'SDA', pin: 'GP20', fronts: [0, 7, 1
 	check(p.projectDirty === false, 'ouverture : projectDirty reste faux');
 }
 
-// 8) Le ● doit être le ● NATIF du CustomEditor (edit empilé), pas un simple
-//    titre : sans onDocEdit, VS Code ferme l'onglet sans rien demander.
+// 8) Contrôles de source. Motifs ANCRÉS en début de ligne : sans cela un
+//    `if (false && …)` les laisserait verts (piège relevé au lot .122).
 {
-	const panelSrc = (await import('node:fs')).readFileSync(join(ROOT, 'src/panel.ts'), 'utf8');
+	const panelSrc = readFileSync(join(ROOT, 'src/panel.ts'), 'utf8');
 	check(/private markProjectDirty\(\): void \{[\s\S]{0,400}?this\.panel\.onDocEdit\?\.\(\);/.test(panelSrc),
 		'natif : markProjectDirty empile bien un edit (point ● de VS Code)');
-	// Motif ANCRÉ en début de ligne : sans cela un `if (false && …)` le laisserait
-	// vert (vérifié — c'est le piège relevé au lot .122).
 	check(/^\s*if \(this\.analyseurEmpreinte\(\) !== avant\) this\.markProjectDirty\(\);$/m.test(panelSrc),
 		'source : le marquage passe par l’empreinte de ce qui sera gravé');
+	// La capture ne doit plus être recopiée dans le bloc du .projix.
+	check(!/\.\.\.\(voies && voies\.length > 0 \? \{ voies \} : \{\}\)/.test(panelSrc),
+		'source : la capture n’est plus gravée dans le .projix');
+	// Et elle doit partir au journal de session, au fil de l'eau.
+	check(/^\s*this\.journalAnalyseur\(\)\.verser\(salves\);$/m.test(panelSrc),
+		'source : les fronts partent au journal de session');
 }
 
-if (fails.length) {
-	console.log(`\nanalyseur-dirty : ${fails.length} ÉCHEC(S) sur ${ok + fails.length} contrôles.`);
+// --- Verdict --------------------------------------------------------------
+if (fails.length > 0) {
+	console.error(`analyseur-dirty : ${fails.length} ÉCHEC(S) sur ${ok + fails.length} contrôles.`);
 	process.exit(1);
 }
-console.log(`\nanalyseur-dirty : ${ok} contrôles OK — une mesure ou un réglage d'analyseur met le projet « à enregistrer ».`);
+console.log(`analyseur-dirty : ${ok} contrôles OK — la mesure ne salit plus le projet, les réglages si.`);
+

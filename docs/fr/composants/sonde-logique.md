@@ -50,9 +50,11 @@ L'onglet montre une **piste par voie**, dans la couleur de sa pince, avec une r�
 - **Ajuster** : ramène toute la capture dans l'écran.
 - **Suivre** : recolle la vue à la fin de la capture, ce qu'elle fait d'elle-même pendant un run tant qu'on n'a pas zoomé.
 
-Hors simulation, l'onglet montre la **dernière capture** enregistrée dans le `.projix`, pas du vide.
+Hors simulation, l'onglet montre la **dernière capture** de la session, pas du vide.
 
-Cette capture fait partie du projet, comme le schéma : dès qu'une simulation se termine — ou qu'un réglage de l'analyseur change (déclenchement, décodage, fréquence) — l'onglet du projet passe **« à enregistrer »** (le point ●). Fermez sans enregistrer et VS Code vous le demandera, au lieu de jeter la mesure en silence.
+Cette capture est une **mesure de session**, pas une pièce du projet. Elle s'écrit **au fur et à mesure** dans un fichier à part, pendant que la simulation tourne : rien ne dépend d'un arrêt propre, et une simulation interrompue laisse quand même ce qu'elle a mesuré. Ce fichier est **supprimé à la fermeture du projet** — pour garder une mesure, exportez-la.
+
+Le projet, lui, garde les **réglages** de l'instrument (déclenchement, décodages, réglages de voie) : personne ne souhaite les refaire à chaque ouverture.
 
 ### Première fois : le tour complet en cinq minutes
 
