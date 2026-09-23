@@ -6,8 +6,7 @@
 
 ## Sommaire
 
-> Ce sommaire ne sert qu'à la lecture du fichier sur GitHub : dans Kablix, le
-> panneau d'aide affiche le sien, généré depuis les titres, à gauche du texte.
+> Ce sommaire ne sert qu'à la lecture du fichier sur GitHub : dans Kablix, le panneau d'aide affiche le sien, généré depuis les titres, à gauche du texte.
 
 1. [Démarrage](#démarrage)
 2. [L'interface](#linterface)

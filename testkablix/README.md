@@ -2,68 +2,38 @@
 
 Un test = un programme + un projet `.projix` (schéma câblé prêt à simuler).
 
-- **Sketchs Arduino (`.ino`)** : rangés sous **`Arduino/`**, un dossier par
-  sketch (convention arduino-cli) — `Arduino/<nom>/<nom>.ino` et son `.projix`
-  dans le même dossier.
+- **Sketchs Arduino (`.ino`)** : rangés sous **`Arduino/`**, un dossier par sketch (convention arduino-cli) — `Arduino/<nom>/<nom>.ino` et son `.projix` dans le même dossier.
 - **Scripts MicroPython (`.py`)** : à la racine, le `.projix` porte le même nom.
-- **Cartes Pico 2 / Pico 2 W** : à la racine elles aussi, à côté de leur aîné
-  Pico. Les deux `blink` ont leur propre `.py` ; les autres n'ont **qu'un
-  `.projix`** — ils rejouent le programme de leur aîné (voir « Jumeaux Pico 2 »
-  plus bas).
+- **Cartes Pico 2 / Pico 2 W** : à la racine elles aussi, à côté de leur aîné Pico. Les deux `blink` ont leur propre `.py` ; les autres n'ont **qu'un `.projix`** — ils rejouent le programme de leur aîné (voir « Jumeaux Pico 2 » plus bas).
 
-Aucun script ne code ces emplacements en dur : `_paths.mjs` retrouve un fichier
-de test où qu'il soit rangé (racine puis sous-dossiers). Déplacer un test ne
-casse donc ni la génération ni les vérifications.
+Aucun script ne code ces emplacements en dur : `_paths.mjs` retrouve un fichier de test où qu'il soit rangé (racine puis sous-dossiers). Déplacer un test ne casse donc ni la génération ni les vérifications.
 
 ## Utilisation
 
 1. Ouvrir le simulateur Kablix (icône de la barre d'activité).
-2. `📂 Ouvrir` → choisir le `.projix` du test : le schéma, la carte **et le
-   fichier de code** sont restaurés (le workspace doit être la racine du dépôt
-   pour que la référence au fichier de code se résolve).
+2. `📂 Ouvrir` → choisir le `.projix` du test : le schéma, la carte **et le fichier de code** sont restaurés (le workspace doit être la racine du dépôt pour que la référence au fichier de code se résolve).
 3. `▶ Démarrer` : compile et exécute le programme du test.
 4. Agir sur le composant (curseur, bouton, survol…) et observer le moniteur série.
 
 ## Couverture
 
-Chaque carte de dev a son projix : `blink-uno`, `blink-nano`, `blink-mega`,
-`blink-pico`, `blink-picow`, `blink-pico2`, `blink-pico2w` (LED embarquée). Les
-deux derniers portent la puce **RP2350** (Cortex-M33) : le code est le même que
-sur une Pico, seul `machine.freq()` change (150 MHz au lieu de 125).
+Chaque carte de dev a son projix : `blink-uno`, `blink-nano`, `blink-mega`, `blink-pico`, `blink-picow`, `blink-pico2`, `blink-pico2w` (LED embarquée). Les deux derniers portent la puce **RP2350** (Cortex-M33) : le code est le même que sur une Pico, seul `machine.freq()` change (150 MHz au lieu de 125).
 
-Chaque composant du catalogue a deux tests : `<composant>-uno` (Arduino, C) et
-`<composant>-pico` (MicroPython) — sauf le HC-SR04, simulé sur AVR uniquement, et
-les quelques doublons marqués « (retiré) » dans le tableau, dont le montage
-n'apprenait rien de plus qu'un autre déjà présent : bouton 6 mm (les deux
-cartes), résistance seule, servomoteur côté Pico, résistances variables côté
-Uno. La colonne « Observable » dit par quoi chacun reste couvert.
+Chaque composant du catalogue a deux tests : `<composant>-uno` (Arduino, C) et `<composant>-pico` (MicroPython) — sauf le HC-SR04, simulé sur AVR uniquement, et les quelques doublons marqués « (retiré) » dans le tableau, dont le montage n'apprenait rien de plus qu'un autre déjà présent : bouton 6 mm (les deux cartes), résistance seule, servomoteur côté Pico, résistances variables côté Uno. La colonne « Observable » dit par quoi chacun reste couvert.
 
 ### Jumeaux Pico 2
 
-Chaque test Pico a son jumeau RP2350, `<nom>-pico2` à côté de lui — même
-montage, même programme, l'autre puce. Trois choses à savoir avant d'y toucher :
+Chaque test Pico a son jumeau RP2350, `<nom>-pico2` à côté de lui — même montage, même programme, l'autre puce. Trois choses à savoir avant d'y toucher :
 
-- **Le programme est PARTAGÉ, pas recopié.** Le `.projix` du jumeau référence le
-  `.py` de son aîné (champ `codeFrom` de la spec) : corriger le programme corrige
-  les deux tests, et aucune copie ne peut dériver.
-- **Le montage vient du `.projix` de l'aîné**, pas de la spec — c'est le banc que
-  Frank a redisposé à la main qui fait foi. La Pico 2 étant dessinée en
-  **portrait** (90 × 220) là où la Pico est en paysage (208 × 83), le montage est
-  translaté **en bloc** à droite de la carte : distances, alignements et angles
-  sont conservés.
-- **Les fils sont autoroutés une fois pour toutes.** Les points de passage de
-  l'aîné contournaient une carte paysage ; ils traverseraient la carte portrait.
-  Le tracé de remplacement est calculé par l'autoroutage du vrai éditeur et
-  versionné dans `_routage.json` :
+- **Le programme est PARTAGÉ, pas recopié.** Le `.projix` du jumeau référence le `.py` de son aîné (champ `codeFrom` de la spec) : corriger le programme corrige les deux tests, et aucune copie ne peut dériver.
+- **Le montage vient du `.projix` de l'aîné**, pas de la spec — c'est le banc que Frank a redisposé à la main qui fait foi. La Pico 2 étant dessinée en **portrait** (90 × 220) là où la Pico est en paysage (208 × 83), le montage est translaté **en bloc** à droite de la carte : distances, alignements et angles sont conservés.
+- **Les fils sont autoroutés une fois pour toutes.** Les points de passage de l'aîné contournaient une carte paysage ; ils traverseraient la carte portrait. Le tracé de remplacement est calculé par l'autoroutage du vrai éditeur et versionné dans `_routage.json` :
 
-      node scripts/_router-jumeaux-pico2.mjs            (tous les jumeaux)
-      node scripts/_router-jumeaux-pico2.mjs led-pico2  (ceux-là seulement)
+      node scripts/_router-jumeaux-pico2.mjs            (tous les jumeaux) node scripts/_router-jumeaux-pico2.mjs led-pico2  (ceux-là seulement)
 
-  À relancer après tout déplacement de composant dans un banc Pico, sinon les
-  fils du jumeau repartent en diagonale.
+  À relancer après tout déplacement de composant dans un banc Pico, sinon les fils du jumeau repartent en diagonale.
 
-Le robot araignée n'a pas de jumeau : sa Pico W est **dans** le châssis, il n'y
-a pas de carte à remplacer.
+Le robot araignée n'a pas de jumeau : sa Pico W est **dans** le châssis, il n'y a pas de carte à remplacer.
 
 | Composant | Test Uno | Test Pico | Test Pico 2 | Observable |
 |---|---|---|---|---|
@@ -136,25 +106,16 @@ a pas de carte à remplacer.
 | Grove Shield (Uno) | `grove-uno` | — (Uno seulement) | — | composant de la bibliothèque publique (`.kompix`) ; la carte fille posée SUR l'Uno ne simule rien, elle remplace des fils : les 31 fils d'emboîtement que l'éditeur pose tout seul, LED sur la prise D4 (patte 4), bouton sur la prise D2 (patte 2), afficheur LCD sur une prise I²C (A4/A5) ; continuité ET séparation des nets contrôlées, dont le rail 3,3 V laissé à part quand l'interrupteur est sur 5 V |
 | Wi-Fi : point d'accès + serveur web | — (Pico W seulement) | `wifi-picow` | `wifi-pico2w` | la carte se déclare en point d'accès et sert une page ALLUMER/ÉTEINDRE ; un téléphone du même réseau pilote la LED de GP15. La puce Wi-Fi n'étant pas émulée, c'est l'hôte VS Code qui tient la vraie prise TCP (`src/netserver.ts`) — le programme, lui, est celui d'une vraie Pico W |
 
-Libs Arduino requises (installées via `arduino-cli lib install`) : Servo,
-LiquidCrystal I2C, Adafruit SSD1306, Adafruit ILI9341, Adafruit NeoPixel, SD,
-DHT sensor library, Keypad.
+Libs Arduino requises (installées via `arduino-cli lib install`) : Servo, LiquidCrystal I2C, Adafruit SSD1306, Adafruit ILI9341, Adafruit NeoPixel, SD, DHT sensor library, Keypad.
 
 ## Maintenance et vérification automatique
 
 - `_spec.mjs` — **source de vérité** : schémas, câblages, programmes, attentes.
-- `_paths.mjs` — où trouver un test. La lecture cherche le fichier là où il est,
-  l'écriture conserve son emplacement actuel (un test nouveau naît sous
-  `Arduino/` s'il est en `.ino`, à la racine s'il est en `.py`).
-- `_generate.mjs` — régénère tous les fichiers : `node testkablix/_generate.mjs`.
-  Ne pas retoucher les `.ino`/`.py`/`.projix` à la main : modifier la spec puis régénérer.
-- `transistor.csv` — la liste de références de Frank (limites, boîtier, symbole
-  interne, brochage), lue par `npm run verify:transistor` pour contrôler la base
-  des modèles. Donnée de banc : elle vit ici, pas dans un dossier de tri.
-- `_verify.mjs` — vérifie tout : `node testkablix/_verify.mjs` (ou `--quick`
-  pour sauter compilations et exécutions) :
+- `_paths.mjs` — où trouver un test. La lecture cherche le fichier là où il est, l'écriture conserve son emplacement actuel (un test nouveau naît sous `Arduino/` s'il est en `.ino`, à la racine s'il est en `.py`).
+- `_generate.mjs` — régénère tous les fichiers : `node testkablix/_generate.mjs`. Ne pas retoucher les `.ino`/`.py`/`.projix` à la main : modifier la spec puis régénérer.
+- `transistor.csv` — la liste de références de Frank (limites, boîtier, symbole interne, brochage), lue par `npm run verify:transistor` pour contrôler la base des modèles. Donnée de banc : elle vit ici, pas dans un dossier de tri.
+- `_verify.mjs` — vérifie tout : `node testkablix/_verify.mjs` (ou `--quick` pour sauter compilations et exécutions) :
   1. chaque `.projix` (archive, manifeste, composants, broches, bindings du moteur) ;
   2. compilation réelle de chaque `.ino` (arduino-cli) ;
   3. syntaxe de chaque `.py` (`python -m py_compile`) ;
-  4. bout en bout : blink Uno/Mega dans avr8js, LED Pico dans PicoEngine
-     avec le vrai firmware MicroPython.
+  4. bout en bout : blink Uno/Mega dans avr8js, LED Pico dans PicoEngine avec le vrai firmware MicroPython.

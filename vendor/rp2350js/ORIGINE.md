@@ -1,8 +1,6 @@
 # rp2350js — copie vendorisée
 
-Ne rien modifier ici à la main : ce dossier est **régénéré** par
-`node scripts/_vendor-rp2350js.mjs --source=<clone>`. Toute correction va dans
-`patches/rp2350js/`, sinon elle disparaît à la prochaine mise à jour.
+Ne rien modifier ici à la main : ce dossier est **régénéré** par `node scripts/_vendor-rp2350js.mjs --source=<clone>`. Toute correction va dans `patches/rp2350js/`, sinon elle disparaît à la prochaine mise à jour.
 
 | | |
 |---|---|
@@ -32,8 +30,7 @@ Ne rien modifier ici à la main : ce dossier est **régénéré** par
 - `src/utils/emulator-controller.ts`
 - tous les `*.spec.ts`
 
-Ces modules parlent au disque, au réseau ou à stdio : ils ne peuvent pas tourner
-dans une webview, et le moteur ne les appelle pas.
+Ces modules parlent au disque, au réseau ou à stdio : ils ne peuvent pas tourner dans une webview, et le moteur ne les appelle pas.
 
 ## Bouchons
 
@@ -42,14 +39,8 @@ dans une webview, et le moteur ne les appelle pas.
 - `fs`
 - `uf2`
 
-Ils ne sont atteints que par le chargement d'un firmware **depuis un fichier**,
-chemin dont Kablix ne se sert pas : l'extension décode l'UF2 elle-même et pousse
-des segments déjà prêts. Les bouchons lèvent une exception explicite si jamais
-quelqu'un passe par là. Le reste de `load-firmware.ts` — dont la poignée de main
-du démarrage RAM du RP2350 — reste utilisable tel quel.
+Ils ne sont atteints que par le chargement d'un firmware **depuis un fichier**, chemin dont Kablix ne se sert pas : l'extension décode l'UF2 elle-même et pousse des segments déjà prêts. Les bouchons lèvent une exception explicite si jamais quelqu'un passe par là. Le reste de `load-firmware.ts` — dont la poignée de main du démarrage RAM du RP2350 — reste utilisable tel quel.
 
 ## Différence avec l'amont
 
-Les imports relatifs ont reçu leur extension `.js` explicite et le dossier est
-déclaré `"type": "module"` — exigé par le `moduleResolution: Node16` du projet.
-Transformation mécanique faite par le script, aucune ligne de logique touchée.
+Les imports relatifs ont reçu leur extension `.js` explicite et le dossier est déclaré `"type": "module"` — exigé par le `moduleResolution: Node16` du projet. Transformation mécanique faite par le script, aucune ligne de logique touchée.

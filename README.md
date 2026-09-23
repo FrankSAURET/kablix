@@ -13,10 +13,7 @@ Une application **Gauloise** de simulation de microcontrôleurs (**Arduino Uno/R
 - **100 % Libre**
 - **100 % Sans télémétrie**
 
-La simulation s’appuie sur trois moteurs open-sources embarqués dans l’extension :  
-[avr8js](https://github.com/wokwi/avr8js) (ATmega328P),  
-[rp2040js](https://github.com/wokwi/rp2040js) (RP2040) et  
-[rp2350js](https://github.com/c1570/rp2350js) (RP2350), tous sous licence MIT.
+La simulation s’appuie sur trois moteurs open-sources embarqués dans l’extension : [avr8js](https://github.com/wokwi/avr8js) (ATmega328P), [rp2040js](https://github.com/wokwi/rp2040js) (RP2040) et [rp2350js](https://github.com/c1570/rp2350js) (RP2350), tous sous licence MIT.
 
 ## Tests
 
@@ -38,8 +35,7 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
   - `.ino`/`.c`/`.cpp` → compilation via la toolchain locale ;
   - `.py` → MicroPython sur le Pico simulé (firmware `.uf2` requis, voir ci-dessous) ;
   - `.hex` / `.uf2`/`.elf` / `.bin` → chargé directement sans compilation.
-2. **Enregistrer son montage** : « Kablix : Enregistrer le projet (.projix) » ;
-  un `.projix` se rouvre ensuite d’un double-clic dans l’explorateur.  
+2. **Enregistrer son montage** : « Kablix : Enregistrer le projet (.projix) » ; un `.projix` se rouvre ensuite d’un double-clic dans l’explorateur.  
    Import/export au format Wokwi (`diagram.json`) également disponibles.
 
 ![alt text](https://raw.githubusercontent.com/FrankSAURET/kablix/main/media/simuler.gif)
@@ -62,14 +58,9 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
 - ✅ **Capteurs interactifs** : curseurs et boutons pour flamme, gaz, son, lumière, température et mouvement, pilotant l’entrée du montage en direct.
 
 > Les aides sont dans le dossier `docs/code de pays/`.  
-> 📖 **Guide complet** : USAGE.md — interface, câblage, création  
-> de composants personnalisés (avec prompt IA), format `.kompix`,  
-> gestionnaire de composants, sources de composants existants.  
-> **Ajouter un composant à Kablix** (contributeurs, sur GitHub uniquement) :  
-> Creating-components.md — du dessin dans `Composants2D.svg` au composant simulé, testé et documenté,  
-> à la main ou avec une IA.  
-> **Dessiner les systèmes en volume** (araignée, pattes — contributeurs, sur GitHub uniquement) :  
-> Drawing-systems.md — vous tracez le contour d’une pièce, le moteur isométrique la met en volume.  
+> 📖 **Guide complet** : USAGE.md — interface, câblage, création de composants personnalisés (avec prompt IA), format `.kompix`, gestionnaire de composants, sources de composants existants.  
+> **Ajouter un composant à Kablix** (contributeurs, sur GitHub uniquement) : Creating-components.md — du dessin dans `Composants2D.svg` au composant simulé, testé et documenté, à la main ou avec une IA.  
+> **Dessiner les systèmes en volume** (araignée, pattes — contributeurs, sur GitHub uniquement) : Drawing-systems.md — vous tracez le contour d’une pièce, le moteur isométrique la met en volume.  
 > 🌍 **Interface bilingue** : français si VS Code est en français, anglais sinon.  
 > Le mécanisme est extensible à d’autres langues — voir [Internationalisation](#internationalisation).
 
@@ -104,36 +95,19 @@ L’interface suit la langue de VS Code (`vscode.env.language`) : **français si
 | Chaînes de l’extension (commandes, notifications, dialogues)            | `package.nls.<lang>.json` + `l10n/bundle.l10n.<lang>.json` | mécanisme natif VS Code (`%clé%` dans `package.json`, `vscode.l10n.t()` dans le code) ; le fichier sans suffixe est l’anglais |
 | Aide : guide utilisateur (❔) et fiches de composants                    | `docs/<lang>/*.md` et `docs/<lang>/composants/*.md`        | **Markdown versionné**, rendu hors-ligne dans une webview (`src/markdown.ts` → `src/guide.ts` / `src/partHelp.ts`)            |
 
-L’aide n’est plus une copie HTML figée dans le code : c’est **le guide lui-même** qui  
-s’affiche, images comprises — donc jamais en retard sur la documentation. Les captures  
-lourdes (GIF de démo, logo) restent hors du `.vsix` et sont servies depuis GitHub ;  
-toutes les autres sont embarquées, donc lisibles sans connexion.
+L’aide n’est plus une copie HTML figée dans le code : c’est **le guide lui-même** qui s’affiche, images comprises — donc jamais en retard sur la documentation. Les captures lourdes (GIF de démo, logo) restent hors du `.vsix` et sont servies depuis GitHub ; toutes les autres sont embarquées, donc lisibles sans connexion.
 
-Les trois registres utilisent la même résolution : le **code base** de la langue  
-(`fr-FR` → `fr`) sélectionne l’entrée correspondante, et l’anglais sert de repli quand  
-elle est absente.
+Les trois registres utilisent la même résolution : le **code base** de la langue (`fr-FR` → `fr`) sélectionne l’entrée correspondante, et l’anglais sert de repli quand elle est absente.
 
 ### Ajouter une langue (ex. allemand, `de`)
 
-À faire aux **trois** registres — une langue déclarée à un seul endroit ne sera traduite  
-qu’en partie :
+À faire aux **trois** registres — une langue déclarée à un seul endroit ne sera traduite qu’en partie :
 
-1. **Webview** — dans [`src/webview/i18n.mts`](src/webview/i18n.mts) : créer le
-  dictionnaire `const DE = { … }` (mêmes clés anglaises que `FR`) puis l’ajouter à  
-   `DICTS` → `{ fr : FR, de : DE }`. Les clés non traduites retombent automatiquement  
-   sur l’anglais.
-2. **Extension** — copier `package.nls.json` en `package.nls.de.json` et
-  `l10n/bundle.l10n.fr.json` en `l10n/bundle.l10n.de.json`, puis traduire les valeurs  
-   (les clés restent identiques). VS Code choisit le fichier tout seul.
-3. **Aide** — créer `docs/de/` : le guide `USAGE.md` et le dossier `composants/`
-  (mêmes NOMS de fichiers que `docs/fr/`, seul le contenu est traduit ; les images sont  
-   mutualisées dans `docs/img/`). Élargir ensuite `docLang()` dans  
-   [`src/guide.ts`](src/guide.ts) et [`src/partHelp.ts`](src/partHelp.ts) — une fiche  
-   absente retombe déjà sur une autre langue.
+1. **Webview** — dans [`src/webview/i18n.mts`](src/webview/i18n.mts) : créer le dictionnaire `const DE = { … }` (mêmes clés anglaises que `FR`) puis l’ajouter à `DICTS` → `{ fr : FR, de : DE }`. Les clés non traduites retombent automatiquement sur l’anglais.
+2. **Extension** — copier `package.nls.json` en `package.nls.de.json` et `l10n/bundle.l10n.fr.json` en `l10n/bundle.l10n.de.json`, puis traduire les valeurs (les clés restent identiques). VS Code choisit le fichier tout seul.
+3. **Aide** — créer `docs/de/` : le guide `USAGE.md` et le dossier `composants/` (mêmes NOMS de fichiers que `docs/fr/`, seul le contenu est traduit ; les images sont mutualisées dans `docs/img/`). Élargir ensuite `docLang()` dans [`src/guide.ts`](src/guide.ts) et [`src/partHelp.ts`](src/partHelp.ts) — une fiche absente retombe déjà sur une autre langue.
 
-Aucune autre modification de logique n’est nécessaire : la sélection et le repli sont  
-gérés par `initLocale()` (webview) et `docLang()` (aide). `npm run verify:docs` contrôle  
-que les guides et les fiches restent complets, illustrés et embarqués dans le paquet.
+Aucune autre modification de logique n’est nécessaire : la sélection et le repli sont gérés par `initLocale()` (webview) et `docLang()` (aide). `npm run verify:docs` contrôle que les guides et les fiches restent complets, illustrés et embarqués dans le paquet.
 
 ## Crédits
 

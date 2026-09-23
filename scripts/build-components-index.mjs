@@ -192,8 +192,7 @@ Fichier ZIP contenant :
 - \`schema.svg\` : dessin externe et optionnel schéma interne
 - \`thumbnail.webp\` : miniature optionnelle
 - \`behavior.mjs\` : code de simulation optionnel
-- \`help/<lang>.md\` : fiche d'aide du composant, ouverte par le bouton **Aide du
-  composant** du volet des propriétés (ses illustrations sont posées à côté)
+- \`help/<lang>.md\` : fiche d'aide du composant, ouverte par le bouton **Aide du composant** du volet des propriétés (ses illustrations sont posées à côté)
 
 Voir [kompix_specification.md](../docs/kompix_specification.md) pour les détails.
 
@@ -239,8 +238,7 @@ Composants de cette bibliothèque, à installer depuis Kablix (**⚙ Gérer les 
 
 ## Composants inclus dans Kablix
 
-Déjà livrés avec l'extension : rien à télécharger, ils sont dans la palette.
-**À consulter avant d'en dessiner un nouveau.**
+Déjà livrés avec l'extension : rien à télécharger, ils sont dans la palette. **À consulter avant d'en dessiner un nouveau.**
 
 <details>
 <summary><strong>${integres.length} composant(s) livrés</strong></summary>
@@ -279,13 +277,9 @@ Pour proposer un composant :
 
 ## Pourquoi cette bibliothèque reste dans le dépôt de Kablix
 
-La question se pose : un dépôt séparé ne serait-il pas plus propre ? **Non, pas
-au volume actuel.**
+La question se pose : un dépôt séparé ne serait-il pas plus propre ? **Non, pas au volume actuel.**
 
-Ce dossier **n'est pas livré dans l'extension** (il est écarté par
-\`.vscodeignore\`) : il est servi directement depuis GitHub, en \`raw\`, et
-l'extension le télécharge à la demande. Il ne pèse donc rien pour l'utilisateur,
-et ses ${entries.length} composants tiennent dans quelques centaines de kilo-octets.
+Ce dossier **n'est pas livré dans l'extension** (il est écarté par \`.vscodeignore\`) : il est servi directement depuis GitHub, en \`raw\`, et l'extension le télécharge à la demande. Il ne pèse donc rien pour l'utilisateur, et ses ${entries.length} composants tiennent dans quelques centaines de kilo-octets.
 
 | Ce qu'un dépôt dédié apporterait | Ce qu'il coûterait |
 |---|---|
@@ -294,14 +288,9 @@ et ses ${entries.length} composants tiennent dans quelques centaines de kilo-oct
 | Un cycle de publication propre aux composants | Les scripts de construction (\`build-kompix.mjs\`, \`build-components-index.mjs\`) et les bancs (\`verify:kompix\`) vivent dans le dépôt du code |
 | | Un composant et le code qui le simule se modifient **ensemble** : séparés, un enregistrement sur deux devient une paire d'enregistrements à synchroniser |
 
-Le point décisif est le dernier : tant qu'un composant de bibliothèque peut
-dépendre d'une version de l'extension, les deux doivent avancer dans le même
-enregistrement.
+Le point décisif est le dernier : tant qu'un composant de bibliothèque peut dépendre d'une version de l'extension, les deux doivent avancer dans le même enregistrement.
 
-**Quand reconsidérer :** si la bibliothèque dépasse quelques dizaines de
-mégaoctets, si des contributeurs extérieurs deviennent réguliers, ou si les
-composants cessent d'être couplés aux versions de l'extension. D'ici là, le
-dossier reste ici.
+**Quand reconsidérer :** si la bibliothèque dépasse quelques dizaines de mégaoctets, si des contributeurs extérieurs deviennent réguliers, ou si les composants cessent d'être couplés aux versions de l'extension. D'ici là, le dossier reste ici.
 
 ---
 

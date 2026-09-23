@@ -1,19 +1,12 @@
 # Exemple de composant Kablix
 
-Composant partageable au format **`.kablix-part.json`** (le format ouvert
-documenté dans l'aide). Le fichier est autonome : dessin SVG + broches + modèle
-de simulation. Aucune dépendance, copiable/partageable tel quel.
+Composant partageable au format **`.kablix-part.json`** (le format ouvert documenté dans l'aide). Le fichier est autonome : dessin SVG + broches + modèle de simulation. Aucune dépendance, copiable/partageable tel quel.
 
-Ce dossier n'est **pas** la bibliothèque de composants de Kablix : les composants
-livrés sont natifs (compilés dans l'extension, palette de gauche). Il ne contient
-qu'un **exemple de référence** du format, pour partir d'un fichier qui marche
-quand on crée son propre composant.
+Ce dossier n'est **pas** la bibliothèque de composants de Kablix : les composants livrés sont natifs (compilés dans l'extension, palette de gauche). Il ne contient qu'un **exemple de référence** du format, pour partir d'un fichier qui marche quand on crée son propre composant.
 
 ## Utiliser un composant
 
-Dans le simulateur Kablix, palette → **⇪ Importer (.json)** → choisir le fichier.
-Le composant (★) apparaît dans la palette, prêt à poser et à câbler. Les broches
-sont alignées sur la grille de **10 px** (= 0,1″), donc enfichables sur platine.
+Dans le simulateur Kablix, palette → **⇪ Importer (.json)** → choisir le fichier. Le composant (★) apparaît dans la palette, prêt à poser et à câbler. Les broches sont alignées sur la grille de **10 px** (= 0,1″), donc enfichables sur platine.
 
 ## Fichier fourni
 
@@ -21,14 +14,11 @@ sont alignées sur la grille de **10 px** (= 0,1″), donc enfichables sur plati
 |---|---|---|---|
 | `hc-sr04.kablix-part.json` | HC-SR04 — capteur ultrason | VCC/Trig/Echo/GND | **simulé** : TRIG → ECHO (largeur = distance × 58 µs ; distance via l'attribut `distance`) — familles AVR **et** RP2040 |
 
-> Kablix embarque déjà un capteur ultrason natif : importer ce fichier ajoute donc
-> une entrée ★ **en plus** de celle de la palette. C'est voulu — l'intérêt est de
-> disposer d'un modèle complet à copier, pas d'ajouter une fonction manquante.
+> Kablix embarque déjà un capteur ultrason natif : importer ce fichier ajoute donc une entrée ★ **en plus** de celle de la palette. C'est voulu — l'intérêt est de disposer d'un modèle complet à copier, pas d'ajouter une fonction manquante.
 
 ## Composants retirés de ce dossier
 
-Ils sont devenus **natifs** : le format `.json` ne leur sert plus, leur dessin et
-leur modèle vivent maintenant dans l'extension elle-même.
+Ils sont devenus **natifs** : le format `.json` ne leur sert plus, leur dessin et leur modèle vivent maintenant dans l'extension elle-même.
 
 | Ancien `.json` | Devenu natif |
 |---|---|
@@ -39,18 +29,12 @@ leur modèle vivent maintenant dans l'extension elle-même.
 
 ## Régénérer / ajouter
 
-Le fichier est produit depuis le dessin de [`media/parts/`](../media/parts) par le
-générateur :
+Le fichier est produit depuis le dessin de [`media/parts/`](../media/parts) par le générateur :
 
 ```bash
 npm run build:parts
 ```
 
-Pour ajouter un composant : déposer son `.svg` dans `media/parts/`, ajouter une
-entrée `SPECS` (nom, modèle, brochage par bord) dans
-[`scripts/build-parts.mjs`](../scripts/build-parts.mjs), relancer le générateur.
-Le générateur superpose des pastilles de broche étiquetées sur la grille de
-10 px, ce qui garantit que les points de connexion tombent toujours sur la grille.
+Pour ajouter un composant : déposer son `.svg` dans `media/parts/`, ajouter une entrée `SPECS` (nom, modèle, brochage par bord) dans [`scripts/build-parts.mjs`](../scripts/build-parts.mjs), relancer le générateur. Le générateur superpose des pastilles de broche étiquetées sur la grille de 10 px, ce qui garantit que les points de connexion tombent toujours sur la grille.
 
-On peut aussi créer un composant entièrement à la main (ou via une IA) : voir la
-rubrique **« Créer un composant avec une IA »** de l'aide de l'extension.
+On peut aussi créer un composant entièrement à la main (ou via une IA) : voir la rubrique **« Créer un composant avec une IA »** de l'aide de l'extension.

@@ -20,8 +20,7 @@ Petit bouton tactile 6 mm, même fonctionnement que le bouton 12 mm.
 
 ## Utilisation
 
-- Identique au bouton 12 mm : `INPUT_PULLUP` + masse (appui = `LOW`), ou le montage
-  inverse vers le **+5 V** avec un rappel de **10 kΩ** à la masse (appui = `HIGH`).
+- Identique au bouton 12 mm : `INPUT_PULLUP` + masse (appui = `LOW`), ou le montage inverse vers le **+5 V** avec un rappel de **10 kΩ** à la masse (appui = `HIGH`).
 - Anti-rebond conseillé.
 
 ---

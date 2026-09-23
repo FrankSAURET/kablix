@@ -1,6 +1,10 @@
 # À faire
+1. J'ai modifié changelog on pars de celui-ci maintenant.
+1. Pareil pour sonde logique.md et les doc du dsb1820
+1. 
  1. **Analyseur : export CSV de la mesure** (v2026.9.4.124) : le journal de session est en place et déjà au format CSV, un fichier par projet, supprimé à la fermeture. Les fronts s'écrivent au fil de l'eau (étape 1), le banc le prouve sur les vrais fichiers (étape 2) et l'affichage en direct était déjà câblé (étape 3, vérifié). **Reste à brancher la commande d'export** dans l'interface : `AnalyseurJournal.lire()` rend le CSV tel quel, il n'y a rien à convertir.
 ## fait
+- ✅ **Les `.md` ne coupent plus leurs phrases** (v2026.9.4.125) : un paragraphe = une ligne. Règle posée pour tous les projets (CLAUDE.md global + mémoire), environ 1 300 coupures recollées dans 35 fichiers, modèle du README de la bibliothèque corrigé à la source.
 - ✅ **Page grise : question tranchée** (v2026.9.4.123 → .124) : les deux questions de Frank répondues (stockage, lignes du tracé), et mesuré que les 6 `.projix` de test ne portaient plus aucune capture. Frank a tranché : la mesure ne vit plus dans le projet mais dans un journal de session. Rien n'a été restauré — sans objet désormais.
 - ✅ **Journal CSV de session pour l'analyseur** (v2026.9.4.124) : la mesure quitte le `.projix` pour un fichier écrit au fil de l'eau, un par projet, supprimé à la fermeture. Plus aucun instant unique dont dépendrait toute la capture. Banc de 33 contrôles, contre-épreuve à 8 rouges.
 - ✅ **Mesure d'analyseur marquée « à enregistrer »** (v2026.9.4.123) : la capture et les réglages de l'analyseur posent le point ● natif quand ils changent ce que le `.projix` contiendra. Fermer sans enregistrer déclenche la question de VS Code au lieu de jeter la mesure.
@@ -12,6 +16,20 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.4.125
+1. ✅ **Règle posée pour tous les projets** : dans un `.md`, un paragraphe tient sur une seule ligne. Plus de retour à la ligne à 80 colonnes, ni dans une puce, ni dans une citation `>`, et plus de saut forcé « deux espaces » en pleine phrase. Écrite dans le CLAUDE.md global (section Markdown) et en mémoire.
+2. ✅ **Environ 1 300 coupures recollées dans 35 fichiers `.md`** : roadmap, README FR/EN, `concurrents.md`, les deux scénarios « Créer un composant », `vitesse-pico.md`, la spécification `.kompix`, `testkablix/README.md`, les fiches d'aide des composants de bibliothèque, etc. Relancer l'outil de recollage ne trouve plus rien.
+3. ✅ **Sauts forcés** : les 107 de `roadmap.md` étaient tous en pleine phrase, recollés. `README.md` passe de 28 à 6 : les 6 restants sont voulus (rubriques de la citation, fin de phrase « explorateur. »).
+4. ✅ **Corrigé à la source** : le modèle du README de `kablix_components/` dans [build-components-index.mjs](scripts/build-components-index.mjs) produisait lui aussi des paragraphes coupés. Script relancé : README identique au modèle, `index.json` ne change que par sa date.
+5. ℹ️ **Rendu inchangé** : le moteur maison de l'aide ([markdown.ts](src/markdown.ts)) recollait déjà les lignes d'un paragraphe, comme le Markdown standard. Seuls les sauts forcés en pleine phrase disparaissent, ce qui était le but. Commentaire du moteur mis à jour.
+6. ℹ️ **Laissé exprès** : les lignes « une phrase par ligne » écrites par Frank dans `USAGE.md` (5 en FR, 5 en EN), ses notes collées dans `Promotion.md`, `LICENSE-wokwi`, les étiquettes en gras des modèles `.github`. Ce ne sont pas des coupures de mise en forme.
+7. ℹ️ **Aucun recollage** dans `CHANGELOG.md`, `todo.md`, `Pistes.md`, `sonde-logique.md` et `ds18b20/fr.md` : rien à y reprendre. Les retouches de Frank dans ces fichiers partent telles quelles avec ce lot.
+8. ⏳ **Paquets `.kompix` non reconstruits** : les fiches recollées (`kablix_components/help/`) n'y descendront qu'à la prochaine reconstruction. Contenu identique à l'affichage.
+9. ✅ **Non-régression** : `npm run verify:all`, **130 bancs verts sur 131** en 676 s. Seul rouge : `verify:i18n`, sur les **mêmes 7 contrôles** qu'au lot précédent (traductions différées) — attendu.
+10. ⏳ Traductions (`docs/en/`, fiches `en.md`) : seulement recollées, texte non retouché — la mise à jour attend le lot d'avant publication.
 
 ---
 

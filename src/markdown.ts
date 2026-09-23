@@ -205,8 +205,9 @@ export function renderMarkdown(src: string, opt: MarkdownOptions): string {
   const ancre = slugMaker();
   let i = 0;
 
-  // Un paragraphe = lignes consécutives non vides ; les fiches coupent leurs
-  // phrases à 80 colonnes, il faut donc les recoller.
+  // Un paragraphe = lignes consécutives non vides, recollées comme en Markdown
+  // standard. Les fiches écrivent un paragraphe par ligne (règle depuis
+  // v2026.9.4.125), mais une fiche tierce peut encore couper ses phrases.
   const paragraph = (buf: string[]): void => {
     if (buf.length) html.push(`<p>${inline(buf.join(' '), opt)}</p>`);
     buf.length = 0;
