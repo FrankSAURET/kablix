@@ -1,11 +1,6 @@
 # À faire
 
-1. J'ai modifié changelog on pars de celui-ci maintenant.
-1. Pareil pour sonde logique.md et les doc du dsb1820
 1. Analyseur logique
-    1. si je change le front de déclenchement toutes les courbes disparaissent
-    1. J'ai l'impression que si je met un déclenchement surt front, même si je le supprime il reste
-    1. Si je sélectionne un protocole la courbne se transforme en trait 
     1. Rajoute des fleches gauche et droite qui permettent de se déplacer dans la courbe.
     1. je ne vois pas à quoi sert "idle high" . Explique.
     1. Le changement de couleur dans les courbes ne sert à rien supprime le
@@ -14,14 +9,10 @@
     1. 
     1. Sonde-logique-uno
         1. pour les pattes arduino désignées par leur numéro tu notera Pin 9 plutot que seulement 9
-        1. j'ai mis un déclenchement sur front montant et un échantillonnage à 1 khz. La courbe s'affiche correctement (horloge) puis au bout d'un moment elle m'affiche des trait clignotant haut et bas. Au bout d'un momentn oin 9 fait pareil
-    1. ds18b20-pico2
-        1. si je met front descendant je vois un trait continu et je ne peux plus jamais revenir enarrière
     1. DHT11-pico
         1. je ne vois pas les valeurs s'afficher. juste départ.
     1. DMX-Pico
         1. les sondes  SD1 et Sd2 n'affichent rien    
-1. commit et push y compris des fichiers que j'ai modifié
 1. 
 ## fait
 
@@ -31,6 +22,22 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.4.129
+1. ✅ **Analyseur : les courbes qui « disparaissaient », le trait continu, le trait qui clignote haut/bas.** Retours de Frank du 23/09 (changement de front, « No trigger » qui ne retire rien, protocole qui transforme la courbe en trait, sonde-logique-uno à 1 kHz, ds18b20-pico2 en front descendant). Une seule mécanique derrière, prouvée par la mesure : une vue qui cesse de suivre la fin, puis le plafond de 60 000 fronts par voie qui mange ce qu'elle regarde.
+2. ✅ **Plafond : ce qui est jeté laisse une trace.** Nouveau champ `perte` par voie ([analyseur-capture.mts](src/webview/analyseur-capture.mts)) : instant du dernier front jeté, avant lequel le niveau est INCONNU. Avant, `niveauInitial` était recalculé à chaque salve : une vue posée sur la partie jetée dessinait un trait plat qui basculait haut, bas, haut à chaque image — le « trait clignotant » de Frank. `fenetre()` rend `connuDepuis`, la vue ([analyseur-vue.mts](src/webview/analyseur-vue.mts)) peint l'inconnu en pointillé à mi-hauteur. `niveauBrut` supprimée, `niveauA` réécrite sur `perte`.
+3. ✅ **Déclenchement : la capture garde l'événement.** Une fois le front survenu, le rabot ne jette plus que ce qui le précède au-delà d'une réserve (`RESERVE_AVANT`, 6 000 fronts) ; quand ce qui le suit remplit la profondeur, la capture est **pleine** et s'arrête, toutes voies au même instant. L'état l'affiche (« Capture full at … ms. Set the trigger again to capture anew. »). Régler de nouveau le déclenchement relance une acquisition, qui repart du niveau courant de chaque voie. Avant, le plafond finissait par manger le déclenchement lui-même.
+4. ✅ **La vue saute sur le déclenchement et y reste** (`allerAuDeclenchement`, 10 % de la fenêtre avant le front), au premier front qui répond. Avant, le déclenchement ne posait que l'origine de la règle et la vue courait après la fin : sur une ligne 1-Wire qui parle de loin en loin, trait continu.
+5. ✅ **Déclenchement posé sur une capture arrêtée** : `chercherDeclenchement()` le trouve dans les fronts déjà là (aussi à la réouverture d'un `.projix`). Avant, rien ne le marquait jamais.
+6. ✅ **« No trigger » ne retire que le déclenchement de SA voie.** Avant, cliqué sur la voie 1, il retirait celui posé sur la voie 0.
+7. ✅ **Un clic n'est plus un glissé** : seuil de 3 px avant de décaler la vue. Mesuré à la vraie souris : un clic sur la trace (pour refermer un menu) qui tremblait de 2 px coupait le suivi, la vue restait figée et le plafond la vidait ensuite.
+8. ℹ️ **Piste écartée par la contre-épreuve** : je soupçonnais les boutons T/P (un `stopPropagation` qui laisserait passer le glissé). Faux : Chrome visite la cible en deux passes, capture puis bouillonnement, et `stopPropagation` coupe bien la seconde. Code d'origine gardé.
+9. ✅ **Bancs** : 18 contrôles de plus dans [verify-analyseur.mjs](scripts/verify-analyseur.mjs) (perte datée, niveau inconnu stable d'une salve à l'autre, réserve avant déclenchement, capture pleine à 60 000 fronts, nouvelle acquisition, recherche sur capture arrêtée, câblage de la vue). Gestes à la vraie souris en CDP dans [_diag-analyseur-gestes.mjs](scripts/_diag-analyseur-gestes.mjs) (port 9416, scénario `gigue`) ; vrai programme sonde-logique-uno dans [_diag-analyseur-uno.mjs](scripts/_diag-analyseur-uno.mjs) : déclenché à 0,03 ms, capture pleine à 12,35 s, tenue.
+10. ✅ **Contre-épreuve dans la source** : seuil remis à 0 → « clic sur la trace, 2 px » passe au rouge (vue figée). Remis, vert.
+11. ✅ Items de tête « changelog » et « sonde logique.md / DS18B20 » : les versions de Frank sont celles enregistrées depuis la v.125, tous les lots partent d'elles. « Commit et push y compris mes fichiers » : fait en v.128 (cd07e50).
+12. ⏳ Traduction FR des nouvelles chaînes (« Capture full… », « waiting for the trigger edge ») : lot d'avant publication.
 
 ---
 

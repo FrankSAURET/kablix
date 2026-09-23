@@ -45,6 +45,12 @@ export interface VoieCapture {
   fronts: Front[];
   /** Niveau AVANT le premier front, ou null s'il n'a jamais été observé. */
   niveauInitial: 0 | 1 | null;
+  /**
+   * Instant du dernier front JETÉ par le plafond, absent tant que rien ne l'a
+   * été. Avant lui le niveau n'est plus connu : les fronts qui le disaient sont
+   * partis. `niveauInitial` ne vaut donc qu'à partir de cet instant.
+   */
+  perte?: number;
 }
 
 /**
@@ -54,6 +60,37 @@ export interface VoieCapture {
  * été lu.
  */
 export const FRONTS_MAX_PAR_VOIE = 60_000;
+
+/**
+ * Fronts gardés AVANT le déclenchement, par voie, une fois qu'il est survenu.
+ * Un dixième de la profondeur : de quoi voir ce qui a précédé l'événement, le
+ * reste va à ce qui le suit — c'est le partage d'un analyseur du commerce.
+ */
+export const RESERVE_AVANT = FRONTS_MAX_PAR_VOIE / 10;
+
+/** Premier indice dont l'instant est ≥ t ; `fronts.length` si aucun. */
+function premierDes(fronts: Front[], t: number): number {
+  let lo = 0;
+  let hi = fronts.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (fronts[mid]!.t < t) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/** Premier indice dont l'instant est > t ; `fronts.length` si aucun. */
+function premierApres(fronts: Front[], t: number): number {
+  let lo = 0;
+  let hi = fronts.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (fronts[mid]!.t <= t) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
 
 /**
  * Nombre maximum de voies. Huit, décidé avec Frank — c'est aussi la taille de
@@ -75,6 +112,24 @@ export class AnalyseurCapture {
 
   /** Instant du dernier front reçu, toutes voies confondues (borne droite). */
   private tDernier = 0;
+
+  /**
+   * Vrai quand la capture DÉCLENCHÉE a rempli sa profondeur : elle ne prend
+   * plus rien, comme un analyseur du commerce qui a fini son acquisition.
+   * Sans cet arrêt, le plafond finissait par jeter les fronts du déclenchement
+   * lui-même, et la vue posée dessus ne montrait plus qu'un trait.
+   */
+  private plein = false;
+  /** Vrai quand le prochain versement doit ouvrir une nouvelle acquisition. */
+  private aVider = false;
+  /**
+   * Dernier niveau vu par broche PENDANT que la capture est pleine : les
+   * fronts ne sont plus gardés, mais la nouvelle acquisition doit savoir d'où
+   * repart chaque voie.
+   */
+  private niveauxHors = new Map<string, 0 | 1>();
+  /** Instant du dernier front vu, gardé ou non. */
+  private tVu = 0;
 
   /**
    * Déclare les voies de la capture. Appelé au départ de la simulation, et à
@@ -186,15 +241,53 @@ export class AnalyseurCapture {
     return this.armee && this.tDeclenche === null;
   }
 
+  /** Vrai quand la capture déclenchée a rempli sa profondeur et ne prend plus rien. */
+  get pleine(): boolean {
+    return this.plein;
+  }
+
   /**
    * Règle (ou retire) le déclenchement. Le régler REARME la capture : le
    * précédent instant de déclenchement n'a plus de sens si l'on change de voie
    * ou de sens.
+   *
+   * Sur une capture PLEINE, réarmer lance une nouvelle acquisition : la
+   * prochaine salve repart d'une capture vide. Sans cela la capture resterait
+   * figée pour toujours — plus aucun front ne peut y entrer.
    */
   reglerDeclenchement(d: Declenchement | null): void {
     this.declenchement = d;
     this.tDeclenche = null;
     this.armee = d !== null;
+    if (this.plein) this.aVider = true;
+  }
+
+  /**
+   * Cherche le déclenchement dans ce qui est DÉJÀ capturé : le premier front
+   * qui lui répond. Sert à une capture ARRÊTÉE, où aucun front nouveau ne
+   * viendra — sans cela, poser un déclenchement après coup ne marquait rien.
+   * Rend l'instant trouvé, ou null.
+   */
+  chercherDeclenchement(): number | null {
+    const d = this.declenchement;
+    if (!d || this.tDeclenche !== null) return this.tDeclenche;
+    const v = this.voies.get(d.voie);
+    if (!v) return null;
+    const f = v.fronts.find((x) => this.repond(v, x.niveau));
+    if (f) this.tDeclenche = f.t;
+    return this.tDeclenche;
+  }
+
+  /**
+   * Vrai si un front atteignant `niveau` sur la voie répond au déclenchement.
+   * Le sens se lit sur la courbe AFFICHÉE : une voie lue à l'envers qu'on voit
+   * monter déclenche sur « montant », comme l'élève le voit.
+   */
+  private repond(v: VoieCapture, niveau: 0 | 1): boolean {
+    const d = this.declenchement;
+    if (!d || v.voie !== d.voie) return false;
+    const vu = this.inversees.has(v.voie) ? 1 - niveau : niveau;
+    return vu === (d.sens === 'rising' ? 1 : 0);
   }
 
   get reglageDeclenchement(): Declenchement | null {
@@ -206,10 +299,35 @@ export class AnalyseurCapture {
     for (const v of this.voies.values()) {
       v.fronts = [];
       v.niveauInitial = null;
+      delete v.perte;
     }
     this.tDernier = 0;
+    this.tVu = 0;
     this.tDeclenche = null;
     this.armee = this.declenchement !== null;
+    this.plein = false;
+    this.aVider = false;
+    this.niveauxHors.clear();
+  }
+
+  /**
+   * Nouvelle acquisition EN PLEIN RUN (capture pleine, déclenchement réarmé).
+   * L'histoire est oubliée, mais pas le niveau où chaque voie se trouve : il
+   * vaut à partir de maintenant, et la vue n'a pas à le redessiner inconnu.
+   */
+  private repartir(): void {
+    const t = Math.max(this.tVu, this.tDernier);
+    for (const v of this.voies.values()) {
+      const n = this.niveauxHors.get(v.pin) ?? v.fronts.at(-1)?.niveau ?? v.niveauInitial;
+      v.fronts = [];
+      v.niveauInitial = n;
+      if (n === null) delete v.perte;
+      else v.perte = t;
+    }
+    this.tDernier = t;
+    this.plein = false;
+    this.aVider = false;
+    this.niveauxHors.clear();
   }
 
   /**
@@ -221,12 +339,20 @@ export class AnalyseurCapture {
    * broches que seul un oscilloscope regarde.
    */
   verser(salves: Record<string, number[]>): void {
+    if (this.aVider) this.repartir();
     for (const [pin, plat] of Object.entries(salves)) {
       const v = this.parPin.get(pin);
       if (!v) continue;
       for (let i = 0; i + 1 < plat.length; i += 2) {
         const t = plat[i]!;
         const niveau: 0 | 1 = plat[i + 1] ? 1 : 0;
+        if (t > this.tVu) this.tVu = t;
+        // Capture pleine : le front n'entre plus, on retient seulement où en
+        // est la broche pour la prochaine acquisition.
+        if (this.plein) {
+          this.niveauxHors.set(pin, niveau);
+          continue;
+        }
         // Le niveau AVANT le premier front se déduit de ce premier front : une
         // broche qui monte était basse, et inversement. C'est la seule
         // information fiable sur le passé qu'on n'a pas observé.
@@ -237,15 +363,56 @@ export class AnalyseurCapture {
         if (t > this.tDernier) this.tDernier = t;
         this.noterDeclenchement(v, niveau, t);
       }
-      if (v.fronts.length > FRONTS_MAX_PAR_VOIE) {
-        // On jette les plus VIEUX : l'écran montre la fin de la capture. Le
-        // niveau initial devient celui qui précède le plus ancien front gardé.
-        const trop = v.fronts.length - FRONTS_MAX_PAR_VOIE;
-        const premierGarde = v.fronts[trop];
-        if (premierGarde) v.niveauInitial = premierGarde.niveau === 1 ? 0 : 1;
-        v.fronts.splice(0, trop);
+      if (!this.plein) this.raboter(v);
+    }
+  }
+
+  /**
+   * Tient une voie sous le plafond.
+   *
+   * Sans déclenchement survenu, on jette les plus VIEUX fronts : l'écran suit
+   * la fin de la capture. Une fois le déclenchement survenu, on ne jette plus
+   * que ce qui le PRÉCÈDE au-delà de la réserve ; quand ce qui le SUIT remplit
+   * à son tour la profondeur, la capture est pleine et s'arrête — c'est la
+   * mesure autour de l'événement qu'on a demandé de saisir, pas la fin du run.
+   *
+   * Ce qu'on jette laisse une trace : `perte`, l'instant avant lequel le niveau
+   * n'est plus connu. Sans elle, une vue posée sur la partie jetée dessinait le
+   * niveau initial recalculé à chaque salve — un trait plat qui basculait haut,
+   * bas, haut à chaque image (sonde-logique-uno, Frank 23/09).
+   */
+  private raboter(v: VoieCapture): void {
+    const trop = v.fronts.length - FRONTS_MAX_PAR_VOIE;
+    if (trop <= 0) return;
+    let jetables = trop;
+    if (this.tDeclenche !== null) {
+      const avant = premierDes(v.fronts, this.tDeclenche);
+      jetables = Math.min(trop, Math.max(0, avant - RESERVE_AVANT));
+    }
+    if (jetables > 0) {
+      const dernierJete = v.fronts[jetables - 1]!;
+      v.perte = dernierJete.t;
+      v.niveauInitial = dernierJete.niveau;
+      v.fronts.splice(0, jetables);
+    }
+    if (v.fronts.length > FRONTS_MAX_PAR_VOIE) this.remplir(v.fronts[FRONTS_MAX_PAR_VOIE - 1]!.t);
+  }
+
+  /**
+   * La capture est pleine à l'instant `t` : toutes les voies s'arrêtent LÀ,
+   * ensemble. Une voie qui garderait des fronts plus tardifs que les autres
+   * ferait croire, au-delà de `t`, que les autres n'ont plus bougé.
+   */
+  private remplir(t: number): void {
+    for (const v of this.voies.values()) {
+      const garde = premierApres(v.fronts, t);
+      if (garde < v.fronts.length) {
+        this.niveauxHors.set(v.pin, v.fronts.at(-1)!.niveau);
+        v.fronts.length = garde;
       }
     }
+    this.tDernier = t;
+    this.plein = true;
   }
 
   /**
@@ -255,17 +422,10 @@ export class AnalyseurCapture {
    * défaut qu'un déclenchement corrige.
    */
   private noterDeclenchement(v: VoieCapture, niveau: 0 | 1, t: number): void {
-    if (!this.declenchement || this.tDeclenche !== null) return;
-    if (v.voie !== this.declenchement.voie) return;
-    const attendu = this.declenchement.sens === 'rising' ? 1 : 0;
-    if (niveau === attendu) this.tDeclenche = t;
+    if (this.tDeclenche !== null) return;
+    if (this.repond(v, niveau)) this.tDeclenche = t;
   }
 
-  /**
-   * Niveau d'une voie à un instant donné (pour le réticule de la vue).
-   * Rend null si l'instant précède tout front connu et que le niveau initial
-   * n'a jamais pu être déduit.
-   */
   /**
    * Voies lues à l'envers (niveau au repos à 1). L'inversion est appliquée EN
    * SORTIE, sur `niveauA` et `fenetre` : la capture garde ce que le moteur a
@@ -338,53 +498,89 @@ export class AnalyseurCapture {
     return this.inversees.has(voie);
   }
 
+  /**
+   * Niveau d'une voie à un instant donné (pour le réticule de la vue), tel que
+   * l'instrument le montre : inversé si la voie l'est, lu au dernier tic si la
+   * capture est échantillonnée. Rend null quand il n'est pas connu — jamais
+   * observé, ou tombé dans la partie jetée par le plafond.
+   */
   niveauA(voie: number, t: number): 0 | 1 | null {
-    const n = this.niveauBrut(voie, t);
+    const v = this.voies.get(voie);
+    if (!v) return null;
+    const perte = v.perte ?? -Infinity;
+    let n: 0 | 1 | null;
+    if (this.periode > 0) {
+      // Lecture du dernier tic : le niveau laissé par les intervalles d'avant.
+      const k = Math.floor(t / this.periode);
+      const i = this.debutIntervalle(v.fronts, k);
+      n = i > 0 ? v.fronts[i - 1]!.niveau : k * this.periode > perte ? v.niveauInitial : null;
+    } else {
+      const i = premierApres(v.fronts, t);
+      n = i > 0 ? v.fronts[i - 1]!.niveau : t >= perte ? v.niveauInitial : null;
+    }
     return n === null || !this.inversees.has(voie) ? n : n === 1 ? 0 : 1;
   }
 
-  /** Niveau réellement capturé, sans tenir compte de l'inversion. */
-  private niveauBrut(voie: number, t: number): 0 | 1 | null {
-    const v = this.voies.get(voie);
-    if (!v) return null;
-    // Recherche dichotomique : le dernier front dont l'instant est ≤ t.
-    let lo = 0;
-    let hi = v.fronts.length - 1;
-    let trouve = -1;
-    while (lo <= hi) {
-      const mid = (lo + hi) >> 1;
-      if (v.fronts[mid]!.t <= t) {
-        trouve = mid;
-        lo = mid + 1;
-      } else {
-        hi = mid - 1;
-      }
-    }
-    return trouve < 0 ? v.niveauInitial : v.fronts[trouve]!.niveau;
+  /**
+   * Premier indice dont le front tombe dans l'intervalle d'échantillon `k` ou
+   * après. La dichotomie compare des instants, `echantillonner` des numéros
+   * d'intervalle : on recale sur ces derniers, seuls juges aux arrondis près.
+   */
+  private debutIntervalle(fronts: Front[], k: number): number {
+    const p = this.periode;
+    let i = premierDes(fronts, k * p);
+    while (i > 0 && Math.floor(fronts[i - 1]!.t / p) >= k) i--;
+    while (i < fronts.length && Math.floor(fronts[i]!.t / p) < k) i++;
+    return i;
   }
 
   /**
    * Fronts d'une voie dans une fenêtre de temps, avec le niveau qui ENTRE par
    * le bord gauche. La vue en a besoin pour dessiner un créneau qui commence
    * avant la fenêtre : sans ce niveau d'entrée, le trait partirait du vide.
+   *
+   * `connuDepuis` : quand le début de la fenêtre tombe dans la partie jetée par
+   * le plafond, l'instant où le niveau redevient connu — `entrant` vaut alors
+   * pour cet instant-là, et la vue dessine « inconnu » avant. Null sinon.
+   *
+   * Échantillonnée, la fenêtre part du dernier tic avant `t0`, et `entrant` est
+   * CE qu'il a lu : le niveau d'entrée et les fronts viennent de la même
+   * lecture. Prendre le niveau vrai à `t0` dessinait un premier palier que
+   * l'instrument n'a jamais vu.
    */
-  fenetre(voie: number, t0: number, t1: number): { entrant: 0 | 1 | null; fronts: Front[] } {
+  fenetre(
+    voie: number,
+    t0: number,
+    t1: number
+  ): { entrant: 0 | 1 | null; fronts: Front[]; connuDepuis: number | null } {
     const v = this.voies.get(voie);
-    if (!v) return { entrant: null, fronts: [] };
-    const entrant = this.niveauA(voie, t0);
-    // Une marge d'un échantillon à gauche : un front tombé juste avant `t0`
-    // peut être LU après lui (l'instrument le rend à son tic), et sans cette
-    // marge il manquerait au bord gauche de l'écran.
-    const marge = this.periode;
-    const fronts = this.echantillonner(
-      v.fronts.filter((f) => f.t >= t0 - marge && f.t <= t1),
-      this.niveauBrut(voie, t0 - marge)
-    ).filter((f) => f.t >= t0 && f.t <= t1);
+    if (!v) return { entrant: null, fronts: [], connuDepuis: null };
+    const perte = v.perte ?? -Infinity;
+    const p = this.periode;
+    // Début de la partie connue : t0 lui-même, ou le premier instant d'où
+    // l'instrument sait de nouveau ce que vaut la broche.
+    let debut: number;
+    let i: number;
+    if (p > 0) {
+      let k = Math.floor(t0 / p);
+      // Le tic qui lit un intervalle entamé avant la perte ne sait rien : le
+      // premier tic sûr est celui qui suit l'intervalle de la perte.
+      if (k * p <= perte) k = Math.floor(perte / p) + 1;
+      debut = k * p;
+      i = this.debutIntervalle(v.fronts, k);
+    } else {
+      debut = Math.max(t0, perte);
+      i = debut > t0 ? premierApres(v.fronts, debut) : premierDes(v.fronts, t0);
+    }
+    if (debut > t1) return { entrant: null, fronts: [], connuDepuis: null };
+    const entrantBrut = i > 0 ? v.fronts[i - 1]!.niveau : v.niveauInitial;
+    const tranche = v.fronts.slice(i, premierApres(v.fronts, t1));
+    const fronts = p > 0 ? this.echantillonner(tranche, entrantBrut).filter((f) => f.t <= t1) : tranche;
+    const inv = this.inversees.has(voie);
     return {
-      entrant,
-      fronts: this.inversees.has(voie)
-        ? fronts.map((f) => ({ t: f.t, niveau: (f.niveau === 1 ? 0 : 1) as 0 | 1 }))
-        : fronts,
+      entrant: entrantBrut === null || !inv ? entrantBrut : entrantBrut === 1 ? 0 : 1,
+      fronts: inv ? fronts.map((f) => ({ t: f.t, niveau: (f.niveau === 1 ? 0 : 1) as 0 | 1 })) : fronts,
+      connuDepuis: debut > t0 ? debut : null,
     };
   }
 }

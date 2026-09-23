@@ -60,7 +60,7 @@ const { logicProbeVoies, pulseMonitorPins, partDef, partCategory, registerCustom
     },
     'model.mjs',
   );
-const { AnalyseurCapture, VOIES_MAX } = await buildTo('src/webview/analyseur-capture.mts', 'capture.mjs');
+const { AnalyseurCapture, VOIES_MAX, FRONTS_MAX_PAR_VOIE, RESERVE_AVANT } = await buildTo('src/webview/analyseur-capture.mts', 'capture.mjs');
 const { decoder, decoderTous, reglageComplet, rolesDe } = await buildTo('src/webview/analyseur-decodage.mts', 'decodage.mjs');
 const { PALETTE_LIGHT, PALETTE_DARK, couleurVoie } = await buildTo('src/webview/voies-couleurs.mts', 'couleurs.mjs');
 // La vue touche au DOM à l'exécution, mais `nomVoie`/`teinteVoie` sont pures :
@@ -408,8 +408,23 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
       /diagnostics = etat\.voies\.map/.test(bloc));
   check('réouverture : et le déclenchement enregistré est rendu à la capture',
     /capture\.reglerDeclenchement\(etat\.declenchement/.test(bloc));
+  check('réouverture : le déclenchement est recherché dans la capture rechargée',
+    /capture\.chercherDeclenchement\(\)/.test(bloc));
   check('réouverture : la fréquence d\'échantillonnage est reprise elle aussi',
     /echantillonnage = etat\.echantillonnage/.test(bloc));
+  // Défauts de Frank du 23/09 sur le déclenchement (le geste lui-même est
+  // prouvé à la vraie souris par _diag-analyseur-gestes.mjs gigue).
+  check('déclenchement : « No trigger » ne retire que celui de SA voie',
+    /if \(sur !== null\) choisirDeclenchement\(null\)/.test(src));
+  check('déclenchement : quand il tombe, la vue saute dessus et y reste',
+    /attendait && capture\.tTrigger !== null\) allerAuDeclenchement\(\)/.test(src) &&
+      /function allerAuDeclenchement[\s\S]{0,200}suivi = false/.test(src));
+  check('déclenchement : sur une capture arrêtée, le poser le cherche dans l\'existant',
+    /capture\.chercherDeclenchement\(\) !== null\) \{\s*allerAuDeclenchement\(\)/.test(src));
+  check('glissé : un clic qui tremble de moins de 3 px ne décale pas la vue',
+    /const SEUIL_GLISSE = 3/.test(src) && /Math\.abs\(ev\.clientX - glisse\.x\) < SEUIL_GLISSE\) return/.test(src));
+  check('capture pleine : l\'état le dit, et dit comment relancer',
+    /capture\.pleine\s*\?\s*t\('Capture full/.test(src));
   // Le message `voies` reprend la main dès qu'il porte QUELQUE CHOSE : c'est lui
   // qui apporte les DIAGNOSTICS de câblage, que la capture ignore. Il ne la
   // reprend pas quand il est VIDE sur une capture déjà là, hors simulation —
@@ -513,6 +528,85 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   check('fenêtre : rend le niveau entrant (bas à 6 ms) et les fronts de la plage',
     f.entrant === 0 && f.fronts.length === 1 && f.fronts[0].t === 9,
     `${f.entrant} / ${f.fronts.length}`);
+}
+{
+  // Capture arrêtée : poser un déclenchement après coup le trouve dans ce qui
+  // est déjà là (sinon aucun front nouveau ne viendrait jamais le marquer).
+  const c = new AnalyseurCapture();
+  c.declarerVoies([{ voie: 0, pin: '8', nom: 'CLK' }]);
+  c.verser({ 8: [1, 1, 2, 0, 3, 1] });
+  c.reglerDeclenchement({ voie: 0, sens: 'falling' });
+  check('déclenchement : sur une capture arrêtée, trouvé dans les fronts déjà là',
+    c.chercherDeclenchement() === 2 && c.tTrigger === 2, String(c.tTrigger));
+}
+{
+  // Le plafond de fronts, sonde-logique-uno de Frank (23/09) : horloge sur D8
+  // (un front par ms), une seule montée sur D9 qui sert de déclenchement.
+  const horloge = (a, b) => {
+    const s = [];
+    for (let t = a; t <= b; t++) s.push(t, t % 2);
+    return s;
+  };
+  const c = new AnalyseurCapture();
+  c.declarerVoies([{ voie: 0, pin: '8', nom: 'CLK' }, { voie: 1, pin: '9', nom: 'TRIG' }]);
+  c.reglerDeclenchement({ voie: 1, sens: 'rising' });
+  const T_DECL = 70_000.5;
+  const jusqua = (fin, depuis) => {
+    for (let a = depuis; a <= fin; a += 1000) {
+      const b = Math.min(fin, a + 999);
+      const s = { 8: horloge(a, b) };
+      if (T_DECL >= a && T_DECL < b + 1) s[9] = [T_DECL, 1];
+      c.verser(s);
+    }
+  };
+  jusqua(65_000, 1);
+  const v0 = () => c.listeVoies[0];
+  // Sans déclenchement survenu, les plus vieux fronts partent, mais ce départ
+  // laisse une trace : avant elle le niveau est INCONNU, pas recalculé.
+  check('plafond : la voie garde ses 60 000 derniers fronts',
+    v0().fronts.length === FRONTS_MAX_PAR_VOIE && v0().fronts[0].t === 5001,
+    `${v0().fronts.length} dès ${v0().fronts[0]?.t}`);
+  check('plafond : la perte est datée au dernier front jeté',
+    v0().perte === 5000, String(v0().perte));
+  check('plafond : avant la perte le niveau est inconnu, après il est connu',
+    c.niveauA(0, 4000) === null && c.niveauA(0, 5000.5) === 0,
+    `${c.niveauA(0, 4000)} / ${c.niveauA(0, 5000.5)}`);
+  const f = c.fenetre(0, 4000, 6000);
+  check('plafond : la fenêtre à cheval dit d\'où le niveau est connu',
+    f.connuDepuis === 5000 && f.entrant === 0 && f.fronts.length === 1000,
+    `${f.connuDepuis} / ${f.entrant} / ${f.fronts.length}`);
+  // Le trait qui basculait haut/bas : la même fenêtre, relue après une salve de
+  // plus, doit rendre le MÊME niveau inconnu (avant : niveau initial recalculé).
+  const avant = c.fenetre(0, 1000, 2000);
+  jusqua(65_001, 65_001);
+  const apres = c.fenetre(0, 1000, 2000);
+  check('plafond : une fenêtre sur la partie jetée reste inconnue d\'une salve à l\'autre',
+    avant.entrant === null && apres.entrant === null && avant.fronts.length === 0 && apres.fronts.length === 0,
+    `${avant.entrant} → ${apres.entrant}`);
+
+  jusqua(150_000, 65_002);
+  const tFronts = v0().fronts.map((x) => x.t);
+  const avantDecl = tFronts.filter((t) => t < T_DECL).length;
+  check('déclenchement : la zone qui le précède est réduite à la réserve, pas mangée',
+    c.tTrigger === T_DECL && avantDecl === RESERVE_AVANT, `${c.tTrigger} / ${avantDecl}`);
+  check('déclenchement : la capture est pleine et s\'arrête à 60 000 fronts',
+    c.pleine && v0().fronts.length === FRONTS_MAX_PAR_VOIE && c.tFin === tFronts.at(-1),
+    `${c.pleine} / ${v0().fronts.length} / ${c.tFin}`);
+  const autour = c.fenetre(0, T_DECL - 5, T_DECL + 5);
+  check('déclenchement : les fronts autour du déclenchement sont toujours là',
+    autour.fronts.length === 10 && autour.connuDepuis === null, String(autour.fronts.length));
+  check('déclenchement : la voie du déclenchement n\'a rien perdu',
+    c.listeVoies[1].fronts.length === 1 && c.listeVoies[1].perte === undefined);
+
+  // Régler de nouveau : nouvelle acquisition, qui repart du niveau courant.
+  c.reglerDeclenchement({ voie: 1, sens: 'rising' });
+  jusqua(151_000, 150_001);
+  check('pleine : régler le déclenchement relance une acquisition',
+    !c.pleine && c.enAttente && v0().fronts[0].t === 150_001 && v0().fronts.length === 1000,
+    `${c.pleine} / ${v0().fronts[0]?.t} / ${v0().fronts.length}`);
+  check('pleine : la nouvelle acquisition connaît le niveau de départ, pas l\'histoire',
+    c.niveauA(0, 150_000.5) === 0 && c.niveauA(0, 149_000) === null,
+    `${c.niveauA(0, 150_000.5)} / ${c.niveauA(0, 149_000)}`);
 }
 
 // --- Décodage : outils de fabrication de créneaux --------------------------------

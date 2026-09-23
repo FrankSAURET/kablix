@@ -40,6 +40,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **L'analyseur logique affiche enfin ses courbes.** Un fichier manquait au paquet installé : la page restait grise en toutes circonstances, sans le moindre message.
 - **L'onglet de l'analyseur logique survit à la fermeture de VS Code.** Rouvert avec l'éditeur, il restait désespérément vide : plus aucune voie, plus aucun tracé, même en relançant la simulation. Il fallait le fermer et le rouvrir à la main.
 - **Une mesure d'analyseur ne se perd plus.** Les fronts s'enregistrent au fil de l'eau dans un fichier CSV, un par projet, effacé à la fermeture. Avant, toute la mesure dépendait du seul arrêt de la simulation.
+- **Le déclenchement de l'analyseur logique tient sa mesure.** Quand le front choisi arrive, la vue s'y place et y reste ; la capture garde ce qui l'entoure, puis s'arrête une fois pleine. Avant, la courbe finissait en trait continu, ou en trait qui clignotait haut et bas.
+- **« No trigger » ne retire plus le déclenchement posé sur une autre voie**, et un déclenchement posé sur une mesure arrêtée y est trouvé.
+- **Un clic sur les courbes ne fige plus la vue** de l'analyseur : un léger tremblement de la souris suffisait à arrêter le suivi.
+- **Le début d'une longue mesure, oublié faute de place, s'affiche en pointillé** au lieu d'un niveau faux.
 
 ## 2026.9.4 (13 septembre 2026)
 

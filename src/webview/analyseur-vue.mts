@@ -557,21 +557,28 @@ export class AnalyseurVue {
     couleur: string
   ): void {
     const f = e.fenetre;
-    const { entrant, fronts } = e.capture.fenetre(vv.voie, f.t0, f.t0 + f.duree);
+    const { entrant, fronts, connuDepuis } = e.capture.fenetre(vv.voie, f.t0, f.t0 + f.duree);
     ctx.save();
     ctx.strokeStyle = couleur;
     ctx.lineWidth = 1.5;
     ctx.lineJoin = 'miter';
 
-    if (entrant === null && fronts.length === 0) {
-      // Niveau jamais observé : trait pointillé à mi-hauteur. Le dire bas
-      // mentirait — la broche est peut-être haute depuis le début.
+    // Niveau inconnu : trait pointillé à mi-hauteur. Le dire bas mentirait — la
+    // broche est peut-être haute. Deux cas : jamais observé, ou tombé dans la
+    // partie de la capture que le plafond a jetée.
+    const inconnu = (x0: number, x1: number): void => {
+      ctx.save();
       ctx.globalAlpha = 0.5;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
-      ctx.moveTo(MARGE_G, (yHaut + yBas) / 2);
-      ctx.lineTo(w - MARGE_D, (yHaut + yBas) / 2);
+      ctx.moveTo(x0, (yHaut + yBas) / 2);
+      ctx.lineTo(x1, (yHaut + yBas) / 2);
       ctx.stroke();
+      ctx.restore();
+    };
+
+    if (entrant === null && fronts.length === 0) {
+      inconnu(MARGE_G, w - MARGE_D);
       ctx.restore();
       return;
     }
@@ -581,6 +588,10 @@ export class AnalyseurVue {
     const xMax = w - MARGE_D;
     let niveau: 0 | 1 = entrant ?? (fronts[0] ? (fronts[0].niveau === 1 ? 0 : 1) : 0);
     let x = xMin;
+    if (connuDepuis !== null) {
+      x = Math.max(xMin, Math.min(xMax, this.xDe(connuDepuis, f, w)));
+      inconnu(xMin, x);
+    }
 
     ctx.beginPath();
     ctx.moveTo(x, yDe(niveau));

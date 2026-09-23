@@ -17,7 +17,7 @@
 // enregistrée dans le .projix avec le schéma. Ouvert le lendemain, il montre ce
 // que l'élève avait mesuré la veille.
 
-import { AnalyseurCapture } from './analyseur-capture.mjs';
+import { AnalyseurCapture, type Declenchement } from './analyseur-capture.mjs';
 import {
   AnalyseurVue,
   type BoutonVoie,
@@ -210,6 +210,45 @@ function suivreFinDemande(): void {
   dessiner();
 }
 
+/**
+ * Amène la vue sur le déclenchement, au dixième de sa largeur : un peu de ce
+ * qui l'a précédé, surtout ce qui l'a suivi. Le suivi de la fin s'arrête — la
+ * vue doit RESTER sur l'événement qu'on a demandé de saisir.
+ *
+ * C'est ce qui manquait au déclenchement : il ne faisait que poser l'origine de
+ * la règle, et la vue continuait de courir après la fin du run. Sur une ligne
+ * 1-Wire qui ne parle que de loin en loin, l'écran montrait alors un trait
+ * continu, et la trame déclenchée filait hors de portée (ds18b20-pico2, Frank
+ * 23/09).
+ */
+function allerAuDeclenchement(): void {
+  const t = capture.tTrigger;
+  if (t === null) return;
+  fenetre = { t0: t - fenetre.duree * 0.1, duree: fenetre.duree };
+  suivi = false;
+  dessiner();
+}
+
+/**
+ * Pose ou retire le déclenchement depuis le menu « T ».
+ *
+ * En plein run, le réglage réarme : la vue revient au direct en attendant le
+ * front, et `fronts` l'y amènera dès qu'il tombe. Sur une capture arrêtée,
+ * aucun front ne viendra plus : on cherche le premier qui répond dans ce qui
+ * est déjà capturé.
+ */
+function choisirDeclenchement(d: Declenchement | null): void {
+  capture.reglerDeclenchement(d);
+  if (enCours) {
+    suivi = true;
+    suivreFin();
+  } else if (d && capture.chercherDeclenchement() !== null) {
+    allerAuDeclenchement();
+  }
+  dessiner();
+  envoyerReglages();
+}
+
 // --- Rendu -------------------------------------------------------------------
 
 let raf = 0;
@@ -320,7 +359,11 @@ function rendu(): void {
 function majEtat(): void {
   const fin = capture.tFin;
   etatTexte.textContent = enCours
-    ? t('Capturing… {0}', fin.toFixed(1))
+    ? capture.pleine
+      ? t('Capture full at {0} ms. Set the trigger again to capture anew.', fin.toFixed(1))
+      : capture.enAttente
+        ? t('Capturing… {0} (waiting for the trigger edge)', fin.toFixed(1))
+        : t('Capturing… {0}', fin.toFixed(1))
     : capture.aDesDonnees
       ? t('Last capture: {0} ms', fin.toFixed(1))
       : '';
@@ -521,29 +564,21 @@ function menuDeclenchement(z: ZoneBouton): void {
   const courant = capture.reglageDeclenchement;
   const sur = courant && courant.voie === z.voie ? courant.sens : null;
   boite.append(
+    // « Aucun » ne retire que le déclenchement DE CETTE VOIE : celui d'une
+    // autre voie reste en place.
     entreeMenu(t('No trigger'), sur === null, () => {
-      capture.reglerDeclenchement(null);
-      dessiner();
-      envoyerReglages();
+      if (sur !== null) choisirDeclenchement(null);
     }),
     entreeMenu(
       t('Rising edge'),
       sur === 'rising',
-      () => {
-        capture.reglerDeclenchement({ voie: z.voie, sens: 'rising' });
-        dessiner();
-        envoyerReglages();
-      },
+      () => choisirDeclenchement({ voie: z.voie, sens: 'rising' }),
       dessinMarche('rising')
     ),
     entreeMenu(
       t('Falling edge'),
       sur === 'falling',
-      () => {
-        capture.reglerDeclenchement({ voie: z.voie, sens: 'falling' });
-        dessiner();
-        envoyerReglages();
-      },
+      () => choisirDeclenchement({ voie: z.voie, sens: 'falling' }),
       dessinMarche('falling')
     )
   );
@@ -1046,11 +1081,15 @@ window.addEventListener('message', (ev) => {
       dessiner();
       return;
     }
-    case 'fronts':
+    case 'fronts': {
+      const attendait = capture.tTrigger === null;
       capture.verser(msg.salves);
-      suivreFin();
+      // Le déclenchement vient de tomber : la vue saute dessus et y reste.
+      if (attendait && capture.tTrigger !== null) allerAuDeclenchement();
+      else suivreFin();
       dessiner();
       return;
+    }
     case 'depart':
       enCours = true;
       capture.reinitialiser();
@@ -1134,6 +1173,8 @@ function restaurer(etat: EtatSerialise): void {
     }));
   }
   capture.reglerDeclenchement(etat.declenchement ?? null);
+  // Capture arrêtée : le front qui a déclenché est déjà dans les fronts rechargés.
+  capture.chercherDeclenchement();
   // `decodages` depuis v2026.9.4.94 ; `decodage` (un seul) est ce qu'ont écrit
   // les .projix d'avant, qui doivent rouvrir avec leur réglage.
   decodages = etat.decodages ?? (etat.decodage ? [etat.decodage] : []);
@@ -1175,14 +1216,22 @@ canvas.addEventListener(
 
 // Glisser latéral : décale la fenêtre. Un analyseur se lit en se promenant dans
 // l'enregistrement, pas en le rejouant.
-let glisse: { x: number; t0: number } | null = null;
+// Un clic n'est pas un glissé : sous SEUIL_GLISSE px de déplacement, la vue ne
+// bouge pas et le suivi de la fin tient. Sans ce seuil, un clic sur la trace
+// (pour refermer un menu, par exemple) qui tremblait de 2 px figeait la vue.
+const SEUIL_GLISSE = 3;
+let glisse: { x: number; t0: number; parti: boolean } | null = null;
 canvas.addEventListener('pointerdown', (ev) => {
   if (ev.button !== 0) return;
-  glisse = { x: ev.clientX, t0: fenetre.t0 };
+  glisse = { x: ev.clientX, t0: fenetre.t0, parti: false };
   canvas.setPointerCapture(ev.pointerId);
 });
 canvas.addEventListener('pointermove', (ev) => {
   if (!glisse) return;
+  if (!glisse.parti) {
+    if (Math.abs(ev.clientX - glisse.x) < SEUIL_GLISSE) return;
+    glisse.parti = true;
+  }
   const plot = canvas.clientWidth - 116;
   const dt = ((ev.clientX - glisse.x) / plot) * fenetre.duree;
   fenetre = { t0: glisse.t0 - dt, duree: fenetre.duree };
