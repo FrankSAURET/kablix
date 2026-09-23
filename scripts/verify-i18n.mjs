@@ -128,7 +128,9 @@ const marcheHote = (d) => {
 marcheHote(join(root, 'src'));
 // Les trois formes de littéral sont acceptées ; une clé construite à l'exécution
 // (backticks avec `${…}`) n'est de toute façon pas traduisible et sera ignorée.
-const RE_HOTE = /l10n\.t\(\s*(['"`])((?:\\.|(?!\1)[\s\S])*?)\1/g;
+// L'alias `const l = vscode.l10n` (HTML de l'onglet d'analyseur) compte aussi :
+// sans lui, ses 14 chaînes passaient sous le contrôle sans être vues.
+const RE_HOTE = /(?:l10n|(?<![\w.$])l)\.t\(\s*(['"`])((?:\\.|(?!\1)[\s\S])*?)\1/g;
 const desechappe = (s) => s.replace(/\\(.)/g, (_, c) => (c === 'n' ? '\n' : c === 't' ? '\t' : c));
 const hoteManquants = new Map();
 let nbHote = 0;

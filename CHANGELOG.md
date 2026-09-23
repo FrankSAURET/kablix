@@ -32,8 +32,9 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Le tableau des composants du README suit les catégories de la palette**.
 - **La liste des composants téléchargeables est illustrée**.
 - **Le projecteur DMX PAR 38 montre son bloc de LED éteint.** La face était transparente et ses LED presque invisibles ; elle reçoit un fond blanc grisé et les LED s'y dessinent en gris clair bombé. Allumées, elles prennent toujours la couleur reçue.
-- **Une voie de l'analyseur posée sur une broche Arduino numérotée s'appelle « Pin 9 »**, et non plus « 9 ».
+- **Une voie de l'analyseur posée sur une broche Arduino numérotée s'appelle « Broche 9 »**, et non plus « 9 ».
 - **Le choix de couleur des voies de l'analyseur est retiré.** Chaque voie garde la couleur de sa pince.
+- **L'analyseur logique est en français** : barre d'outils, menus des voies, messages et noms de voie. La sonde logique et ses couleurs aussi.
 
 ### Correction
 

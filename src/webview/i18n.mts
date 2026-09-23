@@ -665,6 +665,57 @@ const FR: Record<string, string> = {
   'White': 'Blanc',
   'GYR': 'VJR',
 
+  // Sonde logique : composant, couleurs de voie (voies-couleurs.mts) et nom de
+  // voie affiché dans l'analyseur.
+  'Logic probe': 'Sonde logique',
+  'Colour': 'Couleur',
+  'Amber': 'Ambre',
+  'Dark green': 'Vert foncé',
+  'Teal': 'Bleu canard',
+  'Pink': 'Rose',
+  '{0} — already used by another probe': '{0} — déjà prise par une autre sonde',
+  'Pin {0}': 'Broche {0}',
+  'unclipped': 'décrochée', // « non accrochée » déborde de la colonne des noms
+
+  // Analyseur logique : messages du tracé, état de capture, menus « T » et « P »
+  // sous le nom de chaque voie, et réglages de la voie.
+  'No logic probe on the board — clip one onto a pin.':
+    'Aucune sonde logique sur le montage — accrochez-en une sur une broche.',
+  'No edge captured yet.': 'Aucun front capturé pour l\'instant.',
+  'Probe not clipped: drop its tip right onto a pad.':
+    'Sonde décrochée : posez sa pointe pile sur une pastille.',
+  'Nothing to listen to here: this point never reaches a board pin. Clip onto the signal pad.':
+    'Rien à écouter ici : ce point ne rejoint aucune broche de la carte. Accrochez la sonde sur la pastille du signal.',
+  'Power pad (VCC/GND): a steady level, no edge. Clip onto the signal pad.':
+    'Pastille d\'alimentation (VCC/GND) : un niveau fixe, aucun front. Accrochez la sonde sur la pastille du signal.',
+  'analog-capable pin: only 0/1 shown': 'broche analogique : seuls les 0/1 sont montrés',
+  'Waiting for the trigger edge…': 'En attente du front de déclenchement…',
+  'Show hidden channels ({0})': 'Réafficher les voies masquées ({0})',
+  'Capture full at {0} ms. Set the trigger again to capture anew.':
+    'Capture pleine à {0} ms. Réarmez le déclenchement pour capturer à nouveau.',
+  'Capturing… {0} (waiting for the trigger edge)':
+    'Capture en cours… {0} (en attente du front de déclenchement)',
+  'Capturing… {0}': 'Capture en cours… {0}',
+  'Last capture: {0} ms': 'Dernière capture : {0} ms',
+  'No trigger': 'Sans déclenchement',
+  'No decoding': 'Sans décodage',
+  'Bus': 'Bus',
+  'none': 'aucune',
+  'Mode': 'Mode',
+  'Format': 'Format',
+  'Sensor': 'Capteur',
+  'Remove': 'Retirer',
+  'Remove this decoding': 'Retirer ce décodage',
+  'Active-low line: read the channel upside down (idle high).':
+    'Ligne active à l\'état bas : lire la voie à l\'envers (repos à l\'état haut).',
+  'Idle high': 'Repos haut',
+  'Hide this channel: it keeps its capture, it just leaves the screen.':
+    'Masquer cette voie : elle garde sa capture, elle quitte seulement l\'écran.',
+  'Hide': 'Masquer',
+  'Baud': 'Bauds',
+  'auto': 'auto',
+  'Tolerance %': 'Tolérance %',
+
   // Aide
   'In simulation: Ctrl+click keeps it pressed.': 'En simulation : Ctrl+clic le maintient enfoncé.',
   'Ctrl+click to lock the unstable state': 'Ctrl+clic pour verrouiller l’état instable',

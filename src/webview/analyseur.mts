@@ -387,15 +387,19 @@ function majMasquees(): void {
  * servait qu'à répéter ce que la piste montre déjà.
  */
 function majEtat(): void {
-  const fin = capture.tFin;
+  // Virgule décimale en français, comme la règle des temps (« 1,5 ms ») ; sans
+  // séparateur de milliers, pour rester lisible pendant que le compte défile.
+  const fin = capture.tFin.toLocaleString(locale(), {
+    minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false,
+  });
   etatTexte.textContent = enCours
     ? capture.pleine
-      ? t('Capture full at {0} ms. Set the trigger again to capture anew.', fin.toFixed(1))
+      ? t('Capture full at {0} ms. Set the trigger again to capture anew.', fin)
       : capture.enAttente
-        ? t('Capturing… {0} (waiting for the trigger edge)', fin.toFixed(1))
-        : t('Capturing… {0}', fin.toFixed(1))
+        ? t('Capturing… {0} (waiting for the trigger edge)', fin)
+        : t('Capturing… {0}', fin)
     : capture.aDesDonnees
-      ? t('Last capture: {0} ms', fin.toFixed(1))
+      ? t('Last capture: {0} ms', fin)
       : '';
 }
 
