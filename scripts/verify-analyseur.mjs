@@ -280,6 +280,57 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   check('reflet : carte non reliée, la sortie reste muette (pas de signal inventé)',
     nu[0].probleme === 'not-mcu', JSON.stringify(nu[0]));
 
+  // Frank, 23/09, dmx-pico : « les sondes SD1 et SD2 n'affichent rien ». SD2
+  // est posée sur le `-` du SPOT, relié par un fil au `-` de la carte. Le
+  // reflet n'était appliqué qu'au point PINCÉ : sur le spot, qui n'en déclare
+  // aucun, la sonde ne remontait jamais jusqu'à `SIG`. Il faut le suivre sur
+  // tout le NŒUD — le fil ne change pas le potentiel du point pincé.
+  registerCustomPart({
+    type: 'recepteur-ligne',
+    label: 'Récepteur de ligne',
+    kind: 'passive',
+    svg: '<svg viewBox="0 0 100 100"></svg>',
+    pins: [
+      { name: '+', x: 10, y: 40 },
+      { name: '-', x: 10, y: 60 },
+    ],
+  });
+  const avecSpot = (sondes, fils) => ({
+    parts: [
+      { id: 'uno1', type: 'uno', x: 0, y: 0, attrs: {} },
+      { id: 'k1', type: 'carte-ligne', x: 300, y: 0, attrs: {} },
+      { id: 'r1', type: 'recepteur-ligne', x: 600, y: 0, attrs: {} },
+      ...sondes,
+    ],
+    wires: fils,
+  });
+  // Câblage du dmx-pico de Frank : la paire de la carte file vers le spot.
+  const filsPaire = [
+    { id: 'w5', a: { partId: 'k1', pin: '+' }, b: { partId: 'r1', pin: '+' }, path: [] },
+    { id: 'w6', a: { partId: 'r1', pin: '-' }, b: { partId: 'k1', pin: '-' }, path: [] },
+  ];
+  const spotMoins = logicProbeVoies(avecSpot([sonde('s1', 0, 'r1/-')], [...filTx, ...filsPaire]));
+  check('reflet : sur le « - » du SPOT relié à la carte, la sonde voit le signal (SD2 de Frank)',
+    !spotMoins[0].probleme && spotMoins[0].pin === '1', JSON.stringify(spotMoins[0]));
+  const spotPlus = logicProbeVoies(avecSpot([sonde('s1', 0, 'r1/+')], [...filTx, ...filsPaire]));
+  check('reflet : et sur son « + »',
+    !spotPlus[0].probleme && spotPlus[0].pin === '1', JSON.stringify(spotPlus[0]));
+  // Une pince reliée par un CORDON au spot suit le même chemin.
+  const cordon = logicProbeVoies(avecSpot([sonde('s1', 0, '')], [
+    ...filTx, ...filsPaire,
+    { id: 'w7', a: { partId: 's1', pin: 'G' }, b: { partId: 'r1', pin: '-' }, path: [] },
+  ]));
+  check('reflet : une pince reliée au spot par un cordon voit aussi le signal',
+    !cordon[0].probleme && cordon[0].pin === '1', JSON.stringify(cordon[0]));
+  // Contre-épreuve : entrée de la carte non câblée, le spot reste muet.
+  const spotNu = logicProbeVoies(avecSpot([sonde('s1', 0, 'r1/-')], filsPaire));
+  check('reflet : carte non pilotée, le spot reste muet (pas de signal inventé)',
+    spotNu[0].probleme === 'not-mcu', JSON.stringify(spotNu[0]));
+  // Et un spot qui n'est PAS relié à la carte n'hérite de rien.
+  const spotSeul = logicProbeVoies(avecSpot([sonde('s1', 0, 'r1/-')], filTx));
+  check('reflet : spot non relié à la carte, rien ne lui parvient',
+    spotSeul[0].probleme === 'not-mcu', JSON.stringify(spotSeul[0]));
+
   // Et le reflet est bien déclaré dans le PAQUET publié, pas seulement dans le
   // banc : sans cela, rien ne marcherait pour l'élève.
   const paquet = readFileSync(join(root, 'kablix_components', '_sources.json'), 'utf8');
@@ -1108,8 +1159,11 @@ const dhtDe = (tempC, humidity, model) => {
   // constante recopiée : si l'encodage change, le contrôle suit.
   const attendus = dht22Bytes(23.4, 56.7, 'dht22')
     .map((b) => `0x${b.toString(16).toUpperCase().padStart(2, '0')}`).join(' ');
+  // Les octets sont répartis dans les trois champs (humidité, température,
+  // somme) : on les relit dans l'ordre du temps, tous champs confondus.
+  const octetsLus = (textes.join(' ').match(/0x[0-9A-F]{2}/g) ?? []).join(' ');
   check('DHT : les cinq octets relus sont EXACTEMENT ceux que le moteur a émis',
-    textes.includes(attendus), `attendu ${attendus} · lu ${textes.join(' | ')}`);
+    octetsLus === attendus, `attendu ${attendus} · lu ${textes.join(' | ')}`);
   check('DHT : la mesure est rendue en clair (humidité et température)',
     textes.some((x) => x.includes('56.7 %HR') && x.includes('23.4 °C')), textes.join(' | '));
   check('DHT : la somme de contrôle est vérifiée et annoncée bonne',
@@ -1119,8 +1173,36 @@ const dhtDe = (tempC, humidity, model) => {
     // S'il l'était, la trame serait décalée d'un bit : les octets seraient faux
     // et la somme avec. Le contrôle exige donc une trame COMPLÈTE ET juste, pas
     // seulement l'absence d'un message d'erreur — une liste vide passerait.
-    textes.includes(attendus) && !textes.some((x) => x.includes('/40 bits')),
+    octetsLus === attendus && !textes.some((x) => x.includes('/40 bits')),
     textes.join(' | '));
+
+  // Frank (23/09) : « je ne vois pas les valeurs s'afficher ». Les octets et la
+  // mesure occupaient le MÊME intervalle, et la vue n'écrit qu'un texte par
+  // intervalle : la mesure, venue en second, n'était jamais écrite. Deux
+  // annotations détaillées ne doivent donc jamais se chevaucher.
+  const ann = decoder([voieDe(0, 'DATA', fronts, 1)], { protocole: 'dht', donnees: 0 });
+  const details = ann.filter((a) => !a.resume).sort((a, b) => a.t0 - b.t0);
+  const chevauche = details.some((a, i) => details.slice(i + 1).some((b) => b.t0 < a.t1 - 1e-9 && a.t0 < b.t1 - 1e-9));
+  check('DHT : aucune annotation détaillée n\'en recouvre une autre (sinon la seconde n\'est jamais écrite)',
+    details.length >= 5 && !chevauche,
+    details.map((a) => `[${a.t0.toFixed(3)}-${a.t1.toFixed(3)}] ${a.texte}`).join(' | '));
+  const champs = details.filter((a) => /0x/.test(a.texte));
+  check('DHT : trois champs côte à côte — humidité, température, somme — chacun avec sa valeur en repli court',
+    champs.length === 3 &&
+    champs[0].court === '56.7 %HR' && champs[1].court === '23.4 °C' && champs[2].court === '✓' &&
+    Math.abs(champs[0].t1 - champs[1].t0) < 1e-9 && Math.abs(champs[1].t1 - champs[2].t0) < 1e-9,
+    champs.map((a) => `${a.texte} (${a.court})`).join(' | '));
+  const resumes = ann.filter((a) => a.resume);
+  check('DHT : un résumé couvre la trame entière et dit la mesure et la somme',
+    resumes.length === 1 && champs.length === 3 &&
+    Math.abs(resumes[0].t0 - champs[0].t0) < 1e-9 && Math.abs(resumes[0].t1 - champs[2].t1) < 1e-9 &&
+    resumes[0].texte === '56.7 %HR · 23.4 °C · somme ✓' && resumes[0].court === '56.7 %HR · 23.4 °C',
+    JSON.stringify(resumes));
+  // L'humidité tient 16 bits, la température 16, la somme 8 : la frontière
+  // entre deux champs tombe au début du creux de leur premier bit.
+  check('DHT : le champ humidité s\'arrête là où commence le 17e bit',
+    champs.length === 3 && fronts.some(([t, n]) => n === 0 && Math.abs(t - champs[1].t0) < 1e-9),
+    champs.length === 3 ? `frontière ${champs[1].t0}` : '');
 }
 {
   // Une température NÉGATIVE : le DHT22 code un bit de signe et une valeur

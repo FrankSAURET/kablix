@@ -28,6 +28,7 @@ import {
 } from './analyseur-vue.mjs';
 import {
   decoderTous,
+  reculNecessaireMs,
   rolesDe,
   type Annotation,
   type Protocole,
@@ -419,7 +420,10 @@ function calculerAnnotations(): Annotation[] {
   // chaque image de l'écran coûterait des centaines de milliers d'opérations
   // pour afficher vingt étiquettes.
   const marge = fenetre.duree * 0.1;
-  const t0 = fenetre.t0 - marge;
+  // À gauche, certains protocoles doivent remonter jusqu'au début de leur
+  // trame, loin hors de l'écran quand on zoome (DHT : 18 ms de départ).
+  const recul = Math.max(marge, ...decodages.map((d) => reculNecessaireMs(d.protocole)));
+  const t0 = fenetre.t0 - recul;
   const t1 = fenetre.t0 + fenetre.duree + marge;
   // `capture.fenetre` rend déjà les fronts INVERSÉS sur les voies réglées
   // actives-bas : le décodeur lit donc exactement ce que la vue dessine.

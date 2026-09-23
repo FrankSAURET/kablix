@@ -38,6 +38,21 @@ export interface Annotation {
   t1: number;
   /** Texte affiché (court : il doit tenir dans l'intervalle). */
   texte: string;
+  /**
+   * Repli plus court, écrit quand `texte` ne tient pas dans l'intervalle : la
+   * valeur seule, sans les octets bruts. Sans lui, dézoomer d'un cran effaçait
+   * d'un coup tout ce qui avait un sens.
+   */
+  court?: string;
+  /**
+   * Résumé d'une trame entière, qui DOUBLE les annotations détaillées posées
+   * dans le même intervalle. La vue ne l'écrit que là où aucune de celles-ci
+   * n'a pu écrire son texte (vue trop large), et le laisse déborder à droite
+   * de la trame jusqu'à l'annotation suivante : de loin, une trame DHT de
+   * 4 ms n'est qu'un trait, mais le silence d'une seconde qui la suit a toute
+   * la place pour dire ce qu'elle contient.
+   */
+  resume?: boolean;
   nature: NatureAnnotation;
   /**
    * Voie sous laquelle poser l'annotation : la ligne de DONNÉES du décodage qui
@@ -792,9 +807,17 @@ const DHT = {
  * 1-Wire, où le bit est dans le creux — d'où deux décodeurs et non un seul
  * avec une option.
  *
- * Ce qui sort : les cinq octets en hexadécimal, puis l'humidité, la température
- * et le verdict de la somme de contrôle. Un élève qui voit `SOMME ✗` sait que
- * sa liaison est trop longue ou mal tirée, ce que « 0x3F » ne lui dirait pas.
+ * Ce qui sort : chaque grandeur SOUS LES BITS QUI LA PORTENT — l'humidité sous
+ * les octets 0-1, la température sous les octets 2-3, la somme de contrôle sous
+ * l'octet 4 —, avec ses octets bruts quand la place le permet. Un élève qui
+ * voit `SOMME ✗` sait que sa liaison est trop longue ou mal tirée, ce que
+ * « 0x3F » ne lui dirait pas.
+ *
+ * Trois champs CÔTE À CÔTE, et non les octets et la mesure sur le même
+ * intervalle : la vue n'écrit qu'un texte par intervalle, et la mesure — posée
+ * après les octets — n'apparaissait donc JAMAIS, à aucun zoom (Frank, 23/09 :
+ * « je ne vois pas les valeurs s'afficher »). Un résumé de la trame entière
+ * double les trois champs pour la vue de loin (cf. `Annotation.resume`).
  */
 function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
   const v = voie(voies, r.donnees);
@@ -806,6 +829,8 @@ function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
 
   /** Bits de la trame en cours, MSB d'abord (le DHT n'inverse pas, lui). */
   let bits: number[] = [];
+  /** Début de chaque bit (son creux de 50 µs) : les bornes des trois champs. */
+  let debuts: number[] = [];
   let tTrame = 0;
   /** Vrai entre l'accusé de réception et la fin des 40 bits. */
   let enTrame = false;
@@ -817,7 +842,7 @@ function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
    */
   let attendAccuse = false;
 
-  /** Pose les cinq octets et le résumé d'une trame complète ou tronquée. */
+  /** Pose les trois champs et le résumé d'une trame complète, ou signale une trame tronquée. */
   const clore = (tFin: number): void => {
     if (bits.length === 0) {
       enTrame = false;
@@ -826,6 +851,7 @@ function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
     if (bits.length < 40) {
       out.push({ t0: tTrame, t1: tFin, texte: `${bits.length}/40 bits`, nature: 'erreur' });
       bits = [];
+      debuts = [];
       enTrame = false;
       return;
     }
@@ -835,21 +861,44 @@ function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
       for (let j = 0; j < 8; j++) b = (b << 1) | bits[k * 8 + j]!; // MSB d'abord
       o.push(b);
     }
-    out.push({
-      t0: tTrame,
-      t1: tFin,
-      texte: o.map(hex2).join(' '),
-      nature: 'donnee',
-    });
+    const hr = humiditeDht(o, modele);
+    const temp = temperatureDht(o, modele);
     const somme = (o[0]! + o[1]! + o[2]! + o[3]!) & 0xff;
     const ok = somme === o[4]!;
-    out.push({
-      t0: tTrame,
-      t1: tFin,
-      texte: `${mesureDht(o, modele)} · ${ok ? 'somme ✓' : 'SOMME ✗'}`,
-      nature: ok ? 'controle' : 'erreur',
-    });
+    const verdict = ok ? 'somme ✓' : 'SOMME ✗';
+    out.push(
+      {
+        t0: debuts[0]!,
+        t1: debuts[16]!,
+        texte: `${hex2(o[0]!)} ${hex2(o[1]!)} · ${hr}`,
+        court: hr,
+        nature: 'donnee',
+      },
+      {
+        t0: debuts[16]!,
+        t1: debuts[32]!,
+        texte: `${hex2(o[2]!)} ${hex2(o[3]!)} · ${temp}`,
+        court: temp,
+        nature: 'donnee',
+      },
+      {
+        t0: debuts[32]!,
+        t1: tFin,
+        texte: `${hex2(o[4]!)} · ${verdict}`,
+        court: ok ? '✓' : '✗',
+        nature: ok ? 'controle' : 'erreur',
+      },
+      {
+        t0: debuts[0]!,
+        t1: tFin,
+        texte: `${hr} · ${temp} · ${verdict}`,
+        court: `${hr} · ${temp}`,
+        resume: true,
+        nature: ok ? 'controle' : 'erreur',
+      }
+    );
     bits = [];
+    debuts = [];
     enTrame = false;
   };
 
@@ -886,28 +935,33 @@ function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
     if (hautUs >= DHT.repos) {
       // La ligne est retombée au repos : la trame s'arrête ici, complète ou non.
       bits.push(hautUs >= DHT.seuilBit ? 1 : 0);
+      debuts.push(f.t);
       clore(descendant ? descendant.t : montant.t);
       continue;
     }
     bits.push(hautUs >= DHT.seuilBit ? 1 : 0);
+    debuts.push(f.t);
     if (bits.length === 40) clore(descendant ? descendant.t : montant.t);
   }
   clore(v.fronts[v.fronts.length - 1]!.t);
   return out;
 }
 
-/** Humidité et température lues dans les quatre octets utiles d'une trame DHT. */
-function mesureDht(o: number[], modele: 'dht11' | 'dht22'): string {
-  if (modele === 'dht11') {
-    // Le DHT11 ne code que des entiers : les octets de décimales valent 0.
-    return `${o[0]} %HR · ${o[2]} °C`;
-  }
-  const rh = ((o[0]! << 8) | o[1]!) / 10;
+/** Humidité lue dans les octets 0-1 d'une trame DHT. */
+function humiditeDht(o: number[], modele: 'dht11' | 'dht22'): string {
+  // Le DHT11 ne code que des entiers : l'octet des décimales vaut 0.
+  if (modele === 'dht11') return `${o[0]} %HR`;
+  return `${(((o[0]! << 8) | o[1]!) / 10).toFixed(1)} %HR`;
+}
+
+/** Température lue dans les octets 2-3 d'une trame DHT. */
+function temperatureDht(o: number[], modele: 'dht11' | 'dht22'): string {
+  if (modele === 'dht11') return `${o[2]} °C`;
   const brut = (o[2]! << 8) | o[3]!;
   // Bit 15 = signe, et le reste est une valeur ABSOLUE — pas un complément à
   // deux : lire -0x8001 comme un entier signé donnerait +3276,7 °C.
   const t = ((brut & 0x8000 ? -1 : 1) * (brut & 0x7fff)) / 10;
-  return `${rh.toFixed(1)} %HR · ${t.toFixed(1)} °C`;
+  return `${t.toFixed(1)} °C`;
 }
 
 // --- Entrée publique ---------------------------------------------------------
@@ -1018,6 +1072,21 @@ export function reglageComplet(r: ReglageDecodage): boolean {
     if (!a && !b) return false; // SPI sans aucune ligne de donnée ne dit rien
   }
   return true;
+}
+
+/**
+ * Recul minimal, en ms, que le décodeur doit lire AVANT la fenêtre visible pour
+ * reconnaître une trame qui commence hors de l'écran.
+ *
+ * Le DHT n'identifie sa trame QUE par le creux de départ du maître : sans lui,
+ * les 40 bits qui suivent passent pour du bruit. Or ce creux dure 18 ms sur un
+ * DHT11 et la trame 4 ms : zoomé au point de lire les bits, le départ tombe loin
+ * à gauche de la fenêtre, hors de la marge ordinaire (10 % de la largeur). Le
+ * décodeur ne voyait alors rien, à aucun zoom utile — ce que Frank lisait
+ * « juste départ » (23/09). 30 ms couvrent départ + accusé + 40 bits.
+ */
+export function reculNecessaireMs(p: Protocole): number {
+  return p === 'dht' ? 30 : 0;
 }
 
 // `frontsDe` sert aux bancs : compter les fronts d'un sens est le contrôle le

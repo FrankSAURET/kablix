@@ -48,6 +48,9 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **« No trigger » ne retire plus le déclenchement posé sur une autre voie**, et un déclenchement posé sur une mesure arrêtée y est trouvé.
 - **Un clic sur les courbes ne fige plus la vue** de l'analyseur : un léger tremblement de la souris suffisait à arrêter le suivi.
 - **Le début d'une longue mesure, oublié faute de place, s'affiche en pointillé** au lieu d'un niveau faux.
+- **Les valeurs d'un capteur DHT11/DHT22 s'affichent dans l'analyseur à tous les zooms.** Seul le « DÉPART » apparaissait : de loin, la mesure s'écrit maintenant d'un bloc à droite de la trame ; de près, chaque valeur sous ses bits.
+- **Une sonde posée sur la sortie d'une carte DMX, ou sur un appareil qui y est relié, montre le signal.** Elle restait muette sur le spot.
+- **Un projet rouvert utilise la version installée de ses composants de bibliothèque**, et non plus la copie, parfois ancienne, enregistrée avec lui.
 
 ## 2026.9.4 (13 septembre 2026)
 

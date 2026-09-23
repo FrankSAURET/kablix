@@ -138,6 +138,49 @@ for (const part of depuisLib.customParts ?? []) {
 const sansLib = await graveAvec({ library: undefined, globalParts: [{ type: 'perso', svg: '<svg/>' }], poses: ['perso'] });
 check(sansLib.customParts?.[0]?.type === 'perso', 'projix : repli sur l’état global quand la bibliothèque manque');
 
+// ------------------------------------------------- B'. à la RÉOUVERTURE, la bibliothèque prime
+// Frank, 23/09, dmx-pico : la sonde posée sur la sortie de la carte DMX restait
+// muette. Le .projix gravait la carte telle qu'installée le 21/08, SANS reflets
+// de sonde, et l'ouverture l'enregistrait dans l'atelier PAR-DESSUS la version
+// installée. La copie gravée ne doit servir que là où le composant manque.
+const { probeMirrors: _sans, ...dmxAncien } = { ...dmxGrove, version: '2026.8.1' };
+const dmxAJour = { ...dmxGrove, version: '2026.9.1', probeMirrors: { '+': 'SIG', '-': 'SIG' }, behaviorScript: 'export function tick() {}' };
+/** Grave un projet avec la bibliothèque `gravee`, le rouvre avec `installee`,
+ *  et rend les composants que l'ouverture envoie à l'atelier. */
+const rouvreAvec = async ({ gravee, installee, poses }) => {
+  const g = Object.create(SimulatorPanel.prototype);
+  Object.assign(g, {
+    context: { globalState: { get: (_k, d) => d, update: async () => {} } },
+    currentBoard: 'pico', codeFileRef: () => undefined, codeFileUri: undefined, effectiveDebugVars: () => ({}),
+  });
+  SimulatorPanel.library = { getComponents: () => gravee };
+  const parts = poses.map((type, i) => ({ id: `p${i}`, type, x: 0, y: 0, attrs: {} }));
+  const bytes = await g.buildProjixBytes({ parts, wires: [] }, 'pico');
+  SimulatorPanel.library = installee && { whenReady: async () => {}, getComponents: () => installee };
+  const o = Object.create(SimulatorPanel.prototype);
+  const postes = [];
+  Object.assign(o, {
+    context: { globalState: { get: (_k, d) => d, update: async () => {} } },
+    rememberLastProject() {}, postProjectName() {}, setCurrentBoard() {}, setDebugVars() {},
+    postDebugVars() {}, chargerAnalyseur() {}, restoreCodeFile: async () => {}, post: (m) => postes.push(m),
+  });
+  await o.openProjectFromBytes(bytes, { fsPath: 'W:/projet/dmx-pico.projix' });
+  SimulatorPanel.library = undefined;
+  return postes.find((m) => m.type === 'loadProject')?.customParts ?? [];
+};
+const rouvert = await rouvreAvec({ gravee: [dmxAncien, spot], installee: [dmxAJour, spot], poses: ['dmx-grove', 'spot'] });
+const dmxRouvert = rouvert.find((p) => p.type === 'dmx-grove');
+check(dmxRouvert?.version === '2026.9.1' && dmxRouvert?.probeMirrors?.['+'] === 'SIG',
+  'réouverture : la carte INSTALLÉE remplace la copie gravée périmée (sonde SD1 de Frank)',
+  JSON.stringify({ version: dmxRouvert?.version, probeMirrors: dmxRouvert?.probeMirrors }));
+check(dmxRouvert && dmxRouvert.behaviorScript === undefined,
+  'réouverture : le script de comportement installé ne part pas avec le projet');
+check(rouvert.some((p) => p.type === 'spot'), 'réouverture : les autres composants gravés restent là');
+// Contre-épreuve : composant NON installé, la copie gravée reste la seule source.
+const horsLib = await rouvreAvec({ gravee: [dmxAncien], installee: [spot], poses: ['dmx-grove'] });
+check(horsLib.find((p) => p.type === 'dmx-grove')?.version === '2026.8.1',
+  'réouverture : composant non installé, la copie gravée sert (projet venu d’ailleurs)');
+
 // ------------------------------------------------- D. quel programme un « enregistrer sous » exécute
 // Second volet du même « enregistrer sous » (Frank, v2026.8.91) : le manifeste
 // garde la référence du programme de l'ancien projet. Le fichier relatif n'existe

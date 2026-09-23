@@ -662,21 +662,62 @@ export class AnalyseurVue {
     ctx.font = `9px ${getComputedStyle(document.body).getPropertyValue('--vscode-editor-font-family').trim() || 'monospace'}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    const pisteDe = (a: Annotation): number =>
+      (a.voie !== undefined ? rang.get(a.voie) : undefined) ?? derniere;
+    const boite = (a: Annotation): { x0: number; x1: number; g: number; d: number } => {
+      const x0 = this.xDe(a.t0, e.fenetre, w);
+      const x1 = this.xDe(Math.max(a.t1, a.t0), e.fenetre, w);
+      return { x0, x1, g: Math.max(xMin, x0), d: Math.min(xMax, Math.max(x1, x0 + 1)) };
+    };
+    /** Le texte qui tient dans `place` pixels : le long, sinon le court, sinon aucun. */
+    const texteQuiTient = (a: Annotation, place: number): string | null => {
+      if (ctx.measureText(a.texte).width + 4 <= place) return a.texte;
+      if (a.court !== undefined && ctx.measureText(a.court).width + 4 <= place) return a.court;
+      return null;
+    };
+    const baseTexte = (piste: number): number => yDePiste(piste) + (ANNOT_H - 3) / 2;
+
+    // Résumés À ÉCRIRE : ceux dont l'un des champs détaillés ne peut pas écrire
+    // le sien. De près on lit les champs, de loin le résumé — jamais un mélange
+    // des deux : un « ✓ » de somme qui tient seul bloquerait le résumé et
+    // cacherait les valeurs qu'on est venu chercher.
+    const resumes: Annotation[] = [];
+    const couverts: Array<{ piste: number; t0: number; t1: number }> = [];
+    for (const r of e.annotations) {
+      if (!r.resume) continue;
+      const piste = pisteDe(r);
+      const champs = e.annotations.filter(
+        (a) => !a.resume && pisteDe(a) === piste && a.t0 >= r.t0 && a.t1 <= r.t1
+      );
+      const lisibles = champs.every((a) => {
+        const b = boite(a);
+        return texteQuiTient(a, b.d - b.g) !== null;
+      });
+      if (lisibles && champs.length > 0) continue;
+      resumes.push(r);
+      couverts.push({ piste, t0: r.t0, t1: r.t1 });
+    }
+
     // Dernier x occupé, PAR PISTE : une annotation qui chevaucherait la
     // précédente est dessinée en trait seul, sans texte — l'élève zoome pour
     // la lire. Le suivi est par piste depuis qu'on décode plusieurs bus : un
     // compteur global laissait un bus muet parce que l'autre avait écrit au
     // même instant sur une AUTRE ligne.
     const occupe = new Map<number, number>();
+    /** Intervalles où un texte est écrit, par piste : un résumé ne les recouvre pas. */
+    const ecrits = new Map<number, Array<[number, number]>>();
+    const noterEcrit = (piste: number, g: number, d: number): void => {
+      const l = ecrits.get(piste);
+      if (l) l.push([g, d]);
+      else ecrits.set(piste, [[g, d]]);
+    };
     for (const a of e.annotations) {
-      const piste = (a.voie !== undefined ? rang.get(a.voie) : undefined) ?? derniere;
+      if (a.resume) continue;
+      const piste = pisteDe(a);
       if (piste < 0) continue;
       const y = yDePiste(piste);
-      const x0 = this.xDe(a.t0, e.fenetre, w);
-      const x1 = this.xDe(Math.max(a.t1, a.t0), e.fenetre, w);
+      const { x0, x1, g, d } = boite(a);
       if (x1 < xMin || x0 > xMax) continue;
-      const g = Math.max(xMin, x0);
-      const d = Math.min(xMax, Math.max(x1, x0 + 1));
       const c = couleurs[a.nature];
       ctx.fillStyle = c;
       ctx.globalAlpha = 0.22;
@@ -687,13 +728,38 @@ export class AnalyseurVue {
       ctx.moveTo(Math.round(g) + 0.5, y);
       ctx.lineTo(Math.round(g) + 0.5, y + ANNOT_H - 3);
       ctx.stroke();
-      const largeurTexte = ctx.measureText(a.texte).width;
-      const centre = (g + d) / 2;
-      if (g >= (occupe.get(piste) ?? -Infinity) && d - g >= largeurTexte + 4) {
+      // Champ doublé par un résumé à écrire : c'est le résumé qui parle.
+      if (couverts.some((m) => m.piste === piste && a.t0 >= m.t0 && a.t1 <= m.t1)) continue;
+      const texte = texteQuiTient(a, d - g);
+      if (texte !== null && g >= (occupe.get(piste) ?? -Infinity)) {
         ctx.fillStyle = fg;
-        ctx.fillText(a.texte, centre, y + (ANNOT_H - 3) / 2);
+        ctx.fillText(texte, (g + d) / 2, baseTexte(piste));
         occupe.set(piste, d);
+        noterEcrit(piste, g, d);
       }
+    }
+
+    // Les résumés s'écrivent à partir du début de leur trame et débordent à
+    // droite jusqu'à la PROCHAINE annotation de la piste : de loin, la trame
+    // n'a que quelques pixels, le silence qui la suit a toute la place.
+    ctx.textAlign = 'left';
+    for (const r of resumes) {
+      const piste = pisteDe(r);
+      if (piste < 0) continue;
+      const { x0, x1, g } = boite(r);
+      if (x1 < xMin || x0 > xMax) continue;
+      let limite = xMax;
+      for (const a of e.annotations) {
+        if (a === r || a.t0 < r.t1 || pisteDe(a) !== piste) continue;
+        limite = Math.min(limite, this.xDe(a.t0, e.fenetre, w));
+      }
+      const texte = texteQuiTient(r, limite - g);
+      if (texte === null) continue;
+      const fin = g + ctx.measureText(texte).width + 4;
+      if ((ecrits.get(piste) ?? []).some(([a0, a1]) => a0 < fin && a1 > g)) continue;
+      ctx.fillStyle = fg;
+      ctx.fillText(texte, g + 2, baseTexte(piste));
+      noterEcrit(piste, g, fin);
     }
     ctx.restore();
   }

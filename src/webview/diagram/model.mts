@@ -3793,21 +3793,33 @@ export interface LogicProbeVoie {
  * manifeste du composant le déclare (`probeMirrors`), et SEUL l'analyseur le
  * lit — la netlist électrique n'en sait rien et garde ses deux nœuds séparés.
  *
- * Un reflet peut en désigner un autre (une carte qui en traverse une seconde) :
- * on remonte la chaîne, avec une borne pour qu'un manifeste mal écrit qui se
- * référencerait lui-même ne fasse pas tourner l'éditeur dans le vide.
+ * Le reflet vaut pour tout le NŒUD de la patte qui le déclare, pas seulement
+ * pour cette patte : une sonde posée sur le `-` du spot, relié par un fil au
+ * `-` de la carte, pince le même potentiel (Frank, 23/09, dmx-pico : « les
+ * sondes SD1 et SD2 n'affichent rien »). Le suivi part donc du nœud pincé et
+ * saute, de nœud en nœud, par les reflets des pattes qui s'y trouvent.
+ *
+ * Un reflet peut mener à un autre (une carte qui en traverse une seconde) :
+ * parcours en largeur, chaque nœud visité une fois, avec une borne de sauts
+ * pour qu'un manifeste mal écrit ne fasse pas tourner l'éditeur dans le vide.
  */
-function refletDeSonde(
+function refletsDeSonde(
   diagram: Diagram,
-  point: { partId: string; pin: string },
-): { partId: string; pin: string } {
-  for (let saut = 0; saut < 8; saut++) {
-    const part = diagram.parts.find((p) => p.id === point.partId);
-    const reflet = part && partDef(part.type).custom?.probeMirrors?.[point.pin];
-    if (!reflet || reflet === point.pin) return point;
-    point = { partId: point.partId, pin: reflet };
+  nets: Nets,
+): Array<{ depuis: string; vers: string }> {
+  const reflets: Array<{ depuis: string; vers: string }> = [];
+  for (const part of diagram.parts) {
+    const miroirs = partDef(part.type).custom?.probeMirrors;
+    if (!miroirs) continue;
+    for (const [pin, reflet] of Object.entries(miroirs)) {
+      if (!reflet || reflet === pin) continue;
+      reflets.push({
+        depuis: nets.netOf({ partId: part.id, pin }),
+        vers: nets.netOf({ partId: part.id, pin: reflet }),
+      });
+    }
   }
-  return point;
+  return reflets;
 }
 
 function suivreFilVersMcu(
@@ -3815,16 +3827,29 @@ function suivreFilVersMcu(
   point: { partId: string; pin: string },
 ): { pin: string; analogique: boolean } | null {
   if (!point.partId || !point.pin) return null;
-  point = refletDeSonde(diagram, point);
   const nets = buildNets(diagram, false);
-  const net = nets.netOf(point);
-  for (const { part, board } of mcuParts(diagram)) {
-    for (const pin of mcuPins(board)) {
-      const role = mcuPinRole(board, pin);
-      if (role.role !== 'digital' || !role.name) continue;
-      if (nets.netOf({ partId: part.id, pin }) !== net) continue;
-      return { pin: role.name, analogique: role.adcChannel !== undefined };
+  const reflets = refletsDeSonde(diagram, nets);
+  const depart = nets.netOf(point);
+  const vus = new Set([depart]);
+  let front = [depart];
+  for (let saut = 0; saut <= 8 && front.length > 0; saut++) {
+    for (const net of front) {
+      for (const { part, board } of mcuParts(diagram)) {
+        for (const pin of mcuPins(board)) {
+          const role = mcuPinRole(board, pin);
+          if (role.role !== 'digital' || !role.name) continue;
+          if (nets.netOf({ partId: part.id, pin }) !== net) continue;
+          return { pin: role.name, analogique: role.adcChannel !== undefined };
+        }
+      }
     }
+    const suivant: string[] = [];
+    for (const { depuis, vers } of reflets) {
+      if (!front.includes(depuis) || vus.has(vers)) continue;
+      vus.add(vers);
+      suivant.push(vers);
+    }
+    front = suivant;
   }
   return null;
 }

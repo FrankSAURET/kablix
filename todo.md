@@ -1,10 +1,5 @@
 # À faire
 
-1. Analyseur logique
-    1. DHT11-pico
-        1. je ne vois pas les valeurs s'afficher. juste départ.
-    1. DMX-Pico
-        1. les sondes  SD1 et Sd2 n'affichent rien    
 1. 
 ## fait
 
@@ -14,6 +9,18 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.4.131
+1. ✅ **DHT11-pico : « je ne vois pas les valeurs s'afficher, juste départ »** — deux causes, chacune prouvée par le banc. (a) **Vue** : la mesure (`50 %HR · 22 °C`) partageait l'intervalle des octets et n'était jamais écrite ; de loin, la trame (~4 ms) ne fait que quelques pixels. [analyseur-decodage.mts](src/webview/analyseur-decodage.mts) : `decoderDht` rend trois CHAMPS contigus (humidité, température, somme — texte long `0x32 0x00 · 50 %HR`, court `50 %HR`) plus un RÉSUMÉ `resume: true` ; [analyseur-vue.mts](src/webview/analyseur-vue.mts) : `annotations()` en trois passes — résumés retenus si un champ ne peut s'écrire, champs long → court → rien, résumés écrits d'un bloc à droite de la trame jusqu'à l'annotation suivante. (b) **Décodage** : zoomé sur la trame, le `DÉPART` (18 ms) sortait de la fenêtre décodée (±10 %), donc plus rien n'était reconnu. `reculNecessaireMs('dht')` = 30 ms, pris en compte par `calculerAnnotations` ([analyseur.mts](src/webview/analyseur.mts)).
+2. ✅ **DMX-Pico : « les sondes SD1 et SD2 n'affichent rien »** — deux causes. (a) **SD2** (sur le `-` du spot, relié par w-6 au `-` de la carte) : le reflet de sonde n'était appliqué qu'à la patte PINCÉE. `suivreFilVersMcu` ([model.mts](src/webview/diagram/model.mts)) parcourt maintenant les nœuds en largeur : chaque patte d'un nœud visité qui déclare un `probeMirrors` fait sauter au nœud de la patte reflétée (borne de 8 sauts, nœuds visités une fois). (b) **SD1** (sur `+` de la carte) : la carte DMX installée chez Frank date du 21/08 (2026.8.1, sans `probeMirrors`) et son `.projix` en grave une copie qui, à l'ouverture, s'enregistrait PAR-DESSUS la bibliothèque. [panel.ts](src/panel.ts) : `installesDabord()` remplace, dans le `loadProject`, chaque composant gravé par sa version installée quand elle existe (script de comportement retiré) ; la copie gravée ne sert plus que si le composant manque. **Reste côté Frank** : mettre à jour la carte DMX (2026.9.1) dans le gestionnaire de composants.
+3. ✅ **Bancs** : [verify-analyseur-dht-vue.mjs](scripts/verify-analyseur-dht-vue.mjs) (NOUVEAU, port 9417, dans `verify:all`) — vraie molette CDP, 19 crans sur trois trames DHT11 : `DÉPART` et résumé au cadrage large, humidité et température écrites à CHAQUE cran, trois champs longs de près, aucun recouvrement ; option `--ancien=` qui compile des modules dans leur version HEAD (`git show`, lecture seule). [verify-analyseur.mjs](scripts/verify-analyseur.mjs) : 4 contrôles DHT (champs, résumé, frontière sur un front, pas de chevauchement) et 5 contrôles de reflet (spot relié par `-` et `+`, pince par cordon, carte non pilotée, spot non relié). [verify-projix-parts.mjs](scripts/verify-projix-parts.mjs) : 4 contrôles de réouverture (la version installée remplace la copie gravée, sans script ; composant non installé → copie gravée).
+4. ✅ **Contre-épreuves** : `--ancien=analyseur,analyseur-vue,analyseur-decodage` → 3 rouges, symptôme exact (seul `DÉPART`, puis rien des crans 11 à 19) ; `--ancien=analyseur` seul → 2 rouges, `--ancien=analyseur-vue` seul → 2 rouges. Reflets : 3 rouges avant la réécriture de `suivreFilVersMcu`. Réouverture : appel à `installesDabord` retiré → 1 rouge. Tout vert une fois la source remise.
+5. ✅ **Diagnostics** : [_diag-analyseur-dht.mjs](scripts/_diag-analyseur-dht.mjs) (annotations d'une trame) et [_diag-dmx-reflets.mjs](scripts/_diag-dmx-reflets.mjs) (voies du `testkablix/dmx-pico.projix`, carte gravée puis carte publiée : SD1 et SD2 passent de `not-mcu` à `GP0`). [_lire-kompix.mjs](scripts/_lire-kompix.mjs) recopiait `unpackKompix` sans `probeMirrors` : ajouté.
+6. ✅ **Fiche d'aide FR** [sonde-logique.md](docs/fr/composants/sonde-logique.md) : décodage DHT, valeur sous ses bits, texte court, bloc de mesure vu de loin.
+7. ℹ️ **À Frank** : SD3 est posée sur `3V3` (voie `power`, normal) ; dans son `dht11-pico.projix`, les décodages visent les voies 0 et 1 alors que la pince DATA est en voie 4 — décodages orphelins, à refaire dans l'onglet.
+8. ⏳ Fiche d'aide EN : lot d'avant publication.
 
 ---
 

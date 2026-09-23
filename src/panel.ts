@@ -2556,7 +2556,7 @@ export class SimulatorPanel {
       type: 'loadProject',
       diagram: project.diagram,
       board: project.manifest.board,
-      customParts,
+      customParts: customParts && (await this.installesDabord(customParts)),
     });
     // Restaure le fichier de code à exécuter/déboguer mémorisé dans le projet
     // (résolu en priorité à côté du .projix ; l'ancien fichier est oublié).
@@ -2566,6 +2566,34 @@ export class SimulatorPanel {
       project.manifest.codeFileAbs,
       this.projectBaseName
     );
+  }
+
+  /**
+   * Composants embarqués d'un .projix, remplacés par la version INSTALLÉE quand
+   * la bibliothèque a le même type.
+   *
+   * Le .projix grave la copie du poste qui l'a enregistré, figée à ce jour-là.
+   * Envoyée telle quelle, elle s'enregistrait dans l'atelier PAR-DESSUS la
+   * bibliothèque : un projet enregistré avant une mise à jour du composant
+   * ramenait l'ancienne définition. C'est ce qui rendait muette la sonde SD1 du
+   * dmx-pico de Frank (23/09) : sa copie de la carte DMX n'a pas de reflets de
+   * sonde. La copie embarquée ne sert qu'à rouvrir le projet là où le
+   * composant n'est PAS installé.
+   *
+   * Le script de comportement est retiré, comme dans `sendCustomParts` : il
+   * voyage à part, après approbation.
+   */
+  private async installesDabord(embarques: unknown[]): Promise<unknown[]> {
+    await SimulatorPanel.library?.whenReady?.();
+    const installes = SimulatorPanel.library?.getComponents?.() as any[] | undefined;
+    if (!installes?.length) return embarques;
+    const parType = new Map(installes.map((p) => [p?.type, p]));
+    return embarques.map((p: any) => {
+      const installe = parType.get(p?.type);
+      if (!installe) return p;
+      const { behaviorScript: _drop, ...rest } = installe;
+      return rest;
+    });
   }
 
   /** Version PUBLIQUE de l'extension enregistrée dans le .projix (jamais le
