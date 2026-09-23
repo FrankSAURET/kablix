@@ -364,9 +364,6 @@ export class AnalyseurPanel {
   }
   .flottant button { cursor: pointer; }
   .flottant input[type=checkbox] { padding: 0; }
-  .flottant .teintes { display: inline-flex; gap: 3px; }
-  .flottant .teintes button { width: 14px; height: 14px; padding: 0; border-radius: 2px; cursor: pointer; }
-  .flottant .teintes button[aria-pressed=true] { outline: 2px solid var(--vscode-focusBorder, #07f); }
   /* Choix d'un front ou d'un protocole : une colonne d'entrées, pas une
      rangée — on choisit dans une liste, on ne règle pas plusieurs champs. */
   .flottant--liste { flex-direction: column; align-items: stretch; gap: 2px; max-width: 240px; }
@@ -400,6 +397,10 @@ export class AnalyseurPanel {
       <option value="1000">1 kHz</option>
     </select>
   </label>
+  <!-- Flèches : reculer ou avancer d'une demi-fenêtre sans toucher au zoom
+       (Frank, 23/09). Les touches ← → du clavier font la même chose. -->
+  <button id="gauche" type="button" title="${l.t('Move back in time by half a window. The Left arrow key does the same.')}">◀</button>
+  <button id="droite" type="button" title="${l.t('Move forward in time by half a window. The Right arrow key does the same.')}">▶</button>
   <!-- Deux boutons nommés en clair : « Fit » et « Follow » ne disaient pas ce
        qu'ils font une fois dans un analyseur (retour Frank, .91). -->
   <button id="tout" type="button" title="${l.t('Zoom out until the whole capture, from the start to the last edge, fits the window.')}">${l.t('Whole capture')}</button>
@@ -407,6 +408,10 @@ export class AnalyseurPanel {
   <!-- L'export lit le journal de session côté hôte : la page ne fait que le
        demander, elle ne détient pas la mesure entière. -->
   <button id="exporter" type="button" title="${l.t('Save every edge measured since the simulation started to a CSV file: time in milliseconds, channel, pin, name and level. Sampling does not apply: the file holds the raw edges.')}">${l.t('Export CSV')}</button>
+  <!-- Voies masquées : leur menu vit sur la piste, qui a disparu avec elles.
+       Ce bouton est le chemin du retour (Frank, 23/09) ; la page le montre,
+       avec le compte, dès qu'une voie est masquée. -->
+  <button id="reafficher" type="button" hidden title="${l.t('Show again every channel hidden from its settings menu.')}"></button>
   <span id="etat"></span>
 </div>
 <canvas id="trace"></canvas>

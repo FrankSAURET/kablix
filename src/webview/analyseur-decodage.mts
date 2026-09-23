@@ -121,11 +121,8 @@ export interface ReglageVoie {
    * nom automatique, qui suit la pince quand on la déplace.
    */
   nom?: string;
-  /**
-   * Indice de teinte dans la palette des voies. Absent = la teinte de l'indice
-   * de la voie, celle de la pince sur la planche.
-   */
-  couleur?: number;
+  // `couleur` (teinte choisie) n'existe plus depuis v2026.9.4.130 : une voie a
+  // la teinte de sa pince. Un ancien .projix qui la porte est relu sans elle.
   /**
    * Niveau au repos. `1` inverse la lecture : la voie est dessinée et décodée
    * à l'envers, ce qu'il faut pour toute ligne ACTIVE-BAS (RESET, CS, un bus

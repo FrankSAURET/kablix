@@ -5,7 +5,8 @@
 // salves de fronts fabriquées au rythme du programme sonde-logique-uno : D8 à
 // ~2,4 kHz, D9 deux fois plus lent. On mesure les pixels de chaque piste.
 //
-// Usage : node scripts/_diag-analyseur-gestes.mjs [scenario]
+// Usage : node scripts/_diag-analyseur-gestes.mjs [tous|trig|proto|gigue|plafond|echant|fleches]
+// (« fleches » : ◀ ▶, touches ← → et réaffichage des voies masquées, v2026.9.4.130.)
 import esbuild from 'esbuild';
 import { mkdirSync, mkdtempSync, writeFileSync, existsSync, rmSync } from 'node:fs';
 import { spawn } from 'node:child_process';
@@ -93,8 +94,9 @@ try {
 					while (G.prochain[p] <= t1) {
 						G.niv[p] ^= 1;
 						s.push(G.prochain[p], G.niv[p]);
-						// Horloge lente : un front toutes les 100 ms environ.
-						G.prochain[p] += DEMI[p] * (G.lent ? 500 : 1);
+						// Horloge lente : un front toutes les 100 ms environ. G.facteur
+						// ralentit moins : quelques fronts par fenêtre de 10 ms.
+						G.prochain[p] += DEMI[p] * (G.lent ? 500 : G.facteur ?? 1);
 					}
 					if (s.length) salves[p] = s;
 				}
@@ -124,6 +126,19 @@ try {
 			return res;
 		};
 		G.repeindre = async () => { G.envoyer({ type: 'repeindre' }); await G.tick(); return G.mesure(); };
+		/** Abscisses des fronts de la piste i : colonnes peintes à mi-hauteur, regroupées. */
+		G.fronts = async (i) => {
+			G.envoyer({ type: 'repeindre' }); await G.tick();
+			const c = document.getElementById('trace');
+			const d = c.getContext('2d').getImageData(106, 22 + i * 60 + 23, c.width - 106 - 14, 1).data;
+			const xs = [];
+			for (let x = 0; x < d.length / 4; x++) {
+				if (d[x * 4 + 3] <= 60) continue;
+				if (xs.length && x - xs.at(-1).fin <= 1) xs.at(-1).fin = x;
+				else xs.push({ debut: x, fin: x });
+			}
+			return xs.map((s) => 106 + (s.debut + s.fin) / 2);
+		};
 		G.voies = () => G.envoyer({ type: 'voies', voies: [
 			{ voie: 0, nom: 'horloge', pin: 'D8', probleme: null, analogique: false },
 			{ voie: 1, nom: '9', pin: 'D9', probleme: null, analogique: false },
@@ -243,6 +258,82 @@ try {
 			const sig = new Set(traces.map((m) => `${m[0].h}/${m[0].b}`)).size;
 			console.log(`t=${(await ev('window.__g.t')).toFixed(0).padStart(6)} ms  images=${traces.length} plates v0=${plats} v1=${plats9} signatures v0=${sig}  dernière ${JSON.stringify(traces.at(-1))}`);
 		}
+	}
+	if (scenario === 'fleches') {
+		// Flèches ◀ ▶, touches ← → et réaffichage des voies masquées (Frank,
+		// 23/09), à la vraie souris et au vrai clavier. Horloge ralentie 20× :
+		// deux ou trois fronts par fenêtre de 10 ms, qu'on repère à l'abscisse.
+		const bilan = (ok, titre, detail = '') => console.log(`${ok ? '✅' : '❌'} ${titre}${detail ? '  ' + detail : ''}`);
+		const touche = async (key, code, vk) => {
+			await cdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', key, code, windowsVirtualKeyCode: vk });
+			await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: vk });
+			await attendre(120);
+		};
+		const centre = (sel) => ev(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e || e.hidden) return null; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+		const pareil = (a, b) => a.length === b.length && a.every((x, i) => Math.abs(x - b[i]) <= 1.5);
+		const plot = await ev(`document.getElementById('trace').clientWidth - 116`);
+		await ev(`(async () => { const G = window.__g; G.facteur = 20; await G.avancer(200); })()`);
+		const e0 = await ev('window.__g.fronts(0)');
+		bilan(e0.length >= 2, 'témoin : des fronts visibles sur la voie 0', JSON.stringify(e0));
+
+		const g = await centre('#gauche');
+		bilan(g !== null, 'la barre porte ◀');
+		if (g) await clic(g.x, g.y);
+		const e1 = await ev('window.__g.fronts(0)');
+		// Recul d'une demi-fenêtre : chaque front de la moitié gauche passe à
+		// droite de plot/2 pixels.
+		const attendus = e0.filter((x) => x + plot / 2 < 106 + plot - 2).map((x) => x + plot / 2);
+		bilan(attendus.length > 0 && attendus.every((x) => e1.some((y) => Math.abs(y - x) <= 2)) && !pareil(e0, e1),
+			'◀ recule d\'une demi-fenêtre', `avant ${JSON.stringify(e0)} après ${JSON.stringify(e1)} (plot ${plot})`);
+		await ev('window.__g.avancer(60)');
+		const e1b = await ev('window.__g.fronts(0)');
+		bilan(pareil(e1, e1b), '◀ coupe le suivi : 60 ms de run ne ramènent pas la vue', JSON.stringify(e1b));
+
+		// Chaque geste doit CHANGER la vue : sans cela, un défilement mort
+		// laisserait « revenir au départ » en restant sur place.
+		await touche('ArrowRight', 'ArrowRight', 39);
+		const e2 = await ev('window.__g.fronts(0)');
+		bilan(!pareil(e1, e2) && pareil(e0, e2), 'touche → revient à la fenêtre de départ', JSON.stringify(e2));
+		const d = await centre('#droite');
+		if (d) await clic(d.x, d.y);
+		const eD = await ev('window.__g.fronts(0)');
+		// Avance d'une demi-fenêtre : les fronts de la moitié droite passent à gauche.
+		const attendusD = e0.filter((x) => x - plot / 2 > 106 + 2).map((x) => x - plot / 2);
+		bilan(d !== null && attendusD.length > 0 && attendusD.every((x) => eD.some((y) => Math.abs(y - x) <= 2)) && !pareil(e0, eD),
+			'▶ avance d\'une demi-fenêtre', JSON.stringify(eD));
+		await touche('ArrowLeft', 'ArrowLeft', 37);
+		const e3 = await ev('window.__g.fronts(0)');
+		bilan(!pareil(eD, e3) && pareil(e0, e3), 'touche ← : retour exact après ▶', JSON.stringify(e3));
+
+		// Frappe dans un champ : la flèche déplace le curseur, pas la vue.
+		const z = await ev(`window.__g.zone(0, 'teinte')`);
+		await clic(z.x, z.y);
+		const champ = await centre('.flottant input[type=text], .flottant input:not([type])');
+		if (champ) await clic(champ.x, champ.y);
+		await touche('ArrowLeft', 'ArrowLeft', 37);
+		const e4 = await ev('window.__g.fronts(0)');
+		bilan(champ !== null && pareil(e0, e4), 'touche ← dans le champ du nom : la vue ne bouge pas', JSON.stringify(e4));
+		await touche('Escape', 'Escape', 27);
+
+		// Masquer la voie 1, puis la ramener par la barre.
+		const h0 = await ev(`document.getElementById('trace').clientHeight`);
+		const cache0 = await centre('#reafficher');
+		bilan(cache0 === null, 'sans voie masquée, pas de bouton de réaffichage');
+		const z1 = await ev(`window.__g.zone(1, 'teinte')`);
+		await clic(z1.x, z1.y);
+		const caseHide = await ev(`(() => { const l = [...document.querySelectorAll('.flottant label')].find((x) => x.textContent.includes('Hide')); const e = l?.querySelector('input'); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+		if (caseHide) await clic(caseHide.x, caseHide.y);
+		await ev('window.__g.repeindre()');
+		const h1 = await ev(`document.getElementById('trace').clientHeight`);
+		const texte = await ev(`document.getElementById('reafficher').hidden ? null : document.getElementById('reafficher').textContent`);
+		bilan(caseHide !== null && h1 < h0 && texte === 'Show hidden channels (1)', 'Hide : la piste part, le bouton paraît avec le compte', `hauteur ${h0} → ${h1}, bouton « ${texte} »`);
+		const r = await centre('#reafficher');
+		if (r) await clic(r.x, r.y);
+		await ev('window.__g.repeindre()');
+		const h2 = await ev(`document.getElementById('trace').clientHeight`);
+		const cache2 = await centre('#reafficher');
+		const envoi = await ev(`(() => { const m = window.__msgs.filter((x) => x.type === 'analyseurReglages').at(-1); return m?.voiesReglages?.[1]?.masquee; })()`);
+		bilan(r !== null && h2 === h0 && cache2 === null && envoi === false, 'clic sur le bouton : la voie revient, le bouton s\'efface, l\'hôte le sait', `hauteur ${h2}, masquee envoyé ${envoi}`);
 	}
 } catch (e) {
 	console.log('ÉCHEC', e?.stack ?? e);

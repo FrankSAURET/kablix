@@ -16,6 +16,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **La platine d'essai montre ses liaisons internes.** Le bouton « K » d'une platine dévoile les lamelles de cuivre cachées sous les trous,
 - **Un capteur de température DS18B20**, à télécharger dans la bibliothèque de composants, en deux versions : le boîtier TO-92 et la sonde étanche sur câble. Un curseur règle la température de −55 à +125 °C, et le capteur répond pour de bon en 1-Wire : plusieurs capteurs se branchent sur le même fil, chacun avec son adresse.
 - **La valeur d'un curseur de simulation se tape au clavier.** Un double-clic sur le curseur, ou sur le nombre affiché à côté, ouvre un champ : le point et la virgule y valent pareil. Un curseur de 44 px ne permettait pas de viser 25,5 °C sur une course de 180 degrés.
+- **L'analyseur logique se parcourt aux flèches.** Les boutons ◀ ▶ de la barre, ou les touches ← →, reculent ou avancent d'une demi-fenêtre sans changer le zoom.
+- **Une voie masquée de l'analyseur se réaffiche.** Un bouton de la barre, avec le nombre de voies masquées, les fait toutes revenir.
 
 ### Modification
 
@@ -30,6 +32,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Le tableau des composants du README suit les catégories de la palette**.
 - **La liste des composants téléchargeables est illustrée**.
 - **Le projecteur DMX PAR 38 montre son bloc de LED éteint.** La face était transparente et ses LED presque invisibles ; elle reçoit un fond blanc grisé et les LED s'y dessinent en gris clair bombé. Allumées, elles prennent toujours la couleur reçue.
+- **Une voie de l'analyseur posée sur une broche Arduino numérotée s'appelle « Pin 9 »**, et non plus « 9 ».
+- **Le choix de couleur des voies de l'analyseur est retiré.** Chaque voie garde la couleur de sa pince.
 
 ### Correction
 

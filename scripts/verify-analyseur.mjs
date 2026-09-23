@@ -1275,6 +1275,12 @@ const dhtDe = (tempC, humidity, model) => {
   const sim = readFileSync(join(root, 'src', 'webview', 'sim.mts'), 'utf8');
   check('déclenchement : plus aucun écouteur du bouton `open-analyseur`',
     !/open-analyseur/.test(sim));
+  // Broche Arduino nommée par son seul numéro : la voie s'appelle « Pin 9 »
+  // (Frank, 23/09). Les broches nommées (A0, GP14) gardent leur nom.
+  const nomVoieSim = sim.slice(sim.indexOf('function nomVoie('), sim.indexOf('\n}', sim.indexOf('function nomVoie(')));
+  check('nom de voie : une broche Arduino à numéro seul devient « Pin 9 »',
+    /if \(v\.pin && \/\^\\d\+\$\/\.test\(v\.pin\)\) return t\('Pin \{0\}', v\.pin\);/.test(nomVoieSim) &&
+      nomVoieSim.indexOf('etiquette') < nomVoieSim.indexOf("'Pin {0}'"));
   // La condition vit dans `startRun`, après le repli de la bibliothèque : on
   // vérifie qu'elle compte les voies de pince ET qu'elle ouvre l'onglet.
   // `startRun` est longue (~170 lignes) : on découpe jusqu'à la fonction
@@ -1426,9 +1432,12 @@ const dhtDe = (tempC, humidity, model) => {
     appel(nomVoie, { ...v, nomChoisi: 'SCL' }) === 'SCL');
   check('par courbe : un nom vidé revient au nom automatique',
     appel(nomVoie, { ...v, nomChoisi: '  ' }) === 'GP4');
-  check('par courbe : une teinte choisie remplace celle de l\'indice de voie',
-    appel(teinteVoie, { ...v, couleur: 5 }, false) === couleurVoie(5, false) &&
-      appel(teinteVoie, { ...v, couleur: 5 }, true) === couleurVoie(5, true));
+  // Le choix de la couleur est sorti en .130 (Frank, 23/09 : « ne sert à
+  // rien ») : la teinte suit l'indice de voie, même si un vieux .projix porte
+  // encore un champ `couleur`.
+  check('par courbe : la teinte suit TOUJOURS l\'indice de voie, un ancien choix est ignoré',
+    appel(teinteVoie, { ...v, couleur: 5 }, false) === couleurVoie(2, false) &&
+      appel(teinteVoie, { ...v, couleur: 5 }, true) === couleurVoie(2, true));
 
   // Interface : les trois volets doivent être ATTEIGNABLES. Un réglage qu'on ne
   // peut pas ouvrir n'existe pas pour l'élève.
@@ -1453,11 +1462,30 @@ const dhtDe = (tempC, humidity, model) => {
   check('par courbe : les boutons dessinés sur la piste ouvrent les trois menus',
     /vue\.boutonA\(/.test(js) && /menuVoie\(z\)/.test(js) &&
       /menuDeclenchement\(z\)/.test(js) && /menuProtocole\(z\)/.test(js));
-  check('par courbe : le panneau porte les quatre réglages d\'affichage et de seuils',
-    /r\.nom\s*=/.test(js) && /r\.couleur\s*=/.test(js) && /r\.repos\s*=/.test(js) &&
+  check('par courbe : le panneau porte les cinq réglages d\'affichage et de seuils',
+    /r\.nom\s*=/.test(js) && /r\.repos\s*=/.test(js) &&
       /r\.masquee\s*=/.test(js) && /r\.bauds\s*=/.test(js) && /r\.tolerance\s*=/.test(js));
+  check('par courbe : plus de choix de couleur dans le panneau de voie (.130)',
+    !/r\.couleur\s*=/.test(js) && !/t\('Color'\)/.test(js) && !/\.teintes/.test(page));
   check('par courbe : une voie masquée quitte la liste dessinée',
     /masquee\)/.test(js) && /voiesVisibles/.test(js));
+  // Une voie masquée emporte sa piste, donc le bouton qui ouvrait son menu :
+  // le retour passe par la barre (Frank, 23/09).
+  check('par courbe : la barre porte le bouton de réaffichage des voies masquées',
+    /id="reafficher"[^>]*hidden/.test(page) &&
+      /Show hidden channels \(\{0\}\)/.test(js) && /r\.masquee = false/.test(js));
+  check('par courbe : le bouton de réaffichage se met à jour à chaque rendu',
+    /majEtat\(\);\s*majMasquees\(\);/.test(js));
+  // Flèches ◀ ▶ et touches ← → : une demi-fenêtre, zoom intact (Frank, 23/09).
+  check('par courbe : la barre porte les flèches ◀ ▶',
+    /id="gauche"/.test(page) && /id="droite"/.test(page) &&
+      /'gauche'\)\?\.addEventListener\('click', \(\) => defiler\(-1\)\)/.test(js) &&
+      /'droite'\)\?\.addEventListener\('click', \(\) => defiler\(1\)\)/.test(js));
+  check('par courbe : les touches ← → défilent, sauf dans un champ',
+    /ArrowLeft/.test(js) && /ArrowRight/.test(js) &&
+      /closest\?\.\('input, select, textarea'\)/.test(js));
+  check('par courbe : défiler avance d\'une DEMI-fenêtre et coupe le suivi',
+    /function defiler\(sens: -1 \| 1\): void \{\s*fenetre = \{ t0: fenetre\.t0 \+ sens \* fenetre\.duree \* 0\.5, duree: fenetre\.duree \};\s*suivi = false;/.test(js));
   check('par courbe : les réglages partent à l\'hôte pour être gravés dans le .projix',
     /decodages,/.test(js) && /voiesReglages: reglagesVoies/.test(js));
 

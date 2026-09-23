@@ -28,7 +28,7 @@ La pince ne consomme rien et n'impose rien : le montage se comporte exactement c
 | ----------- | ------------------------------------------------------- | -------- |
 | `etiquette` | Nom de la voie dans l'analyseur (`horloge`, `donnees`…) | *(vide)* |
 
-L'étiquette s'affiche **sur la planche, à côté de la pince**, dans la couleur de la voie. Vide, elle est masquée et la voie prend le **nom de la broche** (`8`, `GP14`).
+L'étiquette s'affiche **sur la planche, à côté de la pince**, dans la couleur de la voie. Vide, elle est masquée et la voie prend le **nom de la broche** (`Pin 8`, `A0`, `GP14`).
 
 Un montage rouvert retrouve ses pinces là où elles étaient, avec leurs couleurs et leurs noms.
 
@@ -40,9 +40,12 @@ L'onglet montre une **piste par voie**, dans la couleur de sa pince, avec une r�
 
 - **Molette** : zoom, autour du point sous la souris.
 - **Glisser** : se promener dans l'enregistrement.
+- **Flèches ◀ ▶** de la barre, ou touches **←** **→** : recule ou avance d'une demi-fenêtre, sans changer le zoom.
 - **Survol** : un réticule donne l'instant, et le niveau (0 ou 1) de chaque voie à cet instant.
 - **Ajuster** : ramène toute la capture dans l'écran.
 - **Suivre** : recolle la vue à la fin de la capture, ce qu'elle fait d'elle-même pendant un run tant qu'on n'a pas zoomé.
+
+Sous le nom de chaque voie, la **pastille de couleur** ouvre ses réglages : nom, vitesse, tolérance, et **masquer**. Une voie masquée quitte l'écran mais garde sa capture ; tant qu'il y en a une, la barre montre un bouton qui les **réaffiche** toutes, avec leur nombre.
 
 Hors simulation, l'onglet montre la **dernière capture** de la session.
 

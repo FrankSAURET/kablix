@@ -34,7 +34,6 @@ import {
   type ReglageDecodage,
   type ReglagesVoies,
 } from './analyseur-decodage.mjs';
-import { couleurVoie, themeSombre } from './voies-couleurs.mjs';
 import { initLocale, locale, t } from './i18n.mjs';
 
 declare global {
@@ -211,6 +210,20 @@ function suivreFinDemande(): void {
 }
 
 /**
+ * Décale la vue d'une DEMI-fenêtre vers le passé (-1) ou l'avenir (+1) :
+ * flèches ◀ ▶ de la barre et touches ← → (demande de Frank, 23/09).
+ *
+ * Une demi-largeur, pas une largeur entière : la moitié de ce qu'on regardait
+ * reste à l'écran, on ne perd pas le fil d'une trame en avançant. Le zoom ne
+ * bouge pas ; le suivi de la fin s'arrête, comme au glissé.
+ */
+function defiler(sens: -1 | 1): void {
+  fenetre = { t0: fenetre.t0 + sens * fenetre.duree * 0.5, duree: fenetre.duree };
+  suivi = false;
+  dessiner();
+}
+
+/**
  * Amène la vue sur le déclenchement, au dixième de sa largeur : un peu de ce
  * qui l'a précédé, surtout ce qui l'a suivi. Le suivi de la fin s'arrête — la
  * vue doit RESTER sur l'événement qu'on a demandé de saisir.
@@ -318,7 +331,6 @@ function voiesVisibles(): VoieVue[] {
     .map((d) => ({
       ...d,
       nomChoisi: reglagesVoies[d.voie]?.nom,
-      couleur: reglagesVoies[d.voie]?.couleur,
       // Les deux boutons de la colonne de gauche lisent leur état ici : le
       // déclenchement n'appartient qu'à UNE voie, le protocole est celui du
       // décodage dont cette voie porte les données.
@@ -346,6 +358,23 @@ function rendu(): void {
     lang: locale(),
   });
   majEtat();
+  majMasquees();
+}
+
+/**
+ * Bouton « Réafficher les voies masquées ». Une voie masquée emporte sa piste,
+ * donc aussi le bouton de teinte qui ouvrait son menu — et avec lui la case
+ * « Masquer » qui l'aurait fait revenir. Sans ce bouton, rien ne la ramenait
+ * (Frank, 23/09 : « je la fais réapparaître comment ? »).
+ *
+ * Seules comptent les voies du montage : un réglage resté sur une voie
+ * disparue ne cache rien à l'écran.
+ */
+function majMasquees(): void {
+  if (!btnReafficher) return;
+  const n = diagnostics.filter((d) => reglagesVoies[d.voie]?.masquee).length;
+  btnReafficher.hidden = n === 0;
+  if (n > 0) btnReafficher.textContent = t('Show hidden channels ({0})', n);
 }
 
 /**
@@ -416,6 +445,7 @@ function calculerAnnotations(): Annotation[] {
 
 const selHorloge = document.getElementById('horloge') as HTMLSelectElement;
 const etatTexte = document.getElementById('etat') as HTMLSpanElement;
+const btnReafficher = document.getElementById('reafficher') as HTMLButtonElement | null;
 
 /** Remplit un sélecteur de voie avec les voies traçables. */
 function remplirVoies(sel: HTMLSelectElement, aucun: string): void {
@@ -471,8 +501,8 @@ function decodageDe(voie: number): ReglageDecodage | undefined {
 // Les trois boutons d'une voie (teinte, « T », « P ») sont DESSINÉS dans le
 // canvas, sous le nom de la voie : ils doivent suivre exactement la piste, qui
 // se déplace dès qu'on masque une voie. Leurs menus, eux, sont du HTML — une
-// liste déroulante, un champ de saisie et huit pastilles de couleur se font
-// mal à la main sur un canvas, et perdraient le clavier.
+// liste déroulante et des champs de saisie se font mal à la main sur un
+// canvas, et perdraient le clavier.
 //
 // Un seul panneau à la fois : ouvrir le « P » d'une voie ferme le « T » d'une
 // autre. Il se ferme au clic à côté, à la touche Échap, et dès que la vue
@@ -844,7 +874,9 @@ function zoneDe(voie: number, quoi: BoutonVoie): ZoneBouton | null {
 
 /**
  * Menu de la pastille de teinte : tous les réglages propres à la voie (nom,
- * couleur, sens au repos, masquage, vitesse, tolérance).
+ * sens au repos, masquage, vitesse, tolérance). Le choix de la couleur en est
+ * sorti en v2026.9.4.130 (Frank : « ne sert à rien ») — la pastille garde la
+ * teinte de l'indice de voie.
  *
  * Ils étaient dans la légende du haut, qui n'existe plus : régler une voie se
  * fait maintenant là où on la regarde.
@@ -852,7 +884,6 @@ function zoneDe(voie: number, quoi: BoutonVoie): ZoneBouton | null {
 function menuVoie(z: ZoneBouton): void {
   const d = diagnostics.find((x) => x.voie === z.voie);
   if (!d) return;
-  const sombre = themeSombre();
   const boite = document.createElement('div');
   boite.style.display = 'contents';
   const r = (reglagesVoies[d.voie] ??= {});
@@ -876,30 +907,6 @@ function menuVoie(z: ZoneBouton): void {
   });
   labNom.append(champNom);
   boite.append(labNom);
-
-  // Teinte : la palette des voies, pas un choix libre — les huit teintes sont
-  // celles qui se distinguent sur les deux thèmes.
-  const labTeinte = document.createElement('label');
-  labTeinte.textContent = t('Color');
-  const teintes = document.createElement('span');
-  teintes.className = 'teintes';
-  for (let i = 0; i < 8; i++) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.style.background = couleurVoie(i, sombre);
-    b.setAttribute('aria-pressed', String((r.couleur ?? d.voie) === i));
-    b.addEventListener('click', () => {
-      r.couleur = i === d.voie ? undefined : i;
-      for (const autre of teintes.querySelectorAll('button')) {
-        autre.setAttribute('aria-pressed', 'false');
-      }
-      b.setAttribute('aria-pressed', 'true');
-      change();
-    });
-    teintes.append(b);
-  }
-  labTeinte.append(teintes);
-  boite.append(labTeinte);
 
   // Niveau au repos : une ligne active-bas (RESET, CS, bus à collecteur ouvert)
   // se lit à l'envers. Sans ce réglage l'élève lit le complément de ses octets.
@@ -1005,6 +1012,15 @@ document.addEventListener(
 );
 window.addEventListener('keydown', (ev) => {
   if (ev.key === 'Escape') fermerPanneau();
+  // ← → : défilement d'une demi-fenêtre, comme les flèches de la barre. Pas
+  // quand la frappe va à un champ : la flèche y déplace le curseur du nom de
+  // voie, ou change l'échantillonnage dans sa liste.
+  if (ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight') return;
+  if (ev.ctrlKey || ev.altKey || ev.metaKey) return;
+  const cible = ev.target as HTMLElement | null;
+  if (cible?.closest?.('input, select, textarea')) return;
+  ev.preventDefault();
+  defiler(ev.key === 'ArrowLeft' ? -1 : 1);
 });
 
 // --- Entrées de l'hôte -------------------------------------------------------
@@ -1251,8 +1267,15 @@ selHorloge.addEventListener('change', () => {
   dessiner();
   envoyerReglages();
 });
+document.getElementById('gauche')?.addEventListener('click', () => defiler(-1));
+document.getElementById('droite')?.addEventListener('click', () => defiler(1));
 document.getElementById('tout')?.addEventListener('click', ajuster);
 document.getElementById('suivre')?.addEventListener('click', suivreFinDemande);
+btnReafficher?.addEventListener('click', () => {
+  for (const r of Object.values(reglagesVoies)) if (r) r.masquee = false;
+  dessiner();
+  envoyerReglages();
+});
 // L'export n'emporte rien de la page : c'est l'hôte qui détient la mesure
 // entière, dans son journal de session (voir AnalyseurVersHote).
 document.getElementById('exporter')?.addEventListener('click', () => {

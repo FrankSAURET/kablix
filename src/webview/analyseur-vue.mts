@@ -92,12 +92,6 @@ export interface VoieVue {
    */
   nomChoisi?: string;
   /**
-   * Indice de teinte à prendre dans la palette, quand l'élève a voulu une
-   * autre couleur que celle de son indice de voie. Absent = la teinte de la
-   * pince, qui reste le lien visuel avec le schéma.
-   */
-  couleur?: number;
-  /**
    * Sens de déclenchement RÉGLÉ SUR CETTE VOIE, ou null si elle ne déclenche
    * pas. Le bouton de la colonne montre alors une marche montante ou
    * descendante à la place de son « T ».
@@ -136,9 +130,13 @@ export interface TextesVue {
   enAttente: string;
 }
 
-/** Teinte effective d'une voie : celle qu'on lui a choisie, sinon la sienne. */
+/**
+ * Teinte d'une voie : celle de sa pince sur la planche, toujours. C'est le lien
+ * visuel entre la courbe et la sonde ; le choix d'une autre teinte a été retiré
+ * (Frank, 23/09 : « ne sert à rien »).
+ */
 export function teinteVoie(vv: VoieVue, sombre: boolean): string {
-  return couleurVoie(vv.couleur ?? vv.voie, sombre);
+  return couleurVoie(vv.voie, sombre);
 }
 
 /** Nom effectif d'une voie : celui qu'on lui a donné, sinon l'automatique. */

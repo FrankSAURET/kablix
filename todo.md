@@ -1,14 +1,6 @@
 # À faire
 
 1. Analyseur logique
-    1. Rajoute des fleches gauche et droite qui permettent de se déplacer dans la courbe.
-    1. je ne vois pas à quoi sert "idle high" . Explique.
-    1. Le changement de couleur dans les courbes ne sert à rien supprime le
-    1. Si je cache une courbe (hide) je la fait réapparaitre comment ?
-    1. 
-    1. 
-    1. Sonde-logique-uno
-        1. pour les pattes arduino désignées par leur numéro tu notera Pin 9 plutot que seulement 9
     1. DHT11-pico
         1. je ne vois pas les valeurs s'afficher. juste départ.
     1. DMX-Pico
@@ -22,6 +14,19 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.4.130
+1. ✅ **Analyseur : flèches ◀ ▶ dans la barre, touches ← → au clavier** (Frank : « des flèches gauche et droite qui permettent de se déplacer dans la courbe »). `defiler(±1)` décale la fenêtre d'une DEMI-largeur — la moitié de ce qu'on regardait reste à l'écran —, zoom intact, suivi de la fin coupé comme au glissé. Les touches sont ignorées quand la frappe va à un champ (nom de voie, liste d'échantillonnage) ou avec Ctrl/Alt/Méta.
+2. ✅ **Voies masquées : bouton de retour dans la barre** (Frank : « si je cache une courbe, je la fais réapparaître comment ? »). Réponse honnête : on ne pouvait pas — la case « Hide » vit dans le menu de la pastille de teinte, qui disparaît avec la piste. Nouveau bouton `#reafficher` (« Show hidden channels (n) »), caché tant qu'aucune voie du montage n'est masquée, remis à jour à chaque rendu (`majMasquees`) ; un clic démasque tout et envoie les réglages à l'hôte (gravés dans le `.projix`).
+3. ✅ **Choix de couleur des voies retiré** (Frank : « ne sert à rien »). Bloc Teinte sorti du menu de voie, `couleur` retiré de `VoieVue` et de `ReglageVoie`, `teinteVoie` rend toujours la teinte de l'indice de voie (un vieux `.projix` qui porte encore `couleur` est ignoré), CSS `.teintes` de l'onglet supprimé.
+4. ✅ **« Pin 9 » au lieu de « 9 »** (sonde-logique-uno) : `nomVoie` de [sim.mts](src/webview/sim.mts) nomme `Pin {0}` une broche au numéro seul ; `A0`, `GP14` et les étiquettes posées par l'élève ne changent pas. Vaut aussi pour la colonne « nom » de l'export CSV.
+5. ℹ️ **« Idle high » expliqué à Frank** (réponse dans la conversation) : la case INVERSE la voie, pour lire une ligne de polarité inversée. Son nom trompe — une ligne UART, 1-Wire ou DMX est déjà au repos haut, et cocher la case y casse le décodage. Renommage proposé (« Invert »), en attente de sa décision.
+6. ✅ **Fiche d'aide FR** [sonde-logique.md](docs/fr/composants/sonde-logique.md) : nom par défaut `Pin 8`, flèches et touches, réglages de voie et bouton de réaffichage.
+7. ✅ **Bancs** : [verify-analyseur.mjs](scripts/verify-analyseur.mjs) adapté (la teinte suit toujours l'indice, plus de `r.couleur`) et 7 contrôles de plus (plus de choix de couleur, bouton de réaffichage, mise à jour au rendu, flèches, touches hors champ, demi-fenêtre, « Pin {0} »). Scénario `fleches` dans [_diag-analyseur-gestes.mjs](scripts/_diag-analyseur-gestes.mjs), **vraie souris et vrai clavier** en CDP : ◀ décale les fronts de plot/2 px, → revient au pixel près, ▶ puis ← aller-retour exact, ← dans le champ du nom ne bouge rien, Hide → piste partie et bouton « (1) », clic sur le bouton → piste revenue, bouton effacé, `masquee: false` envoyé.
+8. ✅ **Contre-épreuves dans la source** : défilement à 0 et `majMasquees()` retiré du rendu → 6 rouges (◀, →, ▶, ←, Hide, réaffichage) ; garde des champs retirée → « ← dans le champ du nom » rouge. Source remise, tout vert.
+9. ⏳ Traduction FR des nouvelles chaînes (info-bulles des flèches, « Show hidden channels ({0}) » et son info-bulle, « Pin {0} ») : lot d'avant publication.
 
 ---
 

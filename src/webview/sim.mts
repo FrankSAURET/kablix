@@ -1678,6 +1678,9 @@ function nomVoie(v: LogicProbeVoie): string {
   if (v.etiquette) return v.etiquette;
   // Sans étiquette, le nom dérive de la broche écoutée — c'est la sonde qui sait
   // où elle est posée, pas l'élève qui doit le retaper.
+  // Broche Arduino désignée par son seul numéro : « Pin 9 », pas « 9 » (Frank,
+  // 23/09). Un nombre nu se lit comme une valeur, pas comme une patte.
+  if (v.pin && /^\d+$/.test(v.pin)) return t('Pin {0}', v.pin);
   return v.pin ?? t('unclipped');
 }
 
