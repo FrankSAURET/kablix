@@ -7,6 +7,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 ### Nouveauté
 
 - **Un analyseur logique.** Une nouvelle **sonde logique** — un petit grip-fil — se **pose** sur la pastille d'une broche, éventuellement sans aucun fil, ou s'y relie par un cordon. L'analyseur **décode l'I²C (TWI), le SPI, l'UART, le 1-Wire, les capteurs DHT11/DHT22 et le DMX512** — octets et repères de trame s'écrivent sous les créneaux ; 
+- **La mesure de l'analyseur logique s'exporte en CSV.** Le bouton « Export CSV » de l'onglet enregistre tous les fronts mesurés depuis le lancement : temps, voie, broche, nom et niveau. Il marche aussi en pleine simulation.
 - **Une ligne « Paramètres » dans le menu hamburger** : elle ouvre les réglages de Kablix.
 - **L'aide a un sommaire** et **un moteur de recherche**. **Les sections de l'aide se replient**.
 - **La bibliothèque et le panneau Propriétés/Variables se replient** par la petite flèche de leur bord. .

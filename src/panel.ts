@@ -1604,7 +1604,8 @@ export class SimulatorPanel {
     };
   }
 
-  /** Ce que l'onglet renvoie : ses réglages, qui appartiennent au projet. */
+  /** Ce que l'onglet renvoie : ses réglages, qui appartiennent au projet, et
+   *  ses demandes d'export. */
   private surReglagesAnalyseur(m: AnalyseurVersHote): void {
     if (m.type === 'analyseurReglages') {
       // Réglages de l'instrument : ils appartiennent au projet (personne ne
@@ -1618,6 +1619,49 @@ export class SimulatorPanel {
           echantillonnage: m.echantillonnage,
         };
       });
+    } else if (m.type === 'analyseurExport') {
+      void this.exporterMesureAnalyseur();
+    }
+  }
+
+  /**
+   * Export de la mesure de l'analyseur en CSV. Le journal de session est DÉJÀ
+   * ce CSV, écrit au fil de l'eau : on le recopie tel quel, sans conversion.
+   * C'est aussi pourquoi l'export ne dépend ni de l'onglet (qui ne garde qu'une
+   * capture rabotée) ni de l'arrêt de la simulation — il marche en plein run.
+   */
+  private async exporterMesureAnalyseur(): Promise<void> {
+    const csv = AnalyseurJournal.existant(this.analyseurCle())?.lire();
+    if (csv === undefined) {
+      vscode.window.showInformationMessage(
+        l10n.t('Kablix: no measurement to export yet. Clip probes onto the circuit and run the simulation first.')
+      );
+      return;
+    }
+    // Proposé À CÔTÉ du .projix : la mesure se range avec son montage. Un
+    // projet jamais enregistré n'a pas de dossier, on se rabat sur l'espace de
+    // travail comme l'export du traceur.
+    const nom = `${this.projectDisplayName() ?? 'kablix'}-${l10n.t('analyzer')}.csv`;
+    const folders = vscode.workspace.workspaceFolders;
+    const defaultUri =
+      this.projectUri?.scheme === 'file'
+        ? vscode.Uri.joinPath(this.projectUri, '..', nom)
+        : folders?.length
+          ? vscode.Uri.joinPath(folders[0].uri, nom)
+          : vscode.Uri.file(nom);
+    const target = await vscode.window.showSaveDialog({
+      defaultUri,
+      filters: { [l10n.t('CSV measurements')]: ['csv'] },
+      title: l10n.t('Export the logic analyzer measurement (CSV)'),
+    });
+    if (!target) return;
+    try {
+      await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(csv));
+      vscode.window.showInformationMessage(l10n.t('Kablix: measurements exported to {0}', target.fsPath));
+    } catch (err) {
+      vscode.window.showErrorMessage(
+        l10n.t('Kablix: export failed: {0}', err instanceof Error ? err.message : String(err))
+      );
     }
   }
 

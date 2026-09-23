@@ -1204,6 +1204,11 @@ selHorloge.addEventListener('change', () => {
 });
 document.getElementById('tout')?.addEventListener('click', ajuster);
 document.getElementById('suivre')?.addEventListener('click', suivreFinDemande);
+// L'export n'emporte rien de la page : c'est l'hôte qui détient la mesure
+// entière, dans son journal de session (voir AnalyseurVersHote).
+document.getElementById('exporter')?.addEventListener('click', () => {
+  vscode?.postMessage({ type: 'analyseurExport' });
+});
 window.addEventListener('resize', () => dessiner());
 // Retour au premier plan : la fenêtre a pu changer de largeur pendant que
 // l'onglet était caché, et un canvas mesuré à ce moment-là l'aurait été sur une

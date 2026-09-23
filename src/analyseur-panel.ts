@@ -60,7 +60,17 @@ export type AnalyseurVersHote =
       voiesReglages: Record<string, unknown>;
       /** Fréquence d'échantillonnage simulée, en hertz ; 0 = illimitée. */
       echantillonnage: number;
-    };
+    }
+  /**
+   * L'utilisateur demande l'export de la mesure en CSV.
+   *
+   * Le message ne PORTE PAS de données : la mesure n'est pas dans la page, elle
+   * est dans le journal de session écrit au fil de l'eau côté hôte
+   * (`analyseur-journal.ts`), déjà au format CSV. La page, elle, rabote sa
+   * capture (FRONTS_MAX_PAR_VOIE) pour rester fluide : elle exporterait une
+   * mesure amputée de son début.
+   */
+  | { type: 'analyseurExport' };
 
 /** Ce que l'atelier veut faire parvenir à l'onglet. */
 export type HoteVersAnalyseur =
@@ -394,6 +404,9 @@ export class AnalyseurPanel {
        qu'ils font une fois dans un analyseur (retour Frank, .91). -->
   <button id="tout" type="button" title="${l.t('Zoom out until the whole capture, from the start to the last edge, fits the window.')}">${l.t('Whole capture')}</button>
   <button id="suivre" type="button" title="${l.t('Keep the window on the last captured edges: the view scrolls by itself while the simulation runs. Zooming with the wheel turns it off.')}">${l.t('Follow live')}</button>
+  <!-- L'export lit le journal de session côté hôte : la page ne fait que le
+       demander, elle ne détient pas la mesure entière. -->
+  <button id="exporter" type="button" title="${l.t('Save every edge measured since the simulation started to a CSV file: time in milliseconds, channel, pin, name and level. Sampling does not apply: the file holds the raw edges.')}">${l.t('Export CSV')}</button>
   <span id="etat"></span>
 </div>
 <canvas id="trace"></canvas>

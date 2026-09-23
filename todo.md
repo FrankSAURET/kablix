@@ -1,9 +1,28 @@
 # À faire
+
 1. J'ai modifié changelog on pars de celui-ci maintenant.
 1. Pareil pour sonde logique.md et les doc du dsb1820
-1. Implémente le bouton exporter le csv de l'analyseur logique
+1. Analyseur logique
+    1. si je change le front de déclenchement toutes les courbes disparaissent
+    1. J'ai l'impression que si je met un déclenchement surt front, même si je le supprime il reste
+    1. Si je sélectionne un protocole la courbne se transforme en trait 
+    1. Rajoute des fleches gauche et droite qui permettent de se déplacer dans la courbe.
+    1. je ne vois pas à quoi sert "idle high" . Explique.
+    1. Le changement de couleur dans les courbes ne sert à rien supprime le
+    1. Si je cache une courbe (hide) je la fait réapparaitre comment ?
+    1. 
+    1. 
+    1. Sonde-logique-uno
+        1. pour les pattes arduino désignées par leur numéro tu notera Pin 9 plutot que seulement 9
+        1. j'ai mis un déclenchement sur front montant et un échantillonnage à 1 khz. La courbe s'affiche correctement (horloge) puis au bout d'un moment elle m'affiche des trait clignotant haut et bas. Au bout d'un momentn oin 9 fait pareil
+    1. ds18b20-pico2
+        1. si je met front descendant je vois un trait continu et je ne peux plus jamais revenir enarrière
+    1. DHT11-pico
+        1. je ne vois pas les valeurs s'afficher. juste départ.
+    1. DMX-Pico
+        1. les sondes  SD1 et Sd2 n'affichent rien    
+1. commit et push y compris des fichiers que j'ai modifié
 1. 
- 1. **Analyseur : export CSV de la mesure** (v2026.9.4.124) : le journal de session est en place et déjà au format CSV, un fichier par projet, supprimé à la fermeture. Les fronts s'écrivent au fil de l'eau (étape 1), le banc le prouve sur les vrais fichiers (étape 2) et l'affichage en direct était déjà câblé (étape 3, vérifié). **Reste à brancher la commande d'export** dans l'interface : `AnalyseurJournal.lire()` rend le CSV tel quel, il n'y a rien à convertir.
 ## fait
 
 
@@ -12,6 +31,20 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.4.128
+1. ✅ **Analyseur : la mesure s'exporte en CSV.** Bouton « Export CSV » dans la barre de l'onglet, à côté de « Follow live ». Il recopie le journal de session ([analyseur-journal.ts](src/analyseur-journal.ts)) tel quel : c'était déjà le CSV, il n'y a rien à convertir.
+2. ℹ️ **La demande ne porte aucune donnée** : la page envoie `analyseurExport`, c'est l'hôte qui lit le journal. La page rabote sa capture (`FRONTS_MAX_PAR_VOIE`, 60 000 fronts par voie) : elle aurait exporté une mesure amputée de son début. Le journal, lui, a tout.
+3. ✅ **Fichier proposé à côté du `.projix`** (`<projet>-analyzer.csv`) ; projet jamais enregistré → dossier de l'espace de travail, comme l'export du traceur. Rien de mesuré → un message le dit, pas de dialogue. Écriture refusée → message d'erreur. Aucune incidence sur le point « à enregistrer ».
+4. ✅ **Marche en plein run** : aucun arrêt de simulation nécessaire, un second export plus tard porte les fronts arrivés entre-temps. **Marche aussi depuis un onglet restauré** par VS Code au démarrage (chemin `reprendreAnalyseur`, lot .126).
+5. ℹ️ L'échantillonnage choisi dans l'onglet ne s'applique PAS au fichier : il porte les fronts bruts de la simulation. Dit dans l'info-bulle du bouton.
+6. ✅ **Banc** [verify-analyseur-export.mjs](scripts/verify-analyseur-export.mjs), 33 contrôles, deux volets. **Page** : vrai HTML de l'onglet (CSP gardée), vrai `analyseur.mts`, bouton cliqué à la **vraie souris** en CDP (port 9415) → exactement un `analyseurExport`, sans données, sans réglages. **Hôte** : vrai `panel.ts` sous faux `vscode`, mesure versée par les messages ordinaires, vrai journal sur disque → le fichier écrit est le journal **octet pour octet**. Journaux détournés dans un dossier temporaire PRIVÉ : `verify-analyseur-journal`, en parallèle, balaie les « orphelins » et emporterait les nôtres.
+7. ✅ **Contre-épreuve dans la source** (pas de `git stash`) : câblage du bouton et gestionnaire de l'hôte neutralisés → **21 rouges**, page et hôte. Source remise, `cmp` **IDENTIQUE**, banc vert.
+8. ✅ **Non-régression** : typage strict propre ; les 9 autres bancs de l'analyseur, `verify:paquet`, `verify:hygiene`, `verify:panneaux` verts. `verify:i18n` : mêmes 7 rouges qu'avant (traductions différées), avec 3 chaînes de plus dans la liste « extension ».
+9. ⏳ Traduction FR des nouvelles chaînes (bouton, info-bulle, messages, nom de fichier `analyzer`) : attend le lot d'avant publication.
+10. ⏳ **Défaut repéré, NON corrigé (hors périmètre, à trancher)** : `AnalyseurJournal.nettoyerOrphelins()`, appelé à l'activation, efface TOUS les journaux du dossier temporaire qui ne sont pas à lui. Deux fenêtres VS Code avec Kablix : l'ouverture de la seconde efface le journal vivant de la première. La suite de la mesure se réécrit dans un fichier sans en-tête, et l'export perd le début. Piste : un sous-dossier par processus (`kablix-analyseur/<pid>/`), et ne balayer que ceux dont le processus est mort.
 
 ---
 
