@@ -61,7 +61,33 @@ const { logicProbeVoies, pulseMonitorPins, partDef, partCategory, registerCustom
     'model.mjs',
   );
 const { AnalyseurCapture, VOIES_MAX, FRONTS_MAX_PAR_VOIE, RESERVE_AVANT } = await buildTo('src/webview/analyseur-capture.mts', 'capture.mjs');
-const { decoder, decoderTous, reglageComplet, rolesDe } = await buildTo('src/webview/analyseur-decodage.mts', 'decodage.mjs');
+// Le décodeur parle la langue de la webview (`t()`, v2026.9.4.133) : son paquet
+// embarque SON i18n, qu'il faut régler dans CE paquet. Le banc lit en français,
+// puis refait un tour en anglais (langue de base) plus bas.
+const { decoder, decoderTous, reglageComplet, rolesDe, initLocale } = await buildTo(
+  {
+    resolveDir: join(root, 'src/webview'),
+    contents: [
+      `export * from './analyseur-decodage.mjs';`,
+      `export { initLocale } from './i18n.mjs';`,
+    ].join('\n'),
+  },
+  'decodage.mjs',
+);
+initLocale('fr');
+/**
+ * Rend ce que `fn` produit avec le décodeur en ANGLAIS (langue de base du code),
+ * puis revient au français. Les contrôles anglais relisent le MÊME signal que
+ * leurs voisins français : seule la langue change, donc seule elle est prouvée.
+ */
+const enAnglais = (fn) => {
+  initLocale('en');
+  try {
+    return fn();
+  } finally {
+    initLocale('fr');
+  }
+};
 const { PALETTE_LIGHT, PALETTE_DARK, couleurVoie } = await buildTo('src/webview/voies-couleurs.mts', 'couleurs.mjs');
 // La vue touche au DOM à l'exécution, mais `nomVoie`/`teinteVoie` sont pures :
 // les importer ici prouve les réglages d'affichage sans rendu.
@@ -720,6 +746,10 @@ const voieDe = (voie, pin, paires, niveauInitial) => ({
     textes[0] === 'START' && textes[textes.length - 1] === 'STOP', textes.join(' | '));
   check('I²C : adresse 0x27 en écriture (0x4E sur le fil = adresse décalée + R/W)',
     textes.includes('adr 0x27 W'), textes.join(' | '));
+  const enEn = enAnglais(() => decoder(voies, { protocole: 'i2c', horloge: 0, donnees: 1 }).map((a) => a.texte));
+  check('I²C en anglais : « addr 0x27 W », START/ACK/STOP inchangés',
+    enEn.includes('addr 0x27 W') && enEn[0] === 'START' && enEn.includes('ACK') && enEn.includes('STOP'),
+    enEn.join(' | '));
   check('I²C : l\'octet de données est décodé', textes.includes('0x55'), textes.join(' | '));
   check('I²C : les deux acquittements sont lus',
     textes.filter((x) => x === 'ACK').length === 2, textes.join(' | '));
@@ -907,6 +937,10 @@ check('SPI : quatre rôles proposés (SCK, MOSI, MISO, CS)',
   check('DMX : start code non nul → trame ignorée, aucun canal publié',
     textes.some((x) => x.includes('ignoré')) && !textes.some((x) => x.startsWith('c')),
     textes.join(' | '));
+  const enEn = enAnglais(() => decoder([voieDe(0, 'DMX', fronts, 1)], { protocole: 'dmx', donnees: 0 })
+    .map((a) => a.texte));
+  check('DMX en anglais : « start 0xCC ignored », BREAK inchangé',
+    enEn.includes('start 0xCC ignored') && enEn.includes('BREAK'), enEn.join(' | '));
 }
 
 // --- UART ------------------------------------------------------------------------
@@ -1008,6 +1042,11 @@ const serieDe = (octets, bauds, bits, parite, stop, silences) => {
   check('UART : une parité fausse est signalée, et l\'octet reste affiché',
     textes.includes('parité') && textes.some((x) => x.startsWith('0x41')),
     textes.join(' | '));
+  const enEn = enAnglais(() => decoder(voies, {
+    protocole: 'uart', donnees: 0, bauds: 9600, bitsDonnees: 8, parite: 'even', bitsArret: 1,
+  }).map((a) => a.texte));
+  check('UART en anglais : la parité fausse se dit « parity »',
+    enEn.includes('parity') && !enEn.includes('parité'), enEn.join(' | '));
 }
 
 // --- 1-Wire ----------------------------------------------------------------------
@@ -1165,7 +1204,7 @@ const dhtDe = (tempC, humidity, model) => {
   check('DHT : les cinq octets relus sont EXACTEMENT ceux que le moteur a émis',
     octetsLus === attendus, `attendu ${attendus} · lu ${textes.join(' | ')}`);
   check('DHT : la mesure est rendue en clair (humidité et température)',
-    textes.some((x) => x.includes('56.7 %HR') && x.includes('23.4 °C')), textes.join(' | '));
+    textes.some((x) => x.includes('56,7 %HR') && x.includes('23,4 °C')), textes.join(' | '));
   check('DHT : la somme de contrôle est vérifiée et annoncée bonne',
     textes.some((x) => x.includes('somme ✓')) && !textes.some((x) => x.includes('SOMME ✗')),
     textes.join(' | '));
@@ -1189,15 +1228,27 @@ const dhtDe = (tempC, humidity, model) => {
   const champs = details.filter((a) => /0x/.test(a.texte));
   check('DHT : trois champs côte à côte — humidité, température, somme — chacun avec sa valeur en repli court',
     champs.length === 3 &&
-    champs[0].court === '56.7 %HR' && champs[1].court === '23.4 °C' && champs[2].court === '✓' &&
+    champs[0].court === '56,7 %HR' && champs[1].court === '23,4 °C' && champs[2].court === '✓' &&
     Math.abs(champs[0].t1 - champs[1].t0) < 1e-9 && Math.abs(champs[1].t1 - champs[2].t0) < 1e-9,
     champs.map((a) => `${a.texte} (${a.court})`).join(' | '));
   const resumes = ann.filter((a) => a.resume);
   check('DHT : un résumé couvre la trame entière et dit la mesure et la somme',
     resumes.length === 1 && champs.length === 3 &&
     Math.abs(resumes[0].t0 - champs[0].t0) < 1e-9 && Math.abs(resumes[0].t1 - champs[2].t1) < 1e-9 &&
-    resumes[0].texte === '56.7 %HR · 23.4 °C · somme ✓' && resumes[0].court === '56.7 %HR · 23.4 °C',
+    resumes[0].texte === '56,7 %HR · 23,4 °C · somme ✓' && resumes[0].court === '56,7 %HR · 23,4 °C',
     JSON.stringify(resumes));
+  // En anglais : les mêmes champs, point décimal et termes anglais. Le français
+  // ne doit pas fuir — c'était le cas quand ces textes étaient écrits en dur.
+  const annEn = enAnglais(() => decoder([voieDe(0, 'DATA', fronts, 1)], { protocole: 'dht', donnees: 0 }));
+  const textesEn = annEn.map((a) => a.texte);
+  const resumeEn = annEn.find((a) => a.resume);
+  check('DHT en anglais : départ « REQUEST », accusé « PRESENCE »',
+    textesEn.includes('REQUEST') && textesEn.includes('PRESENCE'), textesEn.join(' | '));
+  check('DHT en anglais : « 56.7 %RH · 23.4 °C · checksum ✓ », point décimal',
+    resumeEn?.texte === '56.7 %RH · 23.4 °C · checksum ✓' && resumeEn?.court === '56.7 %RH · 23.4 °C',
+    JSON.stringify(resumeEn));
+  check('DHT en anglais : aucun mot français ne reste',
+    !textesEn.some((x) => /%HR|somme|SOMME|DÉPART|PRÉSENT|\d,\d/.test(x)), textesEn.join(' | '));
   // L'humidité tient 16 bits, la température 16, la somme 8 : la frontière
   // entre deux champs tombe au début du creux de leur premier bit.
   check('DHT : le champ humidité s\'arrête là où commence le 17e bit',
@@ -1211,7 +1262,7 @@ const dhtDe = (tempC, humidity, model) => {
   const fronts = dhtDe(-12.5, 40.0, 'dht22');
   const textes = textesDht([voieDe(0, 'DATA', fronts, 1)], { protocole: 'dht', donnees: 0 });
   check('DHT22 : une température négative est lue comme telle (bit de signe, pas complément à deux)',
-    textes.some((x) => x.includes('-12.5 °C')), textes.join(' | '));
+    textes.some((x) => x.includes('-12,5 °C')), textes.join(' | '));
 }
 {
   // Même trame, même durées, LE MÊME SIGNAL : seul le réglage change. C'est tout
@@ -1265,6 +1316,9 @@ const dhtDe = (tempC, humidity, model) => {
   const casse = textesDht([voieDe(0, 'DATA', abimes, 1)], { protocole: 'dht', donnees: 0 });
   check('DHT : une somme de contrôle fausse est dénoncée',
     casse.some((x) => x.includes('SOMME ✗')), casse.join(' | '));
+  const casseEn = enAnglais(() => textesDht([voieDe(0, 'DATA', abimes, 1)], { protocole: 'dht', donnees: 0 }));
+  check('DHT en anglais : la somme fausse se dit « CHECKSUM ✗ »',
+    casseEn.some((x) => x.includes('CHECKSUM ✗')), casseEn.join(' | '));
 }
 {
   check('DHT : un seul rôle de voie, obligatoire',
@@ -1478,6 +1532,11 @@ const dhtDe = (tempC, humidity, model) => {
       justes.filter((a) => a.nature === 'erreur').length,
     justes.filter((a) => a.nature === 'erreur').length + ' → ' +
       faux.filter((a) => a.nature === 'erreur').length);
+  const fauxEn = enAnglais(() => decoder(voies, { protocole: 'dmx', donnees: 0, bauds: 166_666 })
+    .map((a) => a.texte));
+  check('par courbe : l\'erreur de cadrage se lit « cadrage » en français, « framing » en anglais',
+    faux.some((a) => a.texte === 'cadrage') && fauxEn.includes('framing') && !fauxEn.includes('cadrage'),
+    fauxEn.filter((x) => !/^c\d/.test(x)).join(' | '));
   check('par courbe : une tolérance large ravale les mêmes écarts de cadrage',
     decoder(voies, { protocole: 'dmx', donnees: 0, bauds: 166_666, tolerance: 0.9 })
       .filter((a) => a.nature === 'erreur').length <

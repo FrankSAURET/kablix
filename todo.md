@@ -12,6 +12,15 @@
 
 ---
 
+# v2026.9.4.133
+1. ✅ **Annotations des décodeurs dans la langue de VS Code** (Frank : option A). [analyseur-decodage.mts](src/webview/analyseur-decodage.mts) passe par `t()`, clé anglaise : `REQUEST` / `PRESENCE` (DHT), `checksum ✓` / `CHECKSUM ✗`, `{0} %RH`, `addr {0} {1}`, `START rep.`, `truncated`, `framing`, `parity`, `start {0} ignored`. [i18n.mts](src/webview/i18n.mts) : 11 entrées FR, identiques à l'affichage d'avant (`DÉPART`, `somme ✓`, `%HR`, `cadrage`…). Termes des normes inchangés dans les deux langues : START, STOP, ACK/NACK, BREAK, RESET, commandes 1-Wire. Variables locales `t` renommées (`tBit`, `celsius`) : elles masquaient la traduction.
+2. ✅ **Valeurs DHT22 à la virgule en français** : `56,7 %HR · 23,4 °C` (`dixiemes()` → `toLocaleString(locale())`, sans séparateur de milliers, −0 ramené à 0). Fiche [sonde-logique.md](docs/fr/composants/sonde-logique.md) alignée.
+3. ✅ **Bancs** : [verify-analyseur.mjs](scripts/verify-analyseur.mjs) construit le décodeur avec son `initLocale`, lit en français et gagne 8 contrôles anglais sur les MÊMES signaux (`enAnglais()`) : I²C, DMX, UART parité, cadrage, DHT (départ/accusé, résumé à point décimal, aucun mot français, somme fausse). [verify-analyseur-dht-vue.mjs](scripts/verify-analyseur-dht-vue.mjs) : mesure refaite sur une page par langue (même Chrome, `Page.navigate`) — en anglais aussi, rien ne se recouvre à aucun cran.
+4. ✅ **Contre-épreuves** (décodeur de HEAD, lecture seule) : verify-analyseur → 12 rouges (contrôles anglais et virgules) ; `verify-analyseur-dht-vue --ancien=analyseur-decodage` → 4 rouges, tous en anglais.
+5. ℹ️ « Idle high » gardé tel quel, « Repos haut » en français (Frank : option B).
+
+---
+
 # v2026.9.4.132
 1. ✅ **Analyseur logique traduit en français** (Frank : « Fait la traduction de l'interface de l'analyseur logique en français » — demande expresse, elle lève pour cette partie la règle « traductions avant publication »). [i18n.mts](src/webview/i18n.mts) : 37 entrées — messages du tracé, état de capture, menus « T » et « P », panneau de décodage, réglages de voie, plus la sonde (libellé, « Couleur », Ambre / Vert foncé / Bleu canard / Rose, « déjà prise par une autre sonde ») et le nom de voie (« Broche {0} », « décrochée »). [bundle.l10n.fr.json](l10n/bundle.l10n.fr.json) : 19 entrées — barre de l'onglet ([analyseur-panel.ts](src/analyseur-panel.ts)), titre de l'onglet, message et dialogue d'export CSV ([panel.ts](src/panel.ts)).
 2. ✅ **Temps de la barre d'état à la française** : « Dernière capture : 5,0 ms » au lieu de « 5.0 ms », comme la règle des temps. `majEtat` ([analyseur.mts](src/webview/analyseur.mts)) passe par `toLocaleString(locale())`, sans séparateur de milliers ; rien ne change en anglais.
@@ -20,7 +29,7 @@
 5. ✅ **Vérification visuelle** : captures Chrome headless de l'onglet en français — voies en défaut (décrochée, hors carte, alimentation), voie analogique, menus T et P, réglages de voie. Aucun texte ne déborde.
 6. ✅ CHANGELOG : entrée « L'analyseur logique est en français » ; l'entrée « Pin 9 » devient « Broche 9 ».
 7. ℹ️ **À Frank** : les annotations des décodeurs sont écrites en dur EN FRANÇAIS (`DÉPART`, `PRÉSENT`, `cadrage`, `parité`, `tronqué`, `START rép.`…) : un utilisateur anglais les voit en français. La langue de base du code étant l'anglais, il faudrait les passer par `t()` avec une clé anglaise.
-8. ℹ️ « Idle high » traduit « Repos haut », d'après le nom actuel : option A renommer « Invert » / option B garder — décision toujours en attente.
+8. ℹ️ « Idle high » traduit « Repos haut », d'après le nom actuel : option A renommer « Invert » / option B garder — Frank : garder (v2026.9.4.133).
 9. ⏳ `verify:i18n` reste rouge HORS analyseur : générateur BF, sommaire et recherche du guide, poignées de fil, panneau Variables, repli des panneaux, 3 clés du manifeste — lot d'avant publication.
 
 ---

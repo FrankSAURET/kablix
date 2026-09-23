@@ -35,6 +35,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Une voie de l'analyseur posée sur une broche Arduino numérotée s'appelle « Broche 9 »**, et non plus « 9 ».
 - **Le choix de couleur des voies de l'analyseur est retiré.** Chaque voie garde la couleur de sa pince.
 - **L'analyseur logique est en français** : barre d'outils, menus des voies, messages et noms de voie. La sonde logique et ses couleurs aussi.
+- **Les annotations des décodeurs suivent la langue de VS Code.** Elles restaient en français pour tout le monde. Les mesures du DHT22 s'écrivent avec une virgule en français (`56,7 %HR`).
 
 ### Correction
 

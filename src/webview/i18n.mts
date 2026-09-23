@@ -715,6 +715,19 @@ const FR: Record<string, string> = {
   'Baud': 'Bauds',
   'auto': 'auto',
   'Tolerance %': 'Tolérance %',
+  // Analyseur logique : annotations des décodeurs (analyseur-decodage.mts). Les
+  // termes des normes (START, STOP, ACK, BREAK, RESET) ne se traduisent pas.
+  'START rep.': 'START rép.',
+  'truncated': 'tronqué',
+  'addr {0} {1}': 'adr {0} {1}',
+  'framing': 'cadrage',
+  'start {0} ignored': 'start {0} ignoré',
+  'parity': 'parité',
+  'checksum ✓': 'somme ✓',
+  'CHECKSUM ✗': 'SOMME ✗',
+  'REQUEST': 'DÉPART',
+  'PRESENCE': 'PRÉSENT',
+  '{0} %RH': '{0} %HR',
 
   // Aide
   'In simulation: Ctrl+click keeps it pressed.': 'En simulation : Ctrl+clic le maintient enfoncé.',

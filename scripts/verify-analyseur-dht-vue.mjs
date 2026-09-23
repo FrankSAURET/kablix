@@ -71,7 +71,7 @@ const TRAME = { t0: 160 + 18.03, t1: fronts[2 * L - 2] };
 const STUB = `
 export const Uri = { joinPath: (b, ...p) => ({ fsPath: [b.fsPath, ...p].join('/'), toString() { return this.fsPath; } }) };
 export const l10n = { t: (s, ...a) => String(s).replace(/\\{(\\d+)\\}/g, (_m, i) => a[i]) };
-export const env = { language: 'en' };
+export const env = { get language() { return globalThis.__langueBanc ?? 'en'; } };
 export const window = {}; export const ViewColumn = {};
 export default { Uri, l10n, env, window, ViewColumn };
 `;
@@ -82,7 +82,14 @@ await esbuild.build({
 	alias: { vscode: join(tmp, 'vscode-stub.mjs') },
 });
 const { AnalyseurPanel } = await import(pathToFileURL(join(tmp, 'analyseur-panel.mjs')).href);
-let html = AnalyseurPanel.html({ asWebviewUri: (u) => u, cspSource: 'x:' }, { fsPath: 'W:/ext' }, 'W:/p/banc.projix');
+// Les annotations suivent la langue de VS Code (v2026.9.4.133) : une page par
+// langue, la même mesure refaite sur chacune. Le français d'abord, c'est celui
+// de Frank ; l'anglais est la langue de base du code.
+const LANGUES = ['fr', 'en'];
+const htmlDe = (langue) => {
+	globalThis.__langueBanc = langue;
+	return AnalyseurPanel.html({ asWebviewUri: (u) => u, cspSource: 'x:' }, { fsPath: 'W:/ext' }, 'W:/p/banc.projix');
+};
 
 /** Remplace à la compilation les fichiers de `--ancien` par leur version HEAD. */
 const versionHead = {
@@ -102,7 +109,6 @@ const page = await esbuild.build({
 	plugins: [versionHead],
 });
 if (ancien.length) console.log(`(contre-épreuve : ${ancien.join(', ')} en version HEAD)`);
-const nonce = /'nonce-([^']+)'/.exec(html)?.[1];
 const bundle = page.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
 // `fillText` relevé AVANT que l'onglet ne dessine : chaque texte écrit, avec sa
 // position, son alignement et sa largeur.
@@ -115,17 +121,23 @@ CanvasRenderingContext2D.prototype.fillText = function (t, x, y, ...r) {
 	window.__textes.push({ t: String(t), x, y, align: this.textAlign, w: this.measureText(String(t)).width });
 	return origine.call(this, t, x, y, ...r);
 };`;
-html = html
-	.replace('</head>', `<script nonce="${nonce}">${ESPION}</script></head>`)
-	.replace(/<script nonce="[^"]*" src="[^"]*"><\/script>/, () => `<script nonce="${nonce}">${bundle}</script>`);
-const fichierPage = join(tmp, 'onglet.html');
-writeFileSync(fichierPage, html);
+/** Page de l'onglet dans une langue, écrite sur disque ; rend son adresse file://. */
+const pageDe = (langue) => {
+	const html = htmlDe(langue);
+	const nonce = /'nonce-([^']+)'/.exec(html)?.[1];
+	const fichier = join(tmp, `onglet-${langue}.html`);
+	writeFileSync(fichier, html
+		.replace('</head>', `<script nonce="${nonce}">${ESPION}</script></head>`)
+		.replace(/<script nonce="[^"]*" src="[^"]*"><\/script>/, () => `<script nonce="${nonce}">${bundle}</script>`));
+	return `file:///${fichier.replace(/\\/g, '/')}`;
+};
+const pages = Object.fromEntries(LANGUES.map((l) => [l, pageDe(l)]));
 
 const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
 	'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 const proc = spawn(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox', '--force-device-scale-factor=1',
 	`--remote-debugging-port=${PORT}`, `--user-data-dir=${join(tmp, 'profil')}`, '--window-size=1200,700',
-	`file:///${fichierPage.replace(/\\/g, '/')}`], { stdio: 'ignore' });
+	pages[LANGUES[0]]], { stdio: 'ignore' });
 let ws;
 try {
 	let liste = null;
@@ -146,79 +158,88 @@ try {
 		if (r.result?.exceptionDetails) throw new Error(JSON.stringify(r.result.exceptionDetails).slice(0, 600));
 		return r.result?.result?.value;
 	};
-	for (let i = 0; i < 40 && !(await ev(`(window.__msgs || []).some((m) => m.type === 'analyseurPret')`)); i++) await attendre(250);
-
-	// La capture arrive comme à la réouverture d'un .projix : décodage DHT11 réglé
-	// sur la voie de la pince, cadrage « toute la capture ».
-	const etat = {
-		voies: [{ voie: 0, nom: 'DATA', pin: 'GP22', fronts, niveauInitial: 1 }],
-		decodages: [{ protocole: 'dht', id: 'd1', donnees: 0, modele: 'dht11' }],
-	};
-	await ev(`window.postMessage(${JSON.stringify({ type: 'restaure', etat })}, '*')`);
-	await attendre(200);
-
-	/** Textes écrits sous la piste 0 (bande des annotations) au prochain rendu forcé. */
-	const Y_ANNOT = 22 + 46 + 1 + (14 - 3) / 2;
-	const releve = async () => {
-		await ev(`window.__textes = []`);
-		await ev(`window.postMessage({ type: 'repeindre' }, '*')`);
-		await attendre(60);
-		const t = await ev('window.__textes');
-		return t.filter((x) => Math.abs(x.y - Y_ANNOT) < 0.6).map((x) => {
-			const g = x.align === 'center' ? x.x - x.w / 2 : x.align === 'right' ? x.x - x.w : x.x;
-			return { t: x.t, g, d: g + x.w };
-		});
-	};
-	const r = await ev(`(() => { const r = document.getElementById('trace').getBoundingClientRect(); return { left: r.left, top: r.top, w: r.width }; })()`);
-	// Abscisse du milieu de la trame visée dans le cadrage « toute la capture »
-	// (`ajuster()` : 1 % de marge de chaque côté).
-	const etendue = T_FIN - T_DEBUT;
-	const f0 = { t0: T_DEBUT - etendue * 0.01, duree: etendue * 1.02 };
-	const plot = r.w - 104 - 12;
-	const tMilieu = (TRAME.t0 + TRAME.t1) / 2;
-	const xAncre = r.left + 104 + ((tMilieu - f0.t0) / f0.duree) * plot;
-	const molette = async () => {
-		const p = { x: Math.round(xAncre), y: Math.round(r.top + 40) };
-		await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', ...p, buttons: 0 });
-		await cdp('Input.dispatchMouseEvent', { type: 'mouseWheel', ...p, deltaX: 0, deltaY: -100 });
-		await attendre(40);
+	/** Ce que la vue doit écrire, par langue : seuls les mots changent, pas la mesure. */
+	const ATTENDUS = {
+		fr: { depart: 'DÉPART', hr: '50 %HR', resume: '50 %HR · 22 °C · somme ✓', champs: ['0x32 0x00 · 50 %HR', '0x16 0x00 · 22 °C', '0x48 · somme ✓'] },
+		en: { depart: 'REQUEST', hr: '50 %RH', resume: '50 %RH · 22 °C · checksum ✓', champs: ['0x32 0x00 · 50 %RH', '0x16 0x00 · 22 °C', '0x48 · checksum ✓'] },
 	};
 
-	const RESUME = '50 %HR · 22 °C · somme ✓';
-	const CHAMPS = ['0x32 0x00 · 50 %HR', '0x16 0x00 · 22 °C', '0x48 · somme ✓'];
-	const CRANS = 19; // 330 ms × 0,8^19 ≈ 4,7 ms : la trame entière, bits lisibles
-	const parCran = [];
-	for (let k = 0; k <= CRANS; k++) {
-		if (k > 0) await molette();
-		parCran.push(await releve());
-	}
-	const dire = (l) => l.map((x) => `« ${x.t} »`).join(' ');
-	if (process.argv.includes('--detail')) parCran.forEach((l, k) => console.log(`  cran ${String(k).padStart(2)} : ${l.map((x) => `${x.t} [${x.g.toFixed(0)}-${x.d.toFixed(0)}]`).join(' | ')}`));
+	for (const langue of LANGUES) {
+		if (langue !== LANGUES[0]) await cdp('Page.navigate', { url: pages[langue] });
+		// `lang` de la page : sans lui, on relirait l'onglet PRÉCÉDENT, encore prêt.
+		for (let i = 0; i < 40 && !(await ev(`document.documentElement.lang === '${langue}' && (window.__msgs || []).some((m) => m.type === 'analyseurPret')`).catch(() => false)); i++) await attendre(250);
 
-	console.log('Onglet de l\'analyseur, trame DHT11 (50 %HR, 22 °C), zoom à la molette');
-	check('témoin : la molette zoome vraiment (les textes du dernier cran diffèrent du premier)',
-		dire(parCran[0]) !== dire(parCran[CRANS]), `${dire(parCran[0])} / ${dire(parCran[CRANS])}`);
-	const large = parCran[0];
-	check('toute la capture : le DÉPART est écrit', large.some((x) => x.t === 'DÉPART'), dire(large));
-	check(`toute la capture : la mesure est écrite en clair (« ${RESUME} »)`,
-		large.some((x) => x.t === RESUME), dire(large));
-	const muets = parCran
-		.map((l, k) => ({ k, l }))
-		.filter(({ l }) => !(l.some((x) => x.t.includes('50 %HR')) && l.some((x) => x.t.includes('22 °C'))));
-	check('à CHAQUE cran de zoom, l\'humidité ET la température sont écrites',
-		muets.length === 0, muets.map(({ k, l }) => `cran ${k} : ${dire(l) || 'rien'}`).join(' · '));
-	const pres = parCran[CRANS];
-	check('de près : les trois champs écrits en entier, octets et valeur, sans résumé',
-		CHAMPS.every((c) => pres.some((x) => x.t === c)) && !pres.some((x) => x.t === RESUME), dire(pres));
-	const chevauchements = [];
-	parCran.forEach((l, k) => {
-		for (let i = 0; i < l.length; i++) {
-			for (let j = i + 1; j < l.length; j++) {
-				if (l[i].g < l[j].d - 0.5 && l[j].g < l[i].d - 0.5) chevauchements.push(`cran ${k} : « ${l[i].t} » / « ${l[j].t} »`);
-			}
+		// La capture arrive comme à la réouverture d'un .projix : décodage DHT11 réglé
+		// sur la voie de la pince, cadrage « toute la capture ».
+		const etat = {
+			voies: [{ voie: 0, nom: 'DATA', pin: 'GP22', fronts, niveauInitial: 1 }],
+			decodages: [{ protocole: 'dht', id: 'd1', donnees: 0, modele: 'dht11' }],
+		};
+		await ev(`window.postMessage(${JSON.stringify({ type: 'restaure', etat })}, '*')`);
+		await attendre(200);
+
+		/** Textes écrits sous la piste 0 (bande des annotations) au prochain rendu forcé. */
+		const Y_ANNOT = 22 + 46 + 1 + (14 - 3) / 2;
+		const releve = async () => {
+			await ev(`window.__textes = []`);
+			await ev(`window.postMessage({ type: 'repeindre' }, '*')`);
+			await attendre(60);
+			const t = await ev('window.__textes');
+			return t.filter((x) => Math.abs(x.y - Y_ANNOT) < 0.6).map((x) => {
+				const g = x.align === 'center' ? x.x - x.w / 2 : x.align === 'right' ? x.x - x.w : x.x;
+				return { t: x.t, g, d: g + x.w };
+			});
+		};
+		const r = await ev(`(() => { const r = document.getElementById('trace').getBoundingClientRect(); return { left: r.left, top: r.top, w: r.width }; })()`);
+		// Abscisse du milieu de la trame visée dans le cadrage « toute la capture »
+		// (`ajuster()` : 1 % de marge de chaque côté).
+		const etendue = T_FIN - T_DEBUT;
+		const f0 = { t0: T_DEBUT - etendue * 0.01, duree: etendue * 1.02 };
+		const plot = r.w - 104 - 12;
+		const tMilieu = (TRAME.t0 + TRAME.t1) / 2;
+		const xAncre = r.left + 104 + ((tMilieu - f0.t0) / f0.duree) * plot;
+		const molette = async () => {
+			const p = { x: Math.round(xAncre), y: Math.round(r.top + 40) };
+			await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', ...p, buttons: 0 });
+			await cdp('Input.dispatchMouseEvent', { type: 'mouseWheel', ...p, deltaX: 0, deltaY: -100 });
+			await attendre(40);
+		};
+
+		const { depart: DEPART, hr: HR, resume: RESUME, champs: CHAMPS } = ATTENDUS[langue];
+		const CRANS = 19; // 330 ms × 0,8^19 ≈ 4,7 ms : la trame entière, bits lisibles
+		const parCran = [];
+		for (let k = 0; k <= CRANS; k++) {
+			if (k > 0) await molette();
+			parCran.push(await releve());
 		}
-	});
-	check('aucun texte n\'en recouvre un autre, à aucun cran', chevauchements.length === 0, chevauchements.slice(0, 4).join(' · '));
+		const dire = (l) => l.map((x) => `« ${x.t} »`).join(' ');
+		if (process.argv.includes('--detail')) parCran.forEach((l, k) => console.log(`  cran ${String(k).padStart(2)} : ${l.map((x) => `${x.t} [${x.g.toFixed(0)}-${x.d.toFixed(0)}]`).join(' | ')}`));
+
+		console.log(`Onglet de l'analyseur en « ${langue} », trame DHT11 (${HR}, 22 °C), zoom à la molette`);
+		check('témoin : la molette zoome vraiment (les textes du dernier cran diffèrent du premier)',
+			dire(parCran[0]) !== dire(parCran[CRANS]), `${dire(parCran[0])} / ${dire(parCran[CRANS])}`);
+		const large = parCran[0];
+		check(`toute la capture : le départ est écrit (« ${DEPART} »)`, large.some((x) => x.t === DEPART), dire(large));
+		check(`toute la capture : la mesure est écrite en clair (« ${RESUME} »)`,
+			large.some((x) => x.t === RESUME), dire(large));
+		const muets = parCran
+			.map((l, k) => ({ k, l }))
+			.filter(({ l }) => !(l.some((x) => x.t.includes(HR)) && l.some((x) => x.t.includes('22 °C'))));
+		check('à CHAQUE cran de zoom, l\'humidité ET la température sont écrites',
+			muets.length === 0, muets.map(({ k, l }) => `cran ${k} : ${dire(l) || 'rien'}`).join(' · '));
+		const pres = parCran[CRANS];
+		check('de près : les trois champs écrits en entier, octets et valeur, sans résumé',
+			CHAMPS.every((c) => pres.some((x) => x.t === c)) && !pres.some((x) => x.t === RESUME), dire(pres));
+		const chevauchements = [];
+		parCran.forEach((l, k) => {
+			for (let i = 0; i < l.length; i++) {
+				for (let j = i + 1; j < l.length; j++) {
+					if (l[i].g < l[j].d - 0.5 && l[j].g < l[i].d - 0.5) chevauchements.push(`cran ${k} : « ${l[i].t} » / « ${l[j].t} »`);
+				}
+			}
+		});
+		check('aucun texte n\'en recouvre un autre, à aucun cran', chevauchements.length === 0, chevauchements.slice(0, 4).join(' · '));
+	}
 } catch (e) {
 	echecs++;
 	console.log('  ❌ ÉCHEC', e?.stack ?? e);

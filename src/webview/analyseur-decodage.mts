@@ -16,8 +16,14 @@
 // CE QUI SORT. Chaque décodeur rend une liste d'ANNOTATIONS : un intervalle de
 // temps, un texte court, et une nature qui dit comment le colorer. La vue les
 // pose sous les créneaux, sans rien savoir des protocoles.
+//
+// LA LANGUE. Les textes passent par `t()`, clé anglaise comme partout dans le
+// code (Frank, 23/09) ; les termes des normes (START, STOP, ACK, BREAK, RESET,
+// commandes 1-Wire) restent tels quels dans les deux langues. Sans
+// `initLocale()` — bancs en Node —, t() rend l'anglais.
 
 import type { Front, VoieCapture } from './analyseur-capture.mjs';
+import { locale, t } from './i18n.mjs';
 
 /** Nature d'une annotation : la vue s'en sert pour le style. */
 export type NatureAnnotation =
@@ -265,7 +271,7 @@ function decoderI2c(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
         out.push({
           t0: fs.t,
           t1: fs.t,
-          texte: dansTrame ? 'START rép.' : 'START',
+          texte: dansTrame ? t('START rep.') : 'START',
           nature: 'cadre',
         });
         dansTrame = true;
@@ -276,7 +282,7 @@ function decoderI2c(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
         if (!dansTrame) continue; // SDA remonte hors trame : pas un STOP
         out.push({ t0: fs.t, t1: fs.t, texte: 'STOP', nature: 'cadre' });
         if (bits > 0) {
-          out.push({ t0: debutOctet, t1: fs.t, texte: 'tronqué', nature: 'erreur' });
+          out.push({ t0: debutOctet, t1: fs.t, texte: t('truncated'), nature: 'erreur' });
         }
         dansTrame = false;
         attendAdresse = false;
@@ -308,7 +314,7 @@ function decoderI2c(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
           out.push({
             t0: debutOctet,
             t1: f.t,
-            texte: `adr ${hex2(adr)} ${sens}`,
+            texte: t('addr {0} {1}', hex2(adr), sens),
             nature: 'donnee',
           });
           attendAdresse = false;
@@ -482,12 +488,13 @@ function decoderDmx(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
   let slot = -1;
   let attendStart = false;
 
-  const pousserBit = (bit: 0 | 1, t: number): void => {
+  // `tBit`, pas `t` : ce nom-là est la traduction.
+  const pousserBit = (bit: 0 | 1, tBit: number): void => {
     if (count === 0) {
       if (bit === 0) {
         count = 1;
         acc = 0;
-        tOctet = t;
+        tOctet = tBit;
       }
       return; // ligne au repos
     }
@@ -500,7 +507,7 @@ function decoderDmx(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
     // repos, ce qu'il est.
     count = 0;
     if (bit !== 1) {
-      out.push({ t0: tOctet, t1: t, texte: 'cadrage', nature: 'erreur' });
+      out.push({ t0: tOctet, t1: tBit, texte: t('framing'), nature: 'erreur' });
       return;
     }
     if (attendStart) {
@@ -508,8 +515,8 @@ function decoderDmx(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
       slot = acc === 0 ? 0 : -1;
       out.push({
         t0: tOctet,
-        t1: t,
-        texte: acc === 0 ? 'start 0' : `start ${hex2(acc)} ignoré`,
+        t1: tBit,
+        texte: acc === 0 ? 'start 0' : t('start {0} ignored', hex2(acc)),
         nature: acc === 0 ? 'cadre' : 'erreur',
       });
       return;
@@ -517,7 +524,7 @@ function decoderDmx(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
     if (slot < 0) return; // trame ignorée
     slot += 1;
     if (slot > 512) return;
-    out.push({ t0: tOctet, t1: t, texte: `c${slot}=${acc}`, nature: 'donnee' });
+    out.push({ t0: tOctet, t1: tBit, texte: `c${slot}=${acc}`, nature: 'donnee' });
   };
 
   for (const f of v.fronts) {
@@ -540,7 +547,7 @@ function decoderDmx(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
     // silence donnait des octets faux sans rien dire ; on le DIT, une fois par
     // palier, et on continue de décoder — l'élève voit où ça déraille.
     if (bits > 0 && bits < MAX_BITS && Math.abs(brut - bits) > tol) {
-      out.push({ t0: f.t - duree, t1: f.t, texte: 'cadrage', nature: 'erreur' });
+      out.push({ t0: f.t - duree, t1: f.t, texte: t('framing'), nature: 'erreur' });
     }
     for (let i = 0; i < bits; i++) {
       pousserBit(fini, (f.t - duree) + (i + 1) * bitMs);
@@ -650,7 +657,7 @@ function decoderUart(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
     finCourante = t0 + bitMs * (rang + nbStop - 1 + (1 - tol));
 
     if (stop === 0) {
-      out.push({ t0, t1, texte: 'cadrage', nature: 'erreur' });
+      out.push({ t0, t1, texte: t('framing'), nature: 'erreur' });
       continue;
     }
     const car = litteral(acc);
@@ -661,7 +668,7 @@ function decoderUart(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
       nature: 'donnee',
     });
     if (pariteFausse) {
-      out.push({ t0, t1, texte: 'parité', nature: 'erreur' });
+      out.push({ t0, t1, texte: t('parity'), nature: 'erreur' });
     }
   }
   return out;
@@ -865,7 +872,7 @@ function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
     const temp = temperatureDht(o, modele);
     const somme = (o[0]! + o[1]! + o[2]! + o[3]!) & 0xff;
     const ok = somme === o[4]!;
-    const verdict = ok ? 'somme ✓' : 'SOMME ✗';
+    const verdict = ok ? t('checksum ✓') : t('CHECKSUM ✗');
     out.push(
       {
         t0: debuts[0]!,
@@ -913,7 +920,7 @@ function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
       // Signal de départ du maître : ce qui traînait avant n'appartient pas à
       // la trame qui commence.
       clore(f.t);
-      out.push({ t0: f.t, t1: montant.t, texte: 'DÉPART', nature: 'cadre' });
+      out.push({ t0: f.t, t1: montant.t, texte: t('REQUEST'), nature: 'cadre' });
       attendAccuse = true;
       continue;
     }
@@ -924,7 +931,7 @@ function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
     const hautUs = descendant ? (descendant.t - montant.t) / usMs : Infinity;
 
     if (attendAccuse) {
-      out.push({ t0: f.t, t1: montant.t, texte: 'PRÉSENT', nature: 'cadre' });
+      out.push({ t0: f.t, t1: montant.t, texte: t('PRESENCE'), nature: 'cadre' });
       attendAccuse = false;
       enTrame = true;
       tTrame = montant.t;
@@ -947,11 +954,19 @@ function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
   return out;
 }
 
+/** Une décimale, séparateur de la langue (« 56,7 » en français). */
+function dixiemes(x: number): string {
+  // `+ 0` : un −0 (0x8000, signe seul) s'écrirait « -0,0 » ; toFixed disait « 0.0 ».
+  return (x + 0).toLocaleString(locale(), {
+    minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false,
+  });
+}
+
 /** Humidité lue dans les octets 0-1 d'une trame DHT. */
 function humiditeDht(o: number[], modele: 'dht11' | 'dht22'): string {
   // Le DHT11 ne code que des entiers : l'octet des décimales vaut 0.
-  if (modele === 'dht11') return `${o[0]} %HR`;
-  return `${(((o[0]! << 8) | o[1]!) / 10).toFixed(1)} %HR`;
+  if (modele === 'dht11') return t('{0} %RH', o[0]!);
+  return t('{0} %RH', dixiemes(((o[0]! << 8) | o[1]!) / 10));
 }
 
 /** Température lue dans les octets 2-3 d'une trame DHT. */
@@ -960,8 +975,8 @@ function temperatureDht(o: number[], modele: 'dht11' | 'dht22'): string {
   const brut = (o[2]! << 8) | o[3]!;
   // Bit 15 = signe, et le reste est une valeur ABSOLUE — pas un complément à
   // deux : lire -0x8001 comme un entier signé donnerait +3276,7 °C.
-  const t = ((brut & 0x8000 ? -1 : 1) * (brut & 0x7fff)) / 10;
-  return `${t.toFixed(1)} °C`;
+  const celsius = ((brut & 0x8000 ? -1 : 1) * (brut & 0x7fff)) / 10;
+  return `${dixiemes(celsius)} °C`;
 }
 
 // --- Entrée publique ---------------------------------------------------------
