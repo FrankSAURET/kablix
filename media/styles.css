@@ -2918,7 +2918,13 @@ body.vscode-light .inspector__ref--nouveau {
   padding: 0.6rem 0.8rem;
   font-family: var(--vscode-editor-font-family, monospace);
   font-size: 0.8rem;
-  background: var(--vscode-textCodeBlock-background, rgba(0, 0, 0, 0.3));
+  /* MÊME fond que les panneaux Propriétés et Composants (.inspector, .library).
+     L'ancien `--vscode-textCodeBlock-background` est TRANSLUCIDE : sa teinte
+     visible était un mélange avec le fond de l'éditeur, elle changeait donc de
+     thème en thème et même de version de VS Code en version, selon que la
+     variable était fournie ou non (repli rgba(0,0,0,0.3)). Deux fonds très
+     différents pour le même code. */
+  background: var(--vscode-editorWidget-background, #f7f9f9);
   border-radius: 6px;
   white-space: pre-wrap;
 }
@@ -3044,7 +3050,8 @@ body.vscode-light .inspector__ref--nouveau {
 .plotter__wrap {
   position: relative;
   height: 190px;
-  background: var(--vscode-textCodeBlock-background, rgba(0, 0, 0, 0.3));
+  /* Même fond que la console et que les panneaux (voir .serial__out). */
+  background: var(--vscode-editorWidget-background, #f7f9f9);
   border-radius: 6px;
 }
 

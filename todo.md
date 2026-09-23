@@ -1,8 +1,8 @@
 # À faire
-1. Analyseur logique :
-    1. 1 fichier simulé vers l'analyseur logique ne se note pas comme à enregistrer et donc se quité sans sauvegarder les données.
-   
+1. **Page grise de l'analyseur** (v2026.9.4.123) : **les deux questions sont répondues** (stockage et lignes du tracé : voir le journal v2026.9.4.123, points 13 et 14). **Fait mesuré en décompressant les 6 `.projix` : ils ne portent plus AUCUNE capture** — les réenregistrements les ont effacées (jusqu'à 16 008 fronts perdus par fichier). La page est grise parce que le fichier est vide, pas parce que l'affichage est en panne. **Rien restauré, rien corrigé — en attente de la décision de Frank** sur la piste : `analyseurDepart` vide la capture, un enregistrement peut tomber avant que `stopRun()` n'ait remonté la nouvelle.
 ## fait
+- ✅ **Mesure d'analyseur marquée « à enregistrer »** (v2026.9.4.123) : la capture et les réglages de l'analyseur posent le point ● natif quand ils changent ce que le `.projix` contiendra. Fermer sans enregistrer déclenche la question de VS Code au lieu de jeter la mesure.
+- ✅ **Fond de la console et du traceur** (v2026.9.4.123) : même fond que les panneaux Propriétés et Composants (`--vscode-editorWidget-background`, repli `#f7f9f9`). Plus de fond translucide dont la teinte changeait avec le thème.
 - ✅ **Page grise de l'analyseur** (v2026.9.4.122) : cause racine trouvée et mesurée — l'atelier poussait ses voies pendant le montage du schéma, les sondes reliées par un fil sortaient en défaut, et la capture restaurée était détruite. Corrigé des deux côtés, gardé par un banc sur les vrais fichiers, contre-épreuve faite.
 
 
@@ -10,6 +10,25 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.4.123
+1. ✅ **Une mesure d'analyseur ne part plus à la poubelle en silence** (item 1.1). La capture et les réglages étaient bien gravés dans le `.projix`… mais rien ne posait le point ● natif. VS Code fermait donc l'onglet **sans rien demander**, et la mesure était perdue.
+2. ℹ️ **Le bon critère n'est pas « un message de l'analyseur est arrivé »** mais « ce que le `.projix` contiendra a changé ». Une capture identique, un réglage remis à sa valeur d'avant, ne sont pas des modifications — sinon le ● se poserait tout seul à la moindre ouverture.
+3. ✅ Correction dans [panel.ts](src/panel.ts) : `analyseurEmpreinte()` sérialise ce que `analyseurPourProjix()` grave, et `majAnalyseur()` compare avant/après chaque changement venu de l'analyseur — `markProjectDirty()` n'est appelé que si les octets diffèrent. Les trois entrées y passent : `analyseurCapture`, `analyseurDepart` (nouveau lancement = capture jetée) et `analyseurReglages`.
+4. ℹ️ `chargerAnalyseur()` — la relecture depuis le disque — ne passe **délibérément pas** par `majAnalyseur()` : ouvrir un projet doit le laisser propre.
+5. ✅ Nouveau banc [verify-analyseur-dirty.mjs](scripts/verify-analyseur-dirty.mjs), **19 contrôles**, ajouté à `verify:all`. Il empaquette le **vrai** `src/panel.ts` (esbuild, module `vscode` factice + greffon qui bouchonne `./analyseur-panel`) et compte les ● réellement posés. Il contrôle le comportement, pas seulement des motifs de source.
+6. ✅ **Contre-épreuve faite** (correction neutralisée dans le source, jamais par `git stash`) : **6 contrôles de comportement passent rouges**. Fichier comparé à sa copie de secours après remise en état : identique, banc revenu à 19/19.
+7. ℹ️ **Le banc a pris mon propre contrôle en défaut** : avec la correction neutralisée en `if (false && …)`, le contrôle de source restait **vert** — motif trop lâche. Ancré en début de ligne (`/^s*if (…);$/m`), exactement le piège déjà relevé au lot .122.
+8. ✅ **Fond de la console et du traceur** (item 1.3, débloqué par la réponse de Frank : variable du thème, pas de couleur en dur). `.serial__out` et `.plotter__wrap` ([styles.css](media/styles.css)) passent à `--vscode-editorWidget-background` (repli `#f7f9f9`) — la **même** variable que les panneaux Propriétés et Composants. L'ancien `--vscode-textCodeBlock-background` est **translucide** : sa teinte visible était un mélange avec le fond de l'éditeur, elle changeait donc de thème en thème et de version en version.
+9. ℹ️ `.debug__vars` garde son ancien fond : hors du périmètre demandé, rien touché.
+10. ✅ Fiche d'aide [sonde-logique.md](docs/fr/composants/sonde-logique.md) complétée : la capture fait partie du projet, fermer sans enregistrer déclenche la question de VS Code.
+11. ✅ **Non-régression** : `npm run verify:all`, **128 bancs verts sur 130** en 597 s. Deux rouges, aucun dû à ce lot — `verify:i18n` sur les **mêmes 7 contrôles** (traductions différées) et `verify:analyseur-projix`, voir ci-dessous.
+12. ⚠️ **`verify:analyseur-projix` est rouge pour une raison qui n'est pas ce lot** : « aucun `.projix` de test ne porte de capture ». Mesuré en décompressant les 6 fichiers et en les comparant à `git HEAD` — **les réenregistrements ont effacé toutes les captures** : `dht11-pico` 348 fronts → aucun bloc analyseur ; `dmx-pico` 6 172 → 0 voie ; `ds18b20-pico2` 6 316 → aucun bloc ; `sonde-logique-pico` 9 474 → aucun bloc ; `sonde-logique-pico2` 16 008 → aucun bloc ; `sonde-logique-uno` 16 002 → aucun bloc. **Rien restauré, rien touché** : ce sont les fichiers de Frank, c'est lui qui tranche.
+13. ℹ️ **Ce que ce chiffre dit de la page grise** : la page est grise parce que **le fichier ne contient plus rien**. Ce n'est pas l'affichage qui est en panne, c'est l'enregistrement qui efface. Piste à creuser au prochain lot, sur accord de Frank : `analyseurDepart` vide `analyseurCapture`, et un enregistrement peut tomber **avant** que `stopRun()` n'ait remonté la nouvelle capture — on graverait alors du vide par-dessus la mesure précédente.
+14. ✅ **Les deux questions de Frank répondues avant toute correction**, comme demandé : où vivent les mesures (mémoire de simulation `logicCapture` → `VoieCapture { voie, pin, nom, fronts: Front[], niveauInitial }` avec `Front { t: ms simulées, niveau }` dans [analyseur-capture.mts](src/webview/analyseur-capture.mts) → clé `analyseur` du `kablix.json` dans le zip `.projix`) et les lignes qui lancent le tracé ([analyseur.mts:1052](src/webview/analyseur.mts#L1052) `restaure` → [1066](src/webview/analyseur.mts#L1066) `restaurer()` → [235](src/webview/analyseur.mts#L235) `dessiner()` → [256](src/webview/analyseur.mts#L256) → [282](src/webview/analyseur.mts#L282) `rendu()` → [analyseur-vue.mts:555-610](src/webview/analyseur-vue.mts#L555-L610) le trait lui-même).
+15. ⏳ Traductions (`docs/en/`, `l10n/bundle.l10n.fr.json`) : rien de traduit, conformément à la règle — tout en un lot avant publication. `verify:i18n` rouge sur les **mêmes 7 contrôles** : **attendu**.
 
 ---
 

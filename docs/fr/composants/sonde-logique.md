@@ -52,6 +52,8 @@ L'onglet montre une **piste par voie**, dans la couleur de sa pince, avec une r�
 
 Hors simulation, l'onglet montre la **dernière capture** enregistrée dans le `.projix`, pas du vide.
 
+Cette capture fait partie du projet, comme le schéma : dès qu'une simulation se termine — ou qu'un réglage de l'analyseur change (déclenchement, décodage, fréquence) — l'onglet du projet passe **« à enregistrer »** (le point ●). Fermez sans enregistrer et VS Code vous le demandera, au lieu de jeter la mesure en silence.
+
 ### Première fois : le tour complet en cinq minutes
 
 Le plus simple est de partir d'un montage déjà prêt. Ouvrez **`testkablix/sonde-logique-pico.projix`** : quatre pinces y sont posées sur un Pico, et le programme fait battre deux broches. Rien à câbler, rien à écrire.

@@ -1494,6 +1494,29 @@ export class SimulatorPanel {
     };
   }
 
+  /**
+   * Empreinte de ce que l'analyseur grave dans le .projix. Sert à savoir si un
+   * message de l'analyseur change RÉELLEMENT le fichier : c'est la seule chose
+   * qui doit poser le point ● (une capture identique, un réglage remis à sa
+   * valeur, ne sont pas des modifications).
+   */
+  private analyseurEmpreinte(): string {
+    const a = this.analyseurPourProjix();
+    return a ? JSON.stringify(a) : '';
+  }
+
+  /**
+   * Applique un changement venu de l'analyseur et marque le projet « non
+   * enregistré » si le contenu du .projix en est changé. Sans cela, une mesure
+   * faite en simulation partait à la poubelle : VS Code fermait l'onglet sans
+   * rien demander, alors que la capture n'était pas sur le disque.
+   */
+  private majAnalyseur(applique: () => void): void {
+    const avant = this.analyseurEmpreinte();
+    applique();
+    if (this.analyseurEmpreinte() !== avant) this.markProjectDirty();
+  }
+
   /** Reprend la capture et les réglages gravés dans un .projix qu'on ouvre. */
   private chargerAnalyseur(a: ProjixAnalyseur | undefined): void {
     if (!a) {
@@ -1554,13 +1577,16 @@ export class SimulatorPanel {
       (m: AnalyseurVersHote) => {
         if (m.type === 'analyseurReglages') {
           // Réglages de l'instrument : ils appartiennent au projet (personne ne
-          // rerègle un analyseur à chaque ouverture).
-          this.analyseurReglages = {
-            declenchement: m.declenchement,
-            decodages: m.decodages,
-            voiesReglages: m.voiesReglages,
-            echantillonnage: m.echantillonnage,
-          };
+          // rerègle un analyseur à chaque ouverture) — donc ils mettent eux
+          // aussi le projet « à enregistrer » quand ils changent vraiment.
+          this.majAnalyseur(() => {
+            this.analyseurReglages = {
+              declenchement: m.declenchement,
+              decodages: m.decodages,
+              voiesReglages: m.voiesReglages,
+              echantillonnage: m.echantillonnage,
+            };
+          });
         }
       }
     );
@@ -1810,7 +1836,12 @@ export class SimulatorPanel {
         }
         break;
       case 'analyseurDepart':
-        this.analyseurCapture = null; // nouveau lancement = nouvelle mesure
+        // Nouveau lancement = nouvelle mesure : la capture gravée est jetée. Le
+        // fichier du disque en est changé lui aussi, d'où le ● (l'enregistrement
+        // d'avant-lancement vient de passer, il n'y a pas de ● en double).
+        this.majAnalyseur(() => {
+          this.analyseurCapture = null;
+        });
         this.analyseur()?.envoyer({ type: 'depart' });
         break;
       case 'analyseurArret':
@@ -1818,8 +1849,12 @@ export class SimulatorPanel {
         break;
       case 'analyseurCapture':
         // Capture à plat, envoyée par l'atelier à l'enregistrement : c'est ce que
-        // l'onglet réaffichera à la réouverture du projet.
-        this.analyseurCapture = msg.capture ?? null;
+        // l'onglet réaffichera à la réouverture du projet. Elle est gravée dans
+        // le .projix, donc elle met le projet « à enregistrer » (sinon la mesure
+        // se perd à la fermeture, sans même une question).
+        this.majAnalyseur(() => {
+          this.analyseurCapture = msg.capture ?? null;
+        });
         break;
       case 'newProject':
         // (legacy WebviewPanel) Nouveau projet en place : la webview a déjà vidé

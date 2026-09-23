@@ -19,6 +19,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Modification
 
+- **La console et le traceur de courbes ont le même fond que les panneaux Propriétés et Composants.** Leur fond était translucide : sa teinte dépendait du thème et changeait d'une version de VS Code à l'autre.
 - **Le curseur de température du DS18B20 s'intitule « T° »** au lieu de « Température » : le mot entier étirait le composant.
 - **La fiche du DS18B20 prévient d'un piège de la bibliothèque DallasTemperature** : à −55 °C pile, elle annonce « lecture ratée » alors que le capteur répond. Cette valeur lui sert de code pour « capteur absent ». Réglez −54,5 °C. En MicroPython, le problème ne se pose pas.
 - **Le numéro de version est suivi du numéro de lot**, sur une seconde ligne sous le nom Kablix. L'heure de construction qui s'y affichait a disparu.
@@ -43,6 +44,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Correction
 
+- **Une mesure d'analyseur ne part plus à la poubelle en silence.** Le projet passe maintenant « à enregistrer » dès qu'une simulation se termine ou qu'un réglage de l'analyseur change : on ferme l'onglet, VS Code demande. Jusqu'ici la capture était bien gravée dans le `.projix`… à condition de penser à l'enregistrer soi-même.
 - **L'analyseur logique montre de nouveau ses courbes à la réouverture d'un projet.** Plusieurs défauts se cumulaient : la capture enregistrée était effacée juste après avoir été affichée — l'onglet annonçait « aucune sonde » par-dessus une mesure entière —, les courbes retrouvées étaient rangées sous les mauvaises pinces quand l'ordre des sondes avait changé depuis l'enregistrement, et l'ouverture d'un **second projet** laissait en place les pistes du précédent. Surtout, pendant le chargement d'un projet, les pinces **reliées par un fil** n'étaient pas encore reconnues : l'analyseur les croyait débranchées et jetait leur mesure, sans retour possible. Chaque courbe suit maintenant la broche sur laquelle elle a été mesurée, quel que soit le projet ouvert avant.
 - **Une pince posée sur un bus enregistre les deux côtés du dialogue.** Sur un bus 1-Wire, un DHT ou toute liaison où le composant répond, seul ce qu'envoyait le programme pouvait être mesuré — et sur un bus au repos, l'analyseur n'enregistrait rien du tout. Les réponses du capteur apparaissent maintenant sur les courbes.
 - **Une sonde logique posée directement sur une patte prend sa couleur tout de suite.** Il fallait jusqu'ici la déposer sur le schéma puis la déplacer d'un pixel pour qu'elle s'accroche et apparaisse dans l'analyseur.
