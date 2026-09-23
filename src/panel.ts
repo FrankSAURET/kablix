@@ -15,7 +15,7 @@ import {
   type ToolPaths,
 } from './compiler';
 import { pistesArduinoIde } from './arduinoCliPistes';
-import { AnalyseurPanel, type AnalyseurVersHote } from './analyseur-panel';
+import { AnalyseurPanel, type AnalyseurVersHote, type EtatAnalyseur } from './analyseur-panel';
 import { AnalyseurJournal } from './analyseur-journal';
 import {
   packProject,
@@ -1449,6 +1449,9 @@ export class SimulatorPanel {
   private suivreAnalyseur(): void {
     const ancienne = this.analyseurCleRangee;
     const nouvelle = this.analyseurCle();
+    // Un onglet restauré par VS Code attend peut-être son atelier sous cette
+    // clé : c'est ici, quand le projet est enfin connu, qu'on le lui rend.
+    this.reprendreOngletRestaure();
     if (ancienne === undefined) {
       this.analyseurCleRangee = nouvelle;
       return;
@@ -1582,42 +1585,94 @@ export class SimulatorPanel {
   }
 
   /** Ouvre (ou révèle) l'onglet de l'analyseur logique de cette session. */
+  /**
+   * L'état que l'onglet doit recevoir dès qu'il est prêt. FOURNI À LA DEMANDE :
+   * l'onglet peut s'ouvrir bien après le début d'un run, il doit alors recevoir
+   * les voies déjà déclarées et la capture déjà faite, pas partir du vide.
+   */
+  private etatAnalyseur(): EtatAnalyseur {
+    return {
+      voies: this.analyseurVoies,
+      // La capture PORTE les réglages : l'onglet les applique dans le même
+      // geste (message `restaure`), sinon il afficherait la bonne capture avec
+      // le déclenchement de personne.
+      capture: this.analyseurCapture
+        ? { ...(this.analyseurCapture as object), ...((this.analyseurReglages as object) ?? {}) }
+        : this.analyseurReglages
+          ? { voies: [], ...(this.analyseurReglages as object) }
+          : null,
+    };
+  }
+
+  /** Ce que l'onglet renvoie : ses réglages, qui appartiennent au projet. */
+  private surReglagesAnalyseur(m: AnalyseurVersHote): void {
+    if (m.type === 'analyseurReglages') {
+      // Réglages de l'instrument : ils appartiennent au projet (personne ne
+      // rerègle un analyseur à chaque ouverture) — donc ils mettent eux
+      // aussi le projet « à enregistrer » quand ils changent vraiment.
+      this.majAnalyseur(() => {
+        this.analyseurReglages = {
+          declenchement: m.declenchement,
+          decodages: m.decodages,
+          voiesReglages: m.voiesReglages,
+          echantillonnage: m.echantillonnage,
+        };
+      });
+    }
+  }
+
   private ouvrirAnalyseur(): void {
     this.analyseurCleRangee = this.analyseurCle();
     AnalyseurPanel.ouvrir(
       this.extensionUri,
       this.analyseurCleRangee,
       this.analyseurTitre(),
-      // L'état est FOURNI À LA DEMANDE : l'onglet peut s'ouvrir bien après le
-      // début d'un run, il doit alors recevoir les voies déjà déclarées et la
-      // capture déjà faite, pas partir du vide.
-      () => ({
-        voies: this.analyseurVoies,
-        // La capture PORTE les réglages : l'onglet les applique dans le même
-        // geste (message `restaure`), sinon il afficherait la bonne capture avec
-        // le déclenchement de personne.
-        capture: this.analyseurCapture
-          ? { ...(this.analyseurCapture as object), ...((this.analyseurReglages as object) ?? {}) }
-          : this.analyseurReglages
-            ? { voies: [], ...(this.analyseurReglages as object) }
-            : null,
-      }),
-      (m: AnalyseurVersHote) => {
-        if (m.type === 'analyseurReglages') {
-          // Réglages de l'instrument : ils appartiennent au projet (personne ne
-          // rerègle un analyseur à chaque ouverture) — donc ils mettent eux
-          // aussi le projet « à enregistrer » quand ils changent vraiment.
-          this.majAnalyseur(() => {
-            this.analyseurReglages = {
-              declenchement: m.declenchement,
-              decodages: m.decodages,
-              voiesReglages: m.voiesReglages,
-              echantillonnage: m.echantillonnage,
-            };
-          });
-        }
-      }
+      () => this.etatAnalyseur(),
+      (m: AnalyseurVersHote) => this.surReglagesAnalyseur(m)
     );
+  }
+
+  /**
+   * REPRISE D'UN ONGLET D'ANALYSEUR RESTAURÉ PAR VS CODE. Appelé à l'activation
+   * de l'extension : VS Code nous tend un panneau et la clé de projet qu'il
+   * portait. On lui rend l'atelier correspondant — s'il est déjà là, ou dès
+   * qu'il arrive, l'ouverture d'un .projix pouvant venir après la restauration.
+   */
+  public static reprendreAnalyseur(
+    cle: string
+  ): { etat: EtatAnalyseur; surReglages: (m: AnalyseurVersHote) => void } {
+    // L'ATELIER N'EST PAS ENCORE LÀ, et c'est le cas NORMAL. VS Code restaure
+    // les webviews à l'activation, bien avant d'avoir rouvert le .projix qui
+    // fabrique l'atelier. On ne refuse donc pas l'onglet : on le rend vivant
+    // tout de suite et on le sert au vol — l'atelier est cherché À CHAQUE appel,
+    // si bien qu'il suffit qu'il arrive plus tard pour que tout reparte.
+    return {
+      etat: SimulatorPanel.parCleAnalyseur(cle)?.etatAnalyseur() ?? { voies: [], capture: null },
+      surReglages: (m: AnalyseurVersHote) => {
+        SimulatorPanel.parCleAnalyseur(cle)?.surReglagesAnalyseur(m);
+      },
+    };
+  }
+
+  /**
+   * L'atelier réclame l'onglet d'analyseur déjà restauré sous sa clé. Appelé
+   * quand un atelier prend son .projix : sans cela, l'onglet revenu au démarrage
+   * resterait rangé mais l'atelier lui pousserait un état vide, et surtout
+   * n'aurait jamais l'occasion de lui repousser ses voies.
+   */
+  private reprendreOngletRestaure(): void {
+    const cle = this.analyseurCle();
+    if (!AnalyseurPanel.pour(cle)) return;
+    this.analyseurCleRangee = cle;
+    AnalyseurPanel.pour(cle)?.reprendreEtat(this.etatAnalyseur());
+  }
+
+  /** L'atelier dont l'analyseur est rangé sous cette clé, s'il est ouvert. */
+  private static parCleAnalyseur(cle: string): SimulatorPanel | undefined {
+    for (const p of SimulatorPanel.panels) {
+      if ((p.analyseurCleRangee ?? p.analyseurCle()) === cle) return p;
+    }
+    return undefined;
   }
 
   private onMessage(msg: {

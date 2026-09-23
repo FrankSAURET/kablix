@@ -4,6 +4,7 @@
 1. 
  1. **Analyseur : export CSV de la mesure** (v2026.9.4.124) : le journal de session est en place et déjà au format CSV, un fichier par projet, supprimé à la fermeture. Les fronts s'écrivent au fil de l'eau (étape 1), le banc le prouve sur les vrais fichiers (étape 2) et l'affichage en direct était déjà câblé (étape 3, vérifié). **Reste à brancher la commande d'export** dans l'interface : `AnalyseurJournal.lire()` rend le CSV tel quel, il n'y a rien à convertir.
 ## fait
+- ✅ **Page grise : LA cause racine** (v2026.9.4.126) : l'onglet d'analyseur ne survivait pas à un redémarrage de VS Code. L'éditeur le réaffichait, l'extension ne le récupérait pas, plus un seul message ne l'atteignait — page vide, sans nom de voie, pendant que le journal CSV se remplissait normalement. Sérialiseur posé, banc dédié, contre-épreuve faite.
 - ✅ **Les `.md` ne coupent plus leurs phrases** (v2026.9.4.125) : un paragraphe = une ligne. Règle posée pour tous les projets (CLAUDE.md global + mémoire), environ 1 300 coupures recollées dans 35 fichiers, modèle du README de la bibliothèque corrigé à la source.
 - ✅ **Page grise : question tranchée** (v2026.9.4.123 → .124) : les deux questions de Frank répondues (stockage, lignes du tracé), et mesuré que les 6 `.projix` de test ne portaient plus aucune capture. Frank a tranché : la mesure ne vit plus dans le projet mais dans un journal de session. Rien n'a été restauré — sans objet désormais.
 - ✅ **Journal CSV de session pour l'analyseur** (v2026.9.4.124) : la mesure quitte le `.projix` pour un fichier écrit au fil de l'eau, un par projet, supprimé à la fermeture. Plus aucun instant unique dont dépendrait toute la capture. Banc de 33 contrôles, contre-épreuve à 8 rouges.
@@ -16,6 +17,21 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.4.126
+1. ✅ **Page grise de l'analyseur : LA cause racine**, trouvée par la mesure. Constat de Frank au lot précédent : « non j'ai toujours une page grise », avec un journal CSV de 257 414 lignes parfaitement rempli à côté. Les données étaient bonnes, l'affichage mort.
+2. ℹ️ **Ce qui a été écarté d'abord, chiffres à l'appui** — parce qu'un banc vert qui ne mord sur rien ne prouve rien. Le rendu de l'onglet : les vraies données de Frank rejouées dans le vrai `analyseur.mts` peignent 20 131 px dans les trois enchaînements plausibles. Le relais de l'hôte : le vrai `panel.ts` envoie bien `voies (3)`, `depart` et les deux salves de `fronts`, dans le bon ordre. Un `restaure` à capture vide (la branche que le lot .124 venait d'ouvrir) : 61 596 px, **plus** que la référence. Trois hypothèses, trois mesures, trois fois faux.
+3. ✅ **La vraie cause** : `AnalyseurPanel` n'avait **aucun `WebviewPanelSerializer`**. VS Code réaffiche au démarrage les onglets de webview qui étaient ouverts, mais ne les rend à l'extension que si elle en a posé un. Sans lui, l'onglet revenait en cadavre : absent du registre `ouverts`, donc `this.analyseur()` rendait `undefined` et **aucun message** ne l'atteignait plus — ni voies, ni départ, ni fronts. Le journal, lui, ne passe pas par l'onglet : il se remplissait normalement, ce qui rendait le défaut invisible côté données.
+4. ℹ️ **Pourquoi aucun banc ne l'avait vu** : les neuf bancs de l'analyseur partent tous d'un onglet ouvert par `AnalyseurPanel.ouvrir()`. Aucun ne rejouait un onglet **restauré**. Le défaut vivait exactement dans l'angle mort commun à toute la série.
+5. ✅ **Correctif, côté hôte** : `brancher()` extrait de `ouvrir()` (page, abonnements, registre) et partagé avec la nouvelle `enregistrerRestauration()`, qui pose le sérialiseur sur `kablix.analyseur`. Un onglet restauré redevient donc en tous points un onglet ouvert normalement.
+6. ✅ **Correctif, côté page** : la clé du projet est écrite dans la page (`KABLIX_ANALYSEUR_CLE`) et confiée à VS Code par `setState` — c'est le seul état qui survive à la fermeture de l'éditeur, et c'est lui qui dit au démarrage à quel atelier rendre l'onglet. Posée par la page et non par l'hôte : `acquireVsCodeApi()` ne s'appelle qu'une fois par page, et c'est `analyseur.js` qui le fait. La **capture** n'est pas mémorisée : une mesure appartient à une simulation, pas à une fenêtre.
+7. ✅ **L'atelier arrive après, et c'est le cas normal** : VS Code restaure les webviews bien avant d'avoir rouvert le `.projix`. L'onglet est donc rendu vivant tout de suite, et l'atelier est cherché **à chaque appel** ; quand il arrive, `suivreAnalyseur()` lui repousse son état (`reprendreEtat`). Un onglet sans clé, ou en double sous une clé déjà prise, est fermé plutôt que laissé mort à l'écran.
+8. ✅ **Banc dédié** [verify-analyseur-restaure.mjs](scripts/verify-analyseur-restaure.mjs), 7 contrôles : l'API de VS Code est simulée, l'extension « redémarre » avec un onglet resté ouvert, et on compte les messages qui atteignent la page. Il exige que l'onglet revienne au registre, que sa page soit réécrite et qu'il reçoive voies **et** fronts.
+9. ✅ **Contre-épreuve faite dans la source** (jamais au `git stash`) : sérialiseur neutralisé → **2 rouges**, dont « un onglet restauré reste sourd ». Source remise, `diff` **IDENTIQUE**, banc vert. Le banc mord sur le vrai défaut.
+10. ✅ **Non-régression** : les 9 bancs de l'analyseur verts, plus `verify:panneaux`, `verify:reouverture`, `verify:open-blank`, `verify:oscillo`, `verify:plotter` et `verify:layout`. Typage strict propre.
+11. ℹ️ **Trois bancs jetables rangés** dans `A Examiner/scripts/` (`_repro-gris.mjs`, `_repro-gris2.mjs`, `_repro-hote.mjs`) : ce sont eux qui ont écarté les trois fausses pistes. Rien n'a été supprimé.
 
 ---
 

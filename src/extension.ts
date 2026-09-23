@@ -16,6 +16,7 @@ import { PicoUploader } from './picoUploader';
 import { memoriserModeExtension } from './version';
 import { redetecterArduinoCli } from './arduinoCliPistes';
 import { AnalyseurJournal } from './analyseur-journal';
+import { AnalyseurPanel } from './analyseur-panel';
 
 const l10n = vscode.l10n;
 
@@ -31,6 +32,20 @@ export function activate(context: vscode.ExtensionContext): void {
   // Journaux de mesure laissés par une session qui s'est arrêtée brutalement :
   // sans ce balayage, le dossier temporaire grossirait sans fin.
   AnalyseurJournal.nettoyerOrphelins();
+
+  // ONGLETS D'ANALYSEUR RESTAURÉS. VS Code réaffiche au démarrage les onglets
+  // de webview qui étaient ouverts, mais ne les rend à l'extension que si
+  // celle-ci a posé ce sérialiseur. Sans lui l'onglet revenait en cadavre :
+  // absent du registre, donc plus un seul message ne l'atteignait — page vide,
+  // sans même un nom de voie, pendant que le journal CSV se remplissait
+  // normalement. L'atelier arrive généralement APRÈS : l'onglet est donc rendu
+  // vivant tout de suite et se rattache au vol (cf. reprendreAnalyseur).
+  context.subscriptions.push(
+    AnalyseurPanel.enregistrerRestauration(
+      context.extensionUri,
+      (cle) => SimulatorPanel.reprendreAnalyseur(cle)
+    )
+  );
 
   // Filet du choix de l'éditeur SVG : VS Code n'inscrit les réglages d'une
   // extension qu'au chargement de la fenêtre, si bien qu'un `.vsix` installé et

@@ -40,7 +40,12 @@ import { initLocale, locale, t } from './i18n.mjs';
 declare global {
   interface Window {
     KABLIX_LANG?: string;
-    acquireVsCodeApi?: () => { postMessage(m: unknown): void };
+    /** Clé du projet, posée par l'hôte dans la page (cf. analyseur-panel.ts). */
+    KABLIX_ANALYSEUR_CLE?: string;
+    acquireVsCodeApi?: () => {
+      postMessage(m: unknown): void;
+      setState?(s: unknown): void;
+    };
   }
 }
 
@@ -99,6 +104,13 @@ export interface EtatSerialise {
 }
 
 const vscode = window.acquireVsCodeApi?.();
+// LA CLÉ CONFIÉE À VS CODE. C'est le seul état qui survive à la fermeture de
+// l'éditeur, et c'est ce que le sérialiseur recevra au prochain démarrage pour
+// rendre l'onglet à son atelier. Sans lui, l'onglet restauré revient à l'écran
+// détaché de tout : plus un message ne l'atteint, la page reste vide.
+// La CAPTURE, elle, n'est pas mémorisée : une mesure appartient à une
+// simulation, pas à une fenêtre.
+if (window.KABLIX_ANALYSEUR_CLE) vscode?.setState?.({ cle: window.KABLIX_ANALYSEUR_CLE });
 initLocale(window.KABLIX_LANG);
 
 const capture = new AnalyseurCapture();

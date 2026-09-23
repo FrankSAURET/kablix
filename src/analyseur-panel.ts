@@ -128,9 +128,27 @@ export class AnalyseurPanel {
         retainContextWhenHidden: true,
       }
     );
+    return AnalyseurPanel.brancher(panel, extensionUri, cle, fournirEtat, surReglages);
+  }
+
+  /**
+   * Met un panneau en service : page, abonnements, registre. Partagé entre
+   * l'ouverture normale et la REPRISE d'un onglet que VS Code a restauré au
+   * démarrage — les deux doivent produire exactement le même onglet vivant.
+   */
+  private static brancher(
+    panel: vscode.WebviewPanel,
+    extensionUri: vscode.Uri,
+    cle: string,
+    fournirEtat: () => EtatAnalyseur,
+    surReglages: (m: AnalyseurVersHote) => void
+  ): AnalyseurPanel {
     const vue = new AnalyseurPanel(panel, cle);
     AnalyseurPanel.ouverts.set(cle, vue);
-    panel.webview.html = AnalyseurPanel.html(panel.webview, extensionUri);
+    // La clé est écrite DANS la page, qui la confiera à VS Code (setState) :
+    // c'est elle qu'il nous rendra au prochain démarrage, et sans elle on ne
+    // saurait pas à quel projet rattacher le panneau qu'il nous tend.
+    panel.webview.html = AnalyseurPanel.html(panel.webview, extensionUri, cle);
     panel.webview.onDidReceiveMessage(
       (m: AnalyseurVersHote) => {
         if (m?.type === 'analyseurPret') {
@@ -146,6 +164,42 @@ export class AnalyseurPanel {
       vue.disposables
     );
     return vue;
+  }
+
+  /**
+   * REPRISE DES ONGLETS APRÈS UN REDÉMARRAGE DE VS CODE.
+   *
+   * VS Code réaffiche au démarrage les onglets de webview qui étaient ouverts,
+   * mais il ne les rend à l'extension que si celle-ci a posé un sérialiseur sur
+   * leur `viewType`. Sans lui, l'onglet revient à l'écran en cadavre : absent du
+   * registre, donc `this.analyseur()` rend `undefined` côté panel.ts et plus un
+   * seul message ne l'atteint — ni les voies, ni le départ, ni les fronts. La
+   * page reste vide, sans même un nom de voie, pendant que le journal CSV, lui,
+   * se remplit normalement (il ne passe pas par l'onglet). C'était la « page
+   * grise » de Frank.
+   *
+   * L'onglet ne porte PAS sa capture : une mesure appartient à une simulation,
+   * pas à une fenêtre. Il revient vide et se remplira au prochain lancement.
+   */
+  public static enregistrerRestauration(
+    extensionUri: vscode.Uri,
+    reprendre: (cle: string) => { etat: EtatAnalyseur; surReglages: (m: AnalyseurVersHote) => void } | undefined
+  ): vscode.Disposable {
+    return vscode.window.registerWebviewPanelSerializer(AnalyseurPanel.viewType, {
+      async deserializeWebviewPanel(panel: vscode.WebviewPanel, etatRange: unknown): Promise<void> {
+        const cle = (etatRange as { cle?: string } | undefined)?.cle;
+        // Sans clé, on ne sait pas à quel atelier rendre l'onglet : plutôt que de
+        // laisser une page morte à l'écran, on la ferme.
+        if (!cle) { panel.dispose(); return; }
+        // Un onglet déjà rangé sous cette clé (l'atelier a redémarré plus vite
+        // que la restauration) : le nôtre ferait doublon.
+        if (AnalyseurPanel.ouverts.has(cle)) { panel.dispose(); return; }
+        const repris = reprendre(cle);
+        if (!repris) { panel.dispose(); return; }
+        panel.webview.options = { enableScripts: true, localResourceRoots: [extensionUri] };
+        AnalyseurPanel.brancher(panel, extensionUri, cle, () => repris.etat, repris.surReglages);
+      },
+    });
   }
 
   /** Onglet d'un atelier s'il est ouvert, sinon undefined. */
@@ -214,6 +268,15 @@ export class AnalyseurPanel {
     void this.panel.webview.postMessage(msg);
   }
 
+  /**
+   * L'atelier a fini par arriver derrière un onglet restauré : il lui repousse
+   * son état. Sans cela l'onglet resterait sur le vide reçu au démarrage, quand
+   * aucun atelier n'existait encore pour le renseigner.
+   */
+  public reprendreEtat(etat: EtatAnalyseur): void {
+    this.pousserEtat(etat);
+  }
+
   /** Déclare les voies puis restaure la dernière capture. */
   private pousserEtat(etat: EtatAnalyseur): void {
     this.envoyer({ type: 'voies', voies: etat.voies });
@@ -226,7 +289,7 @@ export class AnalyseurPanel {
   }
 
   /** Page de l'onglet : barre d'outils, légende, canvas. Rien d'autre. */
-  private static html(webview: vscode.Webview, extensionUri: vscode.Uri): string {
+  private static html(webview: vscode.Webview, extensionUri: vscode.Uri, cle: string): string {
     const script = webview.asWebviewUri(
       vscode.Uri.joinPath(extensionUri, 'dist', 'analyseur.js')
     );
@@ -335,7 +398,13 @@ export class AnalyseurPanel {
 </div>
 <canvas id="trace"></canvas>
 <div class="aide">${l.t('Wheel to zoom, drag to pan. Under each channel name: T sets the trigger edge, P picks the bus to decode.')}</div>
-<script nonce="${n}">window.KABLIX_LANG = ${JSON.stringify(vscode.env.language)};</script>
+<script nonce="${n}">window.KABLIX_LANG = ${JSON.stringify(vscode.env.language)};
+/* La clé du projet, que la page confiera à VS Code (setState) : c'est elle
+   qu'il nous rendra si l'onglet est restauré au prochain démarrage. Sans elle,
+   le panneau reviendrait à l'écran sans savoir à quel atelier se rattacher.
+   Elle ne peut pas être posée ici : acquireVsCodeApi() ne s'appelle qu'UNE
+   fois par page, et c'est analyseur.js qui le fait. */
+window.KABLIX_ANALYSEUR_CLE = ${JSON.stringify(cle)};</script>
 <script nonce="${n}" src="${script}"></script>
 </body>
 </html>`;
