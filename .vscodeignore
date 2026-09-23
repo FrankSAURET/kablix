@@ -29,6 +29,11 @@ PROGRESSION.md
 # aucune simulation dès que le réglage est passé à « activé » (v2026.8.55).
 # dist/zip.js : JSZip seul, requis à la demande par dist/extension.js (premier
 # .projix ouvert ou enregistré). Sans lui, plus aucun projet ne s'ouvre.
+# dist/analyseur.js : la page de l'onglet d'analyseur logique, chargée par son
+# propre <script src>. Oubliée ici jusqu'à la v2026.9.4.127 : en F5 le dossier
+# dist/ est sur le disque et tout marchait, mais le vsix installé ne contenait
+# pas le fichier — la page restait GRISE, sans un mot d'erreur. Exactement le
+# même piège que dist/webview-worker.js en v2026.8.56.
 # dist/pinout/*.svg : posters du bouton ☢, volontairement HORS du bundle
 # (chargés à chaque ouverture sinon) et récupérés par fetch à la demande.
 # Sans cette exception le vsix les perdrait et le bouton ☢ resterait sans effet.
@@ -38,6 +43,7 @@ dist/**
 !dist/zip.js
 !dist/webview.js
 !dist/webview-worker.js
+!dist/analyseur.js
 !dist/pinout/**
 
 # --- Fichiers de travail / captures / archives ---

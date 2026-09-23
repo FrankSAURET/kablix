@@ -1,22 +1,28 @@
 # À faire
 1. J'ai modifié changelog on pars de celui-ci maintenant.
 1. Pareil pour sonde logique.md et les doc du dsb1820
+1. Implémente le bouton exporter le csv de l'analyseur logique
 1. 
  1. **Analyseur : export CSV de la mesure** (v2026.9.4.124) : le journal de session est en place et déjà au format CSV, un fichier par projet, supprimé à la fermeture. Les fronts s'écrivent au fil de l'eau (étape 1), le banc le prouve sur les vrais fichiers (étape 2) et l'affichage en direct était déjà câblé (étape 3, vérifié). **Reste à brancher la commande d'export** dans l'interface : `AnalyseurJournal.lire()` rend le CSV tel quel, il n'y a rien à convertir.
 ## fait
-- ✅ **Page grise : LA cause racine** (v2026.9.4.126) : l'onglet d'analyseur ne survivait pas à un redémarrage de VS Code. L'éditeur le réaffichait, l'extension ne le récupérait pas, plus un seul message ne l'atteignait — page vide, sans nom de voie, pendant que le journal CSV se remplissait normalement. Sérialiseur posé, banc dédié, contre-épreuve faite.
-- ✅ **Les `.md` ne coupent plus leurs phrases** (v2026.9.4.125) : un paragraphe = une ligne. Règle posée pour tous les projets (CLAUDE.md global + mémoire), environ 1 300 coupures recollées dans 35 fichiers, modèle du README de la bibliothèque corrigé à la source.
-- ✅ **Page grise : question tranchée** (v2026.9.4.123 → .124) : les deux questions de Frank répondues (stockage, lignes du tracé), et mesuré que les 6 `.projix` de test ne portaient plus aucune capture. Frank a tranché : la mesure ne vit plus dans le projet mais dans un journal de session. Rien n'a été restauré — sans objet désormais.
-- ✅ **Journal CSV de session pour l'analyseur** (v2026.9.4.124) : la mesure quitte le `.projix` pour un fichier écrit au fil de l'eau, un par projet, supprimé à la fermeture. Plus aucun instant unique dont dépendrait toute la capture. Banc de 33 contrôles, contre-épreuve à 8 rouges.
-- ✅ **Mesure d'analyseur marquée « à enregistrer »** (v2026.9.4.123) : la capture et les réglages de l'analyseur posent le point ● natif quand ils changent ce que le `.projix` contiendra. Fermer sans enregistrer déclenche la question de VS Code au lieu de jeter la mesure.
-- ✅ **Fond de la console et du traceur** (v2026.9.4.123) : même fond que les panneaux Propriétés et Composants (`--vscode-editorWidget-background`, repli `#f7f9f9`). Plus de fond translucide dont la teinte changeait avec le thème.
-- ✅ **Page grise de l'analyseur** (v2026.9.4.122) : cause racine trouvée et mesurée — l'atelier poussait ses voies pendant le montage du schéma, les sondes reliées par un fil sortaient en défaut, et la capture restaurée était détruite. Corrigé des deux côtés, gardé par un banc sur les vrais fichiers, contre-épreuve faite.
+
 
 
 
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.4.127
+1. ✅ **Page grise, DEUXIÈME cause — et celle-là ne se voyait qu'installée.** Constat de Frank : « je fais F5 je lance et j'ai des courbes. Je build, je lance et j'ai la page grise. Version 126 affichée dans les 2 cas. » Même version, même code, deux comportements : l'écart n'était donc pas dans le code mais dans l'emballage.
+2. ✅ **`dist/analyseur.js` n'était pas dans le `.vsix`.** Le [.vscodeignore](.vscodeignore) exclut `dist/**` en bloc — c'est voulu, les posters de brochage ne doivent pas y être — puis réautorise les bundles **un par un**. Celui de l'analyseur n'avait jamais été ajouté à cette liste. L'onglet chargeait un `<script src>` inexistant : page grise, sans un mot d'erreur.
+3. ℹ️ **Pourquoi F5 ne pouvait pas le voir** : en développement le dossier `dist/` est sur le disque, le fichier est là, tout marche. Le défaut n'existe QUE dans le paquet installé. Aucun banc ne peut le trouver en exécutant du code — il faut lire l'emballage.
+4. ℹ️ **Exactement le même piège qu'en v2026.8.55** : `dist/webview-worker.js` oublié dans cette même liste, plus aucune simulation dès que le réglage du fil d'exécution passait à « activé ». Un contrôle avait été ajouté alors — mais pour ce fichier-là seulement, ligne écrite à la main. Deuxième oubli, même cause.
+5. ✅ **Banc général** [verify-paquet.mjs](scripts/verify-paquet.mjs) : il lit les `outfile` déclarés dans [esbuild.js](esbuild.js) et exige que **chacun** soit réautorisé dans le `.vscodeignore`, ligne exacte en début de ligne. La liste se tient désormais toute seule — ajouter un bundle au build suffit à ce que le banc réclame sa place dans le paquet. Vérifie aussi que les bundles existent sur le disque sous le nom déclaré (une faute de frappe dans esbuild.js passerait sinon pour une exclusion) et que les posters de brochage sont toujours embarqués.
+6. ✅ **Contre-épreuve** : ligne `!dist/analyseur.js` retirée → **1 rouge**, nommant le fichier. Remise, banc vert.
+7. ℹ️ **Les deux causes étaient réelles et indépendantes.** Le sérialiseur du lot .126 (onglet restauré au redémarrage) et cette exclusion du paquet se masquaient l'une l'autre : Frank a eu ses courbes en F5 dès .126, et la page grise est revenue dès qu'il a installé le paquet.
 
 ---
 

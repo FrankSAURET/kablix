@@ -36,6 +36,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Un composant posé depuis la bibliothèque en pose un seul.** Un clic un peu vif, ou deux clics de suite, en déposait parfois deux ou trois exactement l'un sur l'autre : on n'en voyait qu'un, mais les propriétés affichées étaient celles d'un autre. Deux composants posés sans bouger la souris se rangent maintenant en escalier.
 - **Une carte attaquée au-dessus de sa tension d'entrée grille**, explosion et explication à l'appui : 3,6 V pour un Pico, dont les GPIO ne tolèrent pas le 5 V, 5,5 V pour un Arduino. Le sommet **et** le creux du signal comptent. Un pont diviseur, lui, ne grille rien — c'est justement la bonne façon d'attaquer un Pico en 5 V.
 - **La page de présentation de Kablix ne coupe plus ses phrases en plein milieu.** Des retours à la ligne forcés hachaient certains paragraphes.
+- **L'analyseur logique affiche enfin ses courbes.** Un fichier manquait au paquet installé : la page restait grise en toutes circonstances, sans le moindre message.
 - **L'onglet de l'analyseur logique survit à la fermeture de VS Code.** Rouvert avec l'éditeur, il restait désespérément vide : plus aucune voie, plus aucun tracé, même en relançant la simulation. Il fallait le fermer et le rouvrir à la main.
 - **Une mesure d'analyseur ne se perd plus.** Les fronts s'enregistrent au fil de l'eau dans un fichier CSV, un par projet, effacé à la fermeture. Avant, toute la mesure dépendait du seul arrêt de la simulation.
 
