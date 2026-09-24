@@ -1,9 +1,8 @@
 export function getCurrentMicroseconds() {
-  if (typeof performance != 'undefined') {
-    return Math.floor(performance.now() * 1000);
-  } else {
-    return Math.floor(eval('require')('perf_hooks').performance.now() * 1000);
-  }
+  // KABLIX PATCH: `performance` exists in every runtime Kablix targets (webview,
+  // Node >= 16). The Node fallback, eval('require')('perf_hooks'), was dead code
+  // that made esbuild warn about direct eval on every build.
+  return Math.floor(performance.now() * 1000);
 }
 
 function leftPad(value: string, minLength: number, padChar = ' ') {

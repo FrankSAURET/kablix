@@ -2,7 +2,7 @@
   "name": "kablix",
   "displayName": "Kablix",
   "version": "2026.9.5",
-  "buildNumber": 134,
+  "buildNumber": 135,
   "description": "%kablix.description%",
   "publisher": "electropol-fr",
   "author": {
@@ -401,7 +401,7 @@
     "verify:analyseur": "node scripts/verify-analyseur.mjs",
     "verify:analyseur-rendu": "node scripts/verify-analyseur-rendu.mjs",
     "verify:analyseur-dht-vue": "node scripts/verify-analyseur-dht-vue.mjs",
-    "verify:analyseur-e2e":"node scripts/verify-analyseur-e2e.mjs",
+    "verify:analyseur-e2e": "node scripts/verify-analyseur-e2e.mjs",
     "verify:analyseur-file": "node scripts/verify-analyseur-file.mjs",
     "verify:analyseur-fronts": "node scripts/verify-analyseur-fronts.mjs",
     "verify:analyseur-projix": "node scripts/verify-analyseur-projix.mjs",
@@ -491,7 +491,7 @@
   "devDependencies": {
     "@types/node": "20.11.0",
     "@types/vscode": "1.85.0",
-    "@vscode/vsce": "3.9.2",
+    "@vscode/vsce": "4.0.0",
     "esbuild": "0.28.0",
     "patch-package": "^8.0.1",
     "svgo": "^4.0.2",

@@ -12,6 +12,17 @@
 
 ---
 
+# v2026.9.5.135
+1. ✅ **Publication 2026.9.5 faite** (Frank, 24/09/2026). [CLAUDE.md](CLAUDE.md) : état « dernière version en ligne `2026.9.5`, publiée le 24 septembre 2026 ; prochaine publication `2026.9.6` », CHANGELOG à ouvrir sous `## 2026.9.6 (prochaine publication)`. Clôt le ⏳ 13 de v2026.9.5.134.
+2. ✅ **« The latest version of @vscode/vsce is 4.0.0 and you have 3.9.2 » à chaque `npm run package`** (Frank : option A). Cause : [package-vsix.mjs](scripts/package-vsix.mjs) lance la copie LOCALE `node_modules/@vscode/vsce`, épinglée à `3.9.2` dans les devDependencies ; `npm install -g` ne met à jour que la copie globale, jamais appelée. `npm install -D -E @vscode/vsce@4.0.0` : [package.json](package.json) garde une version exacte, comme les autres. La 4.0.0 exige Node ≥ 22 (Node 24.11 installé).
+3. ✅ **Avertissement esbuild `direct-eval` sur `vendor/rp2350js/src/utils/time.ts`** : branche morte `eval('require')('perf_hooks')` (repli Node, `performance` existe partout). Nouveau correctif [08-time-sans-eval.patch](patches/rp2350js/08-time-sans-eval.patch), fabriqué contre le fichier d'origine et contrôlé par `git apply --check` sur une copie vierge ; reporté dans [time.ts](vendor/rp2350js/src/utils/time.ts) et [ORIGINE.md](vendor/rp2350js/ORIGINE.md), comme le ferait `_vendor-rp2350js.mjs`. Plutôt qu'un `logOverride` global dans esbuild.js, qui masquerait aussi un vrai `eval` dans notre code.
+4. ✅ **Empaquetage d'essai** (demandé par l'option A) : `kablix-2026.9.5.135.vsix`, aucun avertissement. Comparé au paquet v.133 fait par vsce 3.9.2 : mêmes fichiers (427 contre 425 — les deux fiches EN `gbf.md` et `sonde-logique.md` ajoutées en v.134), `extension.vsixmanifest` identique hors numéro de version, éditeur `electropol-fr`.
+5. ✅ **Tests** : `typecheck` vert ; `verify:all` **134/135**, dont `verify:pico2` (rp2350js) vert. Seul rouge `verify:dmx`, mêmes 2 contrôles qu'en v.134 (« la sonde posée sur GP0 voit les fronts », 30 fronts, Pico 1 et 2) : `CANAUX = 3` dans `testkablix/dmx-pico.py`, que Frank garde. ⏳ Reste à abaisser le seuil de [verify-dmx.mjs](scripts/verify-dmx.mjs), qui suppose des trames de 513 octets (noté dans `Todo temp.md`).
+6. ℹ️ **CHANGELOG non touché** : rien ne change pour l'utilisateur dans ce lot.
+7. ℹ️ **`npm audit`** : 4 vulnérabilités, antérieures au lot (dont 2 hautes sur `svgo` 4.0.0–4.0.2, outil de construction, `npm audit fix` disponible). Non traitées : hors périmètre.
+
+---
+
 # >>>>  v2026.9.5.134 — Préparation de la publication
 1. ✅ **Préparation de la publication 2026.9.5** (Frank : « prépare la publication. Tu notes que l'analyseur logique est pour l'instant expérimentale »).
 2. ✅ **Traductions de l'interface** : [i18n.mts](src/webview/i18n.mts), [bundle.l10n.fr.json](l10n/bundle.l10n.fr.json), [package.nls.fr.json](package.nls.fr.json) — générateur BF, sommaire et recherche du guide, poignées de fil, panneau Variables, repli des panneaux, clés du manifeste. `verify:i18n` vert.

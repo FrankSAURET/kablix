@@ -20,6 +20,7 @@ Ne rien modifier ici à la main : ce dossier est **régénéré** par `node scri
 - `patches/rp2350js/05-uart-txris.patch`
 - `patches/rp2350js/06-systick-base.patch`
 - `patches/rp2350js/07-fpu-vrint.patch`
+- `patches/rp2350js/08-time-sans-eval.patch`
 
 ## Écarté de la copie
 
