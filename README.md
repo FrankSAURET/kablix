@@ -56,6 +56,7 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
 - ✅ **Traceur de courbes** : tracé en direct, plus des **sondes** posées sur une broche pour visualiser sa tension
 - ✅ **Simulation physique** : luminosité selon la résistance série, les LED sans résistance grillent, les servomoteurs ne démarrent pas, l’alimentation tient compte du courant…
 - ✅ **Capteurs interactifs** : curseurs et boutons pour flamme, gaz, son, lumière, température et mouvement, pilotant l’entrée du montage en direct.
+- ✅ **Appareils de mesure** : Multimètre, oscilloscope, GBF et analyseur logique (expérimentale).
 
 > Les aides sont dans le dossier `docs/code de pays/`.  
 > 📖 **Guide complet** : USAGE.md — interface, câblage, création de composants personnalisés (avec prompt IA), format `.kompix`, gestionnaire de composants, sources de composants existants.  

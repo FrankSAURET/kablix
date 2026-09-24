@@ -42,16 +42,6 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Les composants de la bibliothèque officielle ne demandent plus votre autorisation.** La question « ce composant exécute du code d'une source distante » était posée pour les composants publiés avec Kablix, au même titre que ceux d'un dépôt inconnu. Elle reste posée, elle, pour toute autre source.
 - **Un composant posé depuis la bibliothèque en pose un seul.** Un clic un peu vif, ou deux clics de suite, en déposait parfois deux ou trois exactement l'un sur l'autre : on n'en voyait qu'un, mais les propriétés affichées étaient celles d'un autre. Deux composants posés sans bouger la souris se rangent maintenant en escalier.
 - **Une carte attaquée au-dessus de sa tension d'entrée grille**, explosion et explication à l'appui : 3,6 V pour un Pico, dont les GPIO ne tolèrent pas le 5 V, 5,5 V pour un Arduino. Le sommet **et** le creux du signal comptent. Un pont diviseur, lui, ne grille rien — c'est justement la bonne façon d'attaquer un Pico en 5 V.
-- **La page de présentation de Kablix ne coupe plus ses phrases en plein milieu.** Des retours à la ligne forcés hachaient certains paragraphes.
-- **L'analyseur logique affiche enfin ses courbes.** Un fichier manquait au paquet installé : la page restait grise en toutes circonstances, sans le moindre message.
-- **L'onglet de l'analyseur logique survit à la fermeture de VS Code.** Rouvert avec l'éditeur, il restait désespérément vide : plus aucune voie, plus aucun tracé, même en relançant la simulation. Il fallait le fermer et le rouvrir à la main.
-- **Une mesure d'analyseur ne se perd plus.** Les fronts s'enregistrent au fil de l'eau dans un fichier CSV, un par projet, effacé à la fermeture. Avant, toute la mesure dépendait du seul arrêt de la simulation.
-- **Le déclenchement de l'analyseur logique tient sa mesure.** Quand le front choisi arrive, la vue s'y place et y reste ; la capture garde ce qui l'entoure, puis s'arrête une fois pleine. Avant, la courbe finissait en trait continu, ou en trait qui clignotait haut et bas.
-- **« No trigger » ne retire plus le déclenchement posé sur une autre voie**, et un déclenchement posé sur une mesure arrêtée y est trouvé.
-- **Un clic sur les courbes ne fige plus la vue** de l'analyseur : un léger tremblement de la souris suffisait à arrêter le suivi.
-- **Le début d'une longue mesure, oublié faute de place, s'affiche en pointillé** au lieu d'un niveau faux.
-- **Les valeurs d'un capteur DHT11/DHT22 s'affichent dans l'analyseur à tous les zooms.** Seul le « DÉPART » apparaissait : de loin, la mesure s'écrit maintenant d'un bloc à droite de la trame ; de près, chaque valeur sous ses bits.
-- **Une sonde posée sur la sortie d'une carte DMX, ou sur un appareil qui y est relié, montre le signal.** Elle restait muette sur le spot.
 - **Un projet rouvert utilise la version installée de ses composants de bibliothèque**, et non plus la copie, parfois ancienne, enregistrée avec lui.
 
 ## 2026.9.4 (13 septembre 2026)

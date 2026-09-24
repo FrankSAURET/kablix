@@ -46,6 +46,7 @@ My test library is available here: [TestKablix](https://github.com/FrankSAURET/k
 - ✅ **Plotter**: live curves, plus **probes** dropped on a pin to watch its voltage
 - ✅ **Physical simulation**: brightness follows the series resistor, LEDs without a resistor burn out, servos fail to start, the power supply accounts for current…
 - ✅ **Interactive sensors**: sliders and buttons for flame, gas, sound, light, temperature and motion, driving the circuit input live.
+- ✅ **Measuring instruments**: Multimeter, oscilloscope, GBF, and logic analyzer (for experiments).
 
 > The help files live in the `docs/<country code>/` folder.  
 > 📖 **Full guide**: USAGE.md — interface, wiring, building custom parts (with an AI prompt), the `.kompix` format, the component manager, where to find existing parts.  
