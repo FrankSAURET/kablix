@@ -27,7 +27,18 @@ const PISTE_H = 46;
 /** Hauteur du créneau dans sa piste (le reste est la marge). */
 const CRENEAU_H = 22;
 /** Bande réservée aux annotations de décodage sous chaque piste. */
-const ANNOT_H = 14;
+const ANNOT_H = 18;
+/**
+ * Corps des annotations de décodage, en gras. 9 px maigres se lisaient mal sous
+ * les créneaux (Frank, 24/09) ; la bande est haussée d'autant.
+ */
+const ANNOT_PX = 11;
+
+/** Couleurs du niveau lu au réticule : 0 en rouge, 1 en vert (Frank, 24/09). */
+const NIVEAU_COULEUR = {
+  clair: { 0: '#d1242f', 1: '#1a7f37' },
+  sombre: { 0: '#f85149', 1: '#3fb950' },
+} as const;
 /** Largeur de la colonne des noms de voie. */
 const MARGE_G = 104;
 /** Marge droite (respiration + place pour la dernière graduation). */
@@ -279,10 +290,14 @@ export class AnalyseurVue {
 
     this.annotations(ctx, e, w, fg, sombre);
     this.declenchement(ctx, e, w, h);
-    if (e.souris) this.reticule(ctx, e, w, h, fg);
+    if (e.souris) this.reticule(ctx, e, w, h, fg, sombre);
   }
 
-  /** Message centré (aucune sonde, aucune donnée, attente de déclenchement). */
+  /**
+   * Message centré (aucune sonde, aucune donnée, attente de déclenchement).
+   * Coupé en lignes quand la fenêtre est trop étroite (Frank, 24/09) : sur une
+   * seule ligne, les deux bouts sortaient du canvas.
+   */
   private message(
     ctx: CanvasRenderingContext2D,
     w: number,
@@ -294,7 +309,10 @@ export class AnalyseurVue {
     ctx.fillStyle = fg;
     ctx.textAlign = 'center';
     ctx.globalAlpha = 0.7;
-    ctx.fillText(texte, w / 2, h / 2);
+    const lignes = couperLignes(ctx, texte, w - 32);
+    const pas = 14;
+    const y0 = h / 2 - ((lignes.length - 1) * pas) / 2;
+    lignes.forEach((l, k) => ctx.fillText(l, w / 2, y0 + k * pas));
     ctx.restore();
   }
 
@@ -397,7 +415,16 @@ export class AnalyseurVue {
           : vv.probleme === 'power'
             ? e.textes.power
             : e.textes.notMcu;
-      ctx.fillText(t, MARGE_G + 8, haut + PISTE_H / 2);
+      // Sur plusieurs lignes si la piste est trop étroite (trois au plus : la
+      // piste n'en loge pas davantage), la dernière coupée d'un « … ».
+      const largeur = w - MARGE_D - MARGE_G - 16;
+      let lignes = couperLignes(ctx, t, largeur);
+      if (lignes.length > 3) {
+        lignes = [...lignes.slice(0, 2), this.tronquer(ctx, lignes.slice(2).join(' '), largeur)];
+      }
+      const pas = 13;
+      const y0 = haut + PISTE_H / 2 - ((lignes.length - 1) * pas) / 2;
+      lignes.forEach((l, k) => ctx.fillText(l, MARGE_G + 8, y0 + k * pas));
       ctx.restore();
       return;
     }
@@ -659,7 +686,7 @@ export class AnalyseurVue {
       erreur: sombre ? '#e66767' : '#e34948',
     };
     ctx.save();
-    ctx.font = `9px ${getComputedStyle(document.body).getPropertyValue('--vscode-editor-font-family').trim() || 'monospace'}`;
+    ctx.font = `bold ${ANNOT_PX}px ${getComputedStyle(document.body).getPropertyValue('--vscode-editor-font-family').trim() || 'monospace'}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const pisteDe = (a: Annotation): number =>
@@ -794,7 +821,8 @@ export class AnalyseurVue {
     e: EtatRendu,
     w: number,
     h: number,
-    fg: string
+    fg: string,
+    sombre: boolean
   ): void {
     const s = e.souris!;
     if (s.x < MARGE_G || s.x > w - MARGE_D) return;
@@ -814,14 +842,17 @@ export class AnalyseurVue {
     const dx = s.x > w / 2 ? -4 : 4;
     ctx.fillText(formatTemps(t - origine, e.lang), s.x + dx, REGLE_H / 2 - 2);
 
-    // Niveau de chaque voie sous le curseur, à droite de son nom.
+    // Niveau de chaque voie sous le curseur, à droite de son nom : en gras,
+    // 0 rouge et 1 vert, pour le lire sans chercher (Frank, 24/09).
     ctx.textAlign = 'right';
+    ctx.font = `bold 13px ${getComputedStyle(document.body).getPropertyValue('--vscode-editor-font-family').trim() || 'monospace'}`;
+    const teintes = sombre ? NIVEAU_COULEUR.sombre : NIVEAU_COULEUR.clair;
     for (let i = 0; i < e.voies.length; i++) {
       const vv = e.voies[i]!;
       if (vv.probleme) continue;
       const n = e.capture.niveauA(vv.voie, t);
       if (n === null) continue;
-      ctx.globalAlpha = 0.8;
+      ctx.fillStyle = teintes[n];
       ctx.fillText(String(n), MARGE_G - 4, REGLE_H + i * (PISTE_H + ANNOT_H) + PISTE_H / 2);
     }
     ctx.restore();
@@ -834,6 +865,28 @@ export class AnalyseurVue {
     while (t.length > 1 && ctx.measureText(`${t}…`).width > largeur) t = t.slice(0, -1);
     return `${t}…`;
   }
+}
+
+/**
+ * Coupe un texte en lignes d'au plus `largeur` pixels, aux espaces. Un mot plus
+ * long que la largeur reste entier sur sa ligne : le couper au milieu le
+ * rendrait illisible, le laisser déborder un peu ne l'est pas.
+ */
+export function couperLignes(ctx: CanvasRenderingContext2D, texte: string, largeur: number): string[] {
+  const mots = texte.split(/\s+/).filter((m) => m !== '');
+  const lignes: string[] = [];
+  let courante = '';
+  for (const m of mots) {
+    const essai = courante === '' ? m : `${courante} ${m}`;
+    if (courante !== '' && ctx.measureText(essai).width > largeur) {
+      lignes.push(courante);
+      courante = m;
+    } else {
+      courante = essai;
+    }
+  }
+  if (courante !== '') lignes.push(courante);
+  return lignes.length > 0 ? lignes : [''];
 }
 
 /** Constantes de disposition exposées pour les bancs et l'interface. */

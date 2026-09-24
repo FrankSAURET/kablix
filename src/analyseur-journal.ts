@@ -17,9 +17,10 @@ import * as crypto from 'node:crypto';
  * plus d'instant unique dont tout dépend. Le format est le CSV que l'utilisateur
  * exportera — un seul format, donc rien à convertir au moment de l'export.
  *
- * Un journal par projet ouvert (clé = URI du .projix, comme l'onglet). Le
- * fichier meurt avec le projet : `fermer()` à la fermeture, et un balayage des
- * journaux orphelins au démarrage pour le cas où VS Code s'est arrêté brutalement.
+ * Un journal par projet ouvert (clé = URI du .projix, comme l'onglet), rangé
+ * dans un dossier propre au processus (`kablix-analyseur/<pid>/`). Le fichier
+ * meurt avec le projet : `fermer()` à la fermeture, et un balayage des dossiers
+ * de processus morts au démarrage pour le cas où VS Code s'est arrêté brutalement.
  */
 
 /** Une voie telle que l'atelier la déclare (pince posée sur une broche). */
@@ -32,10 +33,42 @@ export interface VoieJournal {
 /** En-tête du CSV : une ligne de commentaire par voie, puis les colonnes. */
 const ENTETE = 'temps_ms,voie,broche,nom,niveau';
 
-/** Dossier des journaux de session, sous le temporaire du système. */
-function dossierJournaux(): string {
+/** Racine commune des journaux de session, sous le temporaire du système. */
+function racineJournaux(): string {
   return path.join(os.tmpdir(), 'kablix-analyseur');
 }
+
+/**
+ * Dossier des journaux de CE processus. Chaque fenêtre de VS Code a son propre
+ * hôte d'extensions, donc son propre pid. Tout ranger à la racine commune
+ * faisait effacer, par la fenêtre qui démarre, le journal VIVANT d'une autre :
+ * la suite de sa mesure se réécrivait sans en-tête et l'export en perdait le
+ * début.
+ */
+function dossierJournaux(): string {
+  return path.join(racineJournaux(), String(process.pid));
+}
+
+/**
+ * Vrai si le processus `pid` tourne encore. Le signal 0 ne fait que tester son
+ * existence ; EPERM veut dire qu'il existe mais appartient à un autre compte.
+ */
+function processusVivant(pid: number): boolean {
+  if (pid === process.pid) return true;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return (e as NodeJS.ErrnoException).code === 'EPERM';
+  }
+}
+
+/**
+ * Journaux de l'ancien rangement (avant v2026.9.5.139), posés à la racine sans
+ * pid : une fenêtre restée sur une ancienne version peut encore y écrire. On ne
+ * les balaie qu'après une journée sans écriture.
+ */
+const ANCIEN_REPOS_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Nom de fichier pour une clé de projet. La clé est une URI : elle contient des
@@ -113,31 +146,56 @@ export class AnalyseurJournal {
   /** Tous les journaux encore ouverts sont fermés (extinction de l'extension). */
   public static fermerTous(): void {
     for (const cle of [...this.ouverts.keys()]) this.fermer(cle);
+    try {
+      fs.rmdirSync(dossierJournaux()); // vide seulement : sinon il reste, sans dommage
+    } catch {
+      /* absent ou non vide */
+    }
   }
 
   /**
    * Journaux laissés par une session précédente : VS Code peut s'être arrêté
    * sans passer par `fermer()`. On les efface au démarrage plutôt que de laisser
-   * le dossier temporaire grossir indéfiniment. Les journaux de CETTE session
-   * sont épargnés (ils viennent d'être créés).
+   * le dossier temporaire grossir indéfiniment.
+   *
+   * Seuls partent les dossiers des processus MORTS : ceux des autres fenêtres
+   * de VS Code, bien vivantes, ne sont pas à nous. Dans notre propre dossier
+   * (un pid réutilisé après un arrêt brutal), les journaux de CETTE session
+   * sont épargnés.
    */
   public static nettoyerOrphelins(): void {
-    const dossier = dossierJournaux();
-    let noms: string[];
+    const racine = racineJournaux();
+    let entrees: fs.Dirent[];
     try {
-      noms = fs.readdirSync(dossier);
+      entrees = fs.readdirSync(racine, { withFileTypes: true });
     } catch {
       return; // dossier absent : rien à nettoyer
     }
-    const vivants = new Set([...this.ouverts.values()].map((j) => j.chemin));
-    for (const nom of noms) {
-      const chemin = path.join(dossier, nom);
-      if (vivants.has(chemin)) continue;
+    for (const e of entrees) {
+      const chemin = path.join(racine, e.name);
       try {
-        fs.rmSync(chemin, { force: true });
+        if (e.isDirectory()) {
+          // Un dossier qui n'est pas un pid n'est pas de nous : on n'y touche pas.
+          if (!/^\d+$/.test(e.name)) continue;
+          const pid = Number(e.name);
+          if (pid === process.pid) this.nettoyerLeMien();
+          else if (!processusVivant(pid)) fs.rmSync(chemin, { recursive: true, force: true });
+        } else if (e.isFile() && e.name.endsWith('.csv')) {
+          if (Date.now() - fs.statSync(chemin).mtimeMs > ANCIEN_REPOS_MS) fs.rmSync(chemin, { force: true });
+        }
       } catch {
-        /* un autre VS Code s'en sert peut-être : on le laisse */
+        /* verrouillé ou disparu entre-temps : on le laisse */
       }
+    }
+  }
+
+  /** Notre dossier, hérité d'un processus mort au même pid : tout ce qui n'est pas ouvert part. */
+  private static nettoyerLeMien(): void {
+    const dossier = dossierJournaux();
+    const vivants = new Set([...this.ouverts.values()].map((j) => j.chemin));
+    for (const nom of fs.readdirSync(dossier)) {
+      const chemin = path.join(dossier, nom);
+      if (!vivants.has(chemin)) fs.rmSync(chemin, { recursive: true, force: true });
     }
   }
 

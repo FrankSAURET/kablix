@@ -516,6 +516,8 @@ export class SimulatorPanel {
   private analyseurCapture: unknown | null = null;
   /** Réglages de l'analyseur (déclenchement, décodage) à écrire dans le .projix. */
   private analyseurReglages: unknown | null = null;
+  /** Vrai entre `analyseurDepart` et `analyseurArret` : un onglet qui naît en plein run doit le savoir. */
+  private analyseurEnCours = false;
   /**
    * Clé sous laquelle l'onglet d'analyseur est rangé. Elle vaut l'URI du
    * .projix, donc un « enregistrer sous » la CHANGE : on garde la précédente
@@ -1593,6 +1595,7 @@ export class SimulatorPanel {
   private etatAnalyseur(): EtatAnalyseur {
     return {
       voies: this.analyseurVoies,
+      enCours: this.analyseurEnCours,
       // La capture PORTE les réglages : l'onglet les applique dans le même
       // geste (message `restaure`), sinon il afficherait la bonne capture avec
       // le déclenchement de personne.
@@ -1972,9 +1975,11 @@ export class SimulatorPanel {
         // Nouveau lancement = nouvelle mesure : le journal de session repart de
         // zéro, en-tête des voies compris.
         this.journalAnalyseur().demarrer(this.voiesJournal());
+        this.analyseurEnCours = true;
         this.analyseur()?.envoyer({ type: 'depart' });
         break;
       case 'analyseurArret':
+        this.analyseurEnCours = false;
         this.analyseur()?.envoyer({ type: 'arret' });
         break;
       case 'newProject':

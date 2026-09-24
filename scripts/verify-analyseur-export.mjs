@@ -328,7 +328,8 @@ const VOIES = [
 
 	let journal = null;
 	try {
-		const dossier = join(tempPrive, 'kablix-analyseur');
+		// Un dossier par processus (v2026.9.5.139) : `kablix-analyseur/<pid>/`.
+		const dossier = join(tempPrive, 'kablix-analyseur', String(process.pid));
 		journal = readFileSync(join(dossier, readdirPremier(dossier, 'banc-')), 'utf8');
 	} catch (e) {
 		check(false, 'mesure : le journal de session est bien sur le disque', e.message);

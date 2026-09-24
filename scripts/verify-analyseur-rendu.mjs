@@ -291,12 +291,16 @@ check('le message « repeindre » de l\'hôte peint le canvas, sans dépendre d\
 // vert avant comme après la correction, donc un contrôle qui ne prouve rien.
 check('le canvas est redimensionné à la largeur retrouvée, pas laissé à ses 300 px par défaut',
 	r.attrW === r.viveLargeur, `attribut width ${r.attrW} pour ${r.viveLargeur} px de large`);
+// Hauteur du canvas pour n pistes : règle 22 + n × (piste 46 + annotations 18)
+// + 8 de marge — `hauteurPour` de analyseur-vue.mts (pas de 64 px depuis
+// v2026.9.5.139, texte sous les courbes agrandi).
+const hauteurDe = (n) => 22 + n * 64 + 8;
 // Ce contrôle-ci reste vert SANS la correction, et c'est volontaire : il dit
-// que les données sont bien arrivées (deux pistes = 150 px, une seule en
-// donnerait 90). C'est la moitié du diagnostic — les données sont là, la
+// que les données sont bien arrivées (deux pistes = 158 px, une seule en
+// donnerait 94). C'est la moitié du diagnostic — les données sont là, la
 // peinture manque — et l'écrire sépare les deux causes possibles du gris.
 check('la hauteur porte les DEUX voies reçues pendant que l\'onglet était caché',
-	r.viveHauteur === 150, `hauteur ${r.viveHauteur}`);
+	r.viveHauteur === hauteurDe(2), `hauteur ${r.viveHauteur}`);
 check('les noms de voie sont PEINTS dans la colonne de gauche du canvas',
 	r.colonne > 200, `${r.colonne} px peints dans les 100 px de gauche`);
 // LA PAGE GRISE DU 20/09. Un message `voies` VIDE arrivant après le `restaure`
@@ -309,7 +313,7 @@ check('une liste de voies VIDE reçue après coup n\'efface pas la capture affic
 	r.apresVoiesVides === r.vivePeints,
 	`${r.apresVoiesVides} px après la liste vide, contre ${r.vivePeints} avant`);
 check('la liste vide ne rabat pas non plus la hauteur sur une piste unique',
-	r.hauteurApresVoiesVides === 150, `hauteur ${r.hauteurApresVoiesVides}`);
+	r.hauteurApresVoiesVides === hauteurDe(2), `hauteur ${r.hauteurApresVoiesVides}`);
 // LES DEUX PISTES TRACENT MÊME QUAND LES NUMÉROS NE COÏNCIDENT PAS. La capture
 // est rangée par BROCHE sur les voies du schéma : GP1 capturé en voie 1 doit
 // aller se dessiner dans la piste de la voie 2, celle de la pince posée dessus.
@@ -335,9 +339,9 @@ check('et la piste accordée n\'a rien perdu au passage',
 // On exige la HAUTEUR (deux pistes dressées) ET les DEUX courbes : la hauteur
 // seule laisserait passer deux pistes vides.
 check('la hauteur du premier projet est bien celle d\'une piste unique (la condition est reproduite)',
-	r.hauteurProjet1 === 90, `hauteur ${r.hauteurProjet1}`);
+	r.hauteurProjet1 === hauteurDe(1), `hauteur ${r.hauteurProjet1}`);
 check('ouvrir un SECOND projet dresse les pistes de SA capture, pas celles du premier',
-	r.hauteurProjet2 === 150, `hauteur ${r.hauteurProjet2} — les pistes du projet précédent tiennent encore`);
+	r.hauteurProjet2 === hauteurDe(2), `hauteur ${r.hauteurProjet2} — les pistes du projet précédent tiennent encore`);
 check('et les deux voies du second projet tracent pour de bon',
 	r.pistesProjet2[0] > 2000 && r.pistesProjet2[1] > 2000,
 	`pistes ${JSON.stringify(r.pistesProjet2)} — du trait de repos, pas des courbes`);

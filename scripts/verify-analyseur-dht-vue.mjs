@@ -179,7 +179,8 @@ try {
 		await attendre(200);
 
 		/** Textes écrits sous la piste 0 (bande des annotations) au prochain rendu forcé. */
-		const Y_ANNOT = 22 + 46 + 1 + (14 - 3) / 2;
+		// Règle 22, piste 46, bande d'annotations 18 (`ANNOT_H` de analyseur-vue.mts).
+		const Y_ANNOT = 22 + 46 + 1 + (18 - 3) / 2;
 		const releve = async () => {
 			await ev(`window.__textes = []`);
 			await ev(`window.postMessage({ type: 'repeindre' }, '*')`);

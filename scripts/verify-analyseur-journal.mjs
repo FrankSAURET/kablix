@@ -7,9 +7,10 @@
 // Il fait tourner le VRAI src/analyseur-journal.ts, empaqueté par esbuild, et
 // relit les fichiers écrits — pas de bouchon, pas de simulacre d'écriture.
 import { build } from 'esbuild';
-import { mkdtempSync, readFileSync, existsSync, readdirSync } from 'node:fs';
+import { mkdtempSync, readFileSync, existsSync, mkdirSync, writeFileSync, utimesSync, rmSync } from 'node:fs';
+import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 
 // fileURLToPath, pas `.pathname` : le chemin du projet contient des espaces,
@@ -36,6 +37,8 @@ await build({
 	logLevel: 'silent',
 });
 const { AnalyseurJournal } = await import(pathToFileURL(bundle).href);
+/** Racine commune des journaux : celle des VRAIES fenêtres de VS Code, qu'aucun contrôle ne doit vider. */
+const RACINE_JOURNAUX = join(tmpdir(), 'kablix-analyseur');
 
 const VOIES = [
 	{ voie: 0, pin: 'GP14', nom: 'SDA' },
@@ -138,15 +141,56 @@ AnalyseurJournal.nettoyerOrphelins();
 check(existsSync(cheminOrphelin), 'un journal de la session en cours est épargné par le nettoyage');
 check(existsSync(jv.chemin), 'idem pour les autres journaux vivants');
 
+check(dirname(je.chemin) === join(RACINE_JOURNAUX, String(process.pid)),
+	'les journaux sont rangés dans un dossier propre au processus', je.chemin);
+
+// DEUX FENÊTRES DE VS CODE (défaut relevé au lot .134, corrigé au .139) :
+// chaque fenêtre a son hôte d'extensions, donc son pid. Le balayage de celle
+// qui démarre effaçait le journal VIVANT de l'autre. Un processus fils joue ici
+// l'autre fenêtre, bien vivante ; un second, déjà terminé, une fenêtre tuée.
+const autreFenetre = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { stdio: 'ignore' });
+const fenetreMorte = spawn(process.execPath, ['-e', ''], { stdio: 'ignore' });
+await new Promise((r) => fenetreMorte.once('exit', r));
+const journalDe = (pid, nom) => {
+	const dossier = join(RACINE_JOURNAUX, String(pid));
+	mkdirSync(dossier, { recursive: true });
+	writeFileSync(join(dossier, nom), 'temps_ms,voie,broche,nom,niveau\n');
+	return join(dossier, nom);
+};
+const cheminAutre = journalDe(autreFenetre.pid, 'banc-autre-fenetre.csv');
+const cheminMort = journalDe(fenetreMorte.pid, 'banc-fenetre-morte.csv');
+// Ancien rangement (sans pid, à la racine) : une journée sans écriture = orphelin.
+const ancienVieux = join(RACINE_JOURNAUX, 'banc-ancien-vieux.csv');
+const ancienRecent = join(RACINE_JOURNAUX, 'banc-ancien-recent.csv');
+writeFileSync(ancienVieux, 'x\n');
+writeFileSync(ancienRecent, 'x\n');
+const avantHier = new Date(Date.now() - 2 * 24 * 3600 * 1000);
+utimesSync(ancienVieux, avantHier, avantHier);
+// Un dossier qui n'est pas un pid n'est pas à Kablix.
+const etranger = join(RACINE_JOURNAUX, 'banc-pas-un-pid');
+mkdirSync(etranger, { recursive: true });
+
+AnalyseurJournal.nettoyerOrphelins();
+check(existsSync(cheminAutre), 'le journal d’une AUTRE fenêtre vivante survit au démarrage de celle-ci', cheminAutre);
+check(!existsSync(dirname(cheminMort)), 'le dossier d’un processus mort est balayé', cheminMort);
+check(!existsSync(ancienVieux), 'ancien rangement : un journal sans écriture depuis une journée est balayé');
+check(existsSync(ancienRecent), 'ancien rangement : un journal récent est gardé (vieille version encore ouverte)');
+check(existsSync(etranger), 'un dossier qui n’est pas un pid n’est pas touché');
+check(existsSync(cheminOrphelin) && existsSync(jv.chemin), 'nos journaux vivants restent là');
+
+// L'autre fenêtre se ferme brutalement : son dossier devient orphelin.
+autreFenetre.kill();
+await new Promise((r) => autreFenetre.once('exit', r));
+AnalyseurJournal.nettoyerOrphelins();
+check(!existsSync(dirname(cheminAutre)), 'fenêtre fermée : son dossier part au balayage suivant');
+rmSync(ancienRecent, { force: true });
+rmSync(etranger, { recursive: true, force: true });
+
 AnalyseurJournal.fermerTous();
 check(!existsSync(cheminOrphelin) && !existsSync(jv.chemin),
 	'fermerTous() ne laisse aucun journal derrière lui');
-// Plus rien de vivant : un balayage doit vider le dossier.
-AnalyseurJournal.nettoyerOrphelins();
-const restants = existsSync(join(tmpdir(), 'kablix-analyseur'))
-	? readdirSync(join(tmpdir(), 'kablix-analyseur'))
-	: [];
-check(restants.length === 0, 'le balayage efface les journaux orphelins', restants.join(', '));
+check(!existsSync(join(RACINE_JOURNAUX, String(process.pid))),
+	'fermerTous() retire aussi le dossier du processus');
 
 // --- 10. Contrôles de source ---------------------------------------------
 // Motifs ANCRÉS en début de ligne : sans cela un `if (false && …)` les

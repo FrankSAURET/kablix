@@ -1424,7 +1424,13 @@ const dhtDe = (tempC, humidity, model) => {
   const debutRun = sim.indexOf('function startRun');
   const run = sim.slice(debutRun, sim.indexOf('\nfunction ', debutRun + 1));
   check('déclenchement : au lancement, ≥1 pince posée ouvre l\'onglet de l\'analyseur',
-    /logicProbeVoies\(editor\.diagram\)\.length\s*>\s*0\s*\)\s*ouvrirAnalyseur\(\)/.test(run));
+    /logicProbeVoies\(editor\.diagram\)\.length\s*>\s*0\s*\)\s*\{?\s*ouvrirAnalyseur\(\)/.test(run));
+  // Même lancement : le panneau Variables se replie (la place va aux courbes),
+  // mais seulement s'il était ouvert, et il est rouvert à l'arrêt (Frank, 24/09).
+  check('lancement : l\'analyseur ouvert replie aussi le panneau Variables',
+    /ouvrirAnalyseur\(\);[\s\S]{0,400}?if \(foldLibraryOnRun && !inspectorFolded\) \{\s*inspectorFoldedByRun = true;\s*setInspectorFolded\(true, false\);/.test(run));
+  check('arrêt : le panneau Variables replié par le lancement est rouvert',
+    /if \(inspectorFoldedByRun\) \{\s*inspectorFoldedByRun = false;/.test(sim));
   check('déclenchement : la fonction d\'ouverture déclare aussi les voies à l\'hôte',
     /function ouvrirAnalyseur[\s\S]{0,400}?'openAnalyseur'[\s\S]{0,200}?pousserVoiesLogiques\(\)/.test(sim));
   // Contre-épreuve par le modèle : sans pince, `logicProbeVoies` rend une liste
@@ -1697,6 +1703,41 @@ const dhtDe = (tempC, humidity, model) => {
   check('échantillonnage : le front est daté au tic qui le lit, pas avant',
     cale.length === 1 && Math.abs(cale[0].t - 1.001) < 1e-9,
     JSON.stringify(cale));
+}
+{
+  // Le déclenchement se pose sur la courbe ÉCHANTILLONNÉE, pas sur les fronts
+  // bruts : sonde-logique-uno (enregistrée à 1 kHz, Frank 24/09) montrait son
+  // premier front descendant 2 ms après le trait rouge. À 1 kHz : la brève
+  // impulsion 0,3 → 0,5 ms disparaît, la montée 1,7 est lue au tic 2, la
+  // descente 2,2 au tic 3. Le déclenchement « descendant » doit tomber à 3.
+  const brut = [0.3, 1, 0.5, 0, 1.7, 1, 2.2, 0, 3.6, 1];
+  const c = new AnalyseurCapture();
+  c.declarerVoies([{ voie: 0, pin: '8', nom: 'CLK' }, { voie: 1, pin: '9', nom: 'AUX' }]);
+  c.reglerEchantillonnage(1000);
+  c.reglerDeclenchement({ voie: 0, sens: 'falling' });
+  c.verser({ 8: brut });
+  const vus = c.fenetre(0, 0, 5).fronts.map((f) => f.t);
+  check('déclenchement échantillonné : posé sur un front AFFICHÉ (tic 3), pas le brut (0,5)',
+    c.tTrigger === 3 && vus.includes(3), `${c.tTrigger} / ${JSON.stringify(vus)}`);
+  // Changer la lecture recale l'origine : revenir en illimité la ramène au brut.
+  c.reglerEchantillonnage(0);
+  check('déclenchement échantillonné : repasser en illimité le recale sur le front brut',
+    c.tTrigger === 0.5, String(c.tTrigger));
+  // Inverser la voie du déclenchement : le « descendant » affiché est l'ancienne montée.
+  c.reglerInversion([0]);
+  check('déclenchement : inverser sa voie le recale sur la descente AFFICHÉE',
+    c.tTrigger === 0.3, String(c.tTrigger));
+
+  // Voie de déclenchement qui ne bouge qu'une fois : sa lecture tombe au tic
+  // suivant, quand le temps n'avance plus QUE sur les autres voies.
+  const e = new AnalyseurCapture();
+  e.declarerVoies([{ voie: 0, pin: '8', nom: 'CLK' }, { voie: 1, pin: '9', nom: 'TRIG' }]);
+  e.reglerEchantillonnage(1000);
+  e.reglerDeclenchement({ voie: 1, sens: 'rising' });
+  e.verser({ 9: [4.5, 1] });
+  e.verser({ 8: [5.2, 1, 6.2, 0] });
+  check('déclenchement échantillonné : une voie à front unique est relue quand le temps avance',
+    e.tTrigger === 5, String(e.tTrigger));
 }
 
 

@@ -4,9 +4,20 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ## 2026.9.6 (prochaine publication)
 
+### Modification
+
+- **Les niveaux 0 et 1 à gauche des courbes de l'analyseur logique sont en gras**, 0 en rouge et 1 en vert.
+- **Le texte sous les courbes de l'analyseur est plus grand et en gras.**
+- **Le message gris sur les courbes passe à la ligne** quand l'onglet est étroit.
+- **« Repos haut » devient « Inverser »** dans le menu d'une voie de l'analyseur.
+- **Le panneau Variables se replie au lancement quand un analyseur logique s'ouvre**, et se rouvre à l'arrêt, comme la bibliothèque.
+
 ### Correction
 
 - **Les propriétés d'une sonde logique ne s'affichent plus en plusieurs exemplaires** quand on la pose sur une patte. Même correction pour l'interrupteur 3V3/5V du Grove Shield et les bascules dessinées sur les composants.
+- **Changer le déclenchement de l'analyseur ne fait plus disparaître la courbe** au premier lancement de la simulation.
+- **Ouvrir une deuxième fenêtre de VS Code n'efface plus la mesure de l'analyseur logique en cours dans la première.** L'export CSV restait incomplet.
+- **Le déclenchement tombe sur un front affiché** quand l'analyseur échantillonne. Il était posé sur le front réel, parfois plusieurs millisecondes avant le front dessiné, et « montant » ou « descendant » semblait sans effet.
 
 ## 2026.9.5 (24 septembre 2026)
 

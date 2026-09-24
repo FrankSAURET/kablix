@@ -4564,7 +4564,16 @@ ${detail}
   // (Frank, v2026.9.4.90). `pousserVoiesLogiques()` relit le schéma, donc les
   // voies partent à jour ; sans pince, on n'ouvre rien — un onglet vide ne dirait
   // rien à l'élève.
-  if (logicProbeVoies(editor.diagram).length > 0) ouvrirAnalyseur();
+  if (logicProbeVoies(editor.diagram).length > 0) {
+    ouvrirAnalyseur();
+    // Variables repliées AUSSI quand l'analyseur s'ouvre (Frank, 24/09) : la
+    // place va aux courbes. Même règle que la bibliothèque — seulement si
+    // c'était ouvert, et rouvert à l'arrêt.
+    if (foldLibraryOnRun && !inspectorFolded) {
+      inspectorFoldedByRun = true;
+      setInspectorFolded(true, false);
+    }
+  }
   runBtn.disabled = true;
   stopBtn.disabled = false;
   const isPython = isPicoBoard(board) && picoProgram.kind === 'flash' && !!picoProgram.script;
@@ -4645,6 +4654,10 @@ function stopRun(): void {
   if (paletteFoldedByRun) {
     paletteFoldedByRun = false;
     setPaletteFolded(false, false);
+  }
+  if (inspectorFoldedByRun) {
+    inspectorFoldedByRun = false;
+    setInspectorFolded(false, false);
   }
   runBtn.disabled = false;
   stopBtn.disabled = true;
@@ -4995,8 +5008,9 @@ function saveUiState(): void {
       showIds,
       paletteWidth,
       inspectorWidth,
-      paletteFolded,
-      inspectorFolded,
+      // Le repli fait par la simulation n'est pas un choix : on garde celui de l'élève.
+      paletteFolded: paletteFolded && !paletteFoldedByRun,
+      inspectorFolded: inspectorFolded && !inspectorFoldedByRun,
       serialVisible,
       plotterVisible: plotterUserPref,
       gridShown,
@@ -5022,6 +5036,8 @@ let inspectorFolded = false;
 let foldLibraryOnRun = true;
 /** Vrai si c'est LA SIMULATION qui a replié la bibliothèque : à l'arrêt, on la rouvre. */
 let paletteFoldedByRun = false;
+/** Même chose pour Variables, replié au démarrage quand l'analyseur logique s'ouvre. */
+let inspectorFoldedByRun = false;
 
 /** Colonne de droite réellement affichée : Propriétés, ou Variables en simulation. */
 function rightColumn(): HTMLElement {
@@ -5070,10 +5086,12 @@ foldPaletteBtn?.addEventListener('click', (e) => {
 });
 foldInspectorBtn?.addEventListener('click', (e) => {
   e.stopPropagation();
+  inspectorFoldedByRun = false; // repli décidé à la main : la fin du run n'y touchera pas
   setInspectorFolded(!inspectorFolded);
 });
 foldDebugBtn?.addEventListener('click', (e) => {
   e.stopPropagation();
+  inspectorFoldedByRun = false;
   setInspectorFolded(!inspectorFolded);
 });
 

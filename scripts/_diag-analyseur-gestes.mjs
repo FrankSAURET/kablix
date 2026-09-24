@@ -114,7 +114,7 @@ try {
 			const w = c.width;
 			const res = [];
 			for (let i = 0; i < 2; i++) {
-				const haut = 22 + i * 60;
+				const haut = 22 + i * 64;
 				const compte = (y) => {
 					const d = ctx.getImageData(106, y - 1, w - 106 - 14, 3).data;
 					let n = 0;
@@ -130,7 +130,7 @@ try {
 		G.fronts = async (i) => {
 			G.envoyer({ type: 'repeindre' }); await G.tick();
 			const c = document.getElementById('trace');
-			const d = c.getContext('2d').getImageData(106, 22 + i * 60 + 23, c.width - 106 - 14, 1).data;
+			const d = c.getContext('2d').getImageData(106, 22 + i * 64 + 23, c.width - 106 - 14, 1).data;
 			const xs = [];
 			for (let x = 0; x < d.length / 4; x++) {
 				if (d[x * 4 + 3] <= 60) continue;
@@ -145,7 +145,7 @@ try {
 		] });
 		G.zone = (voie, quoi) => {
 			// Relu du rendu : colonne de gauche, rangée de boutons sous le nom.
-			const i = voie; const haut = 22 + i * 60; const y = haut + 15 + 8;
+			const i = voie; const haut = 22 + i * 64; const y = haut + 15 + 8;
 			const x = 8 + ({ teinte: 0, declenchement: 1, protocole: 2 })[quoi] * 22;
 			const r = document.getElementById('trace').getBoundingClientRect();
 			return { x: r.left + x + 9, y: r.top + y + 9 };

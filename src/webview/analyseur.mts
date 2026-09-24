@@ -927,7 +927,9 @@ function menuVoie(z: ZoneBouton): void {
     r.repos = caseRepos.checked ? 1 : 0;
     change();
   });
-  labRepos.append(caseRepos, document.createTextNode(t('Idle high')));
+  // « Invert » plutôt que « Idle high » (Frank, 24/09) : on dit ce que fait la
+  // case, pas la raison de la cocher — la raison reste dans l'infobulle.
+  labRepos.append(caseRepos, document.createTextNode(t('Invert')));
   boite.append(labRepos);
 
   const labMasque = document.createElement('label');
@@ -1196,6 +1198,13 @@ function restaurer(etat: EtatSerialise): void {
       suivi: false,
     }));
   }
+  // La LECTURE d'abord (échantillonnage, inversion), le déclenchement ensuite :
+  // il se cherche dans ce que la courbe montre, pas dans les fronts bruts.
+  reglagesVoies = etat.voiesReglages ?? {};
+  echantillonnage = etat.echantillonnage ?? 0;
+  selHorloge.value = String(echantillonnage);
+  majEchantillonnage();
+  majInversions();
   capture.reglerDeclenchement(etat.declenchement ?? null);
   // Capture arrêtée : le front qui a déclenché est déjà dans les fronts rechargés.
   capture.chercherDeclenchement();
@@ -1208,12 +1217,16 @@ function restaurer(etat: EtatSerialise): void {
       d.id = `d${idDecodage}`;
     }
   }
-  reglagesVoies = etat.voiesReglages ?? {};
-  echantillonnage = etat.echantillonnage ?? 0;
-  selHorloge.value = String(echantillonnage);
-  majEchantillonnage();
-  majInversions();
-  ajuster();
+  // En plein run (l'atelier repousse ses réglages à chaque lancement), cadrer
+  // la capture encore vide coupait le suivi : la vue restait figée sur ses
+  // premières millisecondes.
+  if (enCours) {
+    suivi = true;
+    suivreFin();
+    dessiner();
+  } else {
+    ajuster();
+  }
 }
 
 // --- Souris ------------------------------------------------------------------

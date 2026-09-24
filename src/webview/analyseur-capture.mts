@@ -109,6 +109,15 @@ export class AnalyseurCapture {
   private tDeclenche: number | null = null;
   /** Vrai quand la capture est armée mais attend encore son front. */
   private armee = false;
+  /**
+   * Instant où le déclenchement a été armé : seuls les fronts qui le SUIVENT
+   * peuvent y répondre. −∞ pour un run entier ou une capture relue. Gardé pour
+   * REFAIRE la recherche quand la lecture change (échantillonnage, inversion) :
+   * le front qui répond n'est alors plus forcément le même.
+   */
+  private armeDepuis = -Infinity;
+  /** Jusqu'où la recherche a déjà lu sans rien trouver (évite de tout relire à chaque salve). */
+  private luJusqua = -Infinity;
 
   /** Instant du dernier front reçu, toutes voies confondues (borne droite). */
   private tDernier = 0;
@@ -259,6 +268,8 @@ export class AnalyseurCapture {
     this.declenchement = d;
     this.tDeclenche = null;
     this.armee = d !== null;
+    // Armé en plein run : seuls les fronts À VENIR comptent.
+    this.armeDepuis = this.luJusqua = this.tVu > 0 ? this.tVu : -Infinity;
     if (this.plein) this.aVider = true;
   }
 
@@ -271,11 +282,78 @@ export class AnalyseurCapture {
   chercherDeclenchement(): number | null {
     const d = this.declenchement;
     if (!d || this.tDeclenche !== null) return this.tDeclenche;
-    const v = this.voies.get(d.voie);
-    if (!v) return null;
-    const f = v.fronts.find((x) => this.repond(v, x.niveau));
-    if (f) this.tDeclenche = f.t;
+    this.armeDepuis = this.luJusqua = -Infinity;
+    this.tDeclenche = this.chercher(-Infinity, Infinity);
     return this.tDeclenche;
+  }
+
+  /**
+   * Premier front qui répond au déclenchement dans ]depuis, jusqua], TEL QUE
+   * L'INSTRUMENT LE MONTRE.
+   *
+   * Échantillonnée, la courbe ne dessine pas les fronts bruts mais ce que lit
+   * chaque tic. Chercher le déclenchement sur les fronts bruts posait l'origine
+   * des temps là où la courbe ne montre rien : sonde-logique-uno, horloge à
+   * 2,4 kHz lue à 1 kHz, affichait son premier front descendant à 2 ms du
+   * déclenchement (Frank, 24/09). On cherche donc dans la même lecture que la
+   * vue — `fenetre` échantillonne et inverse déjà —, et l'instant rendu est le
+   * tic, là où le front est dessiné.
+   */
+  private chercher(depuis: number, jusqua: number): number | null {
+    const d = this.declenchement;
+    const v = d ? this.voies.get(d.voie) : undefined;
+    if (!d || !v || v.fronts.length === 0) return null;
+    if (this.periode <= 0) {
+      for (let i = premierApres(v.fronts, depuis); i < v.fronts.length; i++) {
+        const f = v.fronts[i]!;
+        if (f.t > jusqua) break;
+        if (this.repond(v, f.niveau)) return f.t;
+      }
+      return null;
+    }
+    const voulu = d.sens === 'rising' ? 1 : 0;
+    const { entrant, fronts } = this.fenetre(d.voie, Math.max(depuis, v.fronts[0]!.t), jusqua);
+    // Un front dont on ignore le niveau de départ n'est pas une bascule vue.
+    let avant = entrant;
+    for (const f of fronts) {
+      if (avant !== null && f.niveau === voulu) return f.t;
+      avant = f.niveau;
+    }
+    return null;
+  }
+
+  /**
+   * Poursuit la recherche du déclenchement sur ce que la voie vient de recevoir.
+   * Seul le PREMIER front qui répond compte : un déclenchement qui se
+   * redéplacerait à chaque front ferait glisser l'écran sans arrêt.
+   *
+   * Échantillonnée, on ne lit que les intervalles CLOS : un front encore à venir
+   * peut changer la lecture de celui qui est en cours, et un déclenchement posé
+   * trop tôt ne se reprend pas.
+   */
+  private suivreDeclenchement(v: VoieCapture): void {
+    const d = this.declenchement;
+    if (!d || this.tDeclenche !== null || v.voie !== d.voie) return;
+    const borne = this.plein ? this.tDernier : this.tVu;
+    const jusqua = this.periode > 0 ? Math.floor(borne / this.periode) * this.periode : borne;
+    if (jusqua <= this.luJusqua) return;
+    this.tDeclenche = this.chercher(this.luJusqua, jusqua);
+    // Voie encore vide : rien n'a été lu, un premier front à t = 0 doit rester visible.
+    if (this.tDeclenche === null && v.fronts.length > 0) this.luJusqua = jusqua;
+  }
+
+  /**
+   * La LECTURE a changé (échantillonnage, inversion) : on refait la recherche
+   * depuis l'armement, sur ce qui est déjà capturé. Sans cela l'origine restait
+   * posée sur un front que la courbe ne montre plus.
+   */
+  private recaler(): void {
+    const d = this.declenchement;
+    if (!d) return;
+    const v = this.voies.get(d.voie);
+    this.tDeclenche = null;
+    this.luJusqua = this.armeDepuis;
+    if (v) this.suivreDeclenchement(v);
   }
 
   /**
@@ -304,6 +382,7 @@ export class AnalyseurCapture {
     this.tDernier = 0;
     this.tVu = 0;
     this.tDeclenche = null;
+    this.armeDepuis = this.luJusqua = -Infinity;
     this.armee = this.declenchement !== null;
     this.plein = false;
     this.aVider = false;
@@ -361,10 +440,17 @@ export class AnalyseurCapture {
         }
         v.fronts.push({ t, niveau });
         if (t > this.tDernier) this.tDernier = t;
-        this.noterDeclenchement(v, niveau, t);
       }
+      // Avant le rabot : ce qui va être jeté doit avoir été lu.
+      this.suivreDeclenchement(v);
       if (!this.plein) this.raboter(v);
     }
+    // Échantillonnée, la lecture d'un front ne tombe qu'au tic suivant : une
+    // voie qui ne bouge plus (TRIG monté une seule fois) doit être relue quand
+    // le temps avance sur les AUTRES voies, sinon son front n'était jamais lu.
+    const d = this.declenchement;
+    const vd = d ? this.voies.get(d.voie) : undefined;
+    if (vd) this.suivreDeclenchement(vd);
   }
 
   /**
@@ -416,17 +502,6 @@ export class AnalyseurCapture {
   }
 
   /**
-   * Premier front qui satisfait le déclenchement : il fixe l'origine des temps
-   * de la vue. Seul le PREMIER compte — un déclenchement qui se redéplacerait à
-   * chaque front ferait glisser l'écran sans arrêt, ce qui est exactement le
-   * défaut qu'un déclenchement corrige.
-   */
-  private noterDeclenchement(v: VoieCapture, niveau: 0 | 1, t: number): void {
-    if (this.tDeclenche !== null) return;
-    if (this.repond(v, niveau)) this.tDeclenche = t;
-  }
-
-  /**
    * Voies lues à l'envers (niveau au repos à 1). L'inversion est appliquée EN
    * SORTIE, sur `niveauA` et `fenetre` : la capture garde ce que le moteur a
    * mesuré, et une voie qu'on remet à l'endroit retrouve ses vrais fronts sans
@@ -436,7 +511,10 @@ export class AnalyseurCapture {
 
   /** Déclare les voies à lire à l'envers (lignes actives-bas). */
   reglerInversion(voies: Iterable<number>): void {
+    const avant = this.inversees;
     this.inversees = new Set(voies);
+    const d = this.declenchement;
+    if (d && avant.has(d.voie) !== this.inversees.has(d.voie)) this.recaler();
   }
 
   /**
@@ -452,7 +530,10 @@ export class AnalyseurCapture {
 
   /** Fréquence d'échantillonnage simulée, en hertz ; 0 = illimitée. */
   reglerEchantillonnage(hz: number): void {
-    this.periode = hz > 0 ? 1000 / hz : 0;
+    const periode = hz > 0 ? 1000 / hz : 0;
+    if (periode === this.periode) return;
+    this.periode = periode;
+    this.recaler();
   }
 
   /**

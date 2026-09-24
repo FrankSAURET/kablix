@@ -184,5 +184,39 @@ if (!s) {
 		'un onglet restauré puis fermé sort du registre');
 }
 
+// --- 5. PREMIER LANCEMENT (Frank, 24/09 : « la courbe disparaît pour ne plus
+// réapparaître », mais tout va bien au lancement suivant). L'atelier poste
+// `analyseurDepart` AVANT d'ouvrir l'onglet : au premier run l'onglet n'existe
+// pas encore, l'hôte jette le message, et la page croit toute la course que la
+// simulation est arrêtée — un changement de déclenchement cherche alors dans
+// une capture figée et n'en sort plus. L'hôte retient donc « run en cours » et
+// le redit à la page qui naît.
+{
+	const CLE2 = 'file:///W:/projet/premier-lancement.projix';
+	let enCours = true;
+	const etat = () => ({ voies: [{ voie: 0, pin: '8', nom: 'horloge', probleme: null, analogique: false, suivi: false }], capture: null, enCours });
+	AnalyseurPanel.ouvrir(extUri, CLE2, 'Logic analyzer', etat, () => {});
+	const p = vs.panneaux.at(-1);
+	p._onMsg?.({ type: 'analyseurPret' });
+	const types = p.recu.map((m) => m.type);
+	check(types.includes('depart') && types.indexOf('voies') < types.indexOf('depart'),
+		`onglet ouvert pendant un run : la page reçoit ses voies PUIS le départ (${types.join(', ')})`);
+	// Onglet déjà vivant qu'on révèle : il a eu son départ, le lui redire
+	// effacerait sa capture.
+	const avant = p.recu.filter((m) => m.type === 'depart').length;
+	AnalyseurPanel.ouvrir(extUri, CLE2, 'Logic analyzer', etat, () => {});
+	check(p.recu.filter((m) => m.type === 'depart').length === avant,
+		'onglet déjà ouvert révélé : aucun second départ (sa capture est gardée)');
+	p.dispose();
+	// Contre-épreuve : simulation arrêtée → pas de départ inventé.
+	enCours = false;
+	AnalyseurPanel.ouvrir(extUri, CLE2, 'Logic analyzer', etat, () => {});
+	const q = vs.panneaux.at(-1);
+	q._onMsg?.({ type: 'analyseurPret' });
+	check(!q.recu.some((m) => m.type === 'depart'),
+		'onglet ouvert à l’arrêt : aucun départ envoyé');
+	q.dispose();
+}
+
 if (echecs) { console.log(`\n✗ ${echecs} échec(s) — un onglet d’analyseur restauré par VS Code reste sourd`); process.exit(1); }
 console.log('\n✓ l’onglet d’analyseur survit à un redémarrage de VS Code');

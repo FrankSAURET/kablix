@@ -87,6 +87,14 @@ export interface EtatAnalyseur {
   voies: unknown[];
   /** Dernière capture connue, telle qu'enregistrée dans le .projix. */
   capture: unknown | null;
+  /**
+   * Vrai si une simulation tourne. Au PREMIER lancement, l'atelier annonce le
+   * départ avant d'ouvrir l'onglet : ce `depart` ne trouvait personne et se
+   * perdait. L'onglet se croyait arrêté tout le run, et changer son
+   * déclenchement cherchait dans une capture figée — la courbe disparaissait
+   * jusqu'au lancement suivant (Frank, 24/09).
+   */
+  enCours?: boolean;
 }
 
 /** Nonce CSP : aléa cryptographique. */
@@ -122,8 +130,9 @@ export class AnalyseurPanel {
     if (existant) {
       existant.panel.reveal(undefined, true);
       // La page vit déjà : on lui repousse l'état, au cas où des sondes auraient
-      // été posées pendant que l'onglet était caché.
-      existant.pousserEtat(fournirEtat());
+      // été posées pendant que l'onglet était caché. Elle a reçu le `depart`
+      // elle-même : le renvoyer effacerait ce qu'elle a déjà capturé.
+      existant.pousserEtat(fournirEtat(), false);
       return existant;
     }
     const panel = vscode.window.createWebviewPanel(
@@ -287,10 +296,14 @@ export class AnalyseurPanel {
     this.pousserEtat(etat);
   }
 
-  /** Déclare les voies puis restaure la dernière capture. */
-  private pousserEtat(etat: EtatAnalyseur): void {
+  /**
+   * Déclare les voies, restaure la dernière capture, puis annonce le run en
+   * cours s'il y en a un (`depart` : la page qui vient de naître ne l'a pas reçu).
+   */
+  private pousserEtat(etat: EtatAnalyseur, depart = true): void {
     this.envoyer({ type: 'voies', voies: etat.voies });
     if (etat.capture) this.envoyer({ type: 'restaure', etat: etat.capture });
+    if (depart && etat.enCours) this.envoyer({ type: 'depart' });
   }
 
   private onDispose(): void {
