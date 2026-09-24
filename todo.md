@@ -35,12 +35,19 @@
 
 ---
 
+# v2026.9.5.137
+1. ✅ **`@xmldom/xmldom` retiré des dépendances** (Frank : option A). Ajouté en v2026.7.110 (claviers à touches dures), jamais importé : aucune trace dans `src/`, `scripts/`, `A Examiner/`, `Archives/`, ni dans l'historique git — sans doute un script jetable de nettoyage SVG, installé sans `-D`. Son nom n'entrait dans `dist/extension.js` que par la liste `__DEPENDENCIES__` injectée par esbuild ([updates.ts](src/updates.ts)), qui ne surveille que `avr8js`, `rp2040js` et `lit`. `npm uninstall` : sorti de [package.json](package.json) et `package-lock.json` (aucun autre paquet n'en dépendait), plus aucune occurrence dans `dist/extension.js`. `npm audit` : 0 vulnérabilité.
+2. ✅ **Tests** : `typecheck` et construction verts ; `verify:all` **134/135**, identique à v.136. Seul rouge `verify:dmx` (2 contrôles, `CANAUX = 3`, seuil de [verify-dmx.mjs](scripts/verify-dmx.mjs) à abaisser — toujours ⏳).
+3. ℹ️ `node_modules/@xmldom/` reste là, vide : npm ne retire pas le dossier de portée. Sans effet.
+
+---
+
 # v2026.9.5.136
 1. ✅ **Failles `npm audit` corrigées** (Frank : option A). `npm audit fix` : `@xmldom/xmldom` 0.9.10 → 0.9.12, `qs` 6.15.2 → 6.16.0 (tiré par vsce), `svgo` 4.0.2 → 4.1.0 ; `esbuild` 0.28.0 → 0.28.2, version exacte dans [package.json](package.json). `npm audit` : 0 vulnérabilité. Aucune n'atteignait l'utilisateur : rien de tout ça n'entre dans le `.vsix` (`xmldom` n'est importé nulle part, seul son nom figure dans `dist/extension.js`).
 2. ✅ **Piège npm** : après `npm audit fix`, `package-lock.json` était à jour mais PAS `node_modules` — le cache `node_modules/.package-lock.json` annonçait déjà les nouvelles versions (écrit par `npm audit fix --dry-run` ou l'installation de vsce), donc npm ne réinstallait rien et `npm ls` mentait. Remède sans rien effacer : `touch` des quatre dossiers (npm ne se fie plus au cache quand un dossier est plus récent), puis `npm install`. Contrôle par lecture directe de chaque `node_modules/<paquet>/package.json`. `patch-package` : `rp2040js@1.3.4 ✔`.
 3. ✅ **Construction comparée** au `dist/` du paquet de 10:14 (anciennes versions) : `webview.js`, `webview-worker.js`, `analyseur.js` et les posters **identiques à l'octet** — `svgo` 4.1.0 rend les mêmes SVG. Seuls `extension.js` et `zip.js` changent : l'aide CommonJS d'esbuild 0.28.2 relance l'erreur d'un module dont l'initialisation a échoué.
 4. ✅ **Tests** : `typecheck` et construction verts ; `verify:all` **134/135**, identique à v.135. Seul rouge `verify:dmx` (2 contrôles, `CANAUX = 3`, seuil de [verify-dmx.mjs](scripts/verify-dmx.mjs) à abaisser — toujours ⏳).
-5. ℹ️ **`@xmldom/xmldom` déclaré en dépendance d'exécution sans usage** : aucun import dans `src/` ni `scripts/`. Candidat au retrait, à trancher par Frank.
+5. ℹ️ **`@xmldom/xmldom` déclaré en dépendance d'exécution sans usage** : aucun import dans `src/` ni `scripts/`. Candidat au retrait, à trancher par Frank → retiré en v2026.9.5.137.
 
 ---
 

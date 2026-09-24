@@ -2,7 +2,7 @@
   "name": "kablix",
   "displayName": "Kablix",
   "version": "2026.9.5",
-  "buildNumber": 136,
+  "buildNumber": 137,
   "description": "%kablix.description%",
   "publisher": "electropol-fr",
   "author": {
@@ -482,7 +482,6 @@
     "verify:rfid:e2e": "node scripts/verify-rfid-e2e.mjs"
   },
   "dependencies": {
-    "@xmldom/xmldom": "^0.9.10",
     "avr8js": "0.21.1",
     "jszip": "^3.10.1",
     "lit": "3.3.3",
