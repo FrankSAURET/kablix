@@ -113,6 +113,31 @@ export interface VoieVue {
    * Le bouton « P » l'affiche à sa place quand un décodage est posé.
    */
   protocole?: string | null;
+  /**
+   * Lignes de la bande de décodage sous la piste (1 par défaut, 2 pour un DHT
+   * qui écrit ses valeurs sous ses octets). La piste grandit d'autant.
+   */
+  lignesDecodage?: number;
+}
+
+/** Lignes de décodage réservées sous une piste. */
+const lignesDe = (vv: VoieVue): number => Math.max(1, vv.lignesDecodage ?? 1);
+
+/** Hauteur d'une piste, bande de décodage comprise. */
+const hauteurPiste = (vv: VoieVue): number => PISTE_H + ANNOT_H * lignesDe(vv);
+
+/**
+ * Haut de chaque piste, dans l'ordre d'affichage. Les pistes n'ont plus toutes
+ * la même hauteur depuis qu'un décodage peut écrire sur deux lignes : tout ce
+ * qui place une piste passe par ici.
+ */
+function hautsPistes(voies: VoieVue[]): number[] {
+  let y = REGLE_H;
+  return voies.map((vv) => {
+    const haut = y;
+    y += hauteurPiste(vv);
+    return haut;
+  });
 }
 
 /** État du zoom / défilement, conservé entre deux rendus. */
@@ -218,9 +243,15 @@ export class AnalyseurVue {
     return this.zones.find((z) => z.voie === voie && z.quoi === quoi) ?? null;
   }
 
-  /** Hauteur totale nécessaire pour n voies (l'appelant dimensionne le canvas). */
-  hauteurPour(nVoies: number): number {
-    return REGLE_H + Math.max(1, nVoies) * (PISTE_H + ANNOT_H) + 8;
+  /**
+   * Hauteur totale nécessaire (l'appelant dimensionne le canvas) : pour n voies
+   * d'une ligne de décodage chacune, ou pour ces voies-là, lignes comprises.
+   */
+  hauteurPour(voies: number | VoieVue[]): number {
+    if (typeof voies === 'number' || voies.length === 0) {
+      return REGLE_H + Math.max(1, typeof voies === 'number' ? voies : 0) * (PISTE_H + ANNOT_H) + 8;
+    }
+    return REGLE_H + voies.reduce((s, vv) => s + hauteurPiste(vv), 0) + 8;
   }
 
   /** Convertit un temps (ms) en x (pixels CSS). */
@@ -236,9 +267,13 @@ export class AnalyseurVue {
   }
 
   /** Indice de piste sous une ordonnée, ou -1 hors des pistes. */
-  pisteA(y: number, nVoies: number): number {
-    const i = Math.floor((y - REGLE_H) / (PISTE_H + ANNOT_H));
-    return i >= 0 && i < nVoies ? i : -1;
+  pisteA(y: number, voies: number | VoieVue[]): number {
+    if (typeof voies === 'number') {
+      const i = Math.floor((y - REGLE_H) / (PISTE_H + ANNOT_H));
+      return i >= 0 && i < voies ? i : -1;
+    }
+    const hauts = hautsPistes(voies);
+    return hauts.findIndex((h, i) => y >= h && y < h + hauteurPiste(voies[i]!));
   }
 
   dessiner(e: EtatRendu): void {
@@ -274,10 +309,9 @@ export class AnalyseurVue {
 
     this.regle(ctx, e, w, fg, faible, police);
 
+    const hauts = hautsPistes(e.voies);
     for (let i = 0; i < e.voies.length; i++) {
-      const vv = e.voies[i]!;
-      const haut = REGLE_H + i * (PISTE_H + ANNOT_H);
-      this.piste(ctx, e, vv, haut, w, fg, faible, sombre);
+      this.piste(ctx, e, e.voies[i]!, hauts[i]!, w, fg, faible, sombre);
     }
 
     if (!e.capture.aDesDonnees) {
@@ -399,8 +433,8 @@ export class AnalyseurVue {
     ctx.save();
     ctx.strokeStyle = faible;
     ctx.beginPath();
-    ctx.moveTo(MARGE_G, haut + PISTE_H + ANNOT_H - 0.5);
-    ctx.lineTo(w - MARGE_D, haut + PISTE_H + ANNOT_H - 0.5);
+    ctx.moveTo(MARGE_G, haut + hauteurPiste(vv) - 0.5);
+    ctx.lineTo(w - MARGE_D, haut + hauteurPiste(vv) - 0.5);
     ctx.stroke();
     ctx.restore();
 
@@ -678,10 +712,13 @@ export class AnalyseurVue {
     // distinguer. Une annotation sans voie (ou dont la voie n'est pas
     // affichée) retombe sous la dernière piste, comme avant.
     const derniere = e.voies.length - 1;
+    if (derniere < 0) return;
     const rang = new Map<number, number>();
     for (let i = 0; i < e.voies.length; i++) rang.set(e.voies[i]!.voie, i);
-    const yDePiste = (i: number): number =>
-      REGLE_H + i * (PISTE_H + ANNOT_H) + PISTE_H + 1;
+    const hauts = hautsPistes(e.voies);
+    /** Haut d'une ligne de la bande de décodage d'une piste. */
+    const yDe = (piste: number, ligne: number): number =>
+      hauts[piste]! + PISTE_H + 1 + ligne * ANNOT_H;
     const xMin = MARGE_G;
     const xMax = w - MARGE_D;
     // Start VERT et stop ROUGE pour tous les protocoles (Frank, 24/09) : les
@@ -702,7 +739,14 @@ export class AnalyseurVue {
     ctx.textBaseline = 'middle';
     const pisteDe = (a: Annotation): number =>
       (a.voie !== undefined ? rang.get(a.voie) : undefined) ?? derniere;
-    const boite = (a: Annotation): { x0: number; x1: number; g: number; d: number } => {
+    /** Ligne d'une annotation, ramenée à celles que sa piste a réservées. */
+    const ligneDe = (a: Annotation, piste: number): number =>
+      Math.min(Math.max(0, a.ligne ?? 0), lignesDe(e.voies[piste]!) - 1);
+    // Une RANGÉE = une ligne d'une piste. Tout ce qui empêche deux textes de se
+    // recouvrir se suit par rangée : les octets d'une ligne DHT ne gênent pas
+    // les valeurs écrites sur la ligne d'en dessous.
+    const rangee = (piste: number, ligne: number): number => piste * 8 + ligne;
+    const boite =(a: Annotation): { x0: number; x1: number; g: number; d: number } => {
       const x0 = this.xDe(a.t0, e.fenetre, w);
       const x1 = this.xDe(Math.max(a.t1, a.t0), e.fenetre, w);
       return { x0, x1, g: Math.max(xMin, x0), d: Math.min(xMax, Math.max(x1, x0 + 1)) };
@@ -713,19 +757,20 @@ export class AnalyseurVue {
       if (a.court !== undefined && ctx.measureText(a.court).width + 4 <= place) return a.court;
       return null;
     };
-    const baseTexte = (piste: number): number => yDePiste(piste) + (ANNOT_H - 3) / 2;
+    const baseTexte = (piste: number, ligne: number): number => yDe(piste, ligne) + (ANNOT_H - 3) / 2;
 
-    // Résumés À ÉCRIRE : ceux dont l'un des champs détaillés ne peut pas écrire
-    // le sien. De près on lit les champs, de loin le résumé — jamais un mélange
-    // des deux : un « ✓ » de somme qui tient seul bloquerait le résumé et
-    // cacherait les valeurs qu'on est venu chercher.
+    // Résumés À ÉCRIRE : ceux dont l'un des champs détaillés de LEUR ligne ne
+    // peut pas écrire le sien. De près on lit les champs, de loin le résumé —
+    // jamais un mélange des deux : un « ✓ » de somme qui tient seul bloquerait
+    // le résumé et cacherait les valeurs qu'on est venu chercher.
     const resumes: Annotation[] = [];
-    const couverts: Array<{ piste: number; t0: number; t1: number }> = [];
+    const couverts: Array<{ rangee: number; t0: number; t1: number }> = [];
     for (const r of e.annotations) {
       if (!r.resume) continue;
       const piste = pisteDe(r);
+      const ligne = ligneDe(r, piste);
       const champs = e.annotations.filter(
-        (a) => !a.resume && pisteDe(a) === piste && a.t0 >= r.t0 && a.t1 <= r.t1
+        (a) => !a.resume && pisteDe(a) === piste && ligneDe(a, piste) === ligne && a.t0 >= r.t0 && a.t1 <= r.t1
       );
       const lisibles = champs.every((a) => {
         const b = boite(a);
@@ -733,27 +778,29 @@ export class AnalyseurVue {
       });
       if (lisibles && champs.length > 0) continue;
       resumes.push(r);
-      couverts.push({ piste, t0: r.t0, t1: r.t1 });
+      couverts.push({ rangee: rangee(piste, ligne), t0: r.t0, t1: r.t1 });
     }
 
-    // Dernier x occupé, PAR PISTE : une annotation qui chevaucherait la
+    // Dernier x occupé, PAR RANGÉE : une annotation qui chevaucherait la
     // précédente est dessinée en trait seul, sans texte — l'élève zoome pour
-    // la lire. Le suivi est par piste depuis qu'on décode plusieurs bus : un
+    // la lire. Le suivi est par piste depuis qu'on décode plusieurs bus (un
     // compteur global laissait un bus muet parce que l'autre avait écrit au
-    // même instant sur une AUTRE ligne.
+    // même instant sous une AUTRE piste), et par ligne depuis le DHT.
     const occupe = new Map<number, number>();
-    /** Intervalles où un texte est écrit, par piste : un résumé ne les recouvre pas. */
+    /** Intervalles où un texte est écrit, par rangée : un résumé ne les recouvre pas. */
     const ecrits = new Map<number, Array<[number, number]>>();
-    const noterEcrit = (piste: number, g: number, d: number): void => {
-      const l = ecrits.get(piste);
+    const noterEcrit = (cle: number, g: number, d: number): void => {
+      const l = ecrits.get(cle);
       if (l) l.push([g, d]);
-      else ecrits.set(piste, [[g, d]]);
+      else ecrits.set(cle, [[g, d]]);
     };
     for (const a of e.annotations) {
       if (a.resume) continue;
       const piste = pisteDe(a);
       if (piste < 0) continue;
-      const y = yDePiste(piste);
+      const ligne = ligneDe(a, piste);
+      const cle = rangee(piste, ligne);
+      const y = yDe(piste, ligne);
       const { x0, x1, g, d } = boite(a);
       if (x1 < xMin || x0 > xMax) continue;
       const c = couleurs[a.nature];
@@ -767,23 +814,26 @@ export class AnalyseurVue {
       ctx.lineTo(Math.round(g) + 0.5, y + ANNOT_H - 3);
       ctx.stroke();
       // Champ doublé par un résumé à écrire : c'est le résumé qui parle.
-      if (couverts.some((m) => m.piste === piste && a.t0 >= m.t0 && a.t1 <= m.t1)) continue;
+      if (couverts.some((m) => m.rangee === cle && a.t0 >= m.t0 && a.t1 <= m.t1)) continue;
       const texte = texteQuiTient(a, d - g);
-      if (texte !== null && g >= (occupe.get(piste) ?? -Infinity)) {
+      if (texte !== null && g >= (occupe.get(cle) ?? -Infinity)) {
         ctx.fillStyle = fg;
-        ctx.fillText(texte, (g + d) / 2, baseTexte(piste));
-        occupe.set(piste, d);
-        noterEcrit(piste, g, d);
+        ctx.fillText(texte, (g + d) / 2, baseTexte(piste, ligne));
+        occupe.set(cle, d);
+        noterEcrit(cle, g, d);
       }
     }
 
     // Les résumés s'écrivent à partir du début de leur trame et débordent à
-    // droite jusqu'à la PROCHAINE annotation de la piste : de loin, la trame
+    // droite jusqu'à la PROCHAINE annotation de la piste, toutes lignes
+    // confondues (le départ de la trame suivante l'arrête) : de loin, la trame
     // n'a que quelques pixels, le silence qui la suit a toute la place.
     ctx.textAlign = 'left';
     for (const r of resumes) {
       const piste = pisteDe(r);
       if (piste < 0) continue;
+      const ligne = ligneDe(r, piste);
+      const cle = rangee(piste, ligne);
       const { x0, x1, g } = boite(r);
       if (x1 < xMin || x0 > xMax) continue;
       let limite = xMax;
@@ -794,10 +844,10 @@ export class AnalyseurVue {
       const texte = texteQuiTient(r, limite - g);
       if (texte === null) continue;
       const fin = g + ctx.measureText(texte).width + 4;
-      if ((ecrits.get(piste) ?? []).some(([a0, a1]) => a0 < fin && a1 > g)) continue;
+      if ((ecrits.get(cle) ?? []).some(([a0, a1]) => a0 < fin && a1 > g)) continue;
       ctx.fillStyle = fg;
-      ctx.fillText(texte, g + 2, baseTexte(piste));
-      noterEcrit(piste, g, fin);
+      ctx.fillText(texte, g + 2, baseTexte(piste, ligne));
+      noterEcrit(cle, g, fin);
     }
     ctx.restore();
   }
@@ -858,13 +908,14 @@ export class AnalyseurVue {
     ctx.textAlign = 'right';
     ctx.font = `bold 13px ${getComputedStyle(document.body).getPropertyValue('--vscode-editor-font-family').trim() || 'monospace'}`;
     const teintes = sombre ? NIVEAU_COULEUR.sombre : NIVEAU_COULEUR.clair;
+    const hauts = hautsPistes(e.voies);
     for (let i = 0; i < e.voies.length; i++) {
       const vv = e.voies[i]!;
       if (vv.probleme) continue;
       const n = e.capture.niveauA(vv.voie, t);
       if (n === null) continue;
       ctx.fillStyle = teintes[n];
-      ctx.fillText(String(n), MARGE_G - 4, REGLE_H + i * (PISTE_H + ANNOT_H) + PISTE_H / 2);
+      ctx.fillText(String(n), MARGE_G - 4, hauts[i]! + PISTE_H / 2);
     }
     ctx.restore();
   }

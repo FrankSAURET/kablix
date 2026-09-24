@@ -28,6 +28,7 @@ import {
 } from './analyseur-vue.mjs';
 import {
   decoderTous,
+  lignesSousVoie,
   reculNecessaireMs,
   rolesDe,
   type Annotation,
@@ -340,13 +341,16 @@ function voiesVisibles(): VoieVue[] {
         const p = decodageDe(d.voie)?.protocole;
         return p ? NOMS_PROTOCOLE[p] : null;
       })(),
+      // Lignes de la bande de décodage : fixées par les RÉGLAGES (un DHT en
+      // réserve deux), pas par ce qui est décodé — la hauteur ne saute pas
+      // quand une trame entre ou sort de la fenêtre.
+      lignesDecodage: lignesSousVoie(decodages, d.voie),
     }));
 }
 
 function rendu(): void {
   const voies = voiesVisibles();
-  const n = Math.max(voies.length, 1);
-  const hauteur = vue.hauteurPour(n);
+  const hauteur = vue.hauteurPour(voies);
   if (canvas.style.height !== `${hauteur}px`) canvas.style.height = `${hauteur}px`;
   annotations = calculerAnnotations();
   vue.dessiner({

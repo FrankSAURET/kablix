@@ -64,7 +64,7 @@ const { AnalyseurCapture, VOIES_MAX, FRONTS_MAX_PAR_VOIE, RESERVE_AVANT } = awai
 // Le décodeur parle la langue de la webview (`t()`, v2026.9.4.133) : son paquet
 // embarque SON i18n, qu'il faut régler dans CE paquet. Le banc lit en français,
 // puis refait un tour en anglais (langue de base) plus bas.
-const { decoder, decoderTous, reglageComplet, rolesDe, reculNecessaireMs, initLocale } = await buildTo(
+const { decoder, decoderTous, reglageComplet, rolesDe, reculNecessaireMs, lignesSousVoie, initLocale } = await buildTo(
   {
     resolveDir: join(root, 'src/webview'),
     contents: [
@@ -1504,25 +1504,78 @@ const dhtDe = (tempC, humidity, model) => {
   // Frank (23/09) : « je ne vois pas les valeurs s'afficher ». Les octets et la
   // mesure occupaient le MÊME intervalle, et la vue n'écrit qu'un texte par
   // intervalle : la mesure, venue en second, n'était jamais écrite. Deux
-  // annotations détaillées ne doivent donc jamais se chevaucher.
+  // annotations détaillées d'une MÊME LIGNE ne doivent donc jamais se
+  // chevaucher (v2026.9.5.143 : les octets en ligne 0, les valeurs en ligne 1).
   const ann = decoder([voieDe(0, 'DATA', fronts, 1)], { protocole: 'dht', donnees: 0 });
   const details = ann.filter((a) => !a.resume).sort((a, b) => a.t0 - b.t0);
-  const chevauche = details.some((a, i) => details.slice(i + 1).some((b) => b.t0 < a.t1 - 1e-9 && a.t0 < b.t1 - 1e-9));
-  check('DHT : aucune annotation détaillée n\'en recouvre une autre (sinon la seconde n\'est jamais écrite)',
+  const ligneDe = (a) => a.ligne ?? 0;
+  const chevauche = details.some((a, i) => details.slice(i + 1).some((b) =>
+    ligneDe(a) === ligneDe(b) && b.t0 < a.t1 - 1e-9 && a.t0 < b.t1 - 1e-9));
+  check('DHT : aucune annotation détaillée n\'en recouvre une autre sur sa ligne (sinon la seconde n\'est jamais écrite)',
     details.length >= 5 && !chevauche,
-    details.map((a) => `[${a.t0.toFixed(3)}-${a.t1.toFixed(3)}] ${a.texte}`).join(' | '));
-  const champs = details.filter((a) => /0x/.test(a.texte));
-  check('DHT : trois champs côte à côte — humidité, température, somme — chacun avec sa valeur en repli court',
-    champs.length === 3 &&
-    champs[0].court === '56,7 %HR' && champs[1].court === '23,4 °C' && champs[2].court === '✓' &&
-    Math.abs(champs[0].t1 - champs[1].t0) < 1e-9 && Math.abs(champs[1].t1 - champs[2].t0) < 1e-9,
-    champs.map((a) => `${a.texte} (${a.court})`).join(' | '));
+    details.map((a) => `L${ligneDe(a)} [${a.t0.toFixed(3)}-${a.t1.toFixed(3)}] ${a.texte}`).join(' | '));
+
+  // Frank (24/09) : « matérialise chaque octet par un trait séparateur vertical
+  // et sa valeur en hexa dedans ». Une case PAR OCTET, bord à bord : le bord
+  // gauche de chaque case est le séparateur.
+  const hexa = (b) => `0x${b.toString(16).toUpperCase().padStart(2, '0')}`;
+  const octetsDht = details.filter((a) => ligneDe(a) === 0 && /^0x[0-9A-F]{2}$/.test(a.texte));
+  const octetsMoteur = dht22Bytes(23.4, 56.7, 'dht22');
+  check('DHT : cinq cases d\'octet sur la première ligne, une valeur hexadécimale chacune',
+    octetsDht.length === 5 && octetsDht.every((a, k) => a.texte === hexa(octetsMoteur[k])),
+    octetsDht.map((a) => a.texte).join(' | '));
+  check('DHT : les cases d\'octet se touchent (chaque bord est le trait qui sépare deux octets)',
+    octetsDht.length === 5 && octetsDht.every((a, k) => k === 0 || Math.abs(octetsDht[k - 1].t1 - a.t0) < 1e-9),
+    octetsDht.map((a) => `[${a.t0.toFixed(3)}-${a.t1.toFixed(3)}]`).join(' '));
+  // Chaque case commence au creux du premier de ses huit bits.
+  const creuxBits = [];
+  for (let i = 0; i + 1 < fronts.length; i++) {
+    if (fronts[i][1] === 0 && fronts[i + 1][1] === 1) creuxBits.push(fronts[i][0]);
+  }
+  const debutsBits = creuxBits.slice(2); // départ du maître et accusé écartés
+  check('DHT : chaque case d\'octet commence au creux de son 1er bit (bits 0, 8, 16, 24, 32)',
+    octetsDht.length === 5 && debutsBits.length >= 40 &&
+    octetsDht.every((a, k) => Math.abs(a.t0 - debutsBits[k * 8]) < 1e-9),
+    octetsDht.map((a) => a.t0.toFixed(4)).join(' ') + ' ≠ ' + [0, 8, 16, 24, 32].map((k) => debutsBits[k]?.toFixed(4)).join(' '));
+
+  // « Sur une deuxième ligne tu mets la valeur (50 % HR et 22,0 °C et somme
+  // avec la coche) » : trois champs sous les octets qu'ils lisent.
+  const valeurs = details.filter((a) => ligneDe(a) === 1);
+  check('DHT : la deuxième ligne donne humidité, température et somme cochée',
+    valeurs.length === 3 &&
+    valeurs[0].texte === '56,7 %HR' && valeurs[1].texte === '23,4 °C' &&
+    valeurs[2].texte === 'somme ✓' && valeurs[2].court === '✓',
+    valeurs.map((a) => `${a.texte} (${a.court ?? ''})`).join(' | '));
+  check('DHT : chaque valeur est sous SES octets (humidité 0-1, température 2-3, somme 4)',
+    valeurs.length === 3 && octetsDht.length === 5 &&
+    Math.abs(valeurs[0].t0 - octetsDht[0].t0) < 1e-9 && Math.abs(valeurs[0].t1 - octetsDht[1].t1) < 1e-9 &&
+    Math.abs(valeurs[1].t0 - octetsDht[2].t0) < 1e-9 && Math.abs(valeurs[1].t1 - octetsDht[3].t1) < 1e-9 &&
+    Math.abs(valeurs[2].t0 - octetsDht[4].t0) < 1e-9 && Math.abs(valeurs[2].t1 - octetsDht[4].t1) < 1e-9,
+    valeurs.map((a) => `[${a.t0.toFixed(3)}-${a.t1.toFixed(3)}] ${a.texte}`).join(' | '));
+  check('DHT : la case de somme a la couleur du verdict, les autres celle des données',
+    octetsDht.length === 5 && valeurs.length === 3 &&
+    octetsDht.slice(0, 4).every((a) => a.nature === 'donnee') &&
+    octetsDht[4].nature === 'controle' && valeurs[2].nature === 'controle',
+    [...octetsDht, ...valeurs].map((a) => `${a.texte}:${a.nature}`).join(' | '));
   const resumes = ann.filter((a) => a.resume);
-  check('DHT : un résumé couvre la trame entière et dit la mesure et la somme',
-    resumes.length === 1 && champs.length === 3 &&
-    Math.abs(resumes[0].t0 - champs[0].t0) < 1e-9 && Math.abs(resumes[0].t1 - champs[2].t1) < 1e-9 &&
+  check('DHT : un résumé sur la ligne des valeurs couvre la trame entière et dit la mesure et la somme',
+    resumes.length === 1 && octetsDht.length === 5 && ligneDe(resumes[0]) === 1 &&
+    Math.abs(resumes[0].t0 - octetsDht[0].t0) < 1e-9 && Math.abs(resumes[0].t1 - octetsDht[4].t1) < 1e-9 &&
     resumes[0].texte === '56,7 %HR · 23,4 °C · somme ✓' && resumes[0].court === '56,7 %HR · 23,4 °C',
     JSON.stringify(resumes));
+  // La piste d'une voie décodée en DHT réserve deux lignes ; les autres, une.
+  // (try : sur l'ancien code la fonction n'existe pas, le banc doit dire ❌, pas mourir.)
+  let lignes = '';
+  try {
+    lignes = [
+      lignesSousVoie([{ protocole: 'dht', donnees: 2 }], 2),
+      lignesSousVoie([{ protocole: 'dht', donnees: 2 }], 1),
+      lignesSousVoie([{ protocole: 'dht' }], 0),
+      lignesSousVoie([{ protocole: 'uart', donnees: 2 }], 2),
+    ].join(',');
+  } catch (e) { lignes = String(e); }
+  check('DHT : deux lignes de décodage sous SA voie, une ailleurs, une si le réglage est incomplet ou un autre protocole',
+    lignes === '2,1,1,1', lignes);
   // En anglais : les mêmes champs, point décimal et termes anglais. Le français
   // ne doit pas fuir — c'était le cas quand ces textes étaient écrits en dur.
   const annEn = enAnglais(() => decoder([voieDe(0, 'DATA', fronts, 1)], { protocole: 'dht', donnees: 0 }));
@@ -1538,8 +1591,9 @@ const dhtDe = (tempC, humidity, model) => {
   // L'humidité tient 16 bits, la température 16, la somme 8 : la frontière
   // entre deux champs tombe au début du creux de leur premier bit.
   check('DHT : le champ humidité s\'arrête là où commence le 17e bit',
-    champs.length === 3 && fronts.some(([t, n]) => n === 0 && Math.abs(t - champs[1].t0) < 1e-9),
-    champs.length === 3 ? `frontière ${champs[1].t0}` : '');
+    valeurs.length === 3 && fronts.some(([t, n]) => n === 0 && Math.abs(t - valeurs[1].t0) < 1e-9) &&
+    Math.abs(valeurs[0].t1 - debutsBits[16]) < 1e-9,
+    valeurs.length === 3 ? `frontière ${valeurs[1].t0}` : '');
 }
 {
   // Une température NÉGATIVE : le DHT22 code un bit de signe et une valeur
@@ -1558,14 +1612,39 @@ const dhtDe = (tempC, humidity, model) => {
   const voies = [voieDe(0, 'DATA', fronts, 1)];
   const enDht11 = textesDht(voies, { protocole: 'dht', donnees: 0, modele: 'dht11' });
   const enDht22 = textesDht(voies, { protocole: 'dht', donnees: 0, modele: 'dht22' });
-  check('DHT11 : les entiers sont lus tels quels (55 %HR, 22 °C)',
-    enDht11.some((x) => x.includes('55 %HR') && x.includes('22 °C')), enDht11.join(' | '));
+  // L'humidité reste entière ; la température s'écrit au dixième comme au
+  // DHT22 — « 22,0 °C », l'exemple de Frank (24/09).
+  check('DHT11 : lu tel quel, humidité entière et température au dixième (55 %HR, 22,0 °C)',
+    enDht11.includes('55 %HR') && enDht11.includes('22,0 °C') &&
+    enDht11.some((x) => x.includes('55 %HR · 22,0 °C')), enDht11.join(' | '));
   // Exigence des DEUX côtés : le même signal doit rendre une mesure en dht22
   // ET une mesure DIFFÉRENTE. Sans le premier membre, deux listes vides
   // passeraient le contrôle — c'est exactement ce que rend un décodeur absent.
   check('DHT : le réglage du modèle change VRAIMENT la lecture du même signal',
-    enDht22.some((x) => x.includes('%HR')) && !enDht22.some((x) => x.includes('55 %HR · 22 °C')),
+    enDht22.some((x) => x.includes('%HR')) && !enDht22.some((x) => x.includes('55 %HR · 22,0 °C')),
     `dht22 ➜ ${enDht22.join(' | ')}`);
+  // Les modèles récents de DHT11 donnent un dixième et un signe (bit 7 de
+  // l'octet 3). Trame fabriquée ici : le moteur simulé envoie toujours 0.
+  const dht11Brut = (octets) => {
+    const US = 0.001;
+    const f = [[1.0, 0], [2.0, 1]];
+    let t = 2.0 + 30 * US;
+    const bas = (d) => { f.push([t, 0]); t += d * US; };
+    const haut = (d) => { f.push([t, 1]); t += d * US; };
+    bas(80); haut(80);
+    for (const o of octets) for (let b = 7; b >= 0; b--) { bas(50); haut(o & (1 << b) ? 70 : 26); }
+    bas(50); f.push([t, 1]);
+    return f;
+  };
+  const somme = (o) => (o[0] + o[1] + o[2] + o[3]) & 0xff;
+  const avecSomme = (o) => [...o, somme(o)];
+  const dixieme = textesDht([voieDe(0, 'DATA', dht11Brut(avecSomme([40, 0, 21, 7])), 1)],
+    { protocole: 'dht', donnees: 0, modele: 'dht11' });
+  const negatif = textesDht([voieDe(0, 'DATA', dht11Brut(avecSomme([40, 0, 3, 0x85])), 1)],
+    { protocole: 'dht', donnees: 0, modele: 'dht11' });
+  check('DHT11 : le dixième de l\'octet 3 est lu (21,7 °C) et son bit 7 signe la valeur (-3,5 °C)',
+    dixieme.includes('21,7 °C') && negatif.includes('-3,5 °C'),
+    `${dixieme.join(' | ')} ⁄ ${negatif.join(' | ')}`);
 }
 {
   // Une trame coupée en route (câble arraché, pince déplacée) doit être
@@ -1681,6 +1760,26 @@ const dhtDe = (tempC, humidity, model) => {
     && vue.pisteA(DISPOSITION.REGLE_H + DISPOSITION.PISTE_H + DISPOSITION.ANNOT_H + 5, 3) === 1
     && vue.pisteA(0, 3) === -1
     && vue.pisteA(10000, 3) === -1);
+
+  // v2026.9.5.143 : une voie décodée en DHT réserve DEUX lignes sous sa courbe.
+  // Les pistes n'ont donc plus toutes la même hauteur : la hauteur totale et la
+  // piste sous la souris se calculent sur les voies réelles.
+  const { PISTE_H, ANNOT_H, REGLE_H } = DISPOSITION;
+  const voiesMixtes = [{ voie: 0 }, { voie: 1, lignesDecodage: 2 }, { voie: 2 }];
+  let hMixte = NaN, pistesMixtes = '';
+  try {
+    hMixte = vue.hauteurPour(voiesMixtes);
+    const y1 = REGLE_H + PISTE_H + ANNOT_H; // haut de la piste 1
+    const y2 = y1 + PISTE_H + 2 * ANNOT_H;  // haut de la piste 2
+    pistesMixtes = [y1 - 1, y1 + PISTE_H + ANNOT_H + 5, y2 - 1, y2 + 1]
+      .map((y) => vue.pisteA(y, voiesMixtes)).join(',');
+  } catch (e) { pistesMixtes = String(e); }
+  check('hauteur : une voie DHT ajoute une ligne de décodage (18 px) à sa piste, et à elle seule',
+    hMixte === vue.hauteurPour(3) + ANNOT_H, `${hMixte} au lieu de ${vue.hauteurPour(3) + ANNOT_H}`);
+  check('pistes : sous une piste à deux lignes, la seconde ligne appartient encore à SA voie, la suivante commence après',
+    pistesMixtes === '0,1,1,2', pistesMixtes);
+  check('hauteur : des voies sans décodage à deux lignes gardent l\'ancienne hauteur',
+    vue.hauteurPour([{ voie: 0 }, { voie: 1 }]) === vue.hauteurPour(2));
 }
 
 // --- Déclenchement : c'est la SONDE, pas un bouton (Frank, v2026.9.4.90) ------
@@ -1933,8 +2032,12 @@ const dhtDe = (tempC, humidity, model) => {
   const vue = readFileSync(join(root, 'src', 'webview', 'analyseur-vue.mts'), 'utf8');
   check('par courbe : la vue ancre chaque annotation sous la piste de sa voie',
     /a\.voie !== undefined \? rang\.get\(a\.voie\)/.test(vue));
-  check('par courbe : le suivi du dernier x occupé est PAR piste, plus global',
-    /occupe = new Map/.test(vue) && /occupe\.set\(piste/.test(vue));
+  // Par piste (v2026.9.x), puis par RANGÉE = piste + ligne depuis le DHT
+  // (v2026.9.5.143) : les valeurs de la ligne 1 ne sont pas bloquées par les
+  // octets de la ligne 0.
+  check('par courbe : le suivi du dernier x occupé est PAR rangée (piste et ligne), plus global',
+    /occupe = new Map/.test(vue) && /occupe\.set\(cle/.test(vue) &&
+    /const cle = rangee\(piste, ligne\)/.test(vue));
 
   check('par courbe : les boutons de voie sont DESSINÉS, pas posés en HTML',
     /boutonA\(/.test(vue) && /zoneDe\(/.test(vue) && /zones: ZoneBouton\[\]/.test(vue));

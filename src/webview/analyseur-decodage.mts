@@ -68,6 +68,12 @@ export interface Annotation {
    * la place pour dire ce qu'elle contient.
    */
   resume?: boolean;
+  /**
+   * Ligne de la bande de décodage : 0 (défaut) juste sous le créneau, 1 en
+   * dessous. Un décodeur qui écrit ses VALEURS sous ses octets en prend deux
+   * (DHT) et le déclare dans `lignesDe` : la vue réserve la place à la piste.
+   */
+  ligne?: number;
   nature: NatureAnnotation;
   /**
    * Voie sous laquelle poser l'annotation : la ligne de DONNÉES du décodage qui
@@ -924,17 +930,17 @@ const DHT = {
  * 1-Wire, où le bit est dans le creux — d'où deux décodeurs et non un seul
  * avec une option.
  *
- * Ce qui sort : chaque grandeur SOUS LES BITS QUI LA PORTENT — l'humidité sous
- * les octets 0-1, la température sous les octets 2-3, la somme de contrôle sous
- * l'octet 4 —, avec ses octets bruts quand la place le permet. Un élève qui
- * voit `SOMME ✗` sait que sa liaison est trop longue ou mal tirée, ce que
- * « 0x3F » ne lui dirait pas.
+ * Ce qui sort, sur DEUX lignes (Frank, 24/09) :
+ * - la première, les cinq octets, chacun dans sa case sous ses huit bits ;
+ * - la seconde, ce qu'ils valent, sous les octets qui les portent : l'humidité
+ *   sous les octets 0-1, la température sous les octets 2-3, la somme de
+ *   contrôle sous l'octet 4. Un élève qui voit `SOMME ✗` sait que sa liaison
+ *   est trop longue ou mal tirée, ce que « 0x3F » ne lui dirait pas.
  *
- * Trois champs CÔTE À CÔTE, et non les octets et la mesure sur le même
- * intervalle : la vue n'écrit qu'un texte par intervalle, et la mesure — posée
- * après les octets — n'apparaissait donc JAMAIS, à aucun zoom (Frank, 23/09 :
- * « je ne vois pas les valeurs s'afficher »). Un résumé de la trame entière
- * double les trois champs pour la vue de loin (cf. `Annotation.resume`).
+ * Jamais les octets et la mesure sur le même intervalle d'une même ligne : la
+ * vue n'y écrit qu'un texte, et la mesure n'apparaissait donc JAMAIS (Frank,
+ * 23/09 : « je ne vois pas les valeurs s'afficher »). Un résumé de la trame
+ * entière double la seconde ligne pour la vue de loin (cf. `Annotation.resume`).
  */
 function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
   const v = voie(voies, r.donnees);
@@ -983,35 +989,30 @@ function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
     const somme = (o[0]! + o[1]! + o[2]! + o[3]!) & 0xff;
     const ok = somme === o[4]!;
     const verdict = ok ? t('checksum ✓') : t('CHECKSUM ✗');
+    const natureSomme: NatureAnnotation = ok ? 'controle' : 'erreur';
+    // Première ligne : chaque octet dans SA case, sous ses huit bits — le trait
+    // de début de case sépare un octet du suivant (Frank, 24/09).
+    for (let k = 0; k < 5; k++) {
+      out.push({
+        t0: debuts[k * 8]!,
+        t1: k < 4 ? debuts[k * 8 + 8]! : tFin,
+        texte: octet(o[k]!, r.base),
+        nature: k < 4 ? 'donnee' : natureSomme,
+      });
+    }
+    // Deuxième ligne : ce que ces octets VALENT, sous les octets qui les portent.
     out.push(
-      {
-        t0: debuts[0]!,
-        t1: debuts[16]!,
-        texte: `${octet(o[0]!, r.base)} ${octet(o[1]!, r.base)} · ${hr}`,
-        court: hr,
-        nature: 'donnee',
-      },
-      {
-        t0: debuts[16]!,
-        t1: debuts[32]!,
-        texte: `${octet(o[2]!, r.base)} ${octet(o[3]!, r.base)} · ${temp}`,
-        court: temp,
-        nature: 'donnee',
-      },
-      {
-        t0: debuts[32]!,
-        t1: tFin,
-        texte: `${octet(o[4]!, r.base)} · ${verdict}`,
-        court: ok ? '✓' : '✗',
-        nature: ok ? 'controle' : 'erreur',
-      },
+      { t0: debuts[0]!, t1: debuts[16]!, texte: hr, nature: 'donnee', ligne: 1 },
+      { t0: debuts[16]!, t1: debuts[32]!, texte: temp, nature: 'donnee', ligne: 1 },
+      { t0: debuts[32]!, t1: tFin, texte: verdict, court: ok ? '✓' : '✗', nature: natureSomme, ligne: 1 },
       {
         t0: debuts[0]!,
         t1: tFin,
         texte: `${hr} · ${temp} · ${verdict}`,
         court: `${hr} · ${temp}`,
         resume: true,
-        nature: ok ? 'controle' : 'erreur',
+        nature: natureSomme,
+        ligne: 1,
       }
     );
     bits = [];
@@ -1081,7 +1082,13 @@ function humiditeDht(o: number[], modele: 'dht11' | 'dht22'): string {
 
 /** Température lue dans les octets 2-3 d'une trame DHT. */
 function temperatureDht(o: number[], modele: 'dht11' | 'dht22'): string {
-  if (modele === 'dht11') return `${o[2]} °C`;
+  // DHT11 : entier puis dixièmes (octet 3, 0 sur les premiers modèles, qui ne
+  // mesurent pas plus fin) ; le bit 7 de cet octet signe une valeur négative
+  // sur les modèles récents. « 22,0 °C » comme au DHT22 (Frank, 24/09).
+  if (modele === 'dht11') {
+    const signe = o[3]! & 0x80 ? -1 : 1;
+    return `${dixiemes(signe * (o[2]! + (o[3]! & 0x7f) / 10))} °C`;
+  }
   const brut = (o[2]! << 8) | o[3]!;
   // Bit 15 = signe, et le reste est une valeur ABSOLUE — pas un complément à
   // deux : lire -0x8001 comme un entier signé donnerait +3276,7 °C.
@@ -1130,6 +1137,25 @@ function ancreDe(r: ReglageDecodage): number | undefined {
     if (typeof v === 'number' && v >= 0) return v;
   }
   return undefined;
+}
+
+/** Lignes de la bande de décodage qu'un protocole remplit (cf. `Annotation.ligne`). */
+export function lignesDe(p: Protocole): number {
+  return p === 'dht' ? 2 : 1;
+}
+
+/**
+ * Lignes à réserver sous la piste d'une voie : le plus grand besoin des
+ * décodages qui y posent leurs annotations. Tiré des RÉGLAGES et non des
+ * annotations du moment : la piste ne doit pas changer de hauteur selon qu'une
+ * trame est à l'écran ou non.
+ */
+export function lignesSousVoie(reglages: ReglageDecodage[], voie: number): number {
+  let n = 1;
+  for (const r of reglages) {
+    if (reglageComplet(r) && ancreDe(r) === voie) n = Math.max(n, lignesDe(r.protocole));
+  }
+  return n;
 }
 
 /**

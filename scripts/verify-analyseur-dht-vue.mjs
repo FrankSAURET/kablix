@@ -22,7 +22,10 @@
 // exemple `--ancien=analyseur,analyseur-vue,analyseur-decodage`. Le banc DOIT
 // alors échouer.
 //
-// Usage : node scripts/verify-analyseur-dht-vue.mjs [--ancien=a,b,c]
+// Depuis v2026.9.5.143, deux lignes sous la courbe : les octets en hexadécimal,
+// un par case, puis les valeurs (humidité, température, somme cochée).
+//
+// Usage : node scripts/verify-analyseur-dht-vue.mjs [--ancien=a,b,c] [--detail] [--image=<dossier>]
 import esbuild from 'esbuild';
 import { mkdtempSync, writeFileSync, existsSync, rmSync } from 'node:fs';
 import { spawn, execFileSync } from 'node:child_process';
@@ -116,10 +119,24 @@ const ESPION = `
 window.__msgs = [];
 window.acquireVsCodeApi = () => ({ postMessage(m) { window.__msgs.push(m); }, setState() {} });
 window.__textes = [];
+window.__cases = [];
+window.__traits = [];
 const origine = CanvasRenderingContext2D.prototype.fillText;
 CanvasRenderingContext2D.prototype.fillText = function (t, x, y, ...r) {
 	window.__textes.push({ t: String(t), x, y, align: this.textAlign, w: this.measureText(String(t)).width });
 	return origine.call(this, t, x, y, ...r);
+};
+// Cases d'annotation (fond translucide) et départs de trait : de quoi relire
+// les séparateurs d'octets que la vue dessine.
+const origineRect = CanvasRenderingContext2D.prototype.fillRect;
+CanvasRenderingContext2D.prototype.fillRect = function (x, y, w, h) {
+	if (this.globalAlpha < 0.5) window.__cases.push({ x, y, w, h });
+	return origineRect.call(this, x, y, w, h);
+};
+const origineMove = CanvasRenderingContext2D.prototype.moveTo;
+CanvasRenderingContext2D.prototype.moveTo = function (x, y) {
+	window.__traits.push({ x, y });
+	return origineMove.call(this, x, y);
 };`;
 /** Page de l'onglet dans une langue, écrite sur disque ; rend son adresse file://. */
 const pageDe = (langue) => {
@@ -159,9 +176,13 @@ try {
 		return r.result?.result?.value;
 	};
 	/** Ce que la vue doit écrire, par langue : seuls les mots changent, pas la mesure. */
+	// v2026.9.5.143 (Frank, 24/09) : les octets dans des cases séparées sur la
+	// première ligne, les valeurs sur une deuxième (« 50 % HR et 22,0 °C et
+	// somme avec la coche »).
+	const OCTETS = ['0x32', '0x00', '0x16', '0x00', '0x48'];
 	const ATTENDUS = {
-		fr: { depart: 'DÉPART', hr: '50 %HR', resume: '50 %HR · 22 °C · somme ✓', champs: ['0x32 0x00 · 50 %HR', '0x16 0x00 · 22 °C', '0x48 · somme ✓'] },
-		en: { depart: 'REQUEST', hr: '50 %RH', resume: '50 %RH · 22 °C · checksum ✓', champs: ['0x32 0x00 · 50 %RH', '0x16 0x00 · 22 °C', '0x48 · checksum ✓'] },
+		fr: { depart: 'DÉPART', hr: '50 %HR', temp: '22,0 °C', resume: '50 %HR · 22,0 °C · somme ✓', valeurs: ['50 %HR', '22,0 °C', 'somme ✓'] },
+		en: { depart: 'REQUEST', hr: '50 %RH', temp: '22.0 °C', resume: '50 %RH · 22.0 °C · checksum ✓', valeurs: ['50 %RH', '22.0 °C', 'checksum ✓'] },
 	};
 
 	for (const langue of LANGUES) {
@@ -178,20 +199,29 @@ try {
 		await ev(`window.postMessage(${JSON.stringify({ type: 'restaure', etat })}, '*')`);
 		await attendre(200);
 
-		/** Textes écrits sous la piste 0 (bande des annotations) au prochain rendu forcé. */
-		// Règle 22, piste 46, bande d'annotations 18 (`ANNOT_H` de analyseur-vue.mts).
-		const Y_ANNOT = 22 + 46 + 1 + (18 - 3) / 2;
+		/**
+		 * Textes écrits sous la piste 0 au prochain rendu forcé, avec leur ligne :
+		 * 0 = octets (et départ, accusé), 1 = valeurs. Règle 22, piste 46, une
+		 * ligne d'annotations = 18 (`ANNOT_H` de analyseur-vue.mts).
+		 */
+		const Y_LIGNE = [0, 1].map((l) => 22 + 46 + 1 + l * 18);
 		const releve = async () => {
-			await ev(`window.__textes = []`);
+			await ev(`window.__textes = []; window.__cases = []; window.__traits = []`);
 			await ev(`window.postMessage({ type: 'repeindre' }, '*')`);
 			await attendre(60);
 			const t = await ev('window.__textes');
-			return t.filter((x) => Math.abs(x.y - Y_ANNOT) < 0.6).map((x) => {
+			const textes = [];
+			for (const x of t) {
+				const ligne = Y_LIGNE.findIndex((y) => Math.abs(x.y - (y + (18 - 3) / 2)) < 0.6);
+				if (ligne < 0) continue;
 				const g = x.align === 'center' ? x.x - x.w / 2 : x.align === 'right' ? x.x - x.w : x.x;
-				return { t: x.t, g, d: g + x.w };
-			});
+				textes.push({ t: x.t, g, d: g + x.w, ligne });
+			}
+			textes.cases = (await ev('window.__cases')).filter((c) => Math.abs(c.y - Y_LIGNE[0]) < 0.6);
+			textes.traits = (await ev('window.__traits')).filter((p) => Math.abs(p.y - Y_LIGNE[0]) < 0.6);
+			return textes;
 		};
-		const r = await ev(`(() => { const r = document.getElementById('trace').getBoundingClientRect(); return { left: r.left, top: r.top, w: r.width }; })()`);
+		const r = await ev(`(() => { const r = document.getElementById('trace').getBoundingClientRect(); return { left: r.left, top: r.top, w: r.width, h: r.height }; })()`);
 		// Abscisse du milieu de la trame visée dans le cadrage « toute la capture »
 		// (`ajuster()` : 1 % de marge de chaque côté).
 		const etendue = T_FIN - T_DEBUT;
@@ -206,40 +236,66 @@ try {
 			await attendre(40);
 		};
 
-		const { depart: DEPART, hr: HR, resume: RESUME, champs: CHAMPS } = ATTENDUS[langue];
+		const { depart: DEPART, hr: HR, temp: TEMP, resume: RESUME, valeurs: VALEURS } = ATTENDUS[langue];
 		const CRANS = 19; // 330 ms × 0,8^19 ≈ 4,7 ms : la trame entière, bits lisibles
 		const parCran = [];
 		for (let k = 0; k <= CRANS; k++) {
 			if (k > 0) await molette();
 			parCran.push(await releve());
 		}
-		const dire = (l) => l.map((x) => `« ${x.t} »`).join(' ');
-		if (process.argv.includes('--detail')) parCran.forEach((l, k) => console.log(`  cran ${String(k).padStart(2)} : ${l.map((x) => `${x.t} [${x.g.toFixed(0)}-${x.d.toFixed(0)}]`).join(' | ')}`));
+		const dire = (l) => l.map((x) => `« ${x.t} »L${x.ligne}`).join(' ');
+		const surLigne = (l, n) => l.filter((x) => x.ligne === n);
+		if (process.argv.includes('--detail')) parCran.forEach((l, k) => console.log(`  cran ${String(k).padStart(2)} : ${l.map((x) => `L${x.ligne} ${x.t} [${x.g.toFixed(0)}-${x.d.toFixed(0)}]`).join(' | ')}`));
 
-		console.log(`Onglet de l'analyseur en « ${langue} », trame DHT11 (${HR}, 22 °C), zoom à la molette`);
+		console.log(`Onglet de l'analyseur en « ${langue} », trame DHT11 (${HR}, ${TEMP}), zoom à la molette`);
 		check('témoin : la molette zoome vraiment (les textes du dernier cran diffèrent du premier)',
 			dire(parCran[0]) !== dire(parCran[CRANS]), `${dire(parCran[0])} / ${dire(parCran[CRANS])}`);
+		// Une piste, deux lignes de décodage : règle 22 + piste 46 + 2 × 18 + 8.
+		check('la piste décodée en DHT réserve deux lignes sous sa courbe (canvas de 112 px)',
+			Math.round(r.h) === 22 + 46 + 2 * 18 + 8, `hauteur ${r.h}`);
 		const large = parCran[0];
-		check(`toute la capture : le départ est écrit (« ${DEPART} »)`, large.some((x) => x.t === DEPART), dire(large));
-		check(`toute la capture : la mesure est écrite en clair (« ${RESUME} »)`,
-			large.some((x) => x.t === RESUME), dire(large));
+		check(`toute la capture : le départ est écrit sur la première ligne (« ${DEPART} »)`,
+			surLigne(large, 0).some((x) => x.t === DEPART), dire(large));
+		check(`toute la capture : la mesure est écrite en clair sur la deuxième ligne (« ${RESUME} »)`,
+			surLigne(large, 1).some((x) => x.t === RESUME), dire(large));
 		const muets = parCran
 			.map((l, k) => ({ k, l }))
-			.filter(({ l }) => !(l.some((x) => x.t.includes(HR)) && l.some((x) => x.t.includes('22 °C'))));
-		check('à CHAQUE cran de zoom, l\'humidité ET la température sont écrites',
+			.filter(({ l }) => !(surLigne(l, 1).some((x) => x.t.includes(HR)) && surLigne(l, 1).some((x) => x.t.includes(TEMP))));
+		check('à CHAQUE cran de zoom, l\'humidité ET la température sont écrites sur la deuxième ligne',
 			muets.length === 0, muets.map(({ k, l }) => `cran ${k} : ${dire(l) || 'rien'}`).join(' · '));
+		// `--image=<dossier>` : garde la vue de près en PNG, pour l'œil.
+		const dossierImage = process.argv.find((a) => a.startsWith('--image='))?.slice('--image='.length);
+		if (dossierImage) {
+			const png = await cdp('Page.captureScreenshot', { format: 'png' });
+			writeFileSync(join(dossierImage, `dht-vue-${langue}.png`), Buffer.from(png.result.data, 'base64'));
+		}
 		const pres = parCran[CRANS];
-		check('de près : les trois champs écrits en entier, octets et valeur, sans résumé',
-			CHAMPS.every((c) => pres.some((x) => x.t === c)) && !pres.some((x) => x.t === RESUME), dire(pres));
+		const octetsPres = surLigne(pres, 0).filter((x) => /^0x[0-9A-F]{2}$/.test(x.t)).sort((a, b) => a.g - b.g);
+		check('de près : les cinq octets écrits en hexadécimal, un par case, sur la première ligne',
+			octetsPres.map((x) => x.t).join(' ') === OCTETS.join(' '), dire(pres));
+		check('de près : humidité, température et somme cochée écrites en entier sur la deuxième ligne, sans résumé',
+			surLigne(pres, 1).map((x) => x.t).join(' | ') === VALEURS.join(' | '), dire(pres));
+		// Les séparateurs : les cases de la ligne des octets sont bord à bord, et
+		// un trait vertical part du bord gauche de chacune. Chaque octet écrit se
+		// trouve DANS sa case, entre deux traits.
+		const cases = pres.cases.filter((c) => c.w > 3).sort((a, b) => a.x - b.x);
+		const casesOctets = octetsPres.map((o) => cases.find((c) => c.x <= o.g && o.d <= c.x + c.w));
+		const collees = casesOctets.every((c, k) => c && (k === 0 || Math.abs(casesOctets[k - 1].x + casesOctets[k - 1].w - c.x) < 1));
+		const traits = casesOctets.every((c) => c && pres.traits.some((p) => Math.abs(p.x - (Math.round(c.x) + 0.5)) < 0.01));
+		check('de près : chaque octet dans sa case, cases bord à bord, un trait vertical à chaque frontière',
+			octetsPres.length === 5 && collees && traits,
+			casesOctets.map((c) => (c ? `[${c.x.toFixed(1)}+${c.w.toFixed(1)}]` : 'hors case')).join(' '));
+		// Un texte ne peut en gêner un autre que sur SA ligne ; d'une ligne à
+		// l'autre, les textes sont empilés, pas superposés.
 		const chevauchements = [];
 		parCran.forEach((l, k) => {
 			for (let i = 0; i < l.length; i++) {
 				for (let j = i + 1; j < l.length; j++) {
-					if (l[i].g < l[j].d - 0.5 && l[j].g < l[i].d - 0.5) chevauchements.push(`cran ${k} : « ${l[i].t} » / « ${l[j].t} »`);
+					if (l[i].ligne === l[j].ligne && l[i].g < l[j].d - 0.5 && l[j].g < l[i].d - 0.5) chevauchements.push(`cran ${k} : « ${l[i].t} » / « ${l[j].t} »`);
 				}
 			}
 		});
-		check('aucun texte n\'en recouvre un autre, à aucun cran', chevauchements.length === 0, chevauchements.slice(0, 4).join(' · '));
+		check('aucun texte n\'en recouvre un autre sur sa ligne, à aucun cran', chevauchements.length === 0, chevauchements.slice(0, 4).join(' · '));
 	}
 } catch (e) {
 	echecs++;

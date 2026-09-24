@@ -1,8 +1,4 @@
 # À faire
-1. Analyseur logique
-    1. DHT11/dht22 :
-        1. Matérialise chaque octet par un trait séparateur vertical et ça valeur en en hexa dedans
-        1. Sur une deuxième ligne tu mets la valeur (50% HR et 22,0 °C et somme avec la coche)
 ## fait
 
 
@@ -11,6 +7,16 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.143
+1. ✅ **DHT : un octet par case, trait séparateur, valeur en hexa dedans** (Frank : « matérialise chaque octet par un trait séparateur vertical et sa valeur en hexa dedans »). `decoderDht` ([analyseur-decodage.mts](src/webview/analyseur-decodage.mts)) pose cinq annotations d'octet bord à bord, de `debuts[8k]` à `debuts[8k+8]` (la dernière jusqu'à la fin de trame) ; le bord gauche de chaque case, déjà tracé par la vue, fait le séparateur. Base du réglage respectée (`0x32` ou `50`). Case de somme aux couleurs du verdict.
+2. ✅ **DHT : les valeurs sur une deuxième ligne** (Frank : « 50 % HR et 22,0 °C et somme avec la coche »). Nouveau champ `Annotation.ligne` (0 par défaut). Ligne 1 : humidité sous les octets 0-1, température sous 2-3, `somme ✓` (court `✓`) sous 4 ; le résumé de loin (`50 %HR · 22,0 °C · somme ✓`) passe aussi en ligne 1. DHT11 : température au dixième (`22,0 °C`, l'exemple de Frank), octet 3 lu en dixièmes et son bit 7 en signe (modèles récents) ; humidité entière.
+3. ✅ **Pistes de hauteur variable** ([analyseur-vue.mts](src/webview/analyseur-vue.mts)) : `lignesDe(protocole)` / `lignesSousVoie(reglages, voie)` donnent le nombre de lignes d'après les RÉGLAGES (pas d'après les annotations visibles : la hauteur ne saute pas). `VoieVue.lignesDecodage`, `hauteurPiste`, `hautsPistes` ; `hauteurPour` et `pisteA` acceptent les voies réelles (l'ancienne forme numérique reste). `annotations()` suit l'occupation par RANGÉE (piste + ligne) : les valeurs ne sont pas bloquées par les octets du dessus ; un résumé ne masque que les champs de SA ligne ; il déborde jusqu'à la prochaine annotation de la piste, toutes lignes confondues. [analyseur.mts](src/webview/analyseur.mts) branche `lignesDecodage` et dimensionne le canvas sur les voies.
+4. ✅ **Fiche d'aide** [sonde-logique.md](docs/fr/composants/sonde-logique.md) : puce DHT réécrite (deux lignes, cases, coche) ; lecture du DHT11 corrigée (température au dixième).
+5. ✅ **Bancs** : [verify-analyseur.mjs](scripts/verify-analyseur.mjs) — cinq cases hexa égales aux octets du moteur, bord à bord, chacune au creux de son 1er bit ; ligne 2 humidité / température / somme cochée sous SES octets ; natures ; résumé en ligne 1 ; `lignesSousVoie` ; chevauchement contrôlé par ligne ; DHT11 `22,0 °C`, `21,7 °C` et `-3,5 °C` sur trames fabriquées ; hauteur de piste à deux lignes et `pisteA` sur pistes mixtes. 290 contrôles verts. [verify-analyseur-dht-vue.mjs](scripts/verify-analyseur-dht-vue.mjs) (Chrome headless, vraie molette, FR et EN) : canvas de 112 px, octets en ligne 1 et valeurs en ligne 2 à chaque cran, cases bord à bord avec un trait à chaque frontière (espions `fillRect` / `moveTo`), option `--image=` ; contre-épreuve `--ancien=analyseur,analyseur-vue,analyseur-decodage` : **12 échecs** sur l'ancien code. Autres bancs `verify:analyseur-*` et `verify:souris` verts, construction et `typecheck` verts.
+6. ⏳ Fiche EN de la sonde logique à aligner avant publication (puce DHT, lecture DHT11).
 
 ---
 
