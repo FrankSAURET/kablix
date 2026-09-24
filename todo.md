@@ -1,9 +1,7 @@
 # À faire
 1. Analyseur logique
     1. DMX :
-        1. je voudrais voir ; BREAK, MAB, Start, la valeur de l'octet en hexa, STOP, PAUSE, MBB et aussi en début de trame le START code. Start matérialisé par une coloration en vert sur la durée du bit et stop par une coloration en rouge sur la durée des 2 bits (et ceci vaudra pour tous les types de décodage (i2c, uart etc.)). Ces mots ne seront pas traduits.
         1. Je voudrais pourvoir faire le déclenchement sur start code (premier 0x00).
-        1. aucun signal n'est produit en sorie de Mod1. Pourquoi ? Peut on le faire ?  Si oui fait -le.
     1. ds18b20-pico2
         1. proposer à la sélection du protocole un affichage decimal ou hexadecimal sous la courbe
     1. DHT11/dht22 :
@@ -17,6 +15,18 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.140
+1. ✅ **DMX : BREAK, MAB, Start, valeur en hexa, STOP, PAUSE, MBB et START code** (Frank). `decoderDmx` réécrit à la façon de l'UART ([analyseur-decodage.mts](src/webview/analyseur-decodage.mts)) : recalage sur le front descendant de chaque start bit, chaque bit lu en son milieu (`Lecteur`). Un palier bas ≥ 88 µs = `BREAK` ; `MAB` = [fin du BREAK, premier start bit] ; par créneau `Start` [t0, t0+b], valeur [t0+b, t0+9b], `STOP` [t0+9b, fin des 2 bits d'arrêt ou front descendant suivant] ; `PAUSE` si la ligne reste haute plus d'un demi-bit entre deux créneaux ; `MBB` = [fin du dernier STOP, BREAK suivant]. Premier créneau : `START code 0x00` (violet), non nul → `START code 0xCC` (orange) et aucun canal numéroté ; canaux `c1=0xC8`, texte court `0xC8` quand la place manque. Un front loin de toute frontière de bit (au-delà de la tolérance) → `cadrage` à la place de la valeur ; bit d'arrêt à 0 → `cadrage` à la place du STOP. Termes jamais traduits (commentaire d'en-tête à jour). `reculNecessaireMs('dmx')` 30 ms : un univers de 513 créneaux dure 22,7 ms, le BREAK doit rester dans la fenêtre décodée.
+2. ✅ **Start vert, STOP rouge pour tous les protocoles** : nouvelles natures `start` / `stop` ([analyseur-vue.mts](src/webview/analyseur-vue.mts)). Données passées au bleu, erreurs au magenta (sinon confondues avec le start et le STOP). I²C : START = [front SDA, premier SCL descendant], STOP = [dernier SCL montant, front SDA]. SPI : CS↓ = [CS, premier front SCK], CS↑ = [dernier front SCK, CS]. 1-Wire `RESET` et DHT `DÉPART` en vert.
+3. ✅ **UART découpé comme sur le fil** : `Start` (1 bit), valeur `0x48 'H'` (court `0x48`), `STOP`. Parité fausse posée sur le seul bit de parité ; bit d'arrêt à 0 → `cadrage` à la place du STOP, la valeur reste affichée (elle disparaissait).
+4. ✅ **Fiche d'aide** [sonde-logique.md](docs/fr/composants/sonde-logique.md) : légende des couleurs, puce UART réécrite, puce DMX512 ajoutée.
+5. ✅ **Bancs** : [verify-analyseur.mjs](scripts/verify-analyseur.mjs) — DMX : ordre `BREAK MAB Start START code 0x00 STOP Start c1=0xC8 STOP`, Start d'un bit, STOP de deux, MAB de 3 bits, aucune erreur ni PAUSE sur trame collée ; PAUSE de 5 bits, MBB de 7 bits, numérotation qui repart à c1 après chaque BREAK ; start code non nul ; termes identiques en anglais ; recul ≥ 23 ms. UART : séquence Start/valeur/STOP et largeurs, parité sur son bit, cadrage à 1 + 9 bits avec valeur gardée. I²C et SPI : bornes et natures start/stop. Bancs de vue (dht-vue, rendu, export, journal, restaure) verts. Contrôle visuel en Chrome headless à trois zooms : BREAK, MAB, Start vert, START code 0x00, STOP rouge, c1=0xC8, PAUSE, MBB à leur place. `verify:all` **134/135** : seul rouge `verify:i18n` sur « Invert » (traduction attendue à la publication) ; `verify:dmx` repasse au vert.
+6. ℹ️ **« Aucun signal en sortie de Mod1 » (dmx-pico)** : le `dmx-grove.kompix` INSTALLÉ chez Frank est en 2026.8.1 (21/08), sans `probeMirrors` ; or le composant installé remplace la copie embarquée dans le .projix (`installesDabord`, [panel.ts](src/panel.ts)), même plus ancienne. La 2026.9.1 publiée déclare `{"+":"SIG","-":"SIG"}` : avec elle les sondes sur `+`/`-` voient GP0 (contrôlé par [verify-analyseur.mjs](scripts/verify-analyseur.mjs), « la carte Grove DMX512 publiée déclare ses deux reflets »). **Remède côté Frank** : Gestionnaire de composants → mettre à jour « Grove DMX512 ». Rien touché dans son `globalStorage`. Pistes à trancher : [A] notification au démarrage quand un composant installé a une mise à jour ; [B] patte `-` en reflet INVERSÉ (vraie ligne B du RS-485) ; [C] `installesDabord` garde la plus récente des deux versions.
+7. ⏳ Clé FR `start {0} ignored` de [i18n.mts](src/webview/i18n.mts) devenue inutile (plus aucun `t('start {0} ignored')`) : à retirer au lot de traduction avant publication.
+8. ⏳ Rien de neuf à traduire côté interface : les termes DMX/UART ne se traduisent pas. Fiche EN de la sonde logique à aligner avant publication.
 
 ---
 

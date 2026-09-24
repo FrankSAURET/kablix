@@ -679,11 +679,17 @@ export class AnalyseurVue {
       REGLE_H + i * (PISTE_H + ANNOT_H) + PISTE_H + 1;
     const xMin = MARGE_G;
     const xMax = w - MARGE_D;
+    // Start VERT et stop ROUGE pour tous les protocoles (Frank, 24/09) : les
+    // données passent donc au bleu et les erreurs au magenta, sans quoi un
+    // octet se confondait avec son start bit et une erreur de cadrage avec le
+    // STOP qu'elle remplace.
     const couleurs: Record<Annotation['nature'], string> = {
+      start: sombre ? '#199e70' : '#1baf7a',
+      stop: sombre ? '#e66767' : '#e34948',
       cadre: sombre ? '#9085e9' : '#4a3aa7',
-      donnee: sombre ? '#199e70' : '#1baf7a',
+      donnee: sombre ? '#5a9ee6' : '#2f7fd8',
       controle: sombre ? '#c98500' : '#eda100',
-      erreur: sombre ? '#e66767' : '#e34948',
+      erreur: sombre ? '#e05cc9' : '#b0249a',
     };
     ctx.save();
     ctx.font = `bold ${ANNOT_PX}px ${getComputedStyle(document.body).getPropertyValue('--vscode-editor-font-family').trim() || 'monospace'}`;

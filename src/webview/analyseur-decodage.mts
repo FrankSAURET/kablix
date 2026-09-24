@@ -19,7 +19,8 @@
 //
 // LA LANGUE. Les textes passent par `t()`, clé anglaise comme partout dans le
 // code (Frank, 23/09) ; les termes des normes (START, STOP, ACK, BREAK, RESET,
-// commandes 1-Wire) restent tels quels dans les deux langues. Sans
+// commandes 1-Wire, et pour le DMX Start, MAB, PAUSE, MBB, START code — Frank,
+// 24/09) restent tels quels dans les deux langues. Sans
 // `initLocale()` — bancs en Node —, t() rend l'anglais.
 
 import type { Front, VoieCapture } from './analyseur-capture.mjs';
@@ -27,7 +28,15 @@ import { locale, t } from './i18n.mjs';
 
 /** Nature d'une annotation : la vue s'en sert pour le style. */
 export type NatureAnnotation =
-  /** Délimiteur de trame (START, STOP, BREAK, sélection CS…). */
+  /**
+   * Ouverture d'un caractère ou d'une trame : start bit UART/DMX, START I²C,
+   * CS ↓, RESET, départ DHT. Vert pour TOUS les protocoles (Frank, 24/09) —
+   * l'œil retrouve le début d'un octet sans lire un seul texte.
+   */
+  | 'start'
+  /** Fermeture : bits de stop UART/DMX, STOP I²C, CS ↑. Rouge, même raison. */
+  | 'stop'
+  /** Délimiteur de trame (BREAK, MAB, PAUSE, présence…). */
   | 'cadre'
   /** Une donnée lue (octet, adresse). */
   | 'donnee'
@@ -221,6 +230,43 @@ function frontsDe(v: VoieCapture, niveau: 0 | 1): Front[] {
   return v.fronts.filter((f) => f.niveau === niveau);
 }
 
+/** Indice du premier front d'instant ≥ `t` (dichotomie : les fronts sont triés). */
+function indiceApres(fronts: Front[], t: number): number {
+  let g = 0;
+  let d = fronts.length;
+  while (g < d) {
+    const m = (g + d) >> 1;
+    if (fronts[m]!.t < t) g = m + 1;
+    else d = m;
+  }
+  return g;
+}
+
+/**
+ * Premier front STRICTEMENT après `t` et avant `borne`, du sens demandé (null =
+ * les deux). Sert à donner une durée aux délimiteurs d'un bus à horloge : le
+ * START I²C dure jusqu'au premier front descendant de SCL qui le suit.
+ */
+function frontApres(fronts: Front[], t: number, borne: number, niveau: 0 | 1 | null): Front | null {
+  for (let i = indiceApres(fronts, t); i < fronts.length; i++) {
+    const f = fronts[i]!;
+    if (f.t <= t) continue;
+    if (f.t >= borne) return null;
+    if (niveau === null || f.niveau === niveau) return f;
+  }
+  return null;
+}
+
+/** Dernier front STRICTEMENT avant `t` et après `borne`, du sens demandé (null = les deux). */
+function frontAvant(fronts: Front[], t: number, borne: number, niveau: 0 | 1 | null): Front | null {
+  for (let i = indiceApres(fronts, t) - 1; i >= 0; i--) {
+    const f = fronts[i]!;
+    if (f.t <= borne) return null;
+    if (niveau === null || f.niveau === niveau) return f;
+  }
+  return null;
+}
+
 // --- I²C ---------------------------------------------------------------------
 
 /**
@@ -268,11 +314,15 @@ function decoderI2c(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
       iSda += 1;
       if (sclLect.a(fs.t) !== 1) continue; // SDA a bougé horloge basse : donnée
       if (fs.niveau === 0) {
+        // Le START dure jusqu'à ce que le maître baisse SCL pour le premier
+        // bit : c'est le temps de maintien de la norme, et ça lui donne une
+        // largeur à colorer au lieu d'un trait.
+        const fin = frontApres(scl.fronts, fs.t, Number.POSITIVE_INFINITY, 0);
         out.push({
           t0: fs.t,
-          t1: fs.t,
+          t1: fin ? fin.t : fs.t,
           texte: dansTrame ? t('START rep.') : 'START',
-          nature: 'cadre',
+          nature: 'start',
         });
         dansTrame = true;
         attendAdresse = true;
@@ -280,7 +330,10 @@ function decoderI2c(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
         acc = 0;
       } else {
         if (!dansTrame) continue; // SDA remonte hors trame : pas un STOP
-        out.push({ t0: fs.t, t1: fs.t, texte: 'STOP', nature: 'cadre' });
+        // Symétrique du START : du dernier front montant de SCL à la remontée
+        // de SDA.
+        const debut = frontAvant(scl.fronts, fs.t, Number.NEGATIVE_INFINITY, 1);
+        out.push({ t0: debut ? debut.t : fs.t, t1: fs.t, texte: 'STOP', nature: 'stop' });
         if (bits > 0) {
           out.push({ t0: debutOctet, t1: fs.t, texte: t('truncated'), nature: 'erreur' });
         }
@@ -383,14 +436,20 @@ function decoderSpi(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
 
   // Les changements de CS s'annoncent pour eux-mêmes, indépendamment de
   // l'horloge : une sélection sans un seul coup d'horloge est une information.
+  // Chacune dure jusqu'au premier coup d'horloge (sélection) ou depuis le
+  // dernier (relâchement) : sans horloge dans la trame, un simple trait.
   if (cs) {
-    for (const f of cs.fronts) {
-      out.push({
-        t0: f.t,
-        t1: f.t,
-        texte: f.niveau === 0 ? 'CS ↓' : 'CS ↑',
-        nature: 'cadre',
-      });
+    for (let i = 0; i < cs.fronts.length; i++) {
+      const f = cs.fronts[i]!;
+      if (f.niveau === 0) {
+        const borne = cs.fronts[i + 1]?.t ?? Number.POSITIVE_INFINITY;
+        const h = frontApres(sck.fronts, f.t, borne, null);
+        out.push({ t0: f.t, t1: h ? h.t : f.t, texte: 'CS ↓', nature: 'start' });
+      } else {
+        const borne = i > 0 ? cs.fronts[i - 1]!.t : Number.NEGATIVE_INFINITY;
+        const h = frontAvant(sck.fronts, f.t, borne, null);
+        out.push({ t0: h ? h.t : f.t, t1: f.t, texte: 'CS ↑', nature: 'stop' });
+      }
     }
   }
 
@@ -449,15 +508,22 @@ const DMX_BREAK_US = 88;
 
 /**
  * DMX512 depuis les fronts d'UNE seule ligne. Une trame s'ouvre sur un BREAK
- * (ligne basse ≥ 88 µs), suivi du MAB (haut ≥ 8 µs), puis d'octets 8N2 à
+ * (ligne basse ≥ 88 µs), suivi du MAB (haut ≥ 8 µs), puis de créneaux 8N2 à
  * 250 kbauds : start bit à 0, huit bits LSB d'abord, deux stop bits à 1. Le
- * premier octet est le START CODE (0 = éclairage), les 512 suivants les canaux.
+ * premier créneau est le START CODE (0 = éclairage), les 512 suivants les
+ * canaux.
  *
- * On ne suréchantillonne pas : entre deux fronts, la durée écoulée donne le
- * NOMBRE de bits du palier (même principe que `DmxWire` dans engines/dmx.mts,
- * qui décode la ligne bit-bangée côté moteur). Le coût est proportionnel aux
- * transitions, pas au temps — indispensable ici, où un enregistrement de
- * quelques secondes contient des dizaines de trames.
+ * CE QUI SORT (Frank, 24/09), avec les termes de la norme, jamais traduits :
+ * `BREAK`, `MAB`, puis pour chaque créneau `Start` (le start bit, vert), sa
+ * valeur en hexadécimal, `STOP` (les deux bits d'arrêt, rouge) et `PAUSE` si la
+ * ligne reste haute avant le créneau suivant ; `MBB` pour le repos entre le
+ * dernier créneau et le BREAK qui suit. Le premier créneau se lit
+ * `START code 0x00`, les canaux `c1=0xC8`.
+ *
+ * Même méthode que l'UART : on se recale sur le front descendant de chaque
+ * start bit et on lit chaque bit en son milieu. Compter les paliers entre deux
+ * fronts, comme avant, rendait bien les octets, mais ni la place du start bit
+ * ni celle des pauses — tout ce que Frank voulait voir.
  */
 function decoderDmx(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
   const v = voie(voies, r.donnees);
@@ -465,101 +531,117 @@ function decoderDmx(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
 
   const bauds = r.bauds && r.bauds > 0 ? r.bauds : 250_000;
   /** Durée d'un bit en ms simulées. */
-  const bitMs = 1000 / bauds;
+  const b = 1000 / bauds;
   /**
-   * Écart admis entre la durée mesurée d'un palier et un nombre entier de bits.
-   * 0,25 bit par défaut : au-delà, un signal propre ne dérive pas — c'est le
+   * Écart admis entre un front et la frontière de bit la plus proche, en bits.
+   * 0,25 par défaut : au-delà, un signal propre ne dérive pas — c'est le
    * réglage de vitesse qui est faux.
    */
   const tol = r.tolerance && r.tolerance > 0 ? r.tolerance : 0.25;
   const breakMs = DMX_BREAK_US / 1000;
+  const fr = v.fronts;
+  const lect = new Lecteur(fr, v.niveauInitial);
   const out: Annotation[] = [];
 
-  /** Bits poussés au plus pour un même palier (au repos la ligne reste haute). */
-  const MAX_BITS = 16;
-
-  let niveau: 0 | 1 = v.niveauInitial ?? 1;
-  let tPalier = v.fronts[0]!.t;
-  /** 0 = attente du start bit, 1..8 = données, 9 = stop. */
-  let count = 0;
-  let acc = 0;
-  let tOctet = 0;
-  /** −1 = trame ignorée (start code non nul) ; sinon position dans la trame. */
-  let slot = -1;
+  /** Numéro du prochain canal (1..512) ; −1 = trame sans canaux lisibles. */
+  let canal = -1;
+  /** Vrai entre un BREAK et son premier créneau : ce créneau est le START code. */
   let attendStart = false;
+  /** Fin du dernier BREAK : début du MAB. */
+  let finBreak = 0;
+  /** Fin des bits d'arrêt du dernier créneau : début d'une PAUSE ou du MBB. */
+  let finStop: number | null = null;
+  /** Un front descendant plus tôt appartient encore au créneau en cours. */
+  let finCourante = Number.NEGATIVE_INFINITY;
 
-  // `tBit`, pas `t` : ce nom-là est la traduction.
-  const pousserBit = (bit: 0 | 1, tBit: number): void => {
-    if (count === 0) {
-      if (bit === 0) {
-        count = 1;
-        acc = 0;
-        tOctet = tBit;
+  for (let i = 0; i < fr.length; i++) {
+    const f = fr[i]!;
+    if (f.niveau !== 0) continue;
+    let j = i + 1;
+    while (j < fr.length && fr[j]!.niveau !== 1) j += 1;
+    const montant = fr[j];
+    if (!montant) break; // la capture s'arrête ligne basse : rien de lisible
+
+    // Le BREAK passe avant tout : un créneau mal cadré ne doit pas le masquer.
+    if (montant.t - f.t >= breakMs) {
+      if (finStop !== null && f.t > finStop) {
+        out.push({ t0: finStop, t1: f.t, texte: 'MBB', nature: 'cadre' });
       }
-      return; // ligne au repos
-    }
-    if (count <= 8) {
-      if (bit) acc |= 1 << (count - 1); // LSB en premier
-      count += 1;
-      return;
-    }
-    // Stop bit : un 0 ici est un octet mal cadré. Le second stop passera pour du
-    // repos, ce qu'il est.
-    count = 0;
-    if (bit !== 1) {
-      out.push({ t0: tOctet, t1: tBit, texte: t('framing'), nature: 'erreur' });
-      return;
-    }
-    if (attendStart) {
-      attendStart = false;
-      slot = acc === 0 ? 0 : -1;
-      out.push({
-        t0: tOctet,
-        t1: tBit,
-        texte: acc === 0 ? 'start 0' : t('start {0} ignored', hex2(acc)),
-        nature: acc === 0 ? 'cadre' : 'erreur',
-      });
-      return;
-    }
-    if (slot < 0) return; // trame ignorée
-    slot += 1;
-    if (slot > 512) return;
-    out.push({ t0: tOctet, t1: tBit, texte: `c${slot}=${acc}`, nature: 'donnee' });
-  };
-
-  for (const f of v.fronts) {
-    const duree = f.t - tPalier;
-    const fini = niveau; // le palier qui vient de se TERMINER
-    niveau = f.niveau;
-    tPalier = f.t;
-    if (duree <= 0) continue;
-    if (fini === 0 && duree >= breakMs) {
-      out.push({ t0: f.t - duree, t1: f.t, texte: 'BREAK', nature: 'cadre' });
-      count = 0;
-      slot = -1;
+      out.push({ t0: f.t, t1: montant.t, texte: 'BREAK', nature: 'cadre' });
       attendStart = true;
+      canal = -1;
+      finStop = null;
+      finBreak = montant.t;
+      finCourante = montant.t;
       continue;
     }
-    const brut = duree / bitMs;
-    const bits = Math.min(Math.round(brut), MAX_BITS);
-    // Un palier qui n'est pas un multiple à peu près entier de la durée d'un
-    // bit signale une vitesse mal réglée (ou un signal qui dérive). Arrondir en
-    // silence donnait des octets faux sans rien dire ; on le DIT, une fois par
-    // palier, et on continue de décoder — l'élève voit où ça déraille.
-    if (bits > 0 && bits < MAX_BITS && Math.abs(brut - bits) > tol) {
-      out.push({ t0: f.t - duree, t1: f.t, texte: t('framing'), nature: 'erreur' });
+    if (f.t < finCourante) continue; // front interne au créneau en cours
+    const t0 = f.t;
+    // Le start bit doit encore valoir 0 en son milieu : sinon c'est un parasite.
+    if (lect.a(t0 + b / 2) !== 0) continue;
+
+    let acc = 0;
+    for (let k = 0; k < 8; k++) {
+      if (lect.a(t0 + b * (1.5 + k)) === 1) acc |= 1 << k; // LSB en premier
     }
-    for (let i = 0; i < bits; i++) {
-      pousserBit(fini, (f.t - duree) + (i + 1) * bitMs);
+    const stop = lect.a(t0 + b * 9.5);
+    // Un front du créneau loin de toute frontière de bit : vitesse mal réglée
+    // (ou signal qui dérive). La valeur lue est alors douteuse — on le DIT au
+    // lieu de l'afficher comme juste.
+    let malCadre = false;
+    for (let k = i + 1; k < fr.length && fr[k]!.t < t0 + b * 9.5; k++) {
+      const n = (fr[k]!.t - t0) / b;
+      if (Math.abs(n - Math.round(n)) > tol) {
+        malCadre = true;
+        break;
+      }
     }
-  }
-  // Le DERNIER palier n'est terminé par aucun front : c'est le repos qui suit le
-  // dernier octet, et il porte ses bits de stop. Sans cette clôture, le dernier
-  // canal de toute capture serait muet — le décodeur n'aurait jamais vu son stop.
-  if (count > 0 && niveau === 1) {
-    for (let i = count; i <= 9; i++) {
-      pousserBit(1, tPalier + (i - count + 1) * bitMs);
+    // Le créneau suivant peut commencer dès le 2e bit d'arrêt : un émetteur à
+    // un seul bit d'arrêt se lit encore, son STOP est simplement plus court.
+    const finCreneau = t0 + b * (10 - Math.min(tol, 0.5));
+    let finArret = t0 + b * 11;
+    for (let k = i + 1; k < fr.length && fr[k]!.t < finArret; k++) {
+      if (fr[k]!.niveau === 0 && fr[k]!.t >= finCreneau) finArret = fr[k]!.t;
     }
+
+    // Ce qui précède : le MAB après un BREAK, une PAUSE entre deux créneaux.
+    if (attendStart) {
+      out.push({ t0: finBreak, t1: t0, texte: 'MAB', nature: 'cadre' });
+    } else if (finStop !== null && t0 - finStop > b / 2) {
+      out.push({ t0: finStop, t1: t0, texte: 'PAUSE', nature: 'cadre' });
+    }
+    out.push({ t0, t1: t0 + b, texte: 'Start', nature: 'start' });
+    const valeur = { t0: t0 + b, t1: t0 + b * 9 };
+    if (malCadre) {
+      out.push({ ...valeur, texte: t('framing'), nature: 'erreur' });
+    } else if (attendStart) {
+      // Start code non nul (RDM, texte…) : la trame ne porte pas de niveaux de
+      // projecteur, ses créneaux ne sont pas des canaux.
+      out.push({
+        ...valeur,
+        texte: `START code ${hex2(acc)}`,
+        court: hex2(acc),
+        nature: acc === 0 ? 'cadre' : 'controle',
+      });
+    } else if (canal >= 1 && canal <= 512) {
+      out.push({ ...valeur, texte: `c${canal}=${hex2(acc)}`, court: hex2(acc), nature: 'donnee' });
+    } else {
+      out.push({ ...valeur, texte: hex2(acc), nature: 'donnee' });
+    }
+    // Le bit d'arrêt doit valoir 1 : à 0, c'est une erreur de cadrage, posée
+    // là où elle se voit — à la place du STOP.
+    out.push({
+      t0: t0 + b * 9,
+      t1: finArret,
+      texte: stop === 1 ? 'STOP' : t('framing'),
+      nature: stop === 1 ? 'stop' : 'erreur',
+    });
+
+    if (attendStart) canal = acc === 0 && !malCadre ? 1 : -1;
+    else if (canal >= 1) canal += 1;
+    attendStart = false;
+    finStop = finArret;
+    finCourante = finCreneau;
   }
   return out;
 }
@@ -656,20 +738,33 @@ function decoderUart(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
     const t1 = t0 + bitMs * (rang + nbStop);
     finCourante = t0 + bitMs * (rang + nbStop - 1 + (1 - tol));
 
-    if (stop === 0) {
-      out.push({ t0, t1, texte: t('framing'), nature: 'erreur' });
-      continue;
-    }
+    // Chaque partie du caractère sous SES bits : le start bit en vert, les
+    // données, la parité si elle est fausse, les bits d'arrêt en rouge. Une
+    // erreur prend la place de la partie qu'elle concerne — l'octet reste lu,
+    // à l'élève de juger s'il y croit.
+    out.push({ t0, t1: t0 + bitMs, texte: 'Start', nature: 'start' });
     const car = litteral(acc);
     out.push({
-      t0,
-      t1,
+      t0: t0 + bitMs,
+      t1: t0 + bitMs * (1 + nbData),
       texte: car === '' ? hex2(acc) : `${hex2(acc)} '${car}'`,
+      court: car === '' ? undefined : hex2(acc),
       nature: 'donnee',
     });
     if (pariteFausse) {
-      out.push({ t0, t1, texte: t('parity'), nature: 'erreur' });
+      out.push({
+        t0: t0 + bitMs * (1 + nbData),
+        t1: t0 + bitMs * rang,
+        texte: t('parity'),
+        nature: 'erreur',
+      });
     }
+    out.push({
+      t0: t0 + bitMs * rang,
+      t1,
+      texte: stop === 0 ? t('framing') : 'STOP',
+      nature: stop === 0 ? 'erreur' : 'stop',
+    });
   }
   return out;
 }
@@ -757,7 +852,8 @@ function decoderOneWire(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
 
     if (creuxUs >= OW.reset) {
       clore(f.t);
-      out.push({ t0: f.t, t1: suivant.t, texte: 'RESET', nature: 'cadre' });
+      // Le RESET ouvre la transaction : c'est le « start » du 1-Wire.
+      out.push({ t0: f.t, t1: suivant.t, texte: 'RESET', nature: 'start' });
       attendCommande = true;
       continue;
     }
@@ -920,7 +1016,7 @@ function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
       // Signal de départ du maître : ce qui traînait avant n'appartient pas à
       // la trame qui commence.
       clore(f.t);
-      out.push({ t0: f.t, t1: montant.t, texte: t('REQUEST'), nature: 'cadre' });
+      out.push({ t0: f.t, t1: montant.t, texte: t('REQUEST'), nature: 'start' });
       attendAccuse = true;
       continue;
     }
@@ -1099,9 +1195,15 @@ export function reglageComplet(r: ReglageDecodage): boolean {
  * à gauche de la fenêtre, hors de la marge ordinaire (10 % de la largeur). Le
  * décodeur ne voyait alors rien, à aucun zoom utile — ce que Frank lisait
  * « juste départ » (23/09). 30 ms couvrent départ + accusé + 40 bits.
+ *
+ * Le DMX a le même besoin pour une autre raison : c'est le BREAK qui dit quel
+ * créneau est le START code et numérote les canaux. Zoomé sur le canal 300, le
+ * BREAK est 13 ms plus tôt ; sans lui, les octets sortaient sans numéro. Un
+ * univers complet (513 créneaux 8N2) dure 22,7 ms : 30 ms laissent la place
+ * aux pauses entre créneaux.
  */
 export function reculNecessaireMs(p: Protocole): number {
-  return p === 'dht' ? 30 : 0;
+  return p === 'dht' || p === 'dmx' ? 30 : 0;
 }
 
 // `frontsDe` sert aux bancs : compter les fronts d'un sens est le contrôle le

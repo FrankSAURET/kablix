@@ -64,7 +64,7 @@ const { AnalyseurCapture, VOIES_MAX, FRONTS_MAX_PAR_VOIE, RESERVE_AVANT } = awai
 // Le décodeur parle la langue de la webview (`t()`, v2026.9.4.133) : son paquet
 // embarque SON i18n, qu'il faut régler dans CE paquet. Le banc lit en français,
 // puis refait un tour en anglais (langue de base) plus bas.
-const { decoder, decoderTous, reglageComplet, rolesDe, initLocale } = await buildTo(
+const { decoder, decoderTous, reglageComplet, rolesDe, reculNecessaireMs, initLocale } = await buildTo(
   {
     resolveDir: join(root, 'src/webview'),
     contents: [
@@ -744,6 +744,16 @@ const voieDe = (voie, pin, paires, niveauInitial) => ({
   const textes = ann.map((a) => a.texte);
   check('I²C : START et STOP repérés (SDA bougeant horloge HAUTE)',
     textes[0] === 'START' && textes[textes.length - 1] === 'STOP', textes.join(' | '));
+  // Start vert, stop rouge, pour tous les protocoles (Frank, 24/09) : il leur
+  // faut une DURÉE à colorer, pas un trait.
+  const debut = ann[0];
+  const fin = ann[ann.length - 1];
+  check('I²C : le START dure jusqu\'au premier front descendant de SCL (nature start)',
+    debut.nature === 'start' && Math.abs(debut.t0 - 1.01) < 1e-9 && Math.abs(debut.t1 - 1.02) < 1e-9,
+    `${debut.nature} ${debut.t0}→${debut.t1}`);
+  check('I²C : le STOP part du dernier front montant de SCL (nature stop)',
+    fin.nature === 'stop' && fin.t1 > fin.t0 && Math.abs(fin.t0 - sclF[sclF.length - 1][0]) < 1e-9,
+    `${fin.nature} ${fin.t0}→${fin.t1}`);
   check('I²C : adresse 0x27 en écriture (0x4E sur le fil = adresse décalée + R/W)',
     textes.includes('adr 0x27 W'), textes.join(' | '));
   const enEn = enAnglais(() => decoder(voies, { protocole: 'i2c', horloge: 0, donnees: 1 }).map((a) => a.texte));
@@ -808,6 +818,13 @@ const spiMode0 = (octets, avecCs) => {
     textes.some((x) => x === 'MOSI 0xA5 · MISO 0x3C'), textes.join(' | '));
   check('SPI : les bascules de CS sont annoncées',
     textes.includes('CS ↓') && textes.includes('CS ↑'), textes.join(' | '));
+  const csAnn = decoder(voies, { ...base, mode: 0 }).filter((a) => a.texte.startsWith('CS'));
+  const sel = csAnn.find((a) => a.texte === 'CS ↓');
+  const rel = csAnn.find((a) => a.texte === 'CS ↑');
+  check('SPI : CS ↓ en start (jusqu\'au 1er coup d\'horloge), CS ↑ en stop (depuis le dernier)',
+    sel?.nature === 'start' && Math.abs(sel.t1 - sck[0][0]) < 1e-9 &&
+      rel?.nature === 'stop' && Math.abs(rel.t0 - sck[sck.length - 1][0]) < 1e-9,
+    JSON.stringify(csAnn.map((a) => [a.texte, a.nature, a.t0, a.t1])));
   // Mode 3 échantillonne aussi sur le front montant : même résultat que mode 0.
   const mode3 = decoder(voies, { ...base, mode: 3 }).map((a) => a.texte);
   check('SPI : mode 3 échantillonne comme le mode 0 (même front actif)',
@@ -901,10 +918,81 @@ check('SPI : quatre rôles proposés (SCK, MOSI, MISO, CS)',
   const ann = decoder(voies, { protocole: 'dmx', donnees: 0 });
   const textes = ann.map((a) => a.texte);
   check('DMX : le BREAK est repéré (palier bas ≥ 88 µs)', textes.includes('BREAK'), textes.join(' | '));
-  check('DMX : start code 0 accepté', textes.includes('start 0'), textes.join(' | '));
-  check('DMX : les deux canaux sont décodés (c1=200, c2=50)',
-    textes.includes('c1=200') && textes.includes('c2=50'), textes.join(' | '));
+  check('DMX : le START code ouvre la trame (START code 0x00)', textes.includes('START code 0x00'), textes.join(' | '));
+  check('DMX : les deux canaux sont décodés, valeur en hexadécimal (c1=0xC8, c2=0x32)',
+    textes.includes('c1=0xC8') && textes.includes('c2=0x32'), textes.join(' | '));
+  check('DMX : l\'ordre de la norme — BREAK, MAB, Start, START code, STOP, Start, c1…',
+    textes.slice(0, 8).join(' ') === 'BREAK MAB Start START code 0x00 STOP Start c1=0xC8 STOP',
+    textes.join(' | '));
+  const starts = ann.filter((a) => a.texte === 'Start');
+  const stops = ann.filter((a) => a.texte === 'STOP');
+  check('DMX : un Start vert d\'UN bit par créneau',
+    starts.length === 3 && starts.every((a) => a.nature === 'start' && Math.abs(a.t1 - a.t0 - BIT) < 1e-9),
+    starts.map((a) => `${a.nature} ${((a.t1 - a.t0) / BIT).toFixed(2)}`).join(' | '));
+  check('DMX : un STOP rouge de DEUX bits par créneau',
+    stops.length === 3 && stops.every((a) => a.nature === 'stop' && Math.abs(a.t1 - a.t0 - 2 * BIT) < 1e-9),
+    stops.map((a) => `${a.nature} ${((a.t1 - a.t0) / BIT).toFixed(2)}`).join(' | '));
+  const mab = ann.find((a) => a.texte === 'MAB');
+  check('DMX : le MAB couvre les 3 bits hauts entre BREAK et premier start bit',
+    mab?.nature === 'cadre' && Math.abs(mab.t1 - mab.t0 - 3 * BIT) < 1e-9,
+    mab ? `${mab.t0}→${mab.t1}` : 'absent');
+  check('DMX : aucune erreur sur une trame propre', !ann.some((a) => a.nature === 'erreur'),
+    textes.join(' | '));
+  check('DMX : pas de PAUSE entre créneaux collés', !textes.includes('PAUSE'), textes.join(' | '));
   check('DMX : un seul rôle de voie', rolesDe('dmx').length === 1);
+  const enEn = enAnglais(() => decoder(voies, { protocole: 'dmx', donnees: 0 }).map((a) => a.texte));
+  check('DMX : les termes de la norme ne se traduisent pas (Frank, 24/09)',
+    enEn.join('|') === textes.join('|'), enEn.join(' | '));
+  check('DMX : le décodeur remonte assez loin pour voir le BREAK d\'un univers entier (≥ 23 ms)',
+    reculNecessaireMs('dmx') >= 23, String(reculNecessaireMs('dmx')));
+}
+{
+  // PAUSE entre deux créneaux, MBB avant le BREAK suivant, et la numérotation
+  // qui repart de c1 dans la nouvelle trame.
+  const BIT = 0.004;
+  const fronts = [];
+  let t = 1.0;
+  let niveau = 1;
+  const palier = (n, bits) => {
+    if (n !== niveau) {
+      fronts.push([t, n]);
+      niveau = n;
+    }
+    t += bits * BIT;
+  };
+  const octet = (o) => {
+    palier(0, 1);
+    for (let i = 0; i < 8; i++) palier((o >> i) & 1, 1);
+    palier(1, 2);
+  };
+  palier(1, 10);
+  palier(0, 25); // BREAK
+  palier(1, 3); // MAB
+  octet(0x00);
+  octet(0x10); // c1
+  palier(1, 5); // PAUSE de 5 bits
+  octet(0x20); // c2
+  palier(1, 7); // MBB
+  palier(0, 25); // BREAK suivant
+  palier(1, 3);
+  octet(0x00);
+  octet(0x30); // c1 de la nouvelle trame
+  palier(1, 20);
+
+  const ann = decoder([voieDe(0, 'DMX', fronts, 1)], { protocole: 'dmx', donnees: 0 });
+  const textes = ann.map((a) => a.texte);
+  const pause = ann.find((a) => a.texte === 'PAUSE');
+  const mbb = ann.find((a) => a.texte === 'MBB');
+  check('DMX : la PAUSE entre deux créneaux est posée sur ses 5 bits',
+    pause?.nature === 'cadre' && Math.abs(pause.t1 - pause.t0 - 5 * BIT) < 1e-9,
+    pause ? `${((pause.t1 - pause.t0) / BIT).toFixed(2)} bits` : textes.join(' | '));
+  check('DMX : le MBB couvre le repos entre le dernier STOP et le BREAK suivant',
+    mbb?.nature === 'cadre' && Math.abs(mbb.t1 - mbb.t0 - 7 * BIT) < 1e-9 &&
+      textes[textes.indexOf('MBB') + 1] === 'BREAK',
+    mbb ? `${((mbb.t1 - mbb.t0) / BIT).toFixed(2)} bits` : textes.join(' | '));
+  check('DMX : la numérotation repart de c1 après chaque BREAK',
+    textes.includes('c2=0x20') && textes.includes('c1=0x30') && !textes.includes('c3=0x30'),
+    textes.join(' | '));
 }
 {
   // Start code non nul (RDM, test…) : la trame ne porte pas de niveaux de
@@ -932,15 +1020,16 @@ check('SPI : quatre rôles proposés (SCK, MOSI, MISO, CS)',
   octet(200); // ne doit PAS ressortir comme un canal
   palier(1, 20);
 
-  const textes = decoder([voieDe(0, 'DMX', fronts, 1)], { protocole: 'dmx', donnees: 0 })
-    .map((a) => a.texte);
-  check('DMX : start code non nul → trame ignorée, aucun canal publié',
-    textes.some((x) => x.includes('ignoré')) && !textes.some((x) => x.startsWith('c')),
+  const ann = decoder([voieDe(0, 'DMX', fronts, 1)], { protocole: 'dmx', donnees: 0 });
+  const textes = ann.map((a) => a.texte);
+  check('DMX : start code non nul → annoncé tel quel, aucun canal numéroté',
+    ann.some((a) => a.texte === 'START code 0xCC' && a.nature === 'controle') &&
+      !textes.some((x) => x.startsWith('c')) && textes.includes('0xC8'),
     textes.join(' | '));
   const enEn = enAnglais(() => decoder([voieDe(0, 'DMX', fronts, 1)], { protocole: 'dmx', donnees: 0 })
     .map((a) => a.texte));
-  check('DMX en anglais : « start 0xCC ignored », BREAK inchangé',
-    enEn.includes('start 0xCC ignored') && enEn.includes('BREAK'), enEn.join(' | '));
+  check('DMX en anglais : « START code 0xCC », BREAK inchangé',
+    enEn.includes('START code 0xCC') && enEn.includes('BREAK'), enEn.join(' | '));
 }
 
 // --- UART ------------------------------------------------------------------------
@@ -982,12 +1071,27 @@ const serieDe = (octets, bauds, bits, parite, stop, silences) => {
   return fronts;
 };
 
+/**
+ * Textes d'un décodage série SANS les Start et STOP qui encadrent chaque
+ * caractère (v2026.9.5.140) : les contrôles de valeur restent lisibles.
+ */
+const valeurs = (ann) => ann.filter((a) => a.nature !== 'start' && a.nature !== 'stop').map((a) => a.texte);
+
 {
   // « Hi » en 8N1 à 9600 bauds, avec un long silence entre les deux caractères.
   const fronts = serieDe([0x48, 0x69], 9600, 8, 'none', 1, [40, 3]);
   const voies = [voieDe(0, 'TX', fronts, 1)];
-  const textes = decoder(voies, { protocole: 'uart', donnees: 0, bauds: 9600 })
-    .map((a) => a.texte);
+  const ann = decoder(voies, { protocole: 'uart', donnees: 0, bauds: 9600 });
+  const textes = valeurs(ann);
+  const B = 1000 / 9600;
+  check('UART : chaque caractère = Start vert (1 bit), valeur sur ses 8 bits, STOP rouge (1 bit)',
+    ann.map((a) => a.texte).join(' ') === "Start 0x48 'H' STOP Start 0x69 'i' STOP" &&
+      ann.filter((a) => a.texte === 'Start').every((a) => a.nature === 'start' && Math.abs(a.t1 - a.t0 - B) < 1e-9) &&
+      ann.filter((a) => a.texte === 'STOP').every((a) => a.nature === 'stop' && Math.abs(a.t1 - a.t0 - B) < 1e-9) &&
+      Math.abs(ann[1].t1 - ann[1].t0 - 8 * B) < 1e-9,
+    ann.map((a) => `${a.texte}/${a.nature}/${((a.t1 - a.t0) / B).toFixed(2)}`).join(' | '));
+  check('UART : repli court sur la valeur seule quand le caractère ne tient pas',
+    ann[1].court === '0x48', String(ann[1].court));
   check('UART : les deux octets sont décodés malgré un long silence entre eux',
     textes.length === 2 && textes[0].startsWith('0x48') && textes[1].startsWith('0x69'),
     textes.join(' | '));
@@ -1007,8 +1111,7 @@ const serieDe = (octets, bauds, bits, parite, stop, silences) => {
   // sans elle, un décodeur qui ignorerait `bauds` passerait le contrôle ci-dessus.
   const fronts = serieDe([0x48, 0x69], 9600, 8, 'none', 1);
   const voies = [voieDe(0, 'TX', fronts, 1)];
-  const faux = decoder(voies, { protocole: 'uart', donnees: 0, bauds: 19200 })
-    .map((a) => a.texte);
+  const faux = valeurs(decoder(voies, { protocole: 'uart', donnees: 0, bauds: 19200 }));
   check('UART : lue au double de sa vitesse, la trame ne rend PAS les bons octets',
     !(faux[0] === "0x48 'H'" && faux[1] === "0x69 'i'"), faux.join(' | '));
 }
@@ -1021,13 +1124,12 @@ const serieDe = (octets, bauds, bits, parite, stop, silences) => {
   // contrôle passait des deux façons et ne prouvait rien.
   const fronts = serieDe([0x43, 0x45], 9600, 7, 'even', 1);
   const voies = [voieDe(0, 'TX', fronts, 1)];
-  const bons = decoder(voies, {
+  const bons = valeurs(decoder(voies, {
     protocole: 'uart', donnees: 0, bauds: 9600, bitsDonnees: 7, parite: 'even', bitsArret: 1,
-  }).map((a) => a.texte);
+  }));
   check('UART 7E1 : les deux octets sortent justes, sans erreur de parité',
     bons.length === 2 && bons[0] === "0x43 'C'" && bons[1] === "0x45 'E'", bons.join(' | '));
-  const en8n1 = decoder(voies, { protocole: 'uart', donnees: 0, bauds: 9600 })
-    .map((a) => a.texte);
+  const en8n1 = valeurs(decoder(voies, { protocole: 'uart', donnees: 0, bauds: 9600 }));
   check('UART : la même trame lue en 8N1 rend 0xC3/0xC5 (le bit de parité passe en bit 7)',
     en8n1[0] === '0xC3' && en8n1[1] === '0xC5', en8n1.join(' | '));
 }
@@ -1047,6 +1149,25 @@ const serieDe = (octets, bauds, bits, parite, stop, silences) => {
   }).map((a) => a.texte));
   check('UART en anglais : la parité fausse se dit « parity »',
     enEn.includes('parity') && !enEn.includes('parité'), enEn.join(' | '));
+  const B = 1000 / 9600;
+  const par = decoder(voies, {
+    protocole: 'uart', donnees: 0, bauds: 9600, bitsDonnees: 8, parite: 'even', bitsArret: 1,
+  }).find((a) => a.texte === 'parité');
+  check('UART : l\'erreur de parité est posée sur le SEUL bit de parité',
+    par !== undefined && Math.abs(par.t1 - par.t0 - B) < 1e-9 && Math.abs(par.t0 - (fronts[0][0] + 9 * B)) < 1e-9,
+    par ? `${par.t0}→${par.t1}` : 'absente');
+}
+{
+  // Bit d'arrêt à 0 : 0x41 envoyé en 8N1 mais sans rien après (ligne qui
+  // retombe aussitôt). Le cadrage prend la place du STOP, l'octet reste lu.
+  const B = 1000 / 9600;
+  const fronts = [[1.0, 0], [1.0 + B, 1], [1.0 + 2 * B, 0], [1.0 + 7 * B, 1], [1.0 + 8 * B, 0], [1.0 + 12 * B, 1]];
+  const ann = decoder([voieDe(0, 'TX', fronts, 1)], { protocole: 'uart', donnees: 0, bauds: 9600 });
+  const cadrage = ann.find((a) => a.texte === 'cadrage');
+  check('UART : un bit d\'arrêt à 0 → « cadrage » sur le bit d\'arrêt, la valeur reste affichée',
+    cadrage?.nature === 'erreur' && Math.abs(cadrage.t0 - (1.0 + 9 * B)) < 1e-9 &&
+      ann.some((a) => a.texte === "0x41 'A'") && !ann.some((a) => a.texte === 'STOP'),
+    ann.map((a) => `${a.texte}/${a.nature}`).join(' | '));
 }
 
 // --- 1-Wire ----------------------------------------------------------------------
@@ -1847,25 +1968,25 @@ const dhtDe = (tempC, humidity, model) => {
   // synthèse (LSB d'abord, parité paire = 0 sur un nombre pair de uns). Chacun
   // testé isolément resterait vert sur deux conventions contraires ; c'est ce
   // contrôle-ci qui les met d'accord, sur du 8N1 ET sur du 8E1.
-  const relire = (valeurs, forme) => {
+  const relire = (octets, forme) => {
     const us = 0.001; // un µs en ms simulées
     const paires = [];
     let base = 1.0;
-    for (const v of valeurs) {
+    for (const v of octets) {
       const bruts = appel(frontsDeTrame, { value: v, ...forme }) ?? [];
       for (let i = 0; i < bruts.length; i += 2) {
         paires.push([base + bruts[i] * us, bruts[i + 1]]);
       }
       base += (appel(dureeTrameUs, { value: v, ...forme }) ?? 0) * us + 0.5;
     }
-    return decoder([voieDe(0, 'TX', paires, 1)], {
+    return valeurs(decoder([voieDe(0, 'TX', paires, 1)], {
       protocole: 'uart',
       donnees: 0,
       bauds: forme.baudRate,
       bitsDonnees: forme.dataBits,
       parite: forme.parity,
       bitsArret: forme.stopBits,
-    }).map((a) => a.texte);
+    }));
   };
   const ar8n1 = relire([0x4b, 0x6f], { baudRate: 9600, dataBits: 8, stopBits: 1, parity: 'none' });
   check('aller-retour : les trames synthétisées par le moteur se relisent en 8N1',
