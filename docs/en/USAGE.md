@@ -6,25 +6,43 @@
 
 ## Contents
 
+> This table of contents is only there for reading the file on GitHub: inside Kablix, the help panel shows its own, built from the headings, to the left of the text.
+
 1. [Getting started](#getting-started)
 2. [The interface](#the-interface)
+   1. [Finding your way around this help](#finding-your-way-around-this-help)
 3. [Building a circuit](#building-a-circuit)
+   1. [Placing and moving](#placing-and-moving)
+   2. [Breadboard](#breadboard)
+   3. [Wiring](#wiring)
+   4. [Reworking a wire](#reworking-a-wire)
+   5. [Available parts](#available-parts)
+   6. [New parts](#new-parts)
 4. [Simulating](#simulating)
-  1. [Running code](#running-code)
-  2. [MicroPython on the Pico](#micropython-on-the-pico)
-  3. [Sending the program to a real Pico board](#sending-the-program-to-a-real-pico-board)
-  4. [Debugging](#debugging)
-  5. [Serial monitor](#serial-monitor)
-  6. [Plotter](#plotter)
-  7. [DMX512 lighting](#dmx512-lighting)
-5. [Exporting the diagram as SVG](#exporting-the-diagram-as-svg)
-6. [Creating your own parts](#creating-your-own-parts)
-7. [Part file format (.kompix)](#part-file-format-kompix)
-8. [Where to find existing parts](#where-to-find-existing-parts)
-9. [Saving / opening a project (.projix)](#saving--opening-a-project-projix)
-10. [Wokwi interoperability (diagram.json)](#wokwi-interoperability-diagramjson)
-11. [Library updates](#library-updates)
-12. [Keyboard shortcuts](#keyboard-shortcuts)
+   1. [Running code](#running-code)
+   2. [Adding libraries](#adding-libraries)
+   3. [MicroPython on the Pico](#micropython-on-the-pico)
+   4. [Sending the program to a real Pico board](#sending-the-program-to-a-real-pico-board)
+   5. [Debugging](#debugging)
+   6. [Serial monitor](#serial-monitor)
+   7. [Plotter](#plotter)
+   8. [DMX512 lighting](#dmx512-lighting)
+5. [Exporting the part list (CSV bill of materials)](#exporting-the-part-list-csv-bill-of-materials)
+6. [Exporting the diagram as SVG](#exporting-the-diagram-as-svg)
+7. [Creating your own parts](#creating-your-own-parts)
+   1. [Component manager (install and uninstall)](#component-manager-install-and-uninstall)
+8. [Part file format (.kompix)](#part-file-format-kompix)
+   1. [Creating your own parts](#creating-your-own-parts-1)
+   2. [Letting an AI generate a part](#letting-an-ai-generate-a-part)
+9. [Where to find existing parts](#where-to-find-existing-parts)
+10. [Saving / opening a project (.projix)](#saving--opening-a-project-projix)
+11. [Wokwi interoperability (diagram.json)](#wokwi-interoperability-diagramjson)
+12. [Library updates](#library-updates)
+13. [Recommended extensions](#recommended-extensions)
+    1. [The board chosen in Kablix becomes the one of the Arduino project](#the-board-chosen-in-kablix-becomes-the-one-of-the-arduino-project)
+    2. [Nothing underlined in red in your code any more](#nothing-underlined-in-red-in-your-code-any-more)
+14. [Keyboard shortcuts](#keyboard-shortcuts)
+    1. [Copy and paste from one project to another](#copy-and-paste-from-one-project-to-another)
 
 ---
 
@@ -33,8 +51,6 @@
 1. To start, click the ![Kablix](../../media/KNB.webp) icon in the activity bar on the left;
   - Or, inside a project folder, double-click a projix file;
   - Or, if you set up the association, double-click a projix file in Windows Explorer.
-
-The icon **only creates a new project when none is open**: if a circuit is already there — including one reopened on its own after you switched folders — it brings that one back instead of opening a second workbench.
 
 <video src="../../media/demarrer.mp4" title="Start Kablix" controls autoplay loop muted playsinline></video>
 
@@ -57,14 +73,16 @@ The icon **only creates a new project when none is open**: if a circuit is alrea
 *Kablix interface: **①** the parts **palette** on the left, **②** the circuit **canvas** in the center, **③** the **inspector** (Properties/variables) on the right, **④** the **serial monitor/Console/REPL**, **⑤** the **Plotter** at the bottom and **⑥** the **toolbars** — the Kablix one right at the top, the **simulation** one on the left of the canvas and the **drawing** one on the right.*
 
 - **Palette**: clicking a part places it on the canvas. Two sort modes to choose from (buttons at the top) ![sort buttons](<../../media/boutons trie.webp>): alphabetical or by categories. A **“Recently used”** zone (10 max) can stay at the top (third button). The last button changes the palette's reaction mode.
+- **Collapsing the side panels**: the **library** (on the left) and **Properties/Variables** (on the right) each collapse with the **small arrow** set on their edge, on the canvas side. The panel becomes a narrow strip carrying its name vertically; the same arrow reopens it at its former width. The state is remembered: a reopened workbench finds its panels as you left them.
+  - When the **simulation starts**, the library collapses on its own (the diagram is frozen, no part gets placed any more) and reopens when it stops. If you had collapsed it yourself, the simulation leaves it as it is. The *Fold Library On Run* setting (`kablix.foldLibraryOnRun`) in Kablix's settings turns this automatic folding off.
 - **Kablix toolbar** (at the top of the window)  
 ![Kablix bar](<../../media/barre kablix.webp>)
   - **Load binary**: loads an already-compiled .hex/.uf2 from the workspace, without recompiling. **Hidden by default** — the *Show the “Load binary” button* checkbox in Kablix's settings brings it back.
   - the usual file-management functions: **new project**, **open**, **save**, **save as**, **export the diagram as SVG**.
   - the **Names** button, which shows the name on the **selected** part or on all parts, or the parts' id (the reference).
   - **rearrange**: restores the Kablix layout (code on one side, Kablix on the other, panels closed). You can swap the two zones and set their width with the mouse, then use **Save this layout as the default** (hamburger menu): both the side of Kablix **and** the width are remembered, and “rearrange” restores them — including moving Kablix back to the chosen side if it has changed since.
-  - **text mode** (the “T” icon): places free **labels** on the sheet — a circuit title, a note, the name of an area. Clicking the icon presses it in; clicking anywhere on the sheet places a label and opens it for typing (several lines allowed, the box grows with the text). You leave the mode by clicking the icon again, with Escape, or as soon as you click anything else (a part, a wire, a button, the library) — and if Kablix loses focus. The cursor then carries a **T**, as a reminder that the next click places a label. Outside text mode a label **moves** like a part and is removed with **Delete**; in text mode, clicking it reopens it for typing (copy / paste accepted — pasted text always arrives as **plain text**, without the formatting it came with). A **selected** label is adjusted in the right-hand panel: **text color**, **background color**, **background opacity** (down to zero: the text stays on its own, with no colored box), **text size** and **font**. Labels are decoration only: the simulation ignores them, but the SVG export carries them along, settings included.
-  - the **hamburger menu** for less frequent functions: import / export a **Wokwi** diagram, export the **part list (CSV)**, update the **Pico firmware**, check for **library updates**, save the default layout.
+  - **text mode** (the “T” icon): places free **labels** on the sheet — a circuit title, a note, the name of an area. A **selected** label is edited in the right-hand panel: **text color**, **background color**, **background opacity** (down to zero: the text stays on its own, with no colored box), **text size** and **font**. Labels are decoration only: the simulation ignores them, but the SVG export carries them along.
+  - the **hamburger menu** for less frequent functions: import / export a **Wokwi** diagram, export the **part list (CSV)**, update the **Pico firmware**, check for **library updates**, save the default layout, open Kablix's **Settings** (the extension's settings in VS Code's screen, already filtered).
   - access to this **help**.
   - the current **project name**.
   - the project's **code file**, right next to the name: **click = change**, **double-click = open** (it opens on the code side).
@@ -80,6 +98,8 @@ The icon **only creates a new project when none is open**: if a circuit is alrea
   - **serial monitor / console**
   - **Plotter**
   - **fault explanations**: the red frame and the yellow label put on a faulty part. On by default; the button hides them when they get in the way of reading the diagram.
+
+  There is **no button for the logic analyzer**: the [logic probe](composants/sonde-logique.md) is what triggers it. Drop at least one clip on a pin, start the simulation, and its tab opens on its own, to be placed next to the diagram. Without a clip, nothing opens — the analyzer would have nothing to show. The logic analyzer is **experimental** for now: its interface and its decoders may still change.
 - **Drawing bar** (on the right, over the canvas)  
 ![Drawing bar](../../media/BarreDessin.webp)
   - **part button**: shows the **internal schematic** of the selected part, or the **full pinout** of the board. It only appears when the selected part offers one.
@@ -92,6 +112,14 @@ The icon **only creates a new project when none is open**: if a circuit is alrea
   - While drawing, edits the selected part (color, value, angle…) or wire (Dupont color, deletion, node [equipotential])
   - during the simulation, shows the variables.
   - Parts with a lot of settings (the spider robot and its 33 of them) file their properties into **collapsible drawers**, all closed when the part is selected. They work as an **accordion**: opening one closes the one that was open.
+
+### Finding your way around this help
+
+The guide opens with its **table of contents on the left**, which stays in place while scrolling and **highlights the section being read**. It is built from the headings of the document: no section can be missing from it.
+
+- **Search box** (at the top of the table of contents): from two letters on, only the sections containing the word stay displayed, and the matches are highlighted. Accents and case are ignored — “repere” finds “repère”. **Escape** clears the box and brings back the whole page.
+- **Collapsible sections**: clicking a section heading closes it. **Collapse all** gives an overview of the guide on one screen; **Expand all** opens it again.
+- A click in the table of contents **opens the target section** even if it was collapsed.
 
 ## Building a circuit
 
@@ -134,10 +162,11 @@ Some special parts (only the RGB LED for now) have preset initial colors (I'll l
 - **Drag a handle** to move the corner.
 - **Hold Ctrl** while dragging: a **horizontal/vertical crosshair** appears and the corner aligns with its neighbours — segments become exactly horizontal or vertical.
 - **Double-click the wire**: inserts a new corner at that spot.
+- **Drag a straight segment of the wire**: it moves **perpendicular** to its direction — a horizontal segment goes up and down, a vertical one left and right. The neighbouring segments stretch accordingly, the rest of the route does not move. It is the quick way to push a branch aside without touching the corners one by one. The move snaps to the grid; **holding Ctrl** frees it. A slanted segment does not move.
 
 ### Available parts
 
-The palette holds **74 built-in parts** (plus their variants: polarized capacitor, PN2222A/NPN/PNP transistors, 3×4 and 4×4 keypads…). Each one has its **help sheet** — drawing, pinout, properties, what is simulated and what is not — opened by the **Part help** button of the inspector when the part is selected. More parts are added through the **library** (see [Component manager](#component-manager-install-and-uninstall)).
+The palette holds **76 built-in parts** (plus their variants: polarized capacitor, PN2222A/NPN/PNP transistors, 3×4 and 4×4 keypads…). Each one has its **help sheet** — drawing, pinout, properties, what is simulated and what is not — opened by the **Part help** button of the inspector when the part is selected. More parts are added through the **library** (see [Component manager](#component-manager-install-and-uninstall)).
 
 **Boards and supports**
 
@@ -316,14 +345,16 @@ When a `.py` file is open, an **⬆** button appears in its tab bar. One click s
 ### Debugging
 
 - **⏸ Pause / ▶ Resume**: freezes the simulation; the state of the pins and the LEDs stays displayed. The animal selector (🦅 500 % → 🐌 1 %) sets the execution rate.
-- **Step**: runs one line of the source file then pauses again. The **Variables** panel then shows the current line and the global variables of the program; the line is also highlighted in the VS Code editor. A variable that has just changed is shown in red.
+- **Step**: runs one line of the source file then pauses again. The **Variables** panel then shows the current line and the readable variables of the program; the line is also highlighted in the VS Code editor. A variable that has just changed is shown in red.
+- **Arrays, structures and pointers**: each cell and each field has its own row, named the way it is written in C — `notes[0]`, `p1.x`, and both combined for an array of structures (`path[1].y`). A character string is shown letter by letter (`'s'`, `'a'`…) rather than as ASCII codes; a pointer shows the address it holds, in hexadecimal. Beyond 32 cells, an array only shows its beginning.
+- **Which variables are visible (C / Arduino)**: those with a **fixed address in memory** — global variables, and **`static` variables declared inside a function**, shown under the name of their function (`loop::memo`). An ordinary variable declared inside `setup()` or `loop()` lives on the stack and has no stable address: it cannot be read, but the panel **names** it so you do not look for it in vain. Two remedies: declare it outside any function, or add `static` to it if its value must survive from one call to the next.
 - **Breakpoints**: click in the editor gutter (left of the line numbers) before or during execution; the simulation pauses when it reaches the line. Breakpoints can be conditional.
 
 Requirements and limits:
 
 | Language            | How                                                                                      | Limits                                                                                          |
 | ------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| C / Arduino (Uno)   | Debug data extracted at build time (`avr-objdump`, shipped with arduino-cli or avr-gcc)  | simple **global** variables (int, float, bool…); a long `delay()` advances in 0.25 s simulated slices |
+| C / Arduino (Uno)   | Debug data extracted at build time (`avr-objdump`, shipped with arduino-cli or avr-gcc)  | **global** variables and function **`static`** variables (ordinary locals have no fixed address; they are named, not read); a long `delay()` advances in 0.25 s simulated slices |
 | MicroPython (Pico)  | the script is instrumented automatically before injection                                | **global** variables only; the pause takes effect on the next line; no slow motion               |
 
 Artifacts loaded directly (`.hex`, `.uf2`, `.elf`, `.bin`) run without debug information: pause and slow motion remain available, step-by-step does not.
@@ -494,6 +525,8 @@ The **⚙ Manage components** button, at the bottom of the palette (or the **Kab
 - **Installed**: everything the local library holds, including the parts created here and those no repository offers;
 - **All**: both.
 
+> 📦 The illustrated list of what the official repository offers is in [kablix_components/README.md](../../kablix_components/README.md).
+
 A card may carry the **Experimental** mention (a badge and a dashed frame): the part is published and it works, but it is not settled yet — its drawing, its pins or its simulation may change from one version to the next. Nothing stops you from using it; just expect to have to bring it up to date.
 
 You select cards with a click, then **Download** installs and **Delete** uninstalls. Deleting asks for confirmation, erases the `.kompix` file from the library and removes the part from the palette **and** from open diagrams. It is final: reinstalling goes through the original repository, or through a `.kompix` exported beforehand (**⇩**).
@@ -611,7 +644,7 @@ The matching help (roles, fields, constraints) is in the [Part file format](#par
   - [SVG Repo](https://www.svgrepo.com) and [Openclipart](https://openclipart.org) (free drawings);
   - the sources of [wokwi-elements](https://github.com/wokwi/wokwi-elements/tree/master/src) contain the SVG of every part (MIT — reusable in a custom part);
   - [Fritzing](https://github.com/fritzing/fritzing-parts) (“breadboard” views in SVG, CC-BY-SA licence).
-- **Sharing**: an exported part (`.kompix`) can be dropped into the library folder of another machine (**Kablix: Open the component library**), or published on a repository so that **⚙ Manage components** offers it for download.
+- **Sharing**: an exported part (`.kompix`) can be dropped into the library folder of another machine (**Kablix: Open the component library**), or published on a repository so that **⚙ Manage components** offers it for download — see [kablix_components/README.md](../../kablix_components/README.md) for the official repository and the steps to follow.
 
 ## Saving / opening a project (.projix)
 
@@ -708,6 +741,7 @@ To turn this off: the **`kablix.syncIntelliSense`** setting (on by default).
 | `Del` / `Backspace`                  | Delete the selection: a part, a wire, or a whole batch (parts **and** wires)          |
 | `Esc`                                | Cancel the wire being drawn / deselect                                                |
 | `Ctrl` (while dragging a handle)     | Crosshair + H/V alignment of the corner                                               |
+| `Ctrl` (while dragging a segment)    | Free move of the segment, off the grid                                                |
 | `Ctrl+A`                             | Select all the parts                                                                  |
 | `Ctrl+C`                             | Copy the selection (parts + wires) — allowed even during a simulation                 |
 | `Ctrl+V`                             | Paste the selection, **including into another Kablix project**                        |

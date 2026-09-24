@@ -12,6 +12,24 @@
 
 ---
 
+# >>>>  v2026.9.5.134 — Préparation de la publication
+1. ✅ **Préparation de la publication 2026.9.5** (Frank : « prépare la publication. Tu notes que l'analyseur logique est pour l'instant expérimentale »).
+2. ✅ **Traductions de l'interface** : [i18n.mts](src/webview/i18n.mts), [bundle.l10n.fr.json](l10n/bundle.l10n.fr.json), [package.nls.fr.json](package.nls.fr.json) — générateur BF, sommaire et recherche du guide, poignées de fil, panneau Variables, repli des panneaux, clés du manifeste. `verify:i18n` vert.
+3. ✅ **Fiches EN** : [sonde-logique.md](docs/en/composants/sonde-logique.md) et [gbf.md](docs/en/composants/gbf.md) créées. `verify:docs` : 81/81 fiches appariées, liens du sommaire OK.
+4. ✅ **[USAGE.md](docs/en/USAGE.md) EN aligné sur le FR** : sommaire, repli des panneaux (`kablix.foldLibraryOnRun`), réglages dans le menu, analyseur, « se repérer dans l'aide », glissé de segment, mise au point (tableaux, structures, pointeurs), raccourci `Ctrl`.
+5. ✅ **[README.en.md](README.en.md) aligné** : tableau des 10 catégories, bibliothèque publique, bloc d'aide réécrit. [README.md](README.md) et les deux USAGE : 76 composants, catégorie « Appareils de mesure » avec le générateur BF et la sonde logique.
+6. ✅ **Analyseur logique marqué expérimental** : CHANGELOG, fiches FR et EN de la sonde logique, USAGE FR et EN, README.
+7. ✅ **DS18B20 (bibliothèque)** : aides EN [ds18b20](kablix_components/help/ds18b20/en.md) et [ds18b20-etanche](kablix_components/help/ds18b20-etanche/en.md) ; les deux composants passent en 2026.9.2. Paquets reconstruits (`build-kompix`, `build-components-index`) ; les 7 autres `.kompix` l'ont été aussi : leur aide recollée en v.125 n'y était jamais descendue, version inchangée (texte seulement). `verify:kompix` 43/43, `verify:kompixhelp` 39 OK.
+8. ✅ **CHANGELOG** : section datée `## 2026.9.5 (24 septembre 2026)`, mention « expérimental » sur l'entrée de l'analyseur, coquilles corrigées (ponctuation doublée, gras, nom de la commande « Détecter à nouveau arduino-cli »).
+9. ✅ **Version** : `2026.9.5`, `buildNumber` 134. Éditeur `electropol-fr` vérifié.
+10. ℹ️ **Fiches FR corrigées au passage** : [sonde-logique.md](docs/fr/composants/sonde-logique.md) — libellés alignés sur l'interface (« Toute la capture », « Suivre en direct », « Exporter en CSV », menus T et P) ; DS18B20 — lien mort vers la sonde étanche, image de la sonde étanche absente de son paquet, gras mal fermé, « Un thermomètre, Il ».
+11. ✅ **Tests** : `typecheck`, `build`, `verify:docs`, `verify:i18n`, `verify:kompix`, `verify:kompixhelp` verts. `verify:all` : **134/135 verts**, seul rouge `verify:dmx` (2 contrôles sur 73 : « la sonde posée sur GP0 voit les fronts », 30 fronts pour un seuil de 100, Pico 1 et Pico 2). Cause : la retouche NON enregistrée de Frank dans `testkablix/dmx-pico.py` (`CANAUX = 512` → `3`), trames bien plus courtes. Contre-épreuve sans toucher à son fichier (préchargement qui sert au banc la version HEAD du script) : **73/73 verts**. Le code du lot n'y est pour rien.
+12. ⏳ **À trancher par Frank** : garder `CANAUX = 3` dans `dmx-pico.py` → abaisser le seuil de fronts de [verify-dmx.mjs](scripts/verify-dmx.mjs) (il suppose des trames de 513 octets) ; ou revenir à 512.
+13. ⏳ **Ni paquet `.vsix` ni publication** : attendent l'accord explicite de Frank. À la publication réelle, mettre à jour la ligne « état au 17/09/2026 » du [CLAUDE.md](CLAUDE.md) du projet.
+14. ℹ️ Fichiers de Frank laissés hors de l'enregistrement : `Todo temp.md`, `testkablix/Arduino/sonde-logique-uno/sonde-logique-uno.projix`, `testkablix/dmx-pico.projix`, `testkablix/dmx-pico.py`, `testkablix/sonde-logique-pico2.projix`, `testkablix/sonde-logique-pico.projix`, `testkablix/dht22-pico2.projix` (modifié à 09:39 pendant les tests, aucun banc ne l'écrit).
+
+---
+
 # v2026.9.4.133
 1. ✅ **Annotations des décodeurs dans la langue de VS Code** (Frank : option A). [analyseur-decodage.mts](src/webview/analyseur-decodage.mts) passe par `t()`, clé anglaise : `REQUEST` / `PRESENCE` (DHT), `checksum ✓` / `CHECKSUM ✗`, `{0} %RH`, `addr {0} {1}`, `START rep.`, `truncated`, `framing`, `parity`, `start {0} ignored`. [i18n.mts](src/webview/i18n.mts) : 11 entrées FR, identiques à l'affichage d'avant (`DÉPART`, `somme ✓`, `%HR`, `cadrage`…). Termes des normes inchangés dans les deux langues : START, STOP, ACK/NACK, BREAK, RESET, commandes 1-Wire. Variables locales `t` renommées (`tBit`, `celsius`) : elles masquaient la traduction.
 2. ✅ **Valeurs DHT22 à la virgule en français** : `56,7 %HR · 23,4 °C` (`dixiemes()` → `toLocaleString(locale())`, sans séparateur de milliers, −0 ramené à 0). Fiche [sonde-logique.md](docs/fr/composants/sonde-logique.md) alignée.
@@ -30,7 +48,7 @@
 6. ✅ CHANGELOG : entrée « L'analyseur logique est en français » ; l'entrée « Pin 9 » devient « Broche 9 ».
 7. ℹ️ **À Frank** : les annotations des décodeurs sont écrites en dur EN FRANÇAIS (`DÉPART`, `PRÉSENT`, `cadrage`, `parité`, `tronqué`, `START rép.`…) : un utilisateur anglais les voit en français. La langue de base du code étant l'anglais, il faudrait les passer par `t()` avec une clé anglaise.
 8. ℹ️ « Idle high » traduit « Repos haut », d'après le nom actuel : option A renommer « Invert » / option B garder — Frank : garder (v2026.9.4.133).
-9. ⏳ `verify:i18n` reste rouge HORS analyseur : générateur BF, sommaire et recherche du guide, poignées de fil, panneau Variables, repli des panneaux, 3 clés du manifeste — lot d'avant publication.
+9. ✅ `verify:i18n` reste rouge HORS analyseur : générateur BF, sommaire et recherche du guide, poignées de fil, panneau Variables, repli des panneaux, 3 clés du manifeste — traduit en v2026.9.5.134, `verify:i18n` vert.
 
 ---
 
@@ -42,7 +60,7 @@
 5. ✅ **Diagnostics** : [_diag-analyseur-dht.mjs](scripts/_diag-analyseur-dht.mjs) (annotations d'une trame) et [_diag-dmx-reflets.mjs](scripts/_diag-dmx-reflets.mjs) (voies du `testkablix/dmx-pico.projix`, carte gravée puis carte publiée : SD1 et SD2 passent de `not-mcu` à `GP0`). [_lire-kompix.mjs](scripts/_lire-kompix.mjs) recopiait `unpackKompix` sans `probeMirrors` : ajouté.
 6. ✅ **Fiche d'aide FR** [sonde-logique.md](docs/fr/composants/sonde-logique.md) : décodage DHT, valeur sous ses bits, texte court, bloc de mesure vu de loin.
 7. ℹ️ **À Frank** : SD3 est posée sur `3V3` (voie `power`, normal) ; dans son `dht11-pico.projix`, les décodages visent les voies 0 et 1 alors que la pince DATA est en voie 4 — décodages orphelins, à refaire dans l'onglet.
-8. ⏳ Fiche d'aide EN : lot d'avant publication.
+8. ✅ Fiche d'aide EN : faite en v2026.9.5.134.
 
 ---
 
@@ -55,7 +73,7 @@
 6. ✅ **Fiche d'aide FR** [sonde-logique.md](docs/fr/composants/sonde-logique.md) : nom par défaut `Pin 8`, flèches et touches, réglages de voie et bouton de réaffichage.
 7. ✅ **Bancs** : [verify-analyseur.mjs](scripts/verify-analyseur.mjs) adapté (la teinte suit toujours l'indice, plus de `r.couleur`) et 7 contrôles de plus (plus de choix de couleur, bouton de réaffichage, mise à jour au rendu, flèches, touches hors champ, demi-fenêtre, « Pin {0} »). Scénario `fleches` dans [_diag-analyseur-gestes.mjs](scripts/_diag-analyseur-gestes.mjs), **vraie souris et vrai clavier** en CDP : ◀ décale les fronts de plot/2 px, → revient au pixel près, ▶ puis ← aller-retour exact, ← dans le champ du nom ne bouge rien, Hide → piste partie et bouton « (1) », clic sur le bouton → piste revenue, bouton effacé, `masquee: false` envoyé.
 8. ✅ **Contre-épreuves dans la source** : défilement à 0 et `majMasquees()` retiré du rendu → 6 rouges (◀, →, ▶, ←, Hide, réaffichage) ; garde des champs retirée → « ← dans le champ du nom » rouge. Source remise, tout vert.
-9. ⏳ Traduction FR des nouvelles chaînes (info-bulles des flèches, « Show hidden channels ({0}) » et son info-bulle, « Pin {0} ») : lot d'avant publication.
+9. ✅ Traduction FR des nouvelles chaînes (info-bulles des flèches, « Show hidden channels ({0}) » et son info-bulle, « Pin {0} ») : faite en v2026.9.5.134.
 
 ---
 
@@ -71,7 +89,7 @@
 9. ✅ **Bancs** : 18 contrôles de plus dans [verify-analyseur.mjs](scripts/verify-analyseur.mjs) (perte datée, niveau inconnu stable d'une salve à l'autre, réserve avant déclenchement, capture pleine à 60 000 fronts, nouvelle acquisition, recherche sur capture arrêtée, câblage de la vue). Gestes à la vraie souris en CDP dans [_diag-analyseur-gestes.mjs](scripts/_diag-analyseur-gestes.mjs) (port 9416, scénario `gigue`) ; vrai programme sonde-logique-uno dans [_diag-analyseur-uno.mjs](scripts/_diag-analyseur-uno.mjs) : déclenché à 0,03 ms, capture pleine à 12,35 s, tenue.
 10. ✅ **Contre-épreuve dans la source** : seuil remis à 0 → « clic sur la trace, 2 px » passe au rouge (vue figée). Remis, vert.
 11. ✅ Items de tête « changelog » et « sonde logique.md / DS18B20 » : les versions de Frank sont celles enregistrées depuis la v.125, tous les lots partent d'elles. « Commit et push y compris mes fichiers » : fait en v.128 (cd07e50).
-12. ⏳ Traduction FR des nouvelles chaînes (« Capture full… », « waiting for the trigger edge ») : lot d'avant publication.
+12. ✅ Traduction FR des nouvelles chaînes (« Capture full… », « waiting for the trigger edge ») : faite en v2026.9.5.134.
 
 ---
 
@@ -84,7 +102,7 @@
 6. ✅ **Banc** [verify-analyseur-export.mjs](scripts/verify-analyseur-export.mjs), 33 contrôles, deux volets. **Page** : vrai HTML de l'onglet (CSP gardée), vrai `analyseur.mts`, bouton cliqué à la **vraie souris** en CDP (port 9415) → exactement un `analyseurExport`, sans données, sans réglages. **Hôte** : vrai `panel.ts` sous faux `vscode`, mesure versée par les messages ordinaires, vrai journal sur disque → le fichier écrit est le journal **octet pour octet**. Journaux détournés dans un dossier temporaire PRIVÉ : `verify-analyseur-journal`, en parallèle, balaie les « orphelins » et emporterait les nôtres.
 7. ✅ **Contre-épreuve dans la source** (pas de `git stash`) : câblage du bouton et gestionnaire de l'hôte neutralisés → **21 rouges**, page et hôte. Source remise, `cmp` **IDENTIQUE**, banc vert.
 8. ✅ **Non-régression** : typage strict propre ; les 9 autres bancs de l'analyseur, `verify:paquet`, `verify:hygiene`, `verify:panneaux` verts. `verify:i18n` : mêmes 7 rouges qu'avant (traductions différées), avec 3 chaînes de plus dans la liste « extension ».
-9. ⏳ Traduction FR des nouvelles chaînes (bouton, info-bulle, messages, nom de fichier `analyzer`) : attend le lot d'avant publication.
+9. ✅ Traduction FR des nouvelles chaînes (bouton, info-bulle, messages, nom de fichier `analyzer`) : faite en v2026.9.5.134.
 10. ⏳ **Défaut repéré, NON corrigé (hors périmètre, à trancher)** : `AnalyseurJournal.nettoyerOrphelins()`, appelé à l'activation, efface TOUS les journaux du dossier temporaire qui ne sont pas à lui. Deux fenêtres VS Code avec Kablix : l'ouverture de la seconde efface le journal vivant de la première. La suite de la mesure se réécrit dans un fichier sans en-tête, et l'export perd le début. Piste : un sous-dossier par processus (`kablix-analyseur/<pid>/`), et ne balayer que ceux dont le processus est mort.
 
 ---

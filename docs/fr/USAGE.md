@@ -99,7 +99,7 @@
   - **Traceur** de courbes
   - **explications de défaut** : le cadre rouge et l'étiquette jaune posés sur un composant en défaut. Actif par défaut ; le bouton les masque quand ils gênent la lecture du schéma.
 
-  Il n'y a **aucun bouton pour l'analyseur logique** : c'est la [sonde logique](composants/sonde-logique.md) qui le déclenche. Posez au moins une pince sur une broche, lancez la simulation, et son onglet s'ouvre tout seul, à poser à côté du schéma. Sans pince, rien ne s'ouvre — l'analyseur n'aurait rien à montrer.
+  Il n'y a **aucun bouton pour l'analyseur logique** : c'est la [sonde logique](composants/sonde-logique.md) qui le déclenche. Posez au moins une pince sur une broche, lancez la simulation, et son onglet s'ouvre tout seul, à poser à côté du schéma. Sans pince, rien ne s'ouvre — l'analyseur n'aurait rien à montrer. L'analyseur logique est pour l'instant **expérimental** : son interface et ses décodages peuvent encore changer.
 - **Barre de dessin** (à droite, par-dessus le canvas)  
 ![Barre de dessin](../../media/BarreDessin.webp)
   - **bouton du composant** : affiche le **schéma interne** du composant sélectionné, ou le **brochage complet** de la carte. N'apparaît que si le composant sélectionné en propose un.
@@ -166,7 +166,7 @@ Certains composant spéciaux (seulement LED RVB pour l'instant) ont des couleurs
 
 ### Composants disponibles
 
-La palette compte **74 composants intégrés** (plus leurs variantes : condensateur polarisé, transistors PN2222A/NPN/PNP, claviers 3×4 et 4×4…). Chacun a sa **fiche d'aide** — dessin, brochage, propriétés, ce qui est simulé et ce qui ne l'est pas — ouverte par le bouton **Aide du composant** de l'inspecteur quand le composant est sélectionné. D'autres composants s'ajoutent par la **bibliothèque** (voir [Gestionnaire de composants](#gestionnaire-de-composants-installer-et-désinstaller)).
+La palette compte **76 composants intégrés** (plus leurs variantes : condensateur polarisé, transistors PN2222A/NPN/PNP, claviers 3×4 et 4×4…). Chacun a sa **fiche d'aide** — dessin, brochage, propriétés, ce qui est simulé et ce qui ne l'est pas — ouverte par le bouton **Aide du composant** de l'inspecteur quand le composant est sélectionné. D'autres composants s'ajoutent par la **bibliothèque** (voir [Gestionnaire de composants](#gestionnaire-de-composants-installer-et-désinstaller)).
 
 **Cartes et supports**
 

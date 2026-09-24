@@ -107,6 +107,11 @@ const FR: Record<string, string> = {
   'Open the help for this part': 'Ouvrir l\'aide de ce composant',
   'Expand all categories': 'Tout déplier',
   'Collapse all categories': 'Tout replier',
+  // Repli des panneaux latéraux (flèche posée sur leur bord)
+  'Show the component library': 'Afficher la bibliothèque de composants',
+  'Collapse the component library': 'Replier la bibliothèque de composants',
+  'Show the properties panel': 'Afficher le panneau des propriétés',
+  'Collapse the properties panel': 'Replier le panneau des propriétés',
   'Auto (accordion)': 'Auto (accordéon)',
   'Folding mode': 'Mode de pliage',
   'All components': 'Tous les composants',
@@ -170,6 +175,12 @@ const FR: Record<string, string> = {
   'Ctrl: horizontal/vertical alignment.': 'CTRL pour alignement horizontal et vertical.',
   'Double-click the wire: add a corner.': 'Double clic sur le fil pour en rajouter un.',
   'Click a corner then Del: remove it.': 'Cliquer un coude puis Suppr pour le supprimer.',
+  'Cross handle: move a corner (hold Ctrl to align it with its neighbours).':
+    'La croix déplace un coude (Ctrl maintenu : aligné sur ses voisins).',
+  'Drag a straight segment: it moves sideways, the neighbouring segments follow.':
+    'Glisser un segment droit le décale sur le côté ; les segments voisins suivent.',
+  'Segment move snaps to the grid; hold Ctrl to move it freely.':
+    'Le segment suit la grille ; Ctrl maintenu, il se déplace librement.',
   'Drag to move — Ctrl: H/V alignment — Del: remove this corner':
     'Glisser pour déplacer — Ctrl : alignement H/V — Suppr : supprimer ce coude',
   'No file': 'Pas de code associé',
@@ -564,6 +575,19 @@ const FR: Record<string, string> = {
     'L\'ampèremètre met l\'alimentation en court-circuit',
   'In current mode the multimeter is a plain wire: put it IN SERIES, inside the branch whose current you want. Straight across the supply it shorts it out.':
     'En mode courant, le multimètre est un simple fil : placez-le EN SÉRIE, dans la branche dont vous voulez connaître le courant. Posé en travers de l\'alimentation, il la met en court-circuit.',
+  // Générateur BF (propriétés, formes d'onde, infobulle en minuscules)
+  'Function generator': 'Générateur BF',
+  'Waveform': 'Forme d\'onde',
+  'Frequency (Hz)': 'Fréquence (Hz)',
+  'Amplitude, peak-to-peak (V)': 'Amplitude crête-à-crête (V)',
+  'DC offset (V)': 'Décalage continu (V)',
+  'Duty cycle (%)': 'Rapport cyclique (%)',
+  'Sine': 'Sinus',
+  'Triangle': 'Triangle',
+  'Square': 'Carré',
+  'sine': 'sinus',
+  'triangle': 'triangle',
+  'square': 'carré',
 
   // Messages de simulation (mises en garde de la barre d'état)
   'Simulation speed cannot be measured (engine clock)':
@@ -740,6 +764,13 @@ const FR: Record<string, string> = {
   'No readable variable (define module-level variables to inspect them).':
     'Aucune variable lisible (définissez des variables au niveau du module pour les inspecter).',
   'No readable variable here.': 'Aucune variable lisible ici.',
+  'ℹ Only global and static variables are shown': 'ℹ Seules les variables globales et static sont affichées',
+  'In C/Arduino, a variable declared inside setup() or loop() has no fixed address. Declare it outside any function (global), or add “static” before its type, to inspect it here.':
+    'En C/Arduino, une variable déclarée dans setup() ou loop() n’a pas d’adresse fixe. Déclarez-la hors de toute fonction (globale), ou ajoutez « static » devant son type, pour la voir ici.',
+  'Variables not readable here:': 'Variables illisibles ici :',
+  'and {0} more': 'et {0} autres',
+  'To be seen, declare variables outside any function, or add the word static in front (e.g. static int myVar = analogRead(A0);).':
+    'Pour les voir, déclarez les variables hors de toute fonction, ou ajoutez le mot static devant (ex. static int maVar = analogRead(A0);).',
   // Masquage des variables du panneau (œil de chaque ligne / liste du titre)
   'Show the hidden variables': 'Afficher les variables masquées',
   'Click to hide': 'Cliquer pour masquer',

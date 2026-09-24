@@ -6,6 +6,8 @@ Petite pince crocodile de mesure. Elle ne se câble pas : on la **pose sur la pa
 
 Catégorie de la palette : **Appareils de mesure**.
 
+> **Expérimental.** L'analyseur logique est pour l'instant expérimental : il fonctionne, mais son interface et ses décodages peuvent encore changer d'une version à l'autre.
+
 Elle n'écoute que du **tout ou rien** : 0 ou 1, et l'instant de chaque changement. Pour voir une tension qui varie, c'est l'[oscilloscope](oscillo.md) ; pour suivre une valeur calculée par le programme, le traceur de courbes.
 
 ## Broches
@@ -19,7 +21,7 @@ La pince ne consomme rien et n'impose rien : le montage se comporte exactement c
 ## La pose :
 
 1. Glissez la pince depuis la palette.
-2. Amenez sa **le crochet** sur la **pastille** de la broche à écouter.
+2. Amenez son **crochet** sur la **pastille** de la broche à écouter.
 3. Lâchez. La pince s'accroche, prend une couleur, et la broche apparaît dans l'analyseur.
 
 ## Propriétés
@@ -28,7 +30,7 @@ La pince ne consomme rien et n'impose rien : le montage se comporte exactement c
 | ----------- | ------------------------------------------------------- | -------- |
 | `etiquette` | Nom de la voie dans l'analyseur (`horloge`, `donnees`…) | *(vide)* |
 
-L'étiquette s'affiche **sur la planche, à côté de la pince**, dans la couleur de la voie. Vide, elle est masquée et la voie prend le **nom de la broche** (`Pin 8`, `A0`, `GP14`).
+L'étiquette s'affiche **sur la planche, à côté de la pince**, dans la couleur de la voie. Vide, elle est masquée et la voie prend le **nom de la broche** (`Broche 8`, `A0`, `GP14`).
 
 Un montage rouvert retrouve ses pinces là où elles étaient, avec leurs couleurs et leurs noms.
 
@@ -42,26 +44,26 @@ L'onglet montre une **piste par voie**, dans la couleur de sa pince, avec une r�
 - **Glisser** : se promener dans l'enregistrement.
 - **Flèches ◀ ▶** de la barre, ou touches **←** **→** : recule ou avance d'une demi-fenêtre, sans changer le zoom.
 - **Survol** : un réticule donne l'instant, et le niveau (0 ou 1) de chaque voie à cet instant.
-- **Ajuster** : ramène toute la capture dans l'écran.
-- **Suivre** : recolle la vue à la fin de la capture, ce qu'elle fait d'elle-même pendant un run tant qu'on n'a pas zoomé.
+- **Toute la capture** : ramène toute la capture dans l'écran.
+- **Suivre en direct** : recolle la vue à la fin de la capture, ce qu'elle fait d'elle-même pendant un run tant qu'on n'a pas zoomé.
 
 Sous le nom de chaque voie, la **pastille de couleur** ouvre ses réglages : nom, vitesse, tolérance, et **masquer**. Une voie masquée quitte l'écran mais garde sa capture ; tant qu'il y en a une, la barre montre un bouton qui les **réaffiche** toutes, avec leur nombre.
 
 Hors simulation, l'onglet montre la **dernière capture** de la session.
 
-Cette capture s'écrit **au fur et à mesure** dans un fichier à part, pendant que la simulation tourne, et une simulation interrompue laisse quand même ce qu'elle a mesuré. Ce fichier est **supprimé à la fermeture du projet** — pour garder une mesure, exportez-la.
+Cette capture s'écrit **au fur et à mesure** dans un fichier à part, pendant que la simulation tourne, et une simulation interrompue laisse quand même ce qu'elle a mesuré. Ce fichier est **supprimé à la fermeture du projet** — pour garder une mesure, exportez-la (**Exporter en CSV**).
 
 Le projet, lui, garde les **réglages** de l'instrument (déclenchement, décodages, réglages de voie).
 
 ## Le déclenchement
 
-Sélecteur **Déclenchement** : une voie, et un **sens** — front *montant* ou *descendant*. La capture reste alors **en attente** jusqu'au premier front de ce type, puis se **fige sur lui** : l'instant 0 de la règle devient ce front, et tout se lit en avance ou en retard par rapport à lui. Sans déclenchement, la règle part de l'instant du lancement de la simulation.
+Le menu **T** sous le nom d'une voie : choisissez le **sens** — front *montant* ou *descendant*. La capture reste alors **en attente** jusqu'au premier front de ce type, puis se **fige sur lui** : l'instant 0 de la règle devient ce front, et tout se lit en avance ou en retard par rapport à lui. Sans déclenchement, la règle part de l'instant du lancement de la simulation.
 
 Changer de réglage **réarme** l'attente.
 
 ## Le décodage
 
-Sélecteur **Décoder** : `I²C / TWI`, `SPI`, `UART`, `1-Wire`, `DHT11 / DHT22` ou `DMX512`. Il faut ensuite dire **quelle voie joue quel rôle** :
+Le menu **P** sous le nom d'une voie : `I²C / TWI`, `SPI`, `UART`, `1-Wire`, `DHT11 / DHT22` ou `DMX512`. Il faut ensuite dire **quelle voie joue quel rôle** :
 
 | Protocole         | Rôles à désigner                                                                |
 | ----------------- | ------------------------------------------------------------------------------- |
@@ -76,7 +78,7 @@ Les octets et les repères de trame (`START`, `STOP`, `ACK`, `RESET`, numéros d
 
 ### Ce qui se règle
 
-Le **modèle** d'un capteur DHT non plus. Le DHT11 et le DHT22 envoient exactement la même trame, avec les mêmes durées : **rien sur le fil ne permet de les distinguer**. Ce qui change est la façon de lire les quatre octets — dixièmes de degré et température négative possible pour le DHT22, entiers seulement pour le DHT11. Choisir le mauvais modèle ne donne pas d'erreur, il donne des valeurs fausses.
+Le **modèle** d'un capteur DHT ne se devine pas. Le DHT11 et le DHT22 envoient exactement la même trame, avec les mêmes durées : **rien sur le fil ne permet de les distinguer**. Ce qui change est la façon de lire les quatre octets — dixièmes de degré et température négative possible pour le DHT22, entiers seulement pour le DHT11. Choisir le mauvais modèle ne donne pas d'erreur, il donne des valeurs fausses.
 
 La **vitesse** et le **format** d'une ligne UART non plus : deux vitesses voisines produisent les mêmes fronts et des octets différents, et un même signal lu en `8N1` ou en `7E1` ne donne pas les mêmes caractères. Des octets en charabia : c'est presque toujours la vitesse qu'il faut revoir en premier (elle se saisit dans les réglages de la **voie**, pas du décodage — deux lignes série d'un montage ne tournent pas forcément à la même allure).
 

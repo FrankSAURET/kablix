@@ -236,5 +236,17 @@
   "Install the \"MicroPico\" extension: it ships the MicroPython declarations that Pylance needs.": "Installe l’extension « MicroPico » : c’est elle qui apporte les déclarations MicroPython dont Pylance a besoin.",
   "MicroPython declarations shown to Pylance in the folder settings.": "Déclarations MicroPython montrées à Pylance dans les réglages du dossier.",
   "Everything is already in place for MicroPython. If a symbol is still unknown, reload the window.": "Tout est déjà en place pour MicroPython. S’il reste un mot inconnu, recharge la fenêtre.",
-  "Open a Kablix project first: its board says which setup to apply.": "Ouvre d’abord un projet Kablix : c’est sa carte qui dit quels réglages poser."
+  "Open a Kablix project first: its board says which setup to apply.": "Ouvre d’abord un projet Kablix : c’est sa carte qui dit quels réglages poser.",
+  "Copy path": "Copier le chemin",
+  "arduino-cli found ({0}): {1}": "arduino-cli trouvé ({0}) : {1}",
+  "arduino-cli not found.": "arduino-cli introuvable.",
+  "Contents": "Sommaire",
+  "Search the guide": "Rechercher dans le guide",
+  "Nothing found": "Aucun résultat",
+  "Collapse all": "Tout replier",
+  "Expand all": "Tout déplier",
+  "Settings": "Paramètres",
+  "Collapse the component library": "Replier la bibliothèque de composants",
+  "Collapse the properties panel": "Replier le panneau des propriétés",
+  "Properties": "Propriétés"
 }

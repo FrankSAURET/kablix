@@ -2,18 +2,18 @@
 
 Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque mois.
 
-## 2026.9.5 (prochaine publication)
+## 2026.9.5 (24 septembre 2026)
 
 ### Nouveauté
 
-- **Un analyseur logique.** Une nouvelle **sonde logique** — un petit grip-fil — se **pose** sur la pastille d'une broche, éventuellement sans aucun fil, ou s'y relie par un cordon. L'analyseur **décode l'I²C (TWI), le SPI, l'UART, le 1-Wire, les capteurs DHT11/DHT22 et le DMX512** — octets et repères de trame s'écrivent sous les créneaux ; 
+- **Un analyseur logique.** Une nouvelle **sonde logique** — un petit grip-fil — se **pose** sur la pastille d'une broche, éventuellement sans aucun fil, ou s'y relie par un cordon. L'analyseur **décode l'I²C (TWI), le SPI, l'UART, le 1-Wire, les capteurs DHT11/DHT22 et le DMX512** — octets et repères de trame s'écrivent sous les créneaux. L'analyseur logique est pour l'instant **expérimental** : son interface et ses décodages peuvent encore changer.
 - **La mesure de l'analyseur logique s'exporte en CSV.** Le bouton « Export CSV » de l'onglet enregistre tous les fronts mesurés depuis le lancement : temps, voie, broche, nom et niveau. Il marche aussi en pleine simulation.
 - **Une ligne « Paramètres » dans le menu hamburger** : elle ouvre les réglages de Kablix.
 - **L'aide a un sommaire** et **un moteur de recherche**. **Les sections de l'aide se replient**.
-- **La bibliothèque et le panneau Propriétés/Variables se replient** par la petite flèche de leur bord. .
+- **La bibliothèque et le panneau Propriétés/Variables se replient** par la petite flèche de leur bord.
 - **La bibliothèque se replie au démarrage de la simulation** et se rouvre à l'arrêt. Un réglage désactive ce comportement.
-- **Un générateur BF.**  Il sort un **sinus**, un **triangle** ou un **carré**, de **1 Hz à 1 MHz**, jusqu'à **10 V** de crête, avec **décalage continu** de −5 à +5 V et **rapport cyclique** de 0 à 100 %. Le rapport cyclique déforme le carré **et** le triangle, jusqu'à la dent de scie..
-- **La platine d'essai montre ses liaisons internes.** Le bouton « K » d'une platine dévoile les lamelles de cuivre cachées sous les trous,
+- **Un générateur BF.** Il sort un **sinus**, un **triangle** ou un **carré**, de **1 Hz à 1 MHz**, jusqu'à **10 V** de crête, avec **décalage continu** de −5 à +5 V et **rapport cyclique** de 0 à 100 %. Le rapport cyclique déforme le carré **et** le triangle, jusqu'à la dent de scie.
+- **La platine d'essai montre ses liaisons internes.** Le bouton « K » d'une platine dévoile les lamelles de cuivre cachées sous les trous.
 - **Un capteur de température DS18B20**, à télécharger dans la bibliothèque de composants, en deux versions : le boîtier TO-92 et la sonde étanche sur câble. Un curseur règle la température de −55 à +125 °C, et le capteur répond pour de bon en 1-Wire : plusieurs capteurs se branchent sur le même fil, chacun avec son adresse.
 - **La valeur d'un curseur de simulation se tape au clavier.** Un double-clic sur le curseur, ou sur le nombre affiché à côté, ouvre un champ : le point et la virgule y valent pareil. Un curseur de 44 px ne permettait pas de viser 25,5 °C sur une course de 180 degrés.
 - **L'analyseur logique se parcourt aux flèches.** Les boutons ◀ ▶ de la barre, ou les touches ← →, reculent ou avancent d'une demi-fenêtre sans changer le zoom.
@@ -22,8 +22,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 ### Modification
 
 - **Le gestionnaire de composants montre les images en entier**.
-- **Kablix retrouve l'arduino-cli installé par l'extension Arduino VS Code IDE**, 
-- **Une commande « Kablix : Detect arduino-cli again »** relance la recherche sans redémarrer l'éditeur. Quand rien n'est trouvé, le message liste les emplacements consultés.
+- **Kablix retrouve l'arduino-cli installé par l'extension Arduino VS Code IDE**.
+- **Une commande « Kablix : Détecter à nouveau arduino-cli »** relance la recherche sans redémarrer l'éditeur. Quand rien n'est trouvé, le message liste les emplacements consultés.
 - **Le panneau Variables montre les tableaux, les structures et les pointeurs** en C/Arduino. Chaque case et chaque champ a sa ligne, nommée comme on l'écrit (`notes[0]`, `p1.x`). Seules les variables simples apparaissaient jusqu'ici.
 - **Le panneau Variables montre aussi les variables `static` déclarées dans une fonction**, sous le nom `loop::memo`. Elles n'apparaissaient pas du tout auparavant.
 - **Les variables qu'on ne peut pas suivre sont nommées** sous le panneau, avec la raison et le remède, au lieu d'être simplement absentes. Elles s'écrivent maintenant **une par ligne**, la variable d'abord et sa fonction ensuite (`valeurCtn -> loop()`), suivies du remède en clair.

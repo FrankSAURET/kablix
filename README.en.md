@@ -35,7 +35,7 @@ My test library is available here: [TestKablix](https://github.com/FrankSAURET/k
 - ✅ **Visual workshop**: automatic routing. 
 - ✅ **Part creator**: you can build your own “custom” parts with this creator or, better still, fork the repository, follow the [guide](docs/en/Creating-components.md) to add the part and open a PR (publication request) — it will then ship with the next release for everyone, and please provide the test circuits as well (Pico + Arduino).
 - ✅ **SVG export**.
-- ✅ **A library of 74 parts** filed by families, each with its illustrated help sheet (❔ button) and its two test circuits, Arduino and Pico — [full list](#part-library).
+- ✅ **A library of 76 parts** filed by families, each with its illustrated help sheet (❔ button) and its two test circuits, Arduino and Pico — [full list](#part-library).
 - ✅ **Component manager** (⚙ button at the bottom of the palette): a part fits in a single `.kompix` file — drawing, pinout, simulation and help sheet included. Install it from a repository with one click, or drop the file into the project folder.
 - ✅ **DMX512 lighting**: universe decoded from the hardware UART **or** from a bit-banged pin (DmxSimple), fixtures driven live.
 - ✅ **Supported development boards**: Arduino Uno, Nano, Mega 2560 and Raspberry Pi Pico/Pico W/Pico 2/Pico 2 W, all pluggable onto a breadboard.
@@ -46,34 +46,33 @@ My test library is available here: [TestKablix](https://github.com/FrankSAURET/k
 - ✅ **Plotter**: live curves, plus **probes** dropped on a pin to watch its voltage
 - ✅ **Physical simulation**: brightness follows the series resistor, LEDs without a resistor burn out, servos fail to start, the power supply accounts for current…
 - ✅ **Interactive sensors**: sliders and buttons for flame, gas, sound, light, temperature and motion, driving the circuit input live.
-- ✅ **Windows integration**.
 
-
-> 📖 **Full guide**: [docs/en/USAGE.md](docs/en/USAGE.md) (English) / [docs/fr/USAGE.md](docs/fr/USAGE.md) (français) — interface, wiring, building custom parts (with an AI prompt), the `.kompix` format, the component manager, where to find existing parts.
->
-> **Adding a part to Kablix** (contributors, on GitHub only): [docs/en/Creating-components.md](docs/en/Creating-components.md) (English) / [docs/fr/Creating-components.md](docs/fr/Creating-components.md) (français) — from the drawing in `Composants2D.svg` to a simulated, tested and documented part, by hand or with an AI.
->
-> **Drawing systems in 3D** (spider, legs — contributors, on GitHub only): [docs/en/Drawing-systems.md](docs/en/Drawing-systems.md) (English) / [docs/fr/Drawing-systems.md](docs/fr/Drawing-systems.md) (français) — you draw the outline of a part, the isometric engine turns it into a volume.
->
+> The help files live in the `docs/<country code>/` folder.  
+> 📖 **Full guide**: USAGE.md — interface, wiring, building custom parts (with an AI prompt), the `.kompix` format, the component manager, where to find existing parts.  
+> **Adding a part to Kablix** (contributors, on GitHub only): Creating-components.md — from the drawing in `Composants2D.svg` to a simulated, tested and documented part, by hand or with an AI.  
+> **Drawing systems in 3D** (spider, legs — contributors, on GitHub only): Drawing-systems.md — you draw the outline of a part, the isometric engine turns it into a volume.  
 > 🌍 **Bilingual interface**: French when VS Code runs in French, English otherwise. The mechanism extends to other languages — see [Internationalisation](#internationalisation).
 
 ## Part library
 
-**74 parts** you can drop with the mouse, filed in palette order (plus their variants: polarized capacitor, PN2222A/NPN/PNP transistors, 3×4 and 4×4 keypads, mini/half/full breadboards…). Each one comes with its **illustrated help sheet** (❔ button in the inspector, offline, English and French) and **two test circuits** ready to simulate in [testkablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix) — one in C on Arduino, one in MicroPython on the Pico.
+**76 parts** you can drop with the mouse, filed in palette order (plus their variants: polarized capacitor, PN2222A/NPN/PNP transistors, 3×4 and 4×4 keypads, mini/half/full breadboards…). Each one comes with its **illustrated help sheet** (❔ button in the inspector, offline, English and French) and **two test circuits** ready to simulate in [testkablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix) — one in C on Arduino, one in MicroPython on the Pico.
 
 | Category | Parts |
 | --- | --- |
-| **Boards and supports** (10) | Arduino Uno · Arduino Nano · Arduino Mega 2560 · Raspberry Pi Pico · Raspberry Pi Pico W · Raspberry Pi Pico 2 · Raspberry Pi Pico 2 W · Grove Shield (Pico) · Breadboard · Power bank |
-| **Passives and semiconductors** (10) | Resistor · Capacitor (polarized or not) · Diode · Transistor (PN2222A, NPN, PNP — TO-92 package) · NTC thermistor · PTC thermistor · NTC temperature sensor · Photoresistor (LDR) · Photodiode · Phototransistor |
-| **Indicators and displays** (10) | LED · RGB LED · 10-LED bar graph · 7-segment display (1 to 4 digits) · NeoPixel · NeoPixel matrix · NeoPixel ring · Text LCD 16×2 / 20×4 (I²C or parallel) · SSD1306 OLED display · ILI9341 TFT display (SPI) |
-| **Inputs** (9) | Pushbutton · 6 mm pushbutton · Slide switch · DIP switch ×8 · Membrane keypad 3×4 / 4×4 · Potentiometer · Slide potentiometer · Trimmer potentiometer · Analog joystick |
-| **Sensors** (11) | Light sensor · Gas sensor (MQ) · Flame sensor · Sound sensor · PIR motion sensor · Tilt sensor · Hall effect sensor · Heart-beat sensor · Ultrasonic sensor (HC-SR04) · DHT22 temperature/humidity · DHT11 temperature/humidity |
-| **Actuators and power** (7) | Buzzer · Servo motor · Fan · DC motor · OMRON G5V relay · 16-channel PWM driver (PCA9685) · microSD card (SPI) |
-| **Logic (DIP packages)** (12) | **CMOS 4000**: CD4081 (4 × AND) · CD4071 (4 × OR) · CD4070 (4 × XOR) · CD4011 (4 × NAND) · CD4001 (4 × NOR) · CD40106 (6 × NOT, Schmitt trigger) — **TTL/HC 74**: 74xx08 · 74xx32 · 74xx86 · 74xx00 · 74xx02 · 74xx14 (same functions; the chosen family sets the supply range) |
-| **Mechanics** (2) | Spider robot · Spider leg |
-| **Measuring instruments** (3) | Bench power supply · Bench multimeter · Bench oscilloscope |
+| **Boards and breadboards** (9) | Arduino Uno · Arduino Nano · Arduino Mega 2560 · Raspberry Pi Pico · Raspberry Pi Pico W · Raspberry Pi Pico 2 · Raspberry Pi Pico 2 W · Grove Shield (Pico) · Breadboard |
+| **Discrete components** (11) | Resistor · Capacitor (polarized or not) · Diode · Transistor (PN2222A, NPN, PNP — TO-92 package) · LED · RGB LED · NTC thermistor · PTC thermistor · Photoresistor (LDR) · Photodiode · Phototransistor |
+| **Indicators and displays** (8) | 10-LED bar graph · 7-segment display (1 to 4 digits) · NeoPixel · NeoPixel matrix · NeoPixel ring · Text LCD 16×2 / 20×4 (I²C or parallel) · SSD1306 OLED display · ILI9341 TFT display (SPI) |
+| **Controls** (10) | Pushbutton · 6 mm pushbutton · Slide switch · DIP switch ×8 · Membrane keypad 3×4 / 4×4 · Potentiometer · Slide potentiometer · Trimmer potentiometer · OMRON G5V relay · Analog joystick |
+| **Sensors** (12) | Light sensor · Gas sensor (MQ) · Flame sensor · Sound sensor · PIR motion sensor · Tilt sensor · Hall effect sensor · Heart-beat sensor · NTC temperature sensor · Ultrasonic sensor (HC-SR04) · DHT22 temperature/humidity · DHT11 temperature/humidity |
+| **Actuators** (4) | Buzzer · Servo motor · Fan · DC motor |
+| **Systems** (2) | Spider robot · Spider leg |
+| **Measuring instruments** (5) | Bench power supply · Bench multimeter · Bench oscilloscope · Function generator · Logic probe (logic analyzer, experimental) |
+| **Miscellaneous** (3) | Power bank · microSD card (SPI) · 16-channel PWM driver (PCA9685) |
+| **Integrated circuits** (12) | **CMOS 4000**: CD4081 (4 × AND) · CD4071 (4 × OR) · CD4070 (4 × XOR) · CD4011 (4 × NAND) · CD4001 (4 × NOR) · CD40106 (6 × NOT, Schmitt trigger) — **TTL/HC 74**: 74xx08 · 74xx32 · 74xx86 · 74xx00 · 74xx02 · 74xx14 (same functions; the chosen family sets the supply range) |
 
 On top of these come the **library parts** (`.kompix`), installed by the manager or dropped into the project folder, and the **custom parts** drawn in the built-in creator.
+
+> 📦 **Public library**: the illustrated list of downloadable parts is in [kablix_components/README.md](kablix_components/README.md).
 
 ## Internationalisation
 

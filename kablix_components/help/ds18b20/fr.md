@@ -2,13 +2,13 @@
 
 ![Capteur de température DS18B20](ds18b20.webp)
 
-Un thermomètre, Il ne rend pas une tension qu'il faudrait convertir : il rend **un nombre**, déjà en degrés. Et il le fait sur **un seul fil**, ce qui lui permet une chose que les autres capteurs ne savent pas faire — être plusieurs sur la même broche.
+Un thermomètre. Il ne rend pas une tension qu'il faudrait convertir : il rend **un nombre**, déjà en degrés. Et il le fait sur **un seul fil**, ce qui lui permet une chose que les autres capteurs ne savent pas faire — être plusieurs sur la même broche.
 
 Mesure de **−55 à +125 °C**, à **±0,5 °C** près entre −10 et +85 °C.
 
 Composant de bibliothèque : il s'installe par le gestionnaire de composants, il n'est pas dans la palette d'origine.
 
-Il existe en deux versions, même puce et même programme : ce boîtier **TO-92 **nu, et une [sonde étanche](../ds18b20-etanche/fr.md) en inox au bout d'un câble.
+Il existe en deux versions, même puce et même programme : ce boîtier **TO-92** nu, et une [sonde étanche](ds18b20-etanche.md) en inox au bout d'un câble.
 
 ## Broches
 
@@ -22,11 +22,11 @@ Attention au sens : les trois pattes sortent du même côté, et les inverser ch
 
 ## Une résistance de tirage est obligatoire
 
-Il faut une **résistance de 4,7 kΩ entre **`Data`** et **`VDD`. Sans elle, rien ne marche — et c'est de loin la première cause de « mon capteur renvoie −127 ».
+Il faut une **résistance de 4,7 kΩ entre `Data` et `VDD`**. Sans elle, rien ne marche — et c'est de loin la première cause de « mon capteur renvoie −127 ».
 
 ## Plusieurs capteurs sur un seul fil
 
-C'est l'intérêt du DS18B20. Chaque exemplaire sort d'usine avec une **adresse **unique gravée dedans, sur 64 bits. On peut donc en brancher cinq sur la même broche — `Data` avec `Data`, une seule résistance de 4,7 kΩ pour tout le monde — et les interroger un par un par leur adresse.
+C'est l'intérêt du DS18B20. Chaque exemplaire sort d'usine avec une **adresse** unique gravée dedans, sur 64 bits. On peut donc en brancher cinq sur la même broche — `Data` avec `Data`, une seule résistance de 4,7 kΩ pour tout le monde — et les interroger un par un par leur adresse.
 
 Le programme les trouve avec `search()`, qui rend les adresses une à une.
 
@@ -83,7 +83,7 @@ En simulation, le composant affiche un curseur **T°**, de −55 à +125 °C. Ce
 
 ### Curseur tout à gauche : « lecture ratée »
 
-À **−55 °C pile**, un programme Arduino qui utilise **DallasTemperature **affiche « lecture ratée » (`DEVICE_DISCONNECTED_C`) au lieu de la température. Ce n'est pas un défaut de la simulation : cette bibliothèque se sert de −55 °C comme valeur sentinelle pour dire « capteur absent », si bien qu'elle confond la borne basse du capteur avec une panne. Un vrai DS18B20 à −55 °C donne exactement le même résultat.
+À **−55 °C pile**, un programme Arduino qui utilise **DallasTemperature** affiche « lecture ratée » (`DEVICE_DISCONNECTED_C`) au lieu de la température. Ce n'est pas un défaut de la simulation : cette bibliothèque se sert de −55 °C comme valeur sentinelle pour dire « capteur absent », si bien qu'elle confond la borne basse du capteur avec une panne. Un vrai DS18B20 à −55 °C donne exactement le même résultat.
 
 Réglez le curseur sur **−54,5 °C** pour voir la lecture aboutir. En MicroPython (`ds18x20`), le problème ne se pose pas : −55 °C est lu comme n'importe quelle autre valeur.
 
