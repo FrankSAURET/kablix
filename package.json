@@ -2,7 +2,7 @@
   "name": "kablix",
   "displayName": "Kablix",
   "version": "2026.9.5",
-  "buildNumber": 135,
+  "buildNumber": 136,
   "description": "%kablix.description%",
   "publisher": "electropol-fr",
   "author": {
@@ -492,7 +492,7 @@
     "@types/node": "20.11.0",
     "@types/vscode": "1.85.0",
     "@vscode/vsce": "4.0.0",
-    "esbuild": "0.28.0",
+    "esbuild": "0.28.2",
     "patch-package": "^8.0.1",
     "svgo": "^4.0.2",
     "typescript": "6.0.3"
