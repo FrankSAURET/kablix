@@ -2,6 +2,12 @@
 
 Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque mois.
 
+## 2026.9.6 (prochaine publication)
+
+### Correction
+
+- **Les propriétés d'une sonde logique ne s'affichent plus en plusieurs exemplaires** quand on la pose sur une patte. Même correction pour l'interrupteur 3V3/5V du Grove Shield et les bascules dessinées sur les composants.
+
 ## 2026.9.5 (24 septembre 2026)
 
 ### Nouveauté

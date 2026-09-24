@@ -399,6 +399,9 @@ try {
 		wires: [],
 	}); window.editor.setCamera({ zoom: 1, panX: 0, panY: 0 }); })()`);
 	await attendre(400);
+	// Nombre de titres « id - libellé » dans l'inspecteur : un par composant montré.
+	const titresInspecteur = async () => Number(await ev(
+		`document.querySelectorAll('#inspector .inspector__subtitle').length`));
 	const sonde1 = () => ev(`(() => { const p = window.editor.serialize().parts
 		.find((x) => x.id === 'sd1');
 		return JSON.stringify({ accroche: p.attrs?.accroche ?? '', voie: p.attrs?.voie ?? '',
@@ -441,6 +444,11 @@ try {
 			posee.accroche === 'uno1/8', JSON.stringify(posee));
 		ok('et la pose attribue la première teinte libre (voie 0)',
 			posee.voie === '0', JSON.stringify(posee));
+		// Frank (24/09) : « propriétés en 4 exemplaires à la pose d'une sonde,
+		// au moment de la connexion à une patte ». La pose rafraîchissait
+		// l'inspecteur par `renderPartInspector`, qui AJOUTE sans vider.
+		ok('l inspecteur ne montre la sonde posée qu UNE fois',
+			(await titresInspecteur()) === 1, `${await titresInspecteur()} titre(s)`);
 
 		// Reposée LOIN de toute broche : l'accrochage s'effface, la teinte reste.
 		const loin = await surEcran(posee.x + 40 + 260, posee.y + 40 + 200);
@@ -778,6 +786,8 @@ try {
 					!!nee && nee.accroche === 'uno2/8', JSON.stringify(nee));
 				ok('et elle prend sa teinte de voie sans qu on ait à la déplacer',
 					!!nee && nee.voie === '0', JSON.stringify(nee));
+				ok('l inspecteur ne montre la sonde tirée de la palette qu UNE fois',
+					(await titresInspecteur()) === 1, `${await titresInspecteur()} titre(s)`);
 				// L'élément porte bien l'attribut : c'est LUI qui colore le dessin,
 				// pas le schéma sérialisé. Sans cela la pince serait accrochée dans
 				// le fichier et grise à l'écran — le défaut de Frank à moitié corrigé.

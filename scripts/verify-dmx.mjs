@@ -417,7 +417,11 @@ run().catch((e) => {
 // simple setInterval rate des couleurs entières).
 const ATTENDUES = ['255,0,0', '0,255,0', '0,0,255'];
 
-async function boutEnBout(nom, engine, pin, limiteMs) {
+// Nombre de canaux envoyés par le programme de test : Frank le règle à la main.
+// Introuvable → 512, l'univers complet.
+const canauxDuProgramme = (source, motif) => Number(source.match(motif)?.[1] ?? 512);
+
+async function boutEnBout(nom, engine, pin, limiteMs, canaux) {
 	const vues = new Set();
 	// La sonde de l'analyseur posée sur la broche TX. Le défaut corrigé au lot
 	// .95 : l'UART émulé ne bouge PAS sa broche, l'octet part droit au décodeur
@@ -457,10 +461,13 @@ async function boutEnBout(nom, engine, pin, limiteMs) {
 	check(`${nom} : rien d'autre que les trois couleurs (hors univers vierge)`,
 		[...vues].every((c) => c === '0,0,0' || ATTENDUES.includes(c)), [...vues].join(' | '));
 	// Le contrôle qui manquait : la SONDE voit-elle quelque chose ? Trois couleurs
-	// reçues, ce sont au moins trois trames de 513 octets — des milliers de fronts.
-	// Le seuil est volontairement bas : on prouve que la ligne vit, pas son débit.
+	// reçues, ce sont au moins trois trames. Une trame fait au moins 2 fronts de
+	// BREAK/MAB puis 2 par octet (bit de départ, bit de stop) ; le programme n'en
+	// envoie parfois que 4 octets (CANAUX = 3). Le seuil, deux trames plafonnées
+	// à 100 fronts, est volontairement bas : on prouve que la ligne vit, pas son débit.
+	const seuil = Math.min(100, 2 * (2 + 2 * (canaux + 1)));
 	check(`${nom} : la sonde posée sur ${pin} voit les fronts de la ligne série`,
-		fronts > 100, `${fronts} front(s)`);
+		fronts >= seuil, `${fronts} front(s), seuil ${seuil}`);
 	check(`${nom} : la ligne monte ET descend, pas un niveau figé`,
 		niveaux.has(0) && niveaux.has(1), `niveaux vus : ${[...niveaux].join(',') || 'aucun'}`);
 }
@@ -489,7 +496,7 @@ if (QUICK) {
 		// console de l'élève afficherait 513 caractères de contrôle par seconde.
 		let serial = '';
 		engine.onSerial = (chunk) => { serial += chunk; };
-		await boutEnBout(carte.nom, engine, 'GP0', 120_000);
+		await boutEnBout(carte.nom, engine, 'GP0', 120_000, canauxDuProgramme(script, /^CANAUX\s*=\s*(\d+)/m));
 		check(`${carte.nom} : le moniteur série ne reçoit pas la trame binaire`,
 			!/[ -�]/.test(serial), JSON.stringify(serial.slice(0, 60)));
 		check(`${carte.nom} : les messages du programme arrivent quand même`,
@@ -527,7 +534,7 @@ if (QUICK) {
 		engine.setDmx(['1']);
 		let serial = '';
 		engine.onSerial = (chunk) => { serial += chunk; };
-		await boutEnBout('uno', engine, '1', 120_000);
+		await boutEnBout('uno', engine, '1', 120_000, canauxDuProgramme(readFileSync(ino, 'utf8'), /#define\s+CANAUX\s+(\d+)/));
 		check('uno : le moniteur série ne reçoit pas la trame binaire',
 			serial === '', JSON.stringify(serial.slice(0, 60)));
 	}

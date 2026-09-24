@@ -1,8 +1,4 @@
 # À faire
-1. J'ai modifié readme en fr et en tu pars de ceux là maintenant
-1. J'ai à nouveau eu la duplication des propriétés en 4 exemplaires dans la fenêtre de propriété à la pause d'une sonde logique (dans dht22-pico2). je ne vosi qu'une sonde et si je la déplace il ni en a qu'une. Les propriétés sont toutes les 4 pour SD1. Si j'agis sur une propriété celles dupliqués disparaissent. La duplication se produit au moment de la connexion à une patte. Si je pose une sonde dans le vide pas de duplication
-1.  **À trancher par Frank** : garder `CANAUX = 3` dans `dmx-pico.py` → On garde
-1.  Tous les Fichiers sont à commiter et pusher, notamment  : `Todo temp.md`, `testkablix/Arduino/sonde-logique-uno/sonde-logique-uno.projix`, `testkablix/dmx-pico.projix`, `testkablix/dmx-pico.py`, `testkablix/sonde-logique-pico2.projix`, `testkablix/sonde-logique-pico.projix`, `testkablix/dht22-pico2.
 1. Analyseur logique
     1. j'ai toujours le pb, si je change le déclenchement, la courbe disparait pour ne plus réapparaitre. Elle réapparait maintenant sur relancement de la simulation. Il faut indiquer que pour que le changement de déclenchement sois pris en compte il faut relancer la simulation.
     1. **Défaut repéré, NON corrigé (hors périmètre, à trancher)** : `AnalyseurJournal.nettoyerOrphelins()`, appelé à l'activation, efface TOUS les journaux du dossier temporaire qui ne sont pas à lui. Deux fenêtres VS Code avec Kablix : l'ouverture de la seconde efface le journal vivant de la première. La suite de la mesure se réécrit dans un fichier sans en-tête, et l'export perd le début. Piste : un sous-dossier par processus (`kablix-analyseur/<pid>/`), et ne balayer que ceux dont le processus est mort. Corrige ce pb.
@@ -32,6 +28,15 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.138
+1. ✅ **Propriétés en 4 exemplaires à la pose d'une sonde logique** (Frank, dht22-pico2). Cause : `poserSonde` rafraîchissait l'inspecteur par `renderPartInspector`, qui AJOUTE ses lignes sans vider le panneau — seul `renderInspector` vide d'abord. Chaque pose sur une patte, sonde sélectionnée, empilait donc un exemplaire de plus ; le premier changement de propriété passait par `renderInspector` et nettoyait tout. Même défaut, jamais signalé, sur l'interrupteur 3V3/5V du Grove Shield et les bascules du dessin (cavalier, badge RFID) : les trois appels passent par `renderInspector` ([editor.mts](src/webview/diagram/editor.mts)).
+2. ✅ **Banc à vraie souris** : [verify-souris.mjs](scripts/verify-souris.mjs) compte les titres de l'inspecteur après la pose d'une pince sur la broche 8 (§9) et après une pince tirée de la palette (§12). Contre-épreuve sur l'ancien code : « 2 titre(s) » en §9, échec nommé. Code corrigé : 55/55.
+3. ✅ **`CANAUX = 3` gardé dans `dmx-pico.py`** (Frank). [verify-dmx.mjs](scripts/verify-dmx.mjs) lit le nombre de canaux du programme de test (`CANAUX =` en Python, `#define CANAUX` en C) et en déduit son seuil de fronts : deux trames au minimum (2 fronts de BREAK/MAB, 2 par octet), plafonné à l'ancien seuil de 100. `verify:dmx` : 73/73.
+4. ℹ️ README FR et EN retouchés par Frank (enregistrés en v2026.9.5.135) : ils servent désormais de base.
+5. ℹ️ Fichiers de Frank de la v2026.9.5.134 (`Todo temp.md`, schémas de test sonde-logique, dmx, dht22-pico2) : déjà enregistrés et envoyés en v2026.9.5.135 (07cabc0). Dépôt propre à la reprise.
 
 ---
 

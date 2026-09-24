@@ -2766,7 +2766,7 @@ export class Editor {
       el.addEventListener('pwr-change', () => {
         part.attrs = { ...part.attrs, [attr]: el.getAttribute(attr) ?? defaut };
         if (this.selection?.kind === 'part' && this.selection.id === part.id) {
-          this.renderPartInspector(part.id);
+          this.renderInspector(); // vide puis redessine (renderPartInspector ajouterait)
         }
         this.notify();
       });
@@ -2780,7 +2780,7 @@ export class Editor {
         if (!attr) return;
         part.attrs = { ...part.attrs, [attr]: el.getAttribute(attr) ?? '' };
         if (this.selection?.kind === 'part' && this.selection.id === part.id) {
-          this.renderPartInspector(part.id);
+          this.renderInspector(); // vide puis redessine (renderPartInspector ajouterait)
         }
         this.notify();
       });
@@ -4211,9 +4211,11 @@ export class Editor {
     const el = this.rendered.get(part.id)?.el as unknown as HTMLElement | undefined;
     el?.setAttribute('accroche', accroche);
     if (attrs.voie !== undefined) el?.setAttribute('voie', attrs.voie);
-    // L'inspecteur affiche l'accrochage : il doit suivre la pose.
+    // L'inspecteur affiche l'accrochage : il doit suivre la pose. Par
+    // `renderInspector`, qui VIDE avant de dessiner : `renderPartInspector` seul
+    // ajoute à la suite, d'où les propriétés en 2, 3, 4 exemplaires (Frank, 24/09).
     if (this.selection?.kind === 'part' && this.selection.id === part.id) {
-      this.renderPartInspector(part.id);
+      this.renderInspector();
     }
   }
 
