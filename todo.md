@@ -1,7 +1,5 @@
 # À faire
 1. Analyseur logique
-    1. ds18b20-pico2
-        1. proposer à la sélection du protocole un affichage decimal ou hexadecimal sous la courbe
     1. DHT11/dht22 :
         1. Matérialise chaque octet par un trait séparateur vertical et ça valeur en en hexa dedans
         1. Sur une deuxième ligne tu mets la valeur (50% HR et 22,0 °C et somme avec la coche)
@@ -13,6 +11,15 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.142
+1. ✅ **Octets en hexadécimal ou en décimal** (Frank, ds18b20-pico2 : « proposer à la sélection du protocole un affichage décimal ou hexadécimal sous la courbe »). Réglage générique `base?: 'hex' | 'dec'` dans `ReglageDecodage` ([analyseur-decodage.mts](src/webview/analyseur-decodage.mts)), hexadécimal par défaut et jamais écrit dans le projet. `octet(n, base)` remplace `hex2` dans les six décodeurs (I²C adresse et données, SPI MOSI/MISO, DMX start code et canaux, UART, 1-Wire, DHT). Repères, noms de commande 1-Wire et grandeurs physiques inchangés. Étendu à tous les protocoles plutôt qu'au seul 1-Wire : la demande visait « la sélection du protocole », panneau commun à tous.
+2. ✅ **Interface** ([analyseur.mts](src/webview/analyseur.mts)) : liste « Values » (Hexadecimal / Decimal) dans le panneau de décodage, pour tous les bus. Changer de protocole garde la base (c'est une façon de lire, pas un rôle de voie).
+3. ✅ **Fiche d'aide** [sonde-logique.md](docs/fr/composants/sonde-logique.md) : paragraphe dans « Ce qui se règle ».
+4. ✅ **Bancs** : [verify-analyseur.mjs](scripts/verify-analyseur.mjs) + 10 contrôles — hex par défaut identique à `base: 'hex'` ; 1-Wire en décimal `204 SKIP ROM`, `68`, aucun `0x`, RESET inchangé ; UART `72 'H'` (court `72`), octet non imprimable `7` ; deux décodages d'une capture, chacun sa base ; plus aucun `hex2` hors `octet` ; panneau commun, base gardée au changement de protocole, fiche. 280 contrôles verts, construction et `typecheck` verts.
+5. ⏳ Clé `Values` à traduire (« Valeurs ») dans [i18n.mts](src/webview/i18n.mts) avant publication ; `Hexadecimal` / `Decimal` sont déjà traduites. Fiche EN à aligner.
 
 ---
 

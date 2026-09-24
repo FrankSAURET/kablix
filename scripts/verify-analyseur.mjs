@@ -1378,6 +1378,53 @@ const oneWireDe = (sequence) => {
     ann.map((a) => `${a.texte}@${a.voie}`).join(' | '));
 }
 
+// --- Octets en hexadécimal ou en décimal (v2026.9.5.142) -------------------------
+{
+  // La séance DS18B20 : RESET, SKIP ROM (0xCC = 204), CONVERT T (0x44 = 68).
+  const voies = [voieDe(0, 'DQ', oneWireDe(['reset', 0xcc, 0x44]), 1)];
+  const enHex = decoder(voies, { protocole: 'onewire', donnees: 0 }).map((a) => a.texte);
+  const enHexExplicite = decoder(voies, { protocole: 'onewire', donnees: 0, base: 'hex' }).map((a) => a.texte);
+  const enDec = decoder(voies, { protocole: 'onewire', donnees: 0, base: 'dec' }).map((a) => a.texte);
+  check('Base : l\'hexadécimal reste le défaut (réglage absent = « hex »)',
+    enHex.join('|') === enHexExplicite.join('|') && enHex.includes('0xCC SKIP ROM'), enHex.join(' | '));
+  check('Base : en décimal, 1-Wire écrit 204 SKIP ROM puis 68, sans « 0x »',
+    enDec.includes('204 SKIP ROM') && enDec.includes('68') && !enDec.some((x) => x.includes('0x')),
+    enDec.join(' | '));
+  check('Base : le repère RESET ne change pas avec la base',
+    enDec.includes('RESET'), enDec.join(' | '));
+
+  const tx = [voieDe(0, 'TX', serieDe([0x48, 0x07], 9600, 8, 'none', 1), 1)];
+  const uartDec = decoder(tx, { protocole: 'uart', donnees: 0, bauds: 9600, base: 'dec' });
+  check('Base : en décimal, UART écrit 72 \'H\' et garde le caractère, repli court sur 72',
+    valeurs(uartDec)[0] === "72 'H'" && uartDec.find((a) => a.texte === "72 'H'")?.court === '72',
+    valeurs(uartDec).join(' | '));
+  check('Base : un octet non imprimable en décimal reste un nombre seul (7)',
+    valeurs(uartDec)[1] === '7', valeurs(uartDec).join(' | '));
+
+  // Deux décodages de la même capture, chacun avec SA base.
+  const deux = decoderTous([voieDe(0, 'TX', serieDe([0x4f], 9600, 8, 'none', 1), 1), voieDe(1, 'DQ', oneWireDe(['reset', 0xcc]), 1)], [
+    { protocole: 'uart', donnees: 0, bauds: 9600 },
+    { protocole: 'onewire', donnees: 1, base: 'dec' },
+  ]);
+  check('Base : chaque décodage garde sa propre base (UART en hex, 1-Wire en décimal)',
+    deux.some((a) => a.texte === "0x4F 'O'" && a.voie === 0) &&
+      deux.some((a) => a.texte === '204 SKIP ROM' && a.voie === 1),
+    deux.map((a) => `${a.texte}@${a.voie}`).join(' | '));
+
+  const dec = readFileSync(join(root, 'src', 'webview', 'analyseur-decodage.mts'), 'utf8');
+  check('Base : aucun décodeur n\'écrit plus un octet sans passer par la base du réglage',
+    (dec.match(/hex2\(/g) ?? []).length === 2, `${(dec.match(/hex2\(/g) ?? []).length} appels de hex2`);
+  const js = readFileSync(join(root, 'src', 'webview', 'analyseur.mts'), 'utf8');
+  check('Base : le panneau de décodage propose Hexadécimal / Décimal, pour tous les protocoles',
+    /labBase\.textContent = t\('Values'\)/.test(js) && /\['dec', t\('Decimal'\)\]/.test(js) &&
+      !/if \(d\.protocole === '[a-z0-9]+'\) \{[^}]*labBase/.test(js));
+  check('Base : changer de protocole garde la base choisie',
+    /const \{ id, base \} = d;[\s\S]{0,200}if \(base\) d\.base = base;/.test(js));
+  const fiche = readFileSync(join(root, 'docs', 'fr', 'composants', 'sonde-logique.md'), 'utf8');
+  check('Base : la fiche d\'aide explique le choix hexadécimal / décimal',
+    /\*\*Valeurs\*\*[^\n]*hexadécimal[^\n]*décimal/i.test(fiche));
+}
+
 // --- DHT11 / DHT22 ---------------------------------------------------------------
 // LE BANC NE FABRIQUE PAS LE SIGNAL À LA MAIN. Il appelle `buildDht22Schedule`,
 // la fonction du MOTEUR qui pilote réellement la broche en simulation : c'est un

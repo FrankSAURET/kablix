@@ -131,6 +131,13 @@ export interface ReglageDecodage {
    */
   tolerance?: number;
   /**
+   * Écriture des octets sous la courbe : `hex` (`0x2A`, par défaut — celle des
+   * fiches techniques) ou `dec` (`42`, celle du programme quand il compare une
+   * lecture à un nombre). Seul l'affichage change : les repères de trame, les
+   * noms de commande et les grandeurs physiques (°C, %HR) restent tels quels.
+   */
+  base?: 'hex' | 'dec';
+  /**
    * Identifiant stable du réglage, pour que l'interface puisse en éditer un
    * parmi plusieurs sans se tromper de ligne. Le décodage ne s'en sert pas.
    */
@@ -188,6 +195,11 @@ export type ReglagesVoies = Record<number, ReglageVoie>;
 /** Deux chiffres hexadécimaux, majuscules. */
 function hex2(n: number): string {
   return `0x${n.toString(16).toUpperCase().padStart(2, '0')}`;
+}
+
+/** Un octet dans la base choisie par le réglage : `0x2A` (défaut) ou `42`. */
+function octet(n: number, base: ReglageDecodage['base']): string {
+  return base === 'dec' ? String(n) : hex2(n);
 }
 
 /**
@@ -367,12 +379,12 @@ function decoderI2c(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
           out.push({
             t0: debutOctet,
             t1: f.t,
-            texte: t('addr {0} {1}', hex2(adr), sens),
+            texte: t('addr {0} {1}', octet(adr, r.base), sens),
             nature: 'donnee',
           });
           attendAdresse = false;
         } else {
-          out.push({ t0: debutOctet, t1: f.t, texte: hex2(acc), nature: 'donnee' });
+          out.push({ t0: debutOctet, t1: f.t, texte: octet(acc, r.base), nature: 'donnee' });
         }
       }
       continue;
@@ -480,8 +492,8 @@ function decoderSpi(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
     bits += 1;
     if (bits === 8) {
       const parts: string[] = [];
-      if (mosi) parts.push(`MOSI ${hex2(accMosi)}`);
-      if (miso) parts.push(`MISO ${hex2(accMiso)}`);
+      if (mosi) parts.push(`MOSI ${octet(accMosi, r.base)}`);
+      if (miso) parts.push(`MISO ${octet(accMiso, r.base)}`);
       out.push({ t0: debutOctet, t1: f.t, texte: parts.join(' · '), nature: 'donnee' });
       bits = 0;
       accMosi = 0;
@@ -619,14 +631,15 @@ function decoderDmx(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
       // projecteur, ses créneaux ne sont pas des canaux.
       out.push({
         ...valeur,
-        texte: `START code ${hex2(acc)}`,
-        court: hex2(acc),
+        texte: `START code ${octet(acc, r.base)}`,
+        court: octet(acc, r.base),
         nature: acc === 0 ? 'cadre' : 'controle',
       });
     } else if (canal >= 1 && canal <= 512) {
-      out.push({ ...valeur, texte: `c${canal}=${hex2(acc)}`, court: hex2(acc), nature: 'donnee' });
+      const val = octet(acc, r.base);
+      out.push({ ...valeur, texte: `c${canal}=${val}`, court: val, nature: 'donnee' });
     } else {
-      out.push({ ...valeur, texte: hex2(acc), nature: 'donnee' });
+      out.push({ ...valeur, texte: octet(acc, r.base), nature: 'donnee' });
     }
     // Le bit d'arrêt doit valoir 1 : à 0, c'est une erreur de cadrage, posée
     // là où elle se voit — à la place du STOP.
@@ -744,11 +757,12 @@ function decoderUart(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
     // à l'élève de juger s'il y croit.
     out.push({ t0, t1: t0 + bitMs, texte: 'Start', nature: 'start' });
     const car = litteral(acc);
+    const val = octet(acc, r.base);
     out.push({
       t0: t0 + bitMs,
       t1: t0 + bitMs * (1 + nbData),
-      texte: car === '' ? hex2(acc) : `${hex2(acc)} '${car}'`,
-      court: car === '' ? undefined : hex2(acc),
+      texte: car === '' ? val : `${val} '${car}'`,
+      court: car === '' ? undefined : val,
       nature: 'donnee',
     });
     if (pariteFausse) {
@@ -868,7 +882,7 @@ function decoderOneWire(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
       out.push({
         t0: tOctet,
         t1: suivant.t,
-        texte: nom ? `${hex2(acc)} ${nom}` : hex2(acc),
+        texte: nom ? `${octet(acc, r.base)} ${nom}` : octet(acc, r.base),
         nature: 'donnee',
       });
       attendCommande = false;
@@ -973,21 +987,21 @@ function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
       {
         t0: debuts[0]!,
         t1: debuts[16]!,
-        texte: `${hex2(o[0]!)} ${hex2(o[1]!)} · ${hr}`,
+        texte: `${octet(o[0]!, r.base)} ${octet(o[1]!, r.base)} · ${hr}`,
         court: hr,
         nature: 'donnee',
       },
       {
         t0: debuts[16]!,
         t1: debuts[32]!,
-        texte: `${hex2(o[2]!)} ${hex2(o[3]!)} · ${temp}`,
+        texte: `${octet(o[2]!, r.base)} ${octet(o[3]!, r.base)} · ${temp}`,
         court: temp,
         nature: 'donnee',
       },
       {
         t0: debuts[32]!,
         t1: tFin,
-        texte: `${hex2(o[4]!)} · ${verdict}`,
+        texte: `${octet(o[4]!, r.base)} · ${verdict}`,
         court: ok ? '✓' : '✗',
         nature: ok ? 'controle' : 'erreur',
       },

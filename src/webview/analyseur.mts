@@ -758,10 +758,12 @@ function panneauDecodage(d: ReglageDecodage, voie: number): HTMLElement {
     // Changer de protocole vide les rôles : les voies d'un I²C (SCL/SDA) ne
     // veulent rien dire pour un DMX, et les garder ferait décoder n'importe
     // quoi. La voie de données, elle, reste — c'est celle qu'on regarde.
-    const id = d.id;
+    // La base d'affichage, elle, est une façon de LIRE, pas un rôle : elle reste.
+    const { id, base } = d;
     for (const k of Object.keys(d)) delete (d as unknown as Record<string, unknown>)[k];
     d.protocole = selProto.value as Protocole;
     d.id = id;
+    if (base) d.base = base;
     d.donnees = voie;
     refaire();
     // Le panneau montre d'autres rôles selon le bus : on le refait sur place.
@@ -862,6 +864,31 @@ function panneauDecodage(d: ReglageDecodage, voie: number): HTMLElement {
     lab.append(sel);
     boite.append(lab);
   }
+
+  // Hexadécimal ou décimal, pour tous les bus : une fiche technique écrit
+  // `0x44`, le programme compare souvent à `68`. Les deux doivent pouvoir se
+  // retrouver sous la courbe sans calcul de tête.
+  const labBase = document.createElement('label');
+  labBase.textContent = t('Values');
+  const selBase = document.createElement('select');
+  for (const [v, nom] of [
+    ['hex', t('Hexadecimal')],
+    ['dec', t('Decimal')],
+  ] as Array<['hex' | 'dec', string]>) {
+    const o = document.createElement('option');
+    o.value = v;
+    o.textContent = nom;
+    selBase.append(o);
+  }
+  selBase.value = d.base ?? 'hex';
+  selBase.addEventListener('change', () => {
+    // L'hexadécimal est le défaut : on ne l'écrit pas dans le projet.
+    if (selBase.value === 'dec') d.base = 'dec';
+    else delete d.base;
+    refaire();
+  });
+  labBase.append(selBase);
+  boite.append(labBase);
 
   const oter = document.createElement('button');
   oter.type = 'button';

@@ -86,6 +86,8 @@ Le **modèle** d'un capteur DHT ne se devine pas. Le DHT11 et le DHT22 envoient 
 
 La **vitesse** et le **format** d'une ligne UART non plus : deux vitesses voisines produisent les mêmes fronts et des octets différents, et un même signal lu en `8N1` ou en `7E1` ne donne pas les mêmes caractères. Des octets en charabia : c'est presque toujours la vitesse qu'il faut revoir en premier (elle se saisit dans les réglages de la **voie**, pas du décodage — deux lignes série d'un montage ne tournent pas forcément à la même allure).
 
+La **base** des octets, elle, est un simple choix de lecture, commun à tous les protocoles : le réglage **Valeurs** du décodage les écrit en **hexadécimal** (`0x44`, par défaut — l'écriture des fiches techniques) ou en **décimal** (`68`, celle du programme qui compare une lecture à un nombre). Les repères de trame, les noms de commande (`CONVERT T`) et les mesures (`23,4 °C`) ne changent pas. Deux décodages d'une même capture gardent chacun leur base.
+
 ### Ce que chaque décodage montre
 
 - **UART** — chaque caractère se découpe comme sur le fil : le `Start` (un bit, vert), la valeur et, quand il est imprimable, le caractère lui-même (`0x48 'H'`), puis le `STOP` (rouge). Un bit d'arrêt manquant est signalé `cadrage` à la place du `STOP`, une parité fausse `parité` sur le bit de parité — la valeur reste affichée, à vous de juger.
