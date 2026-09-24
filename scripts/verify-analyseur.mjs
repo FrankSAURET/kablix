@@ -686,6 +686,124 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
     `${c.niveauA(0, 150_000.5)} / ${c.niveauA(0, 149_000)}`);
 }
 
+// --- Déclenchement sur START code DMX (v2026.9.5.141) ----------------------------
+{
+  // Frank, 24/09 : « déclenchement sur start code (premier 0x00) ». Deux trames :
+  // la première ouverte par un start code NON nul (0xCC, RDM) dont un canal vaut
+  // 0x00, la seconde par le START code 0x00 d'éclairage. Seul ce dernier doit
+  // déclencher, sur son start bit.
+  const trameDmx = (bauds) => {
+    const BIT = 1000 / bauds;
+    return (depart, codes) => {
+      const plat = [];
+      let t = depart;
+      let niveau = 1;
+      const palier = (n, nb) => {
+        if (n !== niveau) { plat.push(t, n); niveau = n; }
+        t += nb * BIT;
+      };
+      const debuts = [];
+      palier(0, 25); // BREAK (100 µs à 250 kbauds)
+      palier(1, 3); // MAB
+      for (const o of codes) {
+        debuts.push(t);
+        palier(0, 1);
+        for (let i = 0; i < 8; i++) palier((o >> i) & 1, 1);
+        palier(1, 2);
+      }
+      palier(1, 30);
+      return { plat, debuts, fin: t };
+    };
+  };
+  const a250 = trameDmx(250_000);
+  const t1 = a250(1.0, [0xcc, 0x00, 0x10]);
+  const t2 = a250(t1.fin, [0x00, 0x80, 0x00]);
+  const T_START = t2.debuts[0];
+  const DMX = { 0: [...t1.plat, ...t2.plat] };
+  const nouvelle = () => {
+    const c = new AnalyseurCapture();
+    c.declarerVoies([{ voie: 0, pin: '0', nom: 'DMX' }]);
+    return c;
+  };
+
+  const c = nouvelle();
+  c.reglerDeclenchement({ voie: 0, sens: 'dmxStart' });
+  c.verser(DMX);
+  check('déclenchement DMX : posé sur le start bit du START code 0x00',
+    c.tTrigger !== null && Math.abs(c.tTrigger - T_START) < 1e-9, `${c.tTrigger} / ${T_START}`);
+  check('déclenchement DMX : ni un start code non nul, ni un canal à 0x00',
+    c.tTrigger === null || c.tTrigger > t1.fin, String(c.tTrigger));
+
+  // En plein run, les fronts arrivent par petites salves : la trame se coupe
+  // n'importe où, BREAK d'un côté et START code de l'autre.
+  const plat = DMX[0];
+  for (const pas of [2, 4, 6, 10]) {
+    const s = nouvelle();
+    s.reglerDeclenchement({ voie: 0, sens: 'dmxStart' });
+    for (let i = 0; i < plat.length; i += pas) s.verser({ 0: plat.slice(i, i + pas) });
+    check(`déclenchement DMX : trouvé aussi en salves de ${pas / 2} front(s)`,
+      s.tTrigger !== null && Math.abs(s.tTrigger - T_START) < 1e-9, String(s.tTrigger));
+  }
+
+  // Capture arrêtée : poser le déclenchement après coup le trouve.
+  const a = nouvelle();
+  a.verser(DMX);
+  a.reglerDeclenchement({ voie: 0, sens: 'dmxStart' });
+  check('déclenchement DMX : trouvé après coup sur une capture arrêtée',
+    a.chercherDeclenchement() !== null && Math.abs(a.tTrigger - T_START) < 1e-9, String(a.tTrigger));
+
+  // Ligne lue à l'envers (sonde sur la patte « - » d'un RS-485) : on déclenche
+  // sur ce qu'on VOIT, donc une fois la voie remise à l'endroit.
+  const envers = { 0: DMX[0].map((x, i) => (i % 2 ? 1 - x : x)) };
+  const inv = nouvelle();
+  inv.reglerDeclenchement({ voie: 0, sens: 'dmxStart' });
+  inv.verser(envers);
+  const avantInversion = inv.tTrigger;
+  inv.reglerInversion([0]);
+  check('déclenchement DMX : ligne inversée → trouvé une fois la voie inversée, pas avant',
+    avantInversion === null && inv.tTrigger !== null && Math.abs(inv.tTrigger - T_START) < 1e-9,
+    `${avantInversion} → ${inv.tTrigger}`);
+
+  // Vitesse réglée sur la voie : une trame à 125 kbauds ne répond qu'une fois
+  // la voie réglée à 125 kbauds.
+  const a125 = trameDmx(125_000)(1.0, [0x00, 0x42]);
+  const lent = nouvelle();
+  lent.reglerDeclenchement({ voie: 0, sens: 'dmxStart' });
+  lent.verser({ 0: a125.plat });
+  const a250Lu = lent.tTrigger;
+  lent.reglerVitesses(new Map([[0, 125_000]]));
+  check('déclenchement DMX : suit la vitesse de la voie (125 kbauds)',
+    a250Lu === null && lent.tTrigger !== null && Math.abs(lent.tTrigger - a125.debuts[0]) < 1e-9,
+    `${a250Lu} → ${lent.tTrigger}`);
+
+  // Échantillonnée à 1 MHz (un bit = 4 échantillons) : trouvé au tic qui suit
+  // le start bit, là où la courbe le dessine.
+  const ech = nouvelle();
+  ech.reglerEchantillonnage(1_000_000);
+  ech.reglerDeclenchement({ voie: 0, sens: 'dmxStart' });
+  ech.verser(DMX);
+  check('déclenchement DMX : échantillonné à 1 MHz, posé au tic du start bit',
+    ech.tTrigger !== null && ech.tTrigger >= T_START - 1e-9 && ech.tTrigger <= T_START + 0.001 + 1e-9,
+    `${ech.tTrigger} / ${T_START}`);
+
+  // L'interface : l'entrée n'apparaît que sur une voie décodée en DMX, le
+  // bouton dit « SC », la vitesse de voie descend dans la capture avant le
+  // déclenchement, et la fiche l'explique.
+  const js = readFileSync(join(root, 'src', 'webview', 'analyseur.mts'), 'utf8');
+  check('déclenchement DMX : entrée « START code 0x00 » réservée aux voies décodées en DMX',
+    /decodageDe\(z\.voie\)\?\.protocole === 'dmx' \|\| sur === 'dmxStart'/.test(js) &&
+      /'START code 0x00'/.test(js) && /sens: 'dmxStart'/.test(js));
+  check('déclenchement DMX : vitesse de voie répercutée au réglage et à la restauration',
+    /majInversions\(\);\s*majVitesses\(\);\s*dessiner\(\);/.test(js) &&
+      /majInversions\(\);\s*majVitesses\(\);\s*capture\.reglerDeclenchement\(/.test(js));
+  const vueSrc = readFileSync(join(root, 'src', 'webview', 'analyseur-vue.mts'), 'utf8');
+  check('déclenchement DMX : le bouton « T » armé montre « SC »',
+    /decl === 'dmxStart'/.test(vueSrc) && /fillText\('SC'/.test(vueSrc));
+  const ficheDecl = readFileSync(join(root, 'docs', 'fr', 'composants', 'sonde-logique.md'), 'utf8');
+  check('déclenchement DMX : la fiche d\'aide l\'explique',
+    /## Le déclenchement[\s\S]*START code 0x00[\s\S]*## Le décodage/.test(ficheDecl));
+}
+
 // --- Décodage : outils de fabrication de créneaux --------------------------------
 /** Construit une voie de capture à partir d'une liste [t, niveau]. */
 const voieDe = (voie, pin, paires, niveauInitial) => ({

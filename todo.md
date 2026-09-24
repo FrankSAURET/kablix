@@ -1,7 +1,5 @@
 # À faire
 1. Analyseur logique
-    1. DMX :
-        1. Je voudrais pourvoir faire le déclenchement sur start code (premier 0x00).
     1. ds18b20-pico2
         1. proposer à la sélection du protocole un affichage decimal ou hexadecimal sous la courbe
     1. DHT11/dht22 :
@@ -15,6 +13,15 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.141
+1. ✅ **Déclenchement sur le START code DMX** (Frank : « déclenchement sur start code (premier 0x00) »). Nouveau sens `dmxStart` dans [analyseur-capture.mts](src/webview/analyseur-capture.mts) : `chercherStartDmx` parcourt la courbe AFFICHÉE (`fenetre` : inversée, échantillonnée) ; palier bas ≥ 88 µs = BREAK, le front descendant qui suit = start bit du START code, qui vaut 0x00 si ce palier bas dure 9 bits (± 0,5) avant de remonter. Rend le start bit. Un canal à 0x00 ou un start code non nul ne déclenchent pas. Relit les 3 fronts d'avant `depuis` : une salve coupée entre BREAK et START code ne le perd pas. Armé en plein run : seul un start bit postérieur à l'armement compte. Durée du bit : `reglerVitesses` (vitesse de la voie, 250 kbauds sinon), qui recale si elle change.
+2. ✅ **Interface** ([analyseur.mts](src/webview/analyseur.mts), [analyseur-vue.mts](src/webview/analyseur-vue.mts)) : entrée `START code 0x00` (terme de la norme, non traduit) au menu T, seulement sur une voie décodée en DMX ou déjà armée dessus ; bouton T armé → « SC ». `majVitesses()` au réglage d'une voie et à la restauration, avant le déclenchement. Type élargi dans [projix.ts](src/projix.ts) (l'hôte transmet tel quel).
+3. ✅ **Fiche d'aide** [sonde-logique.md](docs/fr/composants/sonde-logique.md) : paragraphe dans « Le déclenchement ».
+4. ✅ **Bancs** : [verify-analyseur.mjs](scripts/verify-analyseur.mjs) + 14 contrôles — START code 0x00 de la 2e trame trouvé, pas le start code 0xCC ni le canal à 0x00 de la 1re ; salves de 1, 2, 3 et 5 fronts ; capture arrêtée ; ligne inversée trouvée seulement une fois la voie inversée ; trame à 125 kbauds trouvée seulement après `reglerVitesses` ; échantillonné à 1 MHz au tic du start bit ; entrée réservée au DMX, « SC », vitesses avant le déclenchement, fiche. Bancs `verify:analyseur-*` et `verify:docs` verts, construction et `typecheck` verts. Contrôle en Chrome headless (vrai clic CDP) : bouton « SC », entrée cochée, origine des temps sur le start bit.
+5. ⏳ Fiche EN de la sonde logique à aligner avant publication (paragraphe du déclenchement DMX).
 
 ---
 

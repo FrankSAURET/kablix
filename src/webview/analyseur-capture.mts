@@ -23,8 +23,18 @@ export interface Front {
   niveau: 0 | 1;
 }
 
-/** Sens de déclenchement sur une voie. */
-export type SensDeclenchement = 'rising' | 'falling';
+/**
+ * Sens de déclenchement sur une voie : un front, ou `dmxStart` — le start bit
+ * du START code 0x00 d'une trame DMX512 (Frank, 24/09 : « déclenchement sur
+ * start code (premier 0x00) »).
+ */
+export type SensDeclenchement = 'rising' | 'falling' | 'dmxStart';
+
+/** Vitesse DMX512 de la norme, quand la voie n'en règle pas d'autre. */
+const BAUDS_DMX = 250_000;
+
+/** Palier bas minimal d'un BREAK DMX, en ms (88 µs, norme — comme le décodeur). */
+const BREAK_DMX_MS = 0.088;
 
 /** Réglage du déclenchement : la voie surveillée et le sens du front. */
 export interface Declenchement {
@@ -303,6 +313,7 @@ export class AnalyseurCapture {
     const d = this.declenchement;
     const v = d ? this.voies.get(d.voie) : undefined;
     if (!d || !v || v.fronts.length === 0) return null;
+    if (d.sens === 'dmxStart') return this.chercherStartDmx(v, depuis, jusqua);
     if (this.periode <= 0) {
       for (let i = premierApres(v.fronts, depuis); i < v.fronts.length; i++) {
         const f = v.fronts[i]!;
@@ -320,6 +331,67 @@ export class AnalyseurCapture {
       avant = f.niveau;
     }
     return null;
+  }
+
+  /**
+   * Start bit du premier START code 0x00 qui SE TERMINE dans ]depuis, jusqua].
+   *
+   * Le START code est le créneau qui suit le BREAK (bas ≥ 88 µs) et le MAB. Il
+   * vaut 0x00 quand son start bit et ses huit bits de données forment un seul
+   * palier bas de NEUF bits, fermé par le premier bit d'arrêt : cette montée
+   * suffit à le prouver. Un canal à 0x00 (pas juste après un BREAK) ou un start
+   * code non nul (RDM, texte) ne déclenchent donc pas.
+   *
+   * On lit la même courbe que la vue (inversée, échantillonnée) et on relit les
+   * trois fronts d'avant `depuis` : en plein run, la salve peut couper la trame
+   * entre le BREAK et la montée qui confirme le START code.
+   */
+  private chercherStartDmx(v: VoieCapture, depuis: number, jusqua: number): number | null {
+    const bit = 1000 / (this.bauds.get(v.voie) ?? BAUDS_DMX);
+    const i = premierApres(v.fronts, depuis);
+    const t0 = v.fronts[Math.max(0, i - 3)]!.t;
+    const { entrant, fronts } = this.fenetre(v.voie, t0, jusqua);
+    let niveau = entrant;
+    /** Début du palier bas en cours, null si on ne l'a pas vu commencer. */
+    let tBas: number | null = null;
+    /** Vrai entre la fin d'un BREAK et le front descendant qui suit. */
+    let apresBreak = false;
+    /** Start bit du créneau en cours quand c'est un START code. */
+    let tStart: number | null = null;
+    for (const f of fronts) {
+      if (f.niveau === 0) {
+        tBas = niveau === 1 ? f.t : null;
+        tStart = apresBreak && tBas !== null ? tBas : null;
+        apresBreak = false;
+      } else if (niveau === 0 && tBas !== null) {
+        const bas = f.t - tBas;
+        if (tStart !== null && Math.abs(bas / bit - 9) <= 0.5) {
+          // Armé en plein run : seuls les START codes à venir comptent.
+          if (f.t > depuis && tStart > this.armeDepuis) return tStart;
+        }
+        apresBreak = bas >= BREAK_DMX_MS;
+        tStart = null;
+      } else {
+        apresBreak = false;
+        tStart = null;
+      }
+      niveau = f.niveau;
+    }
+    return null;
+  }
+
+  /**
+   * Vitesse de chaque voie, en bauds (réglages de voie). Seul le déclenchement
+   * sur START code DMX s'en sert : c'est elle qui dit combien dure un bit.
+   */
+  private bauds = new Map<number, number>();
+
+  /** Déclare la vitesse des voies qui en règlent une ; les autres restent à 250 kbauds. */
+  reglerVitesses(parVoie: Map<number, number>): void {
+    const d = this.declenchement;
+    const avant = d ? this.bauds.get(d.voie) : undefined;
+    this.bauds = new Map(parVoie);
+    if (d?.sens === 'dmxStart' && this.bauds.get(d.voie) !== avant) this.recaler();
   }
 
   /**

@@ -19,7 +19,7 @@
 // fait un analyseur réel — la zone « ça commute plus vite que l'écran »).
 
 import { couleurVoie, themeSombre } from './voies-couleurs.mjs';
-import type { AnalyseurCapture } from './analyseur-capture.mjs';
+import type { AnalyseurCapture, SensDeclenchement } from './analyseur-capture.mjs';
 import type { Annotation } from './analyseur-decodage.mjs';
 
 /** Hauteur d'une piste de voie, en pixels CSS. */
@@ -105,9 +105,9 @@ export interface VoieVue {
   /**
    * Sens de déclenchement RÉGLÉ SUR CETTE VOIE, ou null si elle ne déclenche
    * pas. Le bouton de la colonne montre alors une marche montante ou
-   * descendante à la place de son « T ».
+   * descendante à la place de son « T », ou « SC » pour un START code DMX.
    */
-  declenchement?: 'rising' | 'falling' | null;
+  declenchement?: SensDeclenchement | null;
   /**
    * Nom court du protocole décodé sur cette voie (« I²C », « DMX »…), ou null.
    * Le bouton « P » l'affiche à sa place quand un décodage est posé.
@@ -503,13 +503,18 @@ export class AnalyseurVue {
       return;
     }
 
-    // Déclenchement : « T » au repos, la marche réelle une fois réglé.
+    // Déclenchement : « T » au repos, la marche réelle une fois réglé, « SC »
+    // sur un START code DMX (écrit petit, comme le nom d'un protocole).
     const decl = vv.declenchement ?? null;
     cadre(decl !== null);
     if (decl === null) {
       ctx.fillStyle = fg;
       ctx.font = `bold 12px ${getComputedStyle(document.body).getPropertyValue('--vscode-font-family').trim() || 'sans-serif'}`;
       ctx.fillText('T', x + BOUTON / 2, y + BOUTON / 2 + 0.5);
+    } else if (decl === 'dmxStart') {
+      ctx.fillStyle = sombre ? '#111' : '#fff';
+      ctx.font = `bold 8px ${getComputedStyle(document.body).getPropertyValue('--vscode-font-family').trim() || 'sans-serif'}`;
+      ctx.fillText('SC', x + BOUTON / 2, y + BOUTON / 2 + 0.5);
     } else {
       this.marche(ctx, x, y, decl, sombre ? '#111' : '#fff');
     }

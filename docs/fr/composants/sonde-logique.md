@@ -61,6 +61,8 @@ Le menu **T** sous le nom d'une voie : choisissez le **sens** — front *montant
 
 Changer de réglage **réarme** l'attente.
 
+Sur une voie décodée en **DMX512**, le menu propose aussi **`START code 0x00`** : la capture se fige sur le **start bit du premier créneau** d'une trame d'éclairage, celui qui suit le `BREAK` et le `MAB`. Un canal qui vaut `0x00` ne déclenche pas, une trame à start code non nul (RDM, texte) non plus. Le bouton affiche alors `SC`. La durée d'un bit suit la **vitesse de la voie** (250 kbauds si rien n'est saisi) : une trame émise à une autre vitesse ne déclenche qu'une fois celle-ci réglée.
+
 ## Le décodage
 
 Le menu **P** sous le nom d'une voie : `I²C / TWI`, `SPI`, `UART`, `1-Wire`, `DHT11 / DHT22` ou `DMX512`. Il faut ensuite dire **quelle voie joue quel rôle** :

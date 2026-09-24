@@ -17,7 +17,7 @@
 // enregistrée dans le .projix avec le schéma. Ouvert le lendemain, il montre ce
 // que l'élève avait mesuré la veille.
 
-import { AnalyseurCapture, type Declenchement } from './analyseur-capture.mjs';
+import { AnalyseurCapture, type Declenchement, type SensDeclenchement } from './analyseur-capture.mjs';
 import {
   AnalyseurVue,
   type BoutonVoie,
@@ -89,7 +89,7 @@ export interface EtatSerialise {
     fronts: number[];
     niveauInitial: 0 | 1 | null;
   }>;
-  declenchement?: { voie: number; sens: 'rising' | 'falling' } | null;
+  declenchement?: { voie: number; sens: SensDeclenchement } | null;
   /**
    * Ancien champ : UN seul décodage. Gardé en lecture pour les .projix
    * enregistrés avant v2026.9.4.94, qui doivent rouvrir avec leur réglage.
@@ -416,6 +416,16 @@ function majInversions(): void {
   );
 }
 
+/**
+ * Répercute les vitesses de voie sur la capture : le déclenchement sur START
+ * code DMX en tire la durée d'un bit, comme le décodeur.
+ */
+function majVitesses(): void {
+  const parVoie = new Map<number, number>();
+  for (const [v, r] of Object.entries(reglagesVoies)) if (r?.bauds) parVoie.set(Number(v), r.bauds);
+  capture.reglerVitesses(parVoie);
+}
+
 /** Décodage : recalculé à chaque rendu, sur la fenêtre visible seulement. */
 function calculerAnnotations(): Annotation[] {
   if (decodages.length === 0) return [];
@@ -587,9 +597,27 @@ function dessinMarche(sens: 'rising' | 'falling'): SVGElement {
   return svg;
 }
 
+/** « SC » en SVG : ce que montre le bouton « T » armé sur un START code DMX. */
+function dessinStartCode(): SVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', '18');
+  svg.setAttribute('height', '14');
+  svg.setAttribute('viewBox', '0 0 18 14');
+  const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  txt.setAttribute('x', '9');
+  txt.setAttribute('y', '10.5');
+  txt.setAttribute('text-anchor', 'middle');
+  txt.setAttribute('font-size', '9');
+  txt.setAttribute('font-weight', 'bold');
+  txt.setAttribute('fill', 'currentColor');
+  txt.textContent = 'SC';
+  svg.append(txt);
+  return svg;
+}
+
 /**
  * Menu du bouton « T » d'une voie : aucun déclenchement, front montant, front
- * descendant.
+ * descendant — et, sur une voie décodée en DMX512, le START code 0x00.
  *
  * Le déclenchement reste UNIQUE pour toute la capture — c'est ainsi que
  * fonctionne un analyseur, et `AnalyseurCapture` n'en tient qu'un. Choisir un
@@ -620,6 +648,19 @@ function menuDeclenchement(z: ZoneBouton): void {
       dessinMarche('falling')
     )
   );
+  // Proposé seulement là où il a un sens : une voie décodée en DMX512 (ou
+  // déjà armée dessus, pour pouvoir le voir coché). Terme de la norme, jamais
+  // traduit.
+  if (decodageDe(z.voie)?.protocole === 'dmx' || sur === 'dmxStart') {
+    boite.append(
+      entreeMenu(
+        'START code 0x00',
+        sur === 'dmxStart',
+        () => choisirDeclenchement({ voie: z.voie, sens: 'dmxStart' }),
+        dessinStartCode()
+      )
+    );
+  }
   ouvrirPanneau(z, boite, true);
 }
 
@@ -897,6 +938,7 @@ function menuVoie(z: ZoneBouton): void {
   const r = (reglagesVoies[d.voie] ??= {});
   const change = (): void => {
     majInversions();
+    majVitesses();
     dessiner();
     envoyerReglages();
   };
@@ -1198,13 +1240,15 @@ function restaurer(etat: EtatSerialise): void {
       suivi: false,
     }));
   }
-  // La LECTURE d'abord (échantillonnage, inversion), le déclenchement ensuite :
-  // il se cherche dans ce que la courbe montre, pas dans les fronts bruts.
+  // La LECTURE d'abord (échantillonnage, inversion, vitesse), le déclenchement
+  // ensuite : il se cherche dans ce que la courbe montre, pas dans les fronts
+  // bruts.
   reglagesVoies = etat.voiesReglages ?? {};
   echantillonnage = etat.echantillonnage ?? 0;
   selHorloge.value = String(echantillonnage);
   majEchantillonnage();
   majInversions();
+  majVitesses();
   capture.reglerDeclenchement(etat.declenchement ?? null);
   // Capture arrêtée : le front qui a déclenché est déjà dans les fronts rechargés.
   capture.chercherDeclenchement();
