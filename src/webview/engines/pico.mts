@@ -609,6 +609,16 @@ export class PicoEngine implements SimEngine {
     return this.sim.chip.clock.nanos / 1e6;
   }
 
+  /**
+   * Durée simulée d'un cycle du cœur (ns) — le pas FIXE de la puce, celui qui
+   * convertit `core.cycles` en temps. Ne pas le déduire de `mcu.clkSys` : depuis
+   * rp2040js 1.4.0, clkSys suit les PLL que programme le firmware
+   * (`machine.freq()`), alors que le cœur avance toujours de 8 ns par cycle.
+   */
+  private get nanosParCycle(): number {
+    return this.sim.chip.cycleNanos;
+  }
+
   /** Temps réel cumulé passé dans la boucle du moteur (ms) — voir SimEngine.busyMs. */
   busyMs(): number {
     return this.sim.busyAccum;
@@ -872,8 +882,8 @@ export class PicoEngine implements SimEngine {
    */
   private sampleDht22(): void {
     if (this.dht22.length === 0) return;
-    const cyclesPerUs = (this.mcu.clkSys || 125_000_000) / 1_000_000;
-    const nanosPerCycle = 1e9 / (this.mcu.clkSys || 125_000_000);
+    const cyclesPerUs = 1000 / this.nanosParCycle;
+    const nanosPerCycle = this.nanosParCycle;
     const nowNanos = this.sim.clock.nanos;
     for (const d of this.dht22) {
       const low = this.mcu.gpio[d.index].value === GPIOPinState.Low;
@@ -1059,8 +1069,8 @@ export class PicoEngine implements SimEngine {
   /** Sur une impulsion TRIG valide (≥ 8 µs), programme l'impulsion ECHO correspondante. */
   private maybeFireEcho(trigName: string, widthUs: number): void {
     if (widthUs < 8) return;
-    const cyclesPerUs = (this.mcu.clkSys || 125_000_000) / 1_000_000;
-    const nanosPerCycle = 1e9 / (this.mcu.clkSys || 125_000_000);
+    const cyclesPerUs = 1000 / this.nanosParCycle;
+    const nanosPerCycle = this.nanosParCycle;
     const nowNanos = this.sim.clock.nanos;
     for (const s of this.ultrasonic) {
       if (s.trig !== trigName) continue;
@@ -1158,7 +1168,7 @@ export class PicoEngine implements SimEngine {
 
   setNeopixels(strips: Array<{ pin: string; count: number }>): void {
     this.neopixels = [];
-    const cyclesPerUs = (this.mcu.clkSys || 125_000_000) / 1_000_000;
+    const cyclesPerUs = 1000 / this.nanosParCycle;
     for (const s of strips) {
       const i = gpioIndex(s.pin);
       if (i === null) continue;
@@ -1294,7 +1304,7 @@ export class PicoEngine implements SimEngine {
   pulseActive(name: string): boolean {
     const st = this.pulseState.get(name);
     if (!st || st.lastPeriod === 0) return false;
-    const cyclesPerUs = (this.mcu.clkSys || 125_000_000) / 1_000_000;
+    const cyclesPerUs = 1000 / this.nanosParCycle;
     return this.core.cycles - st.lastEdge < 60_000 * cyclesPerUs;
   }
 
@@ -1307,7 +1317,7 @@ export class PicoEngine implements SimEngine {
   readPwmDuty(name: string): number {
     const st = this.pulseState.get(name);
     if (!st) return this.readDigital(name) ? 1 : 0;
-    const cyclesPerUs = (this.mcu.clkSys || 125_000_000) / 1_000_000;
+    const cyclesPerUs = 1000 / this.nanosParCycle;
     const now = this.core.cycles;
     // Sortie figée : l'état présent prime sur le cumul du régime précédent (cf. avr.mts).
     const fige =
@@ -1336,7 +1346,7 @@ export class PicoEngine implements SimEngine {
   /** Mesure la durée de l'état haut sur les broches surveillées (servo). */
   private samplePulses(): void {
     if (this.pulsePins.length === 0) return;
-    const cyclesPerUs = (this.mcu.clkSys || 125_000_000) / 1_000_000;
+    const cyclesPerUs = 1000 / this.nanosParCycle;
     const now = this.core.cycles;
     for (const pp of this.pulsePins) {
       const pin = this.mcu.gpio[pp.index];

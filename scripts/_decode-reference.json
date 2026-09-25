@@ -1,6 +1,6 @@
 {
  "commentaire": "Cascade de décodage de rp2040js AVANT transformation. Produit par _gen-decode-rp2040.mjs, lu par verify-decode.mjs. Ne pas éditer à la main.",
- "version": "1.3.4",
+ "version": "1.4.0",
  "prefixeLarge": "opcode >>> 11 === 0b11110",
  "opLarge": 76,
  "opIllegal": 77,

@@ -1,6 +1,6 @@
 // Fabrique de puce pour le moteur Pico : RP2040 (Pico, Pico W) ou RP2350
 // (Pico 2, Pico 2 W). Deux bibliothèques cohabitent, et c'est voulu :
-//   - RP2040 : `rp2040js` 1.3.3 depuis npm, patché (cf. patches/) — +30 % de
+//   - RP2040 : `rp2040js` 1.4.0 depuis npm, patché (cf. patches/) — +30 % de
 //     débit, PIO avancé à la main, alarmes en FIFO. Rien à y toucher.
 //   - RP2350 : `rp2350js` (fork c1570), non publié sur npm, donc VENDORISÉ dans
 //     vendor/rp2350js/ (cf. son ORIGINE.md). Mesuré à 60-70 % du régime du
@@ -113,12 +113,14 @@ const ROSC_HZ = { rp2040: 6_500_000, rp2350: 11_000_000 } as const;
 /**
  * clk_peri suit la source que le firmware lui choisit (KABLIX).
  *
- * Les deux bibliothèques figent clk_peri, alors que MicroPython le branche sur
+ * rp2350js fige clk_peri, alors que MicroPython le branche sur
  * la PLL USB (48 MHz) pour qu'un `machine.freq()` ne dérègle pas les UART. Or le
  * débit série se déduit de clk_peri : le firmware écrit un diviseur calculé
  * pour 48 MHz, l'émulateur le lisait à 125 — un UART réglé à 250 000 bauds
  * sortait ses trames à 651 000, et l'analyseur n'y voyait plus que des erreurs
- * de cadrage (DMX du Pico, retour Frank 25/09/2026).
+ * de cadrage (DMX du Pico, retour Frank 25/09/2026). rp2040js le suit lui-même
+ * depuis la 1.4.0 (PLL et CLK_PERI_CTRL simulés, UART prévenus) : le RP2040 ne
+ * passe donc plus par ici.
  *
  * `garder` : la bibliothèque ne retient pas ce registre (RP2350) et le relit
  * 0xFFFFFFFF ; les écritures masquées du SDK — lecture, puis XOR — partiraient
@@ -275,7 +277,6 @@ class Rp2040Chip implements PicoChip {
 
   constructor(private readonly arret: Arret) {
     this.puce = new RP2040();
-    suivreClkPeri(this.puce, 'rp2040', false);
     this.clock = this.puce.clock as unknown as PicoClock;
     this.mcu = this.puce as unknown as PicoMcu;
     this.core = this.puce.core as unknown as PicoCore;

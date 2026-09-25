@@ -30,9 +30,11 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Le panneau Variables se replie au lancement quand un analyseur logique s'ouvre**, se déplie à chaque pause du débogage, et se rouvre à l'arrêt.
 - **Les traits des marqueurs M1 et M2 sont en pointillés.**
 - **Grove DMX512 (composant 2026.9.3) : les voies `+` et `−` de l'analyseur affichent `3,7 V` et `1,1 V`**, les tensions de sortie de l'émetteur de ligne SN75176A. La voie `SIG` garde celles de la carte.
+- **Simulation du Pico : moteur rp2040js 1.4.0.** Les horloges du processeur et des périphériques suivent les réglages du programme.
 
 ### Correction
 
+- **Pico : `machine.freq()` ne dérègle plus la PWM.** Un servomoteur réglé après un changement de fréquence prenait une mauvaise position.
 - **Plusieurs pinces sur un même signal tracent toutes.** Sur une carte DMX, les pinces posées sur `SIG`, `+` et `−` remontent à la même broche : seule la dernière montrait la trame, les autres restaient plates.
 - **Le décodage 1-Wire nomme la réponse du capteur au `RESET` (`PRÉSENT`).** Elle s'affichait en erreur « 1 bits » juste après le `RESET`.
 - **Déplacer l'onglet de l'analyseur vers une autre fenêtre (un second écran) ne fait plus disparaître les courbes.** Un onglet ouvert en pleine simulation, avec un déclenchement réglé, trace de nouveau.
