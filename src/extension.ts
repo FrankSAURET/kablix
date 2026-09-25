@@ -5,7 +5,7 @@ import { promptLibraryUpdates } from './updates';
 import { upgradeFirmware, checkFirmwareUpdate } from './firmware';
 import { saveDefaultLayout, applyDefaultLayout, kablixColumn } from './layout';
 import { registerProjixEditor, ProjixEditorProvider } from './projix-editor';
-import { associateProjix, promptProjixAssociationOnFirstRun } from './associate';
+import { associateProjix, promptProjixAssociationOnFirstRun, refreshProjixIcon } from './associate';
 import { promptRecommendedExtensions } from './recommend';
 import { announceComponentLibrary } from './announce';
 import { showPartHelp, SHOW_PART_HELP } from './partHelp';
@@ -298,6 +298,8 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Première activation (Windows) : propose une seule fois d'associer les .projix.
   void promptProjixAssociationOnFirstRun(context);
+  // Association existante : remet à jour l'icône copiée si le paquet en livre une autre.
+  void refreshProjixIcon(context);
 
   // Première activation : propose une seule fois les extensions conseillées
   // (téléversement sur la vraie carte, gestion des cartes et bibliothèques).

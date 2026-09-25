@@ -34,6 +34,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Correction
 
+- **L'icône des fichiers `.projix` n'a plus de fond vert** dans l'Explorateur Windows. Une icône déjà installée est remplacée au lancement suivant de Kablix.
 - **Pico : `machine.freq()` ne dérègle plus la PWM.** Un servomoteur réglé après un changement de fréquence prenait une mauvaise position.
 - **Plusieurs pinces sur un même signal tracent toutes.** Sur une carte DMX, les pinces posées sur `SIG`, `+` et `−` remontent à la même broche : seule la dernière montrait la trame, les autres restaient plates.
 - **Le décodage 1-Wire nomme la réponse du capteur au `RESET` (`PRÉSENT`).** Elle s'affichait en erreur « 1 bits » juste après le `RESET`.

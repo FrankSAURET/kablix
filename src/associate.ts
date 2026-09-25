@@ -1,10 +1,27 @@
 import * as vscode from 'vscode';
 import { execFile } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
+import * as path from 'node:path';
 
 const l10n = vscode.l10n;
 
 /** Marque « proposition d'association déjà faite » (une seule fois par machine). */
 const ASSOC_PROMPTED_KEY = 'kablix.projixAssociationPrompted';
+
+/** Icône du paquet (source de la copie faite par le script). */
+function packagedIcon(context: vscode.ExtensionContext): string {
+  return vscode.Uri.joinPath(context.extensionUri, 'media', 'kablix.ico').fsPath;
+}
+
+/** Arguments PowerShell du script d'association packagé. */
+function scriptArgs(context: vscode.ExtensionContext): string[] {
+  const script = vscode.Uri.joinPath(
+    context.extensionUri,
+    'outils',
+    'associer-projix-windows.ps1'
+  ).fsPath;
+  return ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script, '-IconPath', packagedIcon(context)];
+}
 
 /**
  * Associe l'extension .projix à VS Code (icône Kablix comprise) en lançant le
@@ -19,28 +36,13 @@ export async function associateProjix(context: vscode.ExtensionContext): Promise
     return;
   }
 
-  const script = vscode.Uri.joinPath(
-    context.extensionUri,
-    'outils',
-    'associer-projix-windows.ps1'
-  ).fsPath;
-  const icon = vscode.Uri.joinPath(context.extensionUri, 'media', 'kablix.ico').fsPath;
-
   await vscode.window.withProgress(
     { location: vscode.ProgressLocation.Notification, title: l10n.t('Associating .projix files…') },
     () =>
       new Promise<void>((resolve) => {
         execFile(
           'powershell.exe',
-          [
-            '-NoProfile',
-            '-ExecutionPolicy',
-            'Bypass',
-            '-File',
-            script,
-            '-IconPath',
-            icon,
-          ],
+          scriptArgs(context),
           { windowsHide: true },
           (err, _stdout, stderr) => {
             if (err) {
@@ -86,4 +88,25 @@ export async function promptProjixAssociationOnFirstRun(
   if (choice === yes) {
     await associateProjix(context);
   }
+}
+
+/**
+ * Association déjà faite mais icône périmée (ex. copie à fond vert opaque des
+ * versions 2026.7.225 à 2026.9.5) : le script est rejoué en silence, il recopie
+ * l'icône du paquet dans %LOCALAPPDATA%\Kablix et prévient l'Explorateur.
+ * Copie absente (jamais associé, ou association retirée) : rien.
+ */
+export async function refreshProjixIcon(context: vscode.ExtensionContext): Promise<void> {
+  const localAppData = process.env.LOCALAPPDATA;
+  if (process.platform !== 'win32' || !localAppData) return;
+  try {
+    const [copie, paquet] = await Promise.all([
+      readFile(path.join(localAppData, 'Kablix', 'kablix.ico')),
+      readFile(packagedIcon(context)),
+    ]);
+    if (copie.toString('base64') === paquet.toString('base64')) return;
+  } catch {
+    return;
+  }
+  execFile('powershell.exe', scriptArgs(context), { windowsHide: true }, () => undefined);
 }
