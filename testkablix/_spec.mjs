@@ -2567,7 +2567,7 @@ void loop() {
       w('Mod1', 'GND', 'Mod2', 'GND.2', 'black'),  // XLR 1 = blindage
     ],
     expect: {
-      kind: 'dmx', partId: 'Mod1', mcuPin: '1', address: 1, channels: 3,
+      kind: 'dmx', partId: 'Mod1', mcuPin: '1', address: 1, channels: 4,
       nets: [
         ['Mod2/VCC', 'U1/5V'],
         ['Mod2/GND.1', 'U1/GND.3'],
@@ -2578,8 +2578,9 @@ void loop() {
       ],
     },
     code: `// Test DMX512 : la carte Grove-DMX512 transforme l'UART matériel en ligne
-// DMX, le projecteur PAR 38 prend la couleur envoyée sur ses trois canaux.
-// Adresse du projecteur : 1 → canal 1 = rouge, 2 = vert, 3 = bleu.
+// DMX, le projecteur PAR 38 prend la couleur envoyée sur ses canaux.
+// Adresse du projecteur : 1 → canal 1 = rouge, 2 = vert, 3 = bleu,
+// 4 = effets (0 à 189 : intensité, 190 à 250 : clignotement).
 #define ADRESSE 1
 #define CANAUX 512
 #define BROCHE_TX 1
@@ -2606,6 +2607,7 @@ void envoyer() {
 void setup() {
   Serial.begin(250000, SERIAL_8N2);
   memset(trame, 0, sizeof(trame));
+  trame[ADRESSE + 3] = 189;   // canal effets : plein feu (à 0, le projecteur reste éteint)
 }
 
 void loop() {
@@ -5807,7 +5809,7 @@ while True:
       w('Mod2', 'GND', 'Mod1', 'GND.2', 'black'),
     ],
     expect: {
-      kind: 'dmx', partId: 'Mod2', mcuPin: 'GP0', address: 1, channels: 3,
+      kind: 'dmx', partId: 'Mod2', mcuPin: 'GP0', address: 1, channels: 4,
       nets: [
         ['Mod1/VCC', 'U1/3V3'],
         ['Mod1/GND.1', 'U1/GND.3'],
@@ -5818,8 +5820,9 @@ while True:
       ],
     },
     code: `# Test DMX512 : la carte Grove-DMX512 transforme l'UART0 (GP0) en ligne DMX,
-# le projecteur PAR 38 prend la couleur envoyée sur ses trois canaux.
-# Adresse du projecteur : 1 -> canal 1 = rouge, 2 = vert, 3 = bleu.
+# le projecteur PAR 38 prend la couleur envoyée sur ses canaux.
+# Adresse du projecteur : 1 -> canal 1 = rouge, 2 = vert, 3 = bleu,
+# 4 = effets (0 à 189 : intensité, 190 à 250 : clignotement).
 from machine import UART, Pin
 import time
 
@@ -5829,6 +5832,7 @@ CANAUX = 512
 # 250 kbauds, 8 bits, sans parité, 2 bits de stop : c'est la trame DMX512.
 uart = UART(0, baudrate=250000, bits=8, parity=None, stop=2, tx=Pin(0))
 trame = bytearray(CANAUX + 1)   # trame[0] = octet de départ, 0 pour l'éclairage
+trame[ADRESSE + 3] = 189        # canal effets : plein feu (à 0, le projecteur reste éteint)
 
 
 def envoyer():

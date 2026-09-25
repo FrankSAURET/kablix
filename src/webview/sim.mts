@@ -174,6 +174,7 @@ import {
 } from './engines/i2c-devices.mjs';
 import { evalAnalogWave, gbfWaveform, type AnalogWave } from './engines/analog-waves.mjs';
 import { sampleSevenSeg } from './engines/sevenseg.mjs';
+import { spotLight } from './engines/dmx.mjs';
 import type {
   AvrDebugInfo,
   Breakpoint,
@@ -2766,16 +2767,15 @@ function refreshVisualsInner(): void {
     } catch (err) {
       console.error('refreshVisuals', part.type, err);
     }
-    // Projecteur DMX512 : ses trois canaux (rouge, vert, bleu) à partir de son
-    // adresse colorent le groupe « LED » du dessin. Le composant vient de la
-    // bibliothèque (.kompix) : c'est le montage, pas l'élément, qui lui donne un
-    // sens — d'où le pilotage ici plutôt que dans un fork.
+    // Projecteur DMX512 : ses quatre canaux à partir de son adresse (rouge,
+    // vert, bleu, effets) colorent le groupe « LED » du dessin. Le composant
+    // vient de la bibliothèque (.kompix) : c'est le montage, pas l'élément, qui
+    // lui donne un sens — d'où le pilotage ici plutôt que dans un fork.
     const dmx = dmxTargets.get(part.id);
     if (dmx && el && 'setGroupColor' in el) {
       const u = engine.readDmx?.(dmx.pin) ?? null;
-      const r = u?.[dmx.address] ?? 0;
-      const g = u?.[dmx.address + 1] ?? 0;
-      const b = u?.[dmx.address + 2] ?? 0;
+      const canal = (i: number): number => u?.[dmx.address + i] ?? 0;
+      const [r, g, b] = spotLight(canal(0), canal(1), canal(2), canal(3), engine.simulatedMs?.() ?? 0);
       const glow = Math.max(r, g, b) / 255;
       (el as unknown as { setGroupColor(id: string, color: string | null, glow?: number): void })
         .setGroupColor('LED', glow > 0 ? `rgb(${r},${g},${b})` : null, glow);

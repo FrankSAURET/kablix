@@ -4434,7 +4434,7 @@ const DMX_INTERFACES: Record<string, { in: string; a: string; b: string }> = {
 
 /** Projecteurs DMX512 : pattes de la paire et nombre de canaux consommés. */
 const DMX_FIXTURES: Record<string, { a: string; b: string; channels: number }> = {
-  spot: { a: '+', b: '-', channels: 3 },
+  spot: { a: '+', b: '-', channels: 4 }, // rouge, vert, bleu, effets
 };
 
 export interface DmxBinding {
@@ -4444,7 +4444,7 @@ export interface DmxBinding {
   mcuPin: string;
   /** Adresse DMX du projecteur, 1..512 (paramètre `address` de l'inspecteur). */
   address: number;
-  /** Canaux consommés à partir de l'adresse (3 = rouge/vert/bleu). */
+  /** Canaux consommés à partir de l'adresse (4 = rouge/vert/bleu/effets). */
   channels: number;
 }
 

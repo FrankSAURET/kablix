@@ -199,3 +199,36 @@ export class DmxWire {
     if (bit === 1) this.decoder.feedFramed(this.acc);
   }
 }
+
+/** Dernière valeur du canal effets qui règle l'intensité (au-delà : clignotement). */
+export const SPOT_DIMMER_MAX = 189;
+/** Plage du clignotement sur le canal effets. */
+export const SPOT_STROBE_MIN = 190;
+export const SPOT_STROBE_MAX = 250;
+/** Fréquences du clignotement aux deux bouts de sa plage, en Hz. */
+export const SPOT_STROBE_HZ: readonly [number, number] = [1, 10];
+
+/**
+ * Lumière du projecteur PAR 38 à partir de ses quatre canaux : rouge, vert,
+ * bleu, puis effets. Le canal effets, d'après la notice :
+ *   0..189   intensité, de éteint (0) à plein feu (189) ;
+ *   190..250 clignotement, de 1 Hz (190) à 10 Hz (250), à pleine intensité ;
+ *   251..255 pas de changement : la couleur telle qu'envoyée.
+ * `simMs` est le temps SIMULÉ : le clignotement suit le programme et se fige
+ * avec la pause, pas avec l'horloge murale. Au-delà de 10 Hz, une image sur
+ * trois à 60 i/s ne montrerait plus qu'un scintillement aléatoire.
+ */
+export function spotLight(
+  r: number, g: number, b: number, fx: number, simMs: number
+): [number, number, number] {
+  let k = 1;
+  if (fx <= SPOT_DIMMER_MAX) {
+    k = fx / SPOT_DIMMER_MAX;
+  } else if (fx <= SPOT_STROBE_MAX) {
+    const [lent, vif] = SPOT_STROBE_HZ;
+    const hz = lent + ((fx - SPOT_STROBE_MIN) * (vif - lent)) / (SPOT_STROBE_MAX - SPOT_STROBE_MIN);
+    // Allumé la première moitié de chaque période, éteint la seconde.
+    if (Math.floor((Math.max(0, simMs) * hz) / 500) % 2 === 1) k = 0;
+  }
+  return [Math.round(r * k), Math.round(g * k), Math.round(b * k)];
+}

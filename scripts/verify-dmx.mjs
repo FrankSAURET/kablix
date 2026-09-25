@@ -51,7 +51,7 @@ async function bundle(contents, name) {
 
 // --- 1. Décodeur --------------------------------------------------------------
 console.log('--- 1. Décodeur DMX512 (trame, start code, resynchronisation) ---');
-const { DmxDecoder, DmxWire, DMX_SLOTS } = await bundle(
+const { DmxDecoder, DmxWire, DMX_SLOTS, spotLight } = await bundle(
 	"export * from './src/webview/engines/dmx.mts';\n", 'dmx.mjs');
 
 const OCTET_US = 44; // 11 bits à 250 kbauds
@@ -189,6 +189,35 @@ check('fil : takeChanged() signale bien le changement',
 	fil.decoder.takeChanged() instanceof Uint8Array);
 check('fil : consommé une seule fois', fil.decoder.takeChanged() === null);
 
+// --- 1ter. Canal effets du projecteur ----------------------------------------
+// Frank, v2026.9.5.146 : « je n'arrive pas à faire fonctionner le 4e canal ».
+// Le projecteur ne lisait que rouge, vert, bleu. Notice du PAR 38 : 0-189
+// intensité, 190-250 clignotement, 251-254 pas de changement.
+console.log('\n--- 1ter. Canal effets : intensité, clignotement, sans effet ---');
+const lum = (fx, ms = 0) => spotLight(255, 128, 0, fx, ms).join(',');
+check('effets 189 : plein feu, la couleur telle quelle', lum(189) === '255,128,0', lum(189));
+check('effets 0 : projecteur éteint', lum(0) === '0,0,0', lum(0));
+check('effets 50 : intensité réduite dans le rapport 50/189',
+	lum(50) === `${Math.round(255 * 50 / 189)},${Math.round(128 * 50 / 189)},0`, lum(50));
+check('effets 251 à 255 : pas de changement', [251, 254, 255].every((v) => lum(v) === '255,128,0'),
+	[251, 254, 255].map((v) => lum(v)).join(' | '));
+// Clignotement : 1 Hz à 190 (allumé 0-500 ms, éteint 500-1000 ms), 10 Hz à 250.
+check('effets 190 : 1 Hz, allumé la première demi-période',
+	lum(190, 100) === '255,128,0' && lum(190, 700) === '0,0,0' && lum(190, 1100) === '255,128,0',
+	[100, 700, 1100].map((t) => lum(190, t)).join(' | '));
+check('effets 250 : 10 Hz (éteint à 60 ms, rallumé à 110 ms)',
+	lum(250, 10) === '255,128,0' && lum(250, 60) === '0,0,0' && lum(250, 110) === '255,128,0',
+	[10, 60, 110].map((t) => lum(250, t)).join(' | '));
+check('effets 220 : entre les deux (5,5 Hz → éteint à 100 ms, allumé à 190 ms)',
+	lum(220, 100) === '0,0,0' && lum(220, 190) === '255,128,0',
+	[100, 190].map((t) => lum(220, t)).join(' | '));
+// Moitié allumé, moitié éteint sur une longue durée : rapport cyclique 50 %.
+{
+	let allume = 0;
+	for (let t = 0; t < 10_000; t += 1) if (lum(200, t) !== '0,0,0') allume++;
+	check('clignotement : rapport cyclique 50 %', Math.abs(allume - 5_000) <= 60, `${allume} ms allumé sur 10 000`);
+}
+
 // --- 2. Liaison (projix de testkablix) ---------------------------------------
 console.log('\n--- 2. Liaison : quel projecteur sur quelle broche, à quelle adresse ---');
 // Modèle ET catalogue dans le MÊME bundle : deux bundles séparés emportent
@@ -201,6 +230,8 @@ const { model, catalog } = await bundle(
 const PROJIX = [
 	{ nom: 'dmx-uno', file: join(ROOT, 'testkablix', 'Arduino', 'dmx-uno', 'dmx-uno.projix'), mcuPin: '1' },
 	{ nom: 'dmx-pico', file: join(ROOT, 'testkablix', 'dmx-pico.projix'), mcuPin: 'GP0' },
+	// Le fichier de test principal de Frank depuis le lot .146 (DmxSimple, broche 3).
+	{ nom: 'dmx-uno-lib', file: join(ROOT, 'testkablix', 'Arduino', 'dmx-uno-lib', 'dmx-uno-lib.projix'), mcuPin: '3' },
 ];
 
 for (const p of PROJIX) {
@@ -215,8 +246,8 @@ for (const p of PROJIX) {
 	const liens = model.dmxBindings(diagram);
 	const b = liens.find((x) => x.partId === spot?.id);
 	check(`${p.nom} : le projecteur écoute ${p.mcuPin}`, b?.mcuPin === p.mcuPin, JSON.stringify(liens));
-	check(`${p.nom} : adresse 1, 3 canaux (rouge, vert, bleu)`,
-		b?.address === 1 && b?.channels === 3, JSON.stringify(b));
+	check(`${p.nom} : adresse 1, 4 canaux (rouge, vert, bleu, effets)`,
+		b?.address === 1 && b?.channels === 4, JSON.stringify(b));
 	check(`${p.nom} : un seul projecteur trouvé`, liens.length === 1, `${liens.length} liaison(s)`);
 
 	// Adresse posée dans l'inspecteur (attribut prm_address) : elle décale les
@@ -411,8 +442,8 @@ run().catch((e) => {
 }
 
 // --- 4. Bout en bout : les vrais programmes de testkablix --------------------
-// Les deux tests envoient rouge, vert, bleu sur les canaux 1-2-3, une couleur
-// par seconde. Le moteur tourne dans ce processus : sa boucle ne rend la main
+// Les deux tests envoient une suite de couleurs sur les canaux 1-2-3, une par
+// seconde. Le moteur tourne dans ce processus : sa boucle ne rend la main
 // que par intermittence, d'où la collecte AUSSI depuis onUpdate (sans elle, un
 // simple setInterval rate des couleurs entières).
 const ATTENDUES = ['255,0,0', '0,255,0', '0,0,255'];
@@ -421,7 +452,34 @@ const ATTENDUES = ['255,0,0', '0,255,0', '0,0,255'];
 // Introuvable → 512, l'univers complet.
 const canauxDuProgramme = (source, motif) => Number(source.match(motif)?.[1] ?? 512);
 
-async function boutEnBout(nom, engine, pin, limiteMs, canaux) {
+// Couleurs du tableau COULEURS du programme : Frank l'enrichit à la main (le
+// jaune de dmx-pico.py, lot .146). Introuvable → les trois primaires.
+function couleursDuProgramme(source, motifTableau, motifTriplet) {
+	const tableau = source.match(motifTableau)?.[1] ?? '';
+	const liste = [...tableau.matchAll(motifTriplet)].map((m) => `${+m[1]},${+m[2]},${+m[3]}`);
+	return liste.length ? liste : ATTENDUES;
+}
+
+// Les canaux s'appliquent AU FIL DE L'EAU (voir DmxDecoder) : relevé en pleine
+// trame, l'univers mêle la couleur sortante et l'entrante, canal par canal
+// (bleu → jaune passe par 255,0,255). Ces passages sont légitimes.
+function passagesDe(couleurs) {
+	const ok = new Set(['0,0,0', ...couleurs]);
+	couleurs.forEach((c, i) => {
+		const a = c.split(',');
+		const b = couleurs[(i + 1) % couleurs.length].split(',');
+		for (let masque = 0; masque < 8; masque++) {
+			ok.add(a.map((v, k) => (masque >> k) & 1 ? b[k] : v).join(','));
+		}
+	});
+	return ok;
+}
+
+/** Dernier univers relevé par boutEnBout (copie : le moteur est libéré après). */
+let dernierUnivers = null;
+
+async function boutEnBout(nom, engine, pin, limiteMs, canaux, attendues = ATTENDUES) {
+	dernierUnivers = null;
 	const vues = new Set();
 	// La sonde de l'analyseur posée sur la broche TX. Le défaut corrigé au lot
 	// .95 : l'UART émulé ne bouge PAS sa broche, l'octet part droit au décodeur
@@ -440,7 +498,10 @@ async function boutEnBout(nom, engine, pin, limiteMs, canaux) {
 	const releve = () => {
 		draine();
 		const u = engine.readDmx(pin);
-		if (u) vues.add(`${u[1]},${u[2]},${u[3]}`);
+		if (u) {
+			vues.add(`${u[1]},${u[2]},${u[3]}`);
+			dernierUnivers = u.slice();
+		}
 	};
 	const suivant = engine.onUpdate;
 	engine.onUpdate = () => { releve(); suivant?.(); };
@@ -449,7 +510,7 @@ async function boutEnBout(nom, engine, pin, limiteMs, canaux) {
 	await new Promise((resolve) => {
 		const timer = setInterval(() => {
 			releve();
-			if (ATTENDUES.every((c) => vues.has(c)) || Date.now() - t0 > limiteMs) {
+			if (attendues.every((c) => vues.has(c)) || Date.now() - t0 > limiteMs) {
 				clearInterval(timer);
 				engine.dispose();
 				resolve();
@@ -457,9 +518,10 @@ async function boutEnBout(nom, engine, pin, limiteMs, canaux) {
 		}, 20);
 	});
 	console.log(`  ${nom} : ${[...vues].join(' | ') || 'aucune couleur'} en ${((Date.now() - t0) / 1000).toFixed(1)} s`);
-	for (const c of ATTENDUES) check(`${nom} : couleur ${c} reçue sur les canaux 1-2-3`, vues.has(c));
-	check(`${nom} : rien d'autre que les trois couleurs (hors univers vierge)`,
-		[...vues].every((c) => c === '0,0,0' || ATTENDUES.includes(c)), [...vues].join(' | '));
+	for (const c of attendues) check(`${nom} : couleur ${c} reçue sur les canaux 1-2-3`, vues.has(c));
+	const permis = passagesDe(attendues);
+	check(`${nom} : rien d'autre que les couleurs du programme (hors univers vierge et passages)`,
+		[...vues].every((c) => permis.has(c)), [...vues].join(' | '));
 	// Le contrôle qui manquait : la SONDE voit-elle quelque chose ? Trois couleurs
 	// reçues, ce sont au moins trois trames. Une trame fait au moins 2 fronts de
 	// BREAK/MAB puis 2 par octet (bit de départ, bit de stop) ; le programme n'en
@@ -496,7 +558,8 @@ if (QUICK) {
 		// console de l'élève afficherait 513 caractères de contrôle par seconde.
 		let serial = '';
 		engine.onSerial = (chunk) => { serial += chunk; };
-		await boutEnBout(carte.nom, engine, 'GP0', 120_000, canauxDuProgramme(script, /^CANAUX\s*=\s*(\d+)/m));
+		await boutEnBout(carte.nom, engine, 'GP0', 120_000, canauxDuProgramme(script, /^CANAUX\s*=\s*(\d+)/m),
+			couleursDuProgramme(script, /^COULEURS\s*=\s*(.*)$/m, /\((\d+),\s*(\d+),\s*(\d+)\)/g));
 		check(`${carte.nom} : le moniteur série ne reçoit pas la trame binaire`,
 			!/[ -�]/.test(serial), JSON.stringify(serial.slice(0, 60)));
 		check(`${carte.nom} : les messages du programme arrivent quand même`,
@@ -505,13 +568,21 @@ if (QUICK) {
 	}
 }
 
+// arduino-cli n'est souvent pas dans le PATH : l'extension « Arduino VS Code
+// IDE » le range dans son stockage global. L'hôte le lui indique
+// (autreStockageGlobal) ; le banc, qui tourne en Node nu, doit le faire aussi —
+// sans quoi les étapes 5 et 6 se sautaient en silence.
+const OUTILS = {
+	autreStockageGlobal: join(process.env.APPDATA ?? '', 'Code', 'User', 'globalStorage', 'electropol-fr.arduino-vscode-ide'),
+};
+
 console.log('\n--- 5. Bout en bout uno : dmx-uno.ino → USART0 → univers ---');
 const ino = join(ROOT, 'testkablix', 'Arduino', 'dmx-uno', 'dmx-uno.ino');
 if (QUICK) {
 	console.log('--quick : étape sautée.');
 } else {
 	const { compile, detectToolchain } = await bundle("export * from './src/compiler.ts';\n", 'compiler.mjs');
-	if (!detectToolchain().arduinoCli) {
+	if (!detectToolchain(OUTILS).arduinoCli) {
 		console.log('arduino-cli absent — étape sautée.');
 	} else {
 		// La compilation d'un sketch coûte une bonne minute : le résultat est
@@ -525,7 +596,7 @@ if (QUICK) {
 			mots = JSON.parse(readFileSync(hexFile, 'utf8'));
 		} else {
 			console.log('  compilation du sketch (une minute environ)…');
-			const res = await compile('uno', ino, ROOT);
+			const res = await compile('uno', ino, ROOT, OUTILS);
 			mots = Array.from(res.payload.bytes);
 			writeFileSync(hexFile, JSON.stringify(mots));
 		}
@@ -534,7 +605,12 @@ if (QUICK) {
 		engine.setDmx(['1']);
 		let serial = '';
 		engine.onSerial = (chunk) => { serial += chunk; };
-		await boutEnBout('uno', engine, '1', 120_000, canauxDuProgramme(readFileSync(ino, 'utf8'), /#define\s+CANAUX\s+(\d+)/));
+		const source = readFileSync(ino, 'utf8');
+		await boutEnBout('uno', engine, '1', 120_000, canauxDuProgramme(source, /#define\s+CANAUX\s+(\d+)/),
+			couleursDuProgramme(source, /COULEURS\[[^\]]*\]\[[^\]]*\]\s*=\s*\{(.*)\};/, /\{(\d+),\s*(\d+),\s*(\d+)\}/g));
+		// Canal effets (lot .146) : sans lui le projecteur reste noir.
+		check('uno : canal effets réglé à plein feu (189)', dernierUnivers?.[4] === 189,
+			String(dernierUnivers?.[4]));
 		check('uno : le moniteur série ne reçoit pas la trame binaire',
 			serial === '', JSON.stringify(serial.slice(0, 60)));
 	}
@@ -542,7 +618,8 @@ if (QUICK) {
 
 console.log('\n--- 6. Bout en bout uno : DmxSimple (broche 3, bit-bang) → univers ---');
 // Le test de Frank : une bibliothèque du commerce, qui ne se sert pas de l'UART.
-// Le sketch fait monter le canal 1 de 0 à 255 par pas de 10 ms.
+// Le sketch enchaîne des états des quatre canaux du projecteur (couleur puis
+// effets), un par seconde.
 const inoLib = join(ROOT, 'testkablix', 'Arduino', 'dmx-uno-lib', 'dmx-uno-lib.ino');
 if (QUICK) {
 	console.log('--quick : étape sautée.');
@@ -550,7 +627,7 @@ if (QUICK) {
 	console.log('Sketch absent — étape sautée.');
 } else {
 	const { compile, detectToolchain } = await bundle("export * from './src/compiler.ts';\n", 'compilerlib.mjs');
-	if (!detectToolchain().arduinoCli) {
+	if (!detectToolchain(OUTILS).arduinoCli) {
 		console.log('arduino-cli absent — étape sautée.');
 	} else {
 		const CACHE = join(ROOT, 'node_modules', '.cache-dmx');
@@ -563,7 +640,7 @@ if (QUICK) {
 		} else {
 			console.log('  compilation du sketch (une minute environ)…');
 			try {
-				const res = await compile('uno', inoLib, ROOT);
+				const res = await compile('uno', inoLib, ROOT, OUTILS);
 				mots = Array.from(res.payload.bytes);
 				writeFileSync(hexFile, JSON.stringify(mots));
 			} catch (e) {
@@ -573,6 +650,21 @@ if (QUICK) {
 			}
 		}
 		if (mots) {
+			// Deux formes de sketch. Celle de Frank depuis le lot .146 : des
+			// `DmxSimple.write(canal, valeur)` en dur séparés de `delay()` — chaque
+			// delay fige un ÉTAT des canaux, que l'univers doit montrer. L'ancienne :
+			// une rampe du canal 1 (for … brightness++), contrôlée pas à pas.
+			const source = readFileSync(inoLib, 'utf8');
+			const corps = source.slice(source.search(/void\s+loop\s*\(/));
+			const etats = [];
+			{
+				const canaux = [];
+				for (const m of corps.matchAll(/DmxSimple\.write\(\s*(\d+)\s*,\s*(\d+)\s*\)|delay\(/g)) {
+					if (m[1]) canaux[+m[1]] = +m[2];
+					else if (canaux.length) etats.push(Array.from({ length: canaux.length - 1 }, (_, i) => canaux[i + 1] ?? 0).join(','));
+				}
+			}
+			const nb = etats.length ? etats[0].split(',').length : 1;
 			const { AvrEngine } = await bundle("export * from './src/webview/engines/avr.mts';\n", 'avrlib.mjs');
 			const engine = new AvrEngine(Uint16Array.from(mots), null, 'avr328');
 			engine.setDmx(['3']); // la broche par défaut de DmxSimple, pas TX
@@ -580,17 +672,20 @@ if (QUICK) {
 			const releve = () => {
 				const u = engine.readDmx('3');
 				if (!u) return;
-				const v = u[1];
+				const v = Array.from(u.slice(1, 1 + nb)).join(',');
 				if (vues[vues.length - 1] !== v) vues.push(v);
 			};
 			const suivant = engine.onUpdate;
 			engine.onUpdate = () => { releve(); suivant?.(); };
 			const t0 = Date.now();
 			engine.start();
+			const fini = () => etats.length
+				? etats.every((e) => vues.includes(e))
+				: vues.length >= 12;
 			await new Promise((resolve) => {
 				const timer = setInterval(() => {
 					releve();
-					if (vues.length >= 12 || Date.now() - t0 > 60_000) {
+					if (fini() || Date.now() - t0 > 60_000) {
 						clearInterval(timer);
 						engine.dispose();
 						resolve();
@@ -598,18 +693,23 @@ if (QUICK) {
 				}, 20);
 			});
 			const debut = vues.slice(0, 12).join(' → ');
-			console.log(`  canal 1 vu : ${debut} … (${vues.length} valeurs en ${((Date.now() - t0) / 1000).toFixed(1)} s)`);
+			console.log(`  canaux 1-${nb} vus : ${debut} … (${vues.length} états en ${((Date.now() - t0) / 1000).toFixed(1)} s)`);
 			check('uno/DmxSimple : la trame bit-bangée sur la broche 3 est décodée',
-				vues.length >= 3, `valeurs vues : ${vues.slice(0, 20).join(',')}`);
-			// La rampe monte de 1 en 1 et retombe à 0 après 255 : aucune valeur
-			// sautée, donc aucun octet perdu ni mal cadré sur toute la course.
-			const rampe = vues.every((v, i) => i === 0 || v === vues[i - 1] + 1 || (vues[i - 1] === 255 && v === 0));
-			check('uno/DmxSimple : le canal 1 suit la rampe du programme, pas à pas',
-				vues.length >= 3 && rampe,
-				vues.slice(0, 20).join(',') + (vues.length > 20 ? ' …' : ''));
-			check('uno/DmxSimple : les canaux voisins restent éteints',
-				(engine.readDmx('3') ?? [0, 0, 0, 0])[2] === 0,
-				String((engine.readDmx('3') ?? [])[2]));
+				vues.length >= 3, `états vus : ${vues.slice(0, 20).join(' | ')}`);
+			if (etats.length) {
+				// Canal effets compris : c'est lui que Frank ne voyait pas agir.
+				for (const e of new Set(etats)) {
+					check(`uno/DmxSimple : état ${e} du programme reçu (canaux 1-${nb})`, vues.includes(e),
+						vues.slice(0, 20).join(' | '));
+				}
+			} else {
+				// La rampe monte de 1 en 1 et retombe à 0 après 255 : aucune valeur
+				// sautée, donc aucun octet perdu ni mal cadré sur toute la course.
+				const v1 = vues.map(Number);
+				const rampe = v1.every((v, i) => i === 0 || v === v1[i - 1] + 1 || (v1[i - 1] === 255 && v === 0));
+				check('uno/DmxSimple : le canal 1 suit la rampe du programme, pas à pas',
+					v1.length >= 3 && rampe, v1.slice(0, 20).join(',') + (v1.length > 20 ? ' …' : ''));
+			}
 		}
 	}
 }

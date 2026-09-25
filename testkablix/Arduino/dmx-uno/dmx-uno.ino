@@ -1,6 +1,7 @@
 // Test DMX512 : la carte Grove-DMX512 transforme l'UART matériel en ligne
-// DMX, le projecteur PAR 38 prend la couleur envoyée sur ses trois canaux.
-// Adresse du projecteur : 1 → canal 1 = rouge, 2 = vert, 3 = bleu.
+// DMX, le projecteur PAR 38 prend la couleur envoyée sur ses canaux.
+// Adresse du projecteur : 1 → canal 1 = rouge, 2 = vert, 3 = bleu,
+// 4 = effets (0 à 189 : intensité, 190 à 250 : clignotement).
 #define ADRESSE 1
 #define CANAUX 512
 #define BROCHE_TX 1
@@ -27,6 +28,7 @@ void envoyer() {
 void setup() {
   Serial.begin(250000, SERIAL_8N2);
   memset(trame, 0, sizeof(trame));
+  trame[ADRESSE + 3] = 189;   // canal effets : plein feu (à 0, le projecteur reste éteint)
 }
 
 void loop() {

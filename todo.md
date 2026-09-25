@@ -1,4 +1,15 @@
 # À faire
+1. Analyseur logique :
+    1. Ajoute la possibilité de poser des marqueurs, ils  doivent avoir tendance à coller sur les fronts. 2 marqueurs succesifs affichent entre eux une fleche qui donne la durée entre eux.
+    Tu les appelles M1 et M2 ils apparaissent dés l'ouverture complètement à gauche dans la barre de temps M1 bleu et M2 orangé. Quand on les déplacent et qu'on les posent, ils affichent un trait vertical de leur couleur
+    1. Actuellement, le temps qui suit le curseur temporel n'est pas lisible s'il  se superpose à une info de la barre temporelle, corrige ça
+    1. Pour le niveau des courbes, change le vert de l'état 1 pour #1BAF7A
+    1. Si je déplace l'onglet vscode (sur un autre écran par exemple) les courbes disparaissent
+        1. Rajoute un affichage binaire. S'il est sélectionné, les bit s'affichent en dessous du signal en  étant synchronisé avec et un marqueur sépare chaque bit
+    1. Fait moi un fichier de test pour l'uart arduino et pico 
+    1. Dans la marge tu affiches la valeur des tensions de l'état haut et l'état bas avec 1 chiffre aprés la virgule (mais pas le 0)
+    1. DMX (mon fichier de test principal est maintenant dmx-uno-lib) :
+        1. Dmx+ affiche le signal mais dmx- et sig n'affichent rien. je veux le signal sur sig et dmx+ et le signal inversé sur dmx-. 
 ## fait
 
 
@@ -7,6 +18,17 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.146
+1. ✅ **Spot DMX : le 4e canal (effets) est lu** (Frank : « canal 4 : intensité 0-189, clignotement 190-250, pas de changement 251-254 — je n'arrive pas à faire fonctionner le 4e canal »). Cause : le projecteur ne lisait que trois canaux (`channels: 3`), le 4e n'existait pas pour la simulation. Nouveau `spotLight(r, g, b, fx, simMs)` dans [dmx.mts](src/webview/engines/dmx.mts) : 0-189 = intensité (couleur × fx/189), 190-250 = clignotement de 1 Hz (190) à 10 Hz (250), rapport cyclique 50 %, en TEMPS SIMULÉ (figé en pause), 251-255 = couleur telle quelle. [sim.mts](src/webview/sim.mts) `refreshVisuals` l'appelle à chaque image ; le halo suit la couleur obtenue. [model.mts](src/webview/diagram/model.mts) : `spot` passe à `channels: 4`.
+2. ✅ **Bibliothèque** : spot 2026.9.1 (libellé EN du paramètre `address` : quatre canaux), `.kompix`, `index.json` et README régénérés (tous les `.kompix` changent d'octets : horodatage du zip). Fiche [help/spot/fr.md](kablix_components/help/spot/fr.md) : section « Canaux » (tableau des plages), phrase sur le clignotement en temps simulé. `verify:kompix` 43/43, `verify:kompixhelp` vert.
+3. ✅ **Tests** : [dmx-uno.ino](testkablix/Arduino/dmx-uno/dmx-uno.ino) et `_spec.mjs` (uno et pico) règlent le canal effets à 189 (à 0 le projecteur resterait éteint), spec à 4 canaux. Emplacements du schéma non touchés.
+4. ✅ **Banc** [verify-dmx.mjs](scripts/verify-dmx.mjs) : section « 1ter » (189 plein feu, 0 éteint, 50 réduit, 251-255 inchangé, 1 Hz / 10 Hz / 5,5 Hz, rapport cyclique) ; liaison à 4 canaux ; `dmx-uno-lib` ajouté à la liaison ; bout en bout Pico et uno : les couleurs attendues se LISENT dans le programme (tableau `COULEURS`) et les états de passage (univers relevé en pleine trame) sont tolérés ; uno : canal effets à 189 contrôlé ; DmxSimple : états attendus lus dans les `DmxSimple.write` de `loop()` (programme actuel de Frank : 255,0,0,189 / 0,255,255,189 / 0,255,255,50 / 0,0,255,200, tous reçus). arduino-cli trouvé dans le stockage de l'extension Arduino (`autreStockageGlobal`) : les étapes uno ne sont plus sautées. **96 contrôles verts.**
+5. ℹ️ Choix à confirmer par Frank : fréquences du clignotement (1 à 10 Hz, la notice ne les donne pas) ; 255 traité comme 251-254 (« pas de changement ») ; canal effets à 0 = projecteur éteint.
+6. ℹ️ [dmx-pico.py](testkablix/dmx-pico.py) (retouché par Frank, non enregistré, pas touché) n'écrit pas le canal 4 : le spot y reste noir en simulation. Ajouter `trame[ADRESSE + 3] = 189` après la création de `trame`.
+7. ⏳ Traductions avant publication : libellé FR du paramètre `address` du spot (`_sources.json`, bloc `l10n`), fiche `help/spot/en.md` (section Canaux).
 
 ---
 
