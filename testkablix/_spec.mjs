@@ -2976,6 +2976,68 @@ void loop() {
 `,
   }),
 
+  // ANALYSEUR LOGIQUE ET UART (Frank, 25/09 : « fais-moi un fichier de test pour
+  // l'uart arduino et pico »). Deux liaisons série à deux vitesses, chacune
+  // écoutée par une pince POSÉE sur sa broche d'émission. Le projet s'ouvre avec
+  // les deux décodages UART déjà réglés (champ `analyseur`, écrit dans le
+  // kablix.json comme le fait « Enregistrer le projet ») : rien à régler pour
+  // voir les octets sous les créneaux.
+  //   SD1 sur D1 : TX de l'USART (Serial), 9600 bauds 8N1 — le même texte
+  //                s'affiche dans le moniteur série ;
+  //   SD2 sur D3 : TX d'une liaison SoftwareSerial, 4800 bauds 8N1 — une
+  //                seconde ligne, deux fois plus lente, que seul l'analyseur voit.
+  test({
+    name: 'uart-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'SD1', type: 'sonde-logique', x: 300, y: 10, attrs: { voie: '0', accroche: 'U1/1', etiquette: 'TX' } },
+      { id: 'SD2', type: 'sonde-logique', x: 220, y: 10, rotation: 270, attrs: { voie: '1', accroche: 'U1/3', etiquette: 'TX2' } },
+    ],
+    wires: () => [],
+    analyseur: {
+      decodages: [
+        { protocole: 'uart', id: 'd1', donnees: 0, bauds: 9600 },
+        { protocole: 'uart', id: 'd2', donnees: 1, bauds: 4800 },
+      ],
+      voiesReglages: { 0: { bauds: 9600 }, 1: { bauds: 4800 } },
+    },
+    expect: {
+      kind: 'sonde-logique',
+      voies: [
+        { partId: 'SD1', pin: '1', voie: 0, etiquette: 'TX' },
+        { partId: 'SD2', pin: '3', voie: 1, etiquette: 'TX2' },
+      ],
+    },
+    code: `// Test UART : deux liaisons serie, ecoutees par l'analyseur logique.
+// Les pinces (SD1, SD2) sont POSEES sur les broches d'emission, sans fil.
+// RIEN A REGLER : le projet s'ouvre avec les deux decodages UART deja poses,
+// les octets s'ecrivent sous les creneaux (cochez « Bits » dans le panneau P
+// pour voir aussi chaque bit : start, 8 donnees poids faible d'abord, stop).
+//   SD1 (D1) : TX de Serial, 9600 bauds 8N1 - aussi dans le moniteur serie ;
+//   SD2 (D3) : TX d'une liaison logicielle, 4800 bauds 8N1 - deux fois plus
+//              lente : chaque bit y dure 208 us au lieu de 104 us.
+#include <SoftwareSerial.h>
+
+SoftwareSerial ligne2(2, 3);  // RX = D2 (inutilisee), TX = D3
+
+int compteur = 0;
+
+void setup() {
+  Serial.begin(9600);
+  ligne2.begin(4800);
+}
+
+void loop() {
+  compteur++;
+  Serial.print("Bonjour ");
+  Serial.println(compteur);
+  ligne2.print("K");
+  ligne2.println(compteur);
+  delay(200);
+}
+`,
+  }),
+
   // BANC DE MESURE : cinq montages sur une seule planche, chacun avec ses
   // appareils. C'est le test qui répond à « qu'est-ce qu'on mesure, et où ? ».
   //   1. VARIATEUR : moteur commandé par un PN2222A haché en PWM, alimenté par
@@ -6098,6 +6160,63 @@ while True:
 `,
   }),
 
+  // Le même test UART côté Pico : deux UART matériels, deux vitesses. UART0
+  // émet sur GP0, UART1 sur GP4 ; `print()` va au moniteur série (USB), pas
+  // sur ces broches.
+  test({
+    name: 'uart-pico', board: 'pico', ext: 'py',
+    // Jumeau Pico 2 (carte en portrait) : chaque pince reprend SA pastille,
+    // positions mesurées par scripts/_diag-cale-sondes.mjs.
+    poseJumeau: {
+      U1: { x: 100, y: 60 },
+      SD1: { x: 40, y: 70, rotation: 180 },
+      SD2: { x: 40, y: 120, rotation: 180 },
+    },
+    parts: [
+      MCU('pico', 66.785625, 63.609375),
+      { id: 'SD1', type: 'sonde-logique', x: 70, y: 130, rotation: 90, attrs: { voie: '0', accroche: 'U1/GP0', etiquette: 'TX0' } },
+      { id: 'SD2', type: 'sonde-logique', x: 120, y: 130, rotation: 90, attrs: { voie: '1', accroche: 'U1/GP4', etiquette: 'TX1' } },
+    ],
+    wires: () => [],
+    analyseur: {
+      decodages: [
+        { protocole: 'uart', id: 'd1', donnees: 0, bauds: 9600 },
+        { protocole: 'uart', id: 'd2', donnees: 1, bauds: 4800 },
+      ],
+      voiesReglages: { 0: { bauds: 9600 }, 1: { bauds: 4800 } },
+    },
+    expect: {
+      kind: 'sonde-logique',
+      voies: [
+        { partId: 'SD1', pin: 'GP0', voie: 0, etiquette: 'TX0' },
+        { partId: 'SD2', pin: 'GP4', voie: 1, etiquette: 'TX1' },
+      ],
+    },
+    code: `# Test UART : deux liaisons serie, ecoutees par l'analyseur logique.
+# Les pinces (SD1, SD2) sont POSEES sur les broches d'emission, sans fil.
+# RIEN A REGLER : le projet s'ouvre avec les deux decodages UART deja poses,
+# les octets s'ecrivent sous les creneaux (cochez « Bits » dans le panneau P
+# pour voir aussi chaque bit : start, 8 donnees poids faible d'abord, stop).
+#   SD1 (GP0) : TX de l'UART0, 9600 bauds 8N1 ;
+#   SD2 (GP4) : TX de l'UART1, 4800 bauds 8N1 - deux fois plus lente :
+#               chaque bit y dure 208 us au lieu de 104 us.
+# print() ecrit dans le moniteur serie (USB), pas sur ces broches.
+from machine import UART, Pin
+import time
+
+ligne1 = UART(0, baudrate=9600, bits=8, parity=None, stop=1, tx=Pin(0), rx=Pin(1))
+ligne2 = UART(1, baudrate=4800, bits=8, parity=None, stop=1, tx=Pin(4), rx=Pin(5))
+
+compteur = 0
+while True:
+    compteur += 1
+    ligne1.write("Bonjour %d\\r\\n" % compteur)
+    ligne2.write("K%d\\r\\n" % compteur)
+    print("Bonjour", compteur)
+    time.sleep(0.2)
+`,
+  }),
+
   // Même barrière optique que `ir-barrier-uno`, l'autre façon de la rappeler :
   // PAS de résistance externe, c'est le rappel INTERNE du Pico (`Pin.PULL_UP`)
   // qui tient la sortie haute. Le moteur le relit à chaque frame — c'est le
@@ -6408,7 +6527,11 @@ async function jumeauPico2(t) {
   const pas = (v) => Math.round(v / 10) * 10;
   const dx = autres.length ? pas(MONTAGE_2.x - Math.min(...autres.map((p) => p.x))) : 0;
   const dy = autres.length ? pas(MONTAGE_2.y - Math.min(...autres.map((p) => p.y))) : 0;
-  const { code, ...reste } = t; // le programme est partagé, pas recopié
+  // `poseJumeau` : la pose de quelques pièces DANS LE JUMEAU, quand la
+  // translation en bloc ne suffit pas. Une pince posée sur une broche de la
+  // carte doit rester sur SA pastille, or la Pico 2 est en portrait : la
+  // translation la laisserait pendre à 160 px de là (mesuré sur uart-pico2).
+  const { code, poseJumeau, ...reste } = t; // le programme est partagé, pas recopié
   const name = `${t.name.replace(/-picow?$/, '')}-${JUMEAU_RP2350[t.board]}`;
   // Les points de passage de l'aîné ont été tracés autour d'une carte PAYSAGE :
   // les garder ferait entrer les fils DANS la carte portrait. On leur substitue
@@ -6421,8 +6544,8 @@ async function jumeauPico2(t) {
     board: JUMEAU_RP2350[t.board],
     codeFrom: t.name,
     parts: [
-      { ...carte, type: JUMEAU_RP2350[t.board], x: CARTE_2.x, y: CARTE_2.y },
-      ...autres.map((p) => ({ ...p, x: p.x + dx, y: p.y + dy })),
+      { ...carte, type: JUMEAU_RP2350[t.board], x: CARTE_2.x, y: CARTE_2.y, ...(poseJumeau?.U1 ?? {}) },
+      ...autres.map((p) => ({ ...p, x: p.x + dx, y: p.y + dy, ...(poseJumeau?.[p.id] ?? {}) })),
     ],
     wires: diagram.wires.map(({ points, ...w }) => ({
       ...w,

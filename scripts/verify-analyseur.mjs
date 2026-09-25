@@ -361,8 +361,11 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   // banc : sans cela, rien ne marcherait pour l'élève.
   const paquet = readFileSync(join(root, 'kablix_components', '_sources.json'), 'utf8');
   const dmx = JSON.parse(paquet).components.find((c) => c.type === 'dmx-grove');
-  check('reflet : la carte Grove DMX512 publiée déclare ses deux reflets',
-    dmx?.probeMirrors?.['+'] === 'SIG' && dmx?.probeMirrors?.['-'] === 'SIG',
+  // `-` porte le signal INVERSÉ (Frank, 25/09) : déclaré à part, dans
+  // `probeInverted`, pour qu'une version qui l'ignore garde le reflet.
+  check('reflet : la carte Grove DMX512 publiée déclare ses deux reflets, « - » inversé à part',
+    dmx?.probeMirrors?.['+'] === 'SIG' && dmx?.probeMirrors?.['-'] === 'SIG' &&
+      JSON.stringify(dmx?.probeInverted) === '["-"]',
     JSON.stringify(dmx?.probeMirrors));
 }
 
@@ -437,7 +440,7 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
     { voie: 1, pin: 'GP15', nom: 'GP15' },
   ]);
   c.verser({ GP14: [1, 1, 2, 0], GP15: [1.5, 1, 2.5, 0] });
-  sans(() => c.renumeroter(new Map([['GP14', 0], ['GP15', 2]])));
+  sans(() => c.renumeroter([{ pin: 'GP14', voie: 0 }, { pin: 'GP15', voie: 2 }]));
   const parVoie = new Map(c.listeVoies.map((v) => [v.voie, v]));
   check('renumérotage : la voie suit sa BROCHE jusqu\'au numéro du schéma',
     parVoie.get(2)?.pin === 'GP15', JSON.stringify(c.listeVoies.map((v) => [v.voie, v.pin])));
@@ -452,7 +455,7 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   const d = new AnalyseurCapture();
   d.declarerVoies([{ voie: 5, pin: 'GP7', nom: 'GP7' }]);
   d.verser({ GP7: [1, 1] });
-  sans(() => d.renumeroter(new Map([['GP2', 0]])));
+  sans(() => d.renumeroter([{ pin: 'GP2', voie: 0 }]));
   check('renumérotage : une broche absente du schéma garde sa place et ses fronts',
     d.listeVoies.length === 1 && d.listeVoies[0].voie === 5 && d.listeVoies[0].fronts.length === 1);
   // Une table vide ne doit RIEN toucher : c'est le cas du tout premier message
@@ -460,7 +463,7 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   const e = new AnalyseurCapture();
   e.declarerVoies([{ voie: 3, pin: 'GP9', nom: 'GP9' }]);
   e.verser({ GP9: [1, 1] });
-  sans(() => e.renumeroter(new Map()));
+  sans(() => e.renumeroter([]));
   check('renumérotage : une table vide laisse la capture intacte',
     e.listeVoies.length === 1 && e.listeVoies[0].voie === 3 && e.listeVoies[0].fronts.length === 1);
 }
@@ -472,7 +475,7 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   // porte son numéro, sa broche et son nom —, et c'est d'elle que `restaurer()`
   // dresse les pistes tant que rien d'autre ne l'a fait.
   const src = readFileSync(join(root, 'src', 'webview', 'analyseur.mts'), 'utf8');
-  const bloc = src.slice(src.indexOf('function restaurer'), src.indexOf('function restaurer') + 5600);
+  const bloc = src.slice(src.indexOf('function restaurer'), src.indexOf('\n}\n', src.indexOf('function restaurer')) + 3);
   // Le critère n'est PAS « aucune piste » mais « aucune piste POUR LES BROCHES
   // DE CETTE CAPTURE » : un atelier où l'on ouvre un SECOND projet garde les
   // voies du premier, l'hôte n'envoie alors que la restauration, et la capture
@@ -530,7 +533,7 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   // sur un schéma déjà connu) et à la réception des voies (le schéma arrive sur
   // une capture déjà restaurée — l'atelier résout ses sondes en retard).
   check('réouverture : restaurer() range la capture sur les voies du SCHÉMA, par broche',
-    /parPin\.get\(v\.pin\) \?\? v\.voie/.test(bloc) && /capture\.declarerVoies\(\s*(etat\.voies\.length > 0\s*\?\s*)?etat\.voies\.map/.test(bloc));
+    /libres\.get\(v\.pin\)\?\.shift\(\) \?\? v\.voie/.test(bloc) && /capture\.declarerVoies\(\s*(etat\.voies\.length > 0\s*\?\s*)?etat\.voies\.map/.test(bloc));
   // Réglages SEULS (v2026.9.5.149 : run qui démarre, aucune mesure à rendre) :
   // la capture garde les voies du schéma. Bout à bout : verify-analyseur-recharge.mjs.
   check('réouverture : des réglages seuls ne vident pas les voies de la capture',
@@ -1338,6 +1341,30 @@ const oneWireDe = (sequence) => {
     textes.some((x) => x.startsWith('0x44')), textes.join(' | '));
   check('1-Wire : LSB en premier (0xCC relu à l\'envers donnerait 0x33)',
     !textes.some((x) => x.startsWith('0x33')), textes.join(' | '));
+  // Le VRAI capteur répond au RESET : 30 µs après la relâche, il tient la ligne
+  // basse 110 µs (ds18b20.mjs). Lue comme un bit, cette présence sortait en
+  // erreur « 1 bits » juste après le RESET et décalait l'octet suivant (Frank,
+  // 25/09 : « je ne comprends pas ce qu'affiche l'analyseur »).
+  {
+    const US = 0.001;
+    const f = [];
+    let t = 1;
+    const creux = (d, r) => { f.push([t, 0]); t += d * US; f.push([t, 1]); t += r * US; };
+    const octet = (o) => { for (let k = 0; k < 8; k++) ((o >> k) & 1) ? creux(6, 64) : creux(60, 10); };
+    creux(480, 30); creux(110, 340); octet(0xcc); octet(0xbe);
+    const tx = decoder([voieDe(0, 'DQ', f, 1)], { protocole: 'onewire', donnees: 0 }).map((a) => a.texte);
+    check('1-Wire : la réponse du capteur au RESET est nommée (« PRÉSENT »), pas lue comme un bit',
+      /^RESET \| (PRESENCE|PRÉSENT) \| 0xCC SKIP ROM \| 0xBE$/.test(tx.join(' | ')), tx.join(' | '));
+    // Un creux long bien après le RESET n'est PAS une présence : c'est un bit 0.
+    const g = [];
+    t = 1;
+    const creuxG = (d, r) => { g.push([t, 0]); t += d * US; g.push([t, 1]); t += r * US; };
+    creuxG(480, 150);
+    for (let k = 0; k < 8; k++) ((0x55 >> k) & 1) ? creuxG(6, 64) : creuxG(60, 10);
+    const ty = decoder([voieDe(0, 'DQ', g, 1)], { protocole: 'onewire', donnees: 0 }).map((a) => a.texte);
+    check('1-Wire : sans présence (aucun capteur), le premier creux reste un bit',
+      ty.join(' | ') === 'RESET | 0x55 MATCH ROM', ty.join(' | '));
+  }
   check('1-Wire : un seul rôle de voie, obligatoire',
     rolesDe('onewire').length === 1 && rolesDe('onewire')[0].obligatoire === true);
   check('1-Wire : sans voie de données le réglage est incomplet',

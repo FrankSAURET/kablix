@@ -154,6 +154,13 @@ for (const t of TESTS) {
       const candidats = [join(dossier, ref), join(ROOT, ref), join(dossier, ref.split('/').pop())];
       check(`${t.name} : codeFile existe`, candidats.some(existsSync), ref);
     }
+    // Réglages de l'analyseur prévus par la spec : le projet doit s'ouvrir
+    // avec eux (un décodage perdu = une trame muette à l'écran).
+    if (t.analyseur) {
+      check(`${t.name} : réglages de l'analyseur`,
+        JSON.stringify(manifest.analyseur) === JSON.stringify(t.analyseur),
+        `.projix=${JSON.stringify(manifest.analyseur)}`);
+    }
   } catch (err) {
     check(`${t.name} : archive lisible`, false, String(err));
     continue;
@@ -199,7 +206,7 @@ for (const t of TESTS) {
   // qui crie autant ne protège plus rien. Un test dont la spec est remise
   // d'aplomb s'ajoute à la liste, et il est alors tenu au pixel.
   {
-    const GEOMETRIE_A_JOUR = new Set(['sonde-logique-pico']);
+    const GEOMETRIE_A_JOUR = new Set(['sonde-logique-pico', 'uart-uno', 'uart-pico']);
     const vu = new Map(diagram.parts.map((p) => [p.id, p]));
     for (const attendu of t.parts) {
       const p = vu.get(attendu.id);

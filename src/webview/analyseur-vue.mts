@@ -148,6 +148,17 @@ export interface VoieVue {
    * qui écrit ses valeurs sous ses octets). La piste grandit d'autant.
    */
   lignesDecodage?: number;
+  /**
+   * Vrai si la pince est derrière un reflet inversant (patte `-` d'une paire
+   * DMX) : la voie est tracée à l'envers de la broche qu'elle écoute.
+   */
+  inverse?: boolean;
+  /**
+   * Tension du niveau haut, en volts (celle de la carte : 3,3 ou 5). Écrite
+   * dans la marge de la piste, face au niveau haut, avec 0 V face au bas.
+   * Absente (capture relue sans schéma) : rien d'écrit.
+   */
+  volts?: number;
 }
 
 /** Lignes de décodage réservées sous une piste. */
@@ -209,6 +220,17 @@ export function teinteVoie(vv: VoieVue, sombre: boolean): string {
 export function nomVoie(vv: VoieVue): string {
   const n = (vv.nomChoisi ?? '').trim();
   return n === '' ? vv.nom : n;
+}
+
+/** Corps des tensions écrites dans la marge des pistes. */
+const TENSION_PX = 10;
+
+/**
+ * Tension d'un niveau, pour la marge d'une piste : un chiffre après la
+ * virgule, omis quand il est nul (« 3,3 V », « 5 V », « 0 V »).
+ */
+export function formatTension(volts: number, lang = 'en'): string {
+  return `${(Math.round(volts * 10) / 10).toLocaleString(lang, { maximumFractionDigits: 1 })} V`;
 }
 
 /** Formatage d'une durée en ms simulées, unité choisie d'après l'ordre. */
@@ -515,12 +537,36 @@ export class AnalyseurVue {
     // Nom en haut de la piste, dans la couleur de la pince : c'est le lien
     // visuel avec le schéma. Deux fois et demie la graduation — c'est ce qu'on
     // cherche des yeux en descendant d'une voie à l'autre.
+    // Tensions des deux niveaux, dans la marge, face aux traits haut et bas du
+    // créneau (Frank, 25/09) : un chiffre après la virgule, sauf s'il est nul
+    // (« 3,3 V », « 5 V », « 0 V »). Rien pour une voie en défaut, ni pour une
+    // capture relue sans schéma : la carte, donc la tension, n'est pas connue.
+    const volts = !vv.probleme && vv.volts ? vv.volts : 0;
+    const police = getComputedStyle(document.body).getPropertyValue('--vscode-font-family').trim() || 'sans-serif';
+    let placeTension = 0;
+    if (volts > 0) {
+      ctx.save();
+      ctx.font = `${TENSION_PX}px ${police}`;
+      const haut1 = formatTension(volts, e.lang);
+      const bas0 = formatTension(0, e.lang);
+      placeTension = Math.max(ctx.measureText(haut1).width, ctx.measureText(bas0).width) + 4;
+      ctx.fillStyle = fg;
+      ctx.globalAlpha = 0.6;
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      // Une voie inversée par son câblage garde ses tensions : c'est le trait
+      // qui change de niveau, pas la carte.
+      ctx.fillText(haut1, MARGE_G - 4, yHaut);
+      ctx.fillText(bas0, MARGE_G - 4, yBas);
+      ctx.restore();
+    }
+
     ctx.save();
     ctx.fillStyle = couleur;
     ctx.textAlign = 'left';
-    ctx.font = `600 ${NOM_PX}px ${getComputedStyle(document.body).getPropertyValue('--vscode-font-family').trim() || 'sans-serif'}`;
+    ctx.font = `600 ${NOM_PX}px ${police}`;
     ctx.fillText(
-      this.tronquer(ctx, nomVoie(vv), MARGE_G - COL_X - 6),
+      this.tronquer(ctx, nomVoie(vv), MARGE_G - COL_X - 6 - placeTension),
       COL_X,
       haut + NOM_PX / 2 + 3
     );

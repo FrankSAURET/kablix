@@ -64,6 +64,10 @@ type MessageEntrant =
         analogique: boolean;
         /** Broche trouvée en suivant le fil, la pince n'étant pas sur la carte. */
         suivi?: boolean;
+        /** Pince derrière un reflet inversant (`-` d'une paire DMX) : tracée à l'envers. */
+        inverse?: boolean;
+        /** Tension du niveau haut, en volts (celle de la carte). */
+        volts?: number;
       }>;
     }
   /** Salve de fronts : `{ broche: [t, niveau, …] }`, en ms simulées. */
@@ -424,11 +428,17 @@ function majEtat(): void {
  * décodage — ce que l'élève voit est donc toujours ce que le décodeur a lu.
  */
 function majInversions(): void {
-  capture.reglerInversion(
+  // Deux inversions se composent : celle du CÂBLAGE (pince sur la patte `-`
+  // d'une paire DMX, qui porte le signal inversé) et celle que l'élève règle
+  // (« Invert », ligne active-bas). Régler « Invert » sur la voie `-` la remet
+  // donc à l'endroit — de quoi la décoder comme la voie `+`.
+  const cablees = new Set(diagnostics.filter((d) => d.inverse).map((d) => d.voie));
+  const reglees = new Set(
     Object.entries(reglagesVoies)
       .filter(([, r]) => r?.repos === 1)
       .map(([v]) => Number(v))
   );
+  capture.reglerInversion([...new Set([...cablees, ...reglees])].filter((v) => cablees.has(v) !== reglees.has(v)));
 }
 
 /**
@@ -1198,15 +1208,15 @@ window.addEventListener('message', (ev) => {
         probleme: v.probleme,
         analogique: v.analogique,
         suivi: v.suivi === true,
+        ...(v.inverse ? { inverse: true } : {}),
+        ...(typeof v.volts === 'number' && v.volts > 0 ? { volts: v.volts } : {}),
       }));
       // La capture suit ses BROCHES, pas ses numéros. Si ce message arrive après
       // un `restaure` — l'atelier résout ses sondes en retard —, la capture est
       // encore rangée sous les numéros du .projix. Or `declarerVoies` ne garde
       // les fronts qu'à voie ET broche identiques : sans ce renumérotage, GP15
       // capturé en voie 1 puis redéclaré en voie 2 perdrait tout.
-      capture.renumeroter(
-        new Map(diagnostics.filter((d) => d.pin).map((d) => [d.pin, d.voie]))
-      );
+      capture.renumeroter(diagnostics.filter((d) => d.pin).map((d) => ({ voie: d.voie, pin: d.pin })));
       // Seules les voies traçables entrent dans la capture : une sonde en l'air
       // n'a pas de broche, donc rien à quoi rattacher des fronts.
       capture.declarerVoies(
@@ -1214,6 +1224,9 @@ window.addEventListener('message', (ev) => {
           .filter((d) => !d.probleme && d.pin)
           .map((d) => ({ voie: d.voie, pin: d.pin, nom: d.nom }))
       );
+      // Une pince passée derrière un reflet inversant (ou revenue) change la
+      // lecture de sa voie.
+      majInversions();
       // Les voies ont changé : un panneau ouvert pointerait une piste qui n'est
       // peut-être plus là, et resterait posé dans le vide.
       fermerPanneau();
@@ -1273,9 +1286,18 @@ function restaurer(etat: EtatSerialise): void {
   // On renumérote donc la capture sur les voies du schéma, par broche. Une
   // broche que le schéma ne sonde plus garde son numéro d'origine : sa piste
   // n'existe pas, mais ses fronts restent là si le message `voies` la ramène.
-  const parPin = new Map<string, number>();
-  for (const d of diagnostics) if (d.pin) parPin.set(d.pin, d.voie);
-  const voieDe = (v: { voie: number; pin: string }): number => parPin.get(v.pin) ?? v.voie;
+  //
+  // Plusieurs pinces peuvent écouter la même broche (SIG, + et - d'une carte
+  // DMX) : une voie enregistrée déjà à sa place (même numéro, même broche) y
+  // reste, les autres prennent un numéro encore libre de leur broche.
+  const enPlace = new Set(diagnostics.filter((d) => d.pin).map((d) => `${d.voie}\u0000${d.pin}`));
+  const libres = new Map<string, number[]>();
+  for (const d of diagnostics) {
+    if (!d.pin || etat.voies.some((v) => v.voie === d.voie && v.pin === d.pin)) continue;
+    libres.set(d.pin, [...(libres.get(d.pin) ?? []), d.voie]);
+  }
+  const voieDe = (v: { voie: number; pin: string }): number =>
+    enPlace.has(`${v.voie}\u0000${v.pin}`) ? v.voie : (libres.get(v.pin)?.shift() ?? v.voie);
   capture.declarerVoies(
     etat.voies.length > 0
       ? etat.voies.map((v) => ({ voie: voieDe(v), pin: v.pin, nom: v.nom }))

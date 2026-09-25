@@ -278,6 +278,9 @@ async function main() {
       // court-circuiterait sa sortie sur son entree). Sans ce bloc, une sonde
       // posee sur la sortie de la carte reste muette.
       probeMirrors: comp.probeMirrors,
+      // Pattes reflétées À L'ENVERS (le `-` d'une paire DMX). Champ à part : une
+      // version de Kablix qui l'ignore trace la patte à l'endroit, sans la perdre.
+      probeInverted: comp.probeInverted,
       // Bascules du DESSIN : les pièces qu'un clic déplace (le cavalier de mode
       // d'une carte RFID, la flèche qui pousse le badge dans la boucle). Rien à
       // voir avec la simulation : c'est de la mécanique, décrite une fois ici.

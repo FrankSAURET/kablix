@@ -34,6 +34,10 @@ async function buildProjix(test, codeFileRef) {
     createdAt: new Date().toISOString(),
     codeFile: codeFileRef,
   };
+  // Réglages de l'analyseur logique (décodages, vitesses par voie…) : écrits
+  // comme les écrit « Enregistrer le projet », pour qu'un test s'ouvre avec
+  // son instrument déjà réglé.
+  if (test.analyseur) manifest.analyseur = test.analyseur;
   // Composants de bibliothèque (.kompix) utilisés par le test : ils voyagent
   // DANS le projet, comme le fait « Enregistrer le projet » de l'extension.
   // Sans eux, ouvrir le .projix sur une machine où le composant n'est pas

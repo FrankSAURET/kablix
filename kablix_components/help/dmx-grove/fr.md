@@ -28,6 +28,8 @@ Deux masses, donc deux noms : le dessin porte « GND » des deux côtés, la net
 
 La carte n'a pas de comportement propre : c'est un émetteur de ligne. C'est elle qui donne son sens au montage — Kablix remonte de la broche câblée sur **SIG** jusqu'aux projecteurs qui partagent sa paire, et leur applique les canaux qu'ils écoutent. Débranchée de la carte ou du projecteur, plus rien ne s'allume.
 
+Avec l'**analyseur logique**, une [sonde](sonde-logique.md) posée sur **SIG** ou sur **+** montre le signal de la broche qui attaque la carte, et une sonde posée sur **−** le même signal **inversé** : c'est la paire différentielle du DMX, où la ligne − est toujours à l'opposé de la ligne +. Pour décoder la voie −, cochez **Inverser** dans ses réglages : elle se lit alors comme la +.
+
 Le trafic DMX ne remonte **pas** au moniteur série : une trame, ce sont 513 octets binaires par seconde, la console serait noyée.
 
 ---

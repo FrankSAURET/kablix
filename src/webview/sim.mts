@@ -1699,6 +1699,11 @@ function pousserVoiesLogiques(): void {
       probleme: v.probleme ?? null,
       analogique: v.analogique === true,
       suivi: v.suivi === true,
+      inverse: v.inverse === true,
+      // Niveau HAUT de la broche écoutée : la tension d'alimentation de la
+      // carte (3,3 V sur un Pico, 5 V sur un Uno ou un Mega). L'onglet l'écrit
+      // dans la marge de chaque piste, face au niveau haut du créneau.
+      volts: isPicoBoard(board) ? 3.3 : 5,
     })),
   });
 }

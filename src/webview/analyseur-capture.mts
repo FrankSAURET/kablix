@@ -118,8 +118,14 @@ export const VOIES_MAX = 8;
 
 export class AnalyseurCapture {
   private voies = new Map<number, VoieCapture>();
-  /** Voie par broche : le moteur nous parle en broches, pas en voies. */
-  private parPin = new Map<string, VoieCapture>();
+  /**
+   * Voies par broche : le moteur nous parle en broches, pas en voies. PLUSIEURS
+   * voies peuvent écouter la même broche — trois pinces sur SIG, + et - d'une
+   * carte DMX remontent toutes à la broche qui l'attaque (Frank, 25/09,
+   * dmx-uno-lib : « dmx- et sig n'affichent rien »). Une table à une seule voie
+   * par broche ne servait que la dernière déclarée.
+   */
+  private parPin = new Map<string, VoieCapture[]>();
 
   private declenchement: Declenchement | null = null;
   /** Instant du front de déclenchement, ou null tant qu'il n'est pas survenu. */
@@ -177,8 +183,7 @@ export class AnalyseurCapture {
       );
     }
     this.voies = gardees;
-    this.parPin = new Map();
-    for (const v of this.voies.values()) this.parPin.set(v.pin, v);
+    this.indexerBroches();
   }
 
   /**
@@ -198,21 +203,46 @@ export class AnalyseurCapture {
    * message `voies` la ramène. Un numéro déjà pris par une autre broche n'est
    * pas volé — on ne troque pas une capture contre une autre.
    */
-  renumeroter(voieParPin: Map<string, number>): void {
-    if (voieParPin.size === 0) return;
+  renumeroter(schema: Array<{ voie: number; pin: string }>): void {
+    if (schema.length === 0) return;
+    // Une voie déjà à sa place (même numéro, même broche) n'a rien à recaler :
+    // c'est le cas de chaque pince quand plusieurs écoutent la même broche, et
+    // les renuméroter « par broche » les aurait toutes envoyées sur un seul
+    // numéro.
+    const enPlace = new Set(schema.map((d) => `${d.voie}\u0000${d.pin}`));
+    const libres = new Map<string, number[]>();
+    for (const d of schema) {
+      if ([...this.voies.values()].some((v) => v.voie === d.voie && v.pin === d.pin)) continue;
+      const l = libres.get(d.pin);
+      if (l) l.push(d.voie);
+      else libres.set(d.pin, [d.voie]);
+    }
     const vise = new Map<number, VoieCapture>();
     const reste: VoieCapture[] = [];
     for (const v of this.voies.values()) {
-      const n = voieParPin.get(v.pin);
-      if (n === undefined || vise.has(n)) reste.push(v);
+      if (enPlace.has(`${v.voie}\u0000${v.pin}`)) {
+        vise.set(v.voie, v);
+        continue;
+      }
+      const n = libres.get(v.pin)?.find((k) => !vise.has(k));
+      if (n === undefined) reste.push(v);
       else vise.set(n, { ...v, voie: n });
     }
     // Les voies non recalées reprennent leur place, sauf si elle vient d'être
     // occupée par une voie recalée — celle-ci a le schéma pour elle.
     for (const v of reste) if (!vise.has(v.voie)) vise.set(v.voie, v);
     this.voies = vise;
+    this.indexerBroches();
+  }
+
+  /** Refait la table des voies par broche. */
+  private indexerBroches(): void {
     this.parPin = new Map();
-    for (const v of this.voies.values()) this.parPin.set(v.pin, v);
+    for (const v of this.voies.values()) {
+      const liste = this.parPin.get(v.pin);
+      if (liste) liste.push(v);
+      else this.parPin.set(v.pin, [v]);
+    }
   }
 
   /** Voies déclarées, dans l'ordre des couleurs. */
@@ -499,34 +529,7 @@ export class AnalyseurCapture {
   verser(salves: Record<string, number[]>): void {
     if (this.aVider) this.repartir();
     for (const [pin, plat] of Object.entries(salves)) {
-      const v = this.parPin.get(pin);
-      if (!v) continue;
-      for (let i = 0; i + 1 < plat.length; i += 2) {
-        const t = plat[i]!;
-        const niveau: 0 | 1 = plat[i + 1] ? 1 : 0;
-        if (t > this.tVu) this.tVu = t;
-        // Capture pleine : un front d'APRÈS l'instant où elle s'est remplie
-        // n'entre plus, on retient seulement où en est la broche pour la
-        // prochaine acquisition. Un front d'AVANT, si : il arrive dans la
-        // salve même où une broche versée plus tôt a rempli la capture, et le
-        // jeter laissait cette voie plate juste avant la fin (sur toute une
-        // tranche quand une page rechargée rejoue sa mesure).
-        if (this.plein && (t > this.tDernier || v.fronts.length >= FRONTS_MAX_PAR_VOIE)) {
-          this.niveauxHors.set(pin, niveau);
-          continue;
-        }
-        // Le niveau AVANT le premier front se déduit de ce premier front : une
-        // broche qui monte était basse, et inversement. C'est la seule
-        // information fiable sur le passé qu'on n'a pas observé.
-        if (v.fronts.length === 0 && v.niveauInitial === null) {
-          v.niveauInitial = niveau === 1 ? 0 : 1;
-        }
-        v.fronts.push({ t, niveau });
-        if (t > this.tDernier) this.tDernier = t;
-      }
-      // Avant le rabot : ce qui va être jeté doit avoir été lu.
-      this.suivreDeclenchement(v);
-      if (!this.plein) this.raboter(v);
+      for (const v of this.parPin.get(pin) ?? []) this.verserVoie(v, pin, plat);
     }
     // Échantillonnée, la lecture d'un front ne tombe qu'au tic suivant : une
     // voie qui ne bouge plus (TRIG monté une seule fois) doit être relue quand
@@ -535,6 +538,37 @@ export class AnalyseurCapture {
     const vd = d ? this.voies.get(d.voie) : undefined;
     if (vd) this.suivreDeclenchement(vd);
   }
+
+  /** Verse les fronts d'une broche dans UNE des voies qui l'écoutent. */
+  private verserVoie(v: VoieCapture, pin: string, plat: number[]): void {
+    for (let i = 0; i + 1 < plat.length; i += 2) {
+      const t = plat[i]!;
+      const niveau: 0 | 1 = plat[i + 1] ? 1 : 0;
+      if (t > this.tVu) this.tVu = t;
+      // Capture pleine : un front d'APRÈS l'instant où elle s'est remplie
+      // n'entre plus, on retient seulement où en est la broche pour la
+      // prochaine acquisition. Un front d'AVANT, si : il arrive dans la
+      // salve même où une broche versée plus tôt a rempli la capture, et le
+      // jeter laissait cette voie plate juste avant la fin (sur toute une
+      // tranche quand une page rechargée rejoue sa mesure).
+      if (this.plein && (t > this.tDernier || v.fronts.length >= FRONTS_MAX_PAR_VOIE)) {
+        this.niveauxHors.set(pin, niveau);
+        continue;
+      }
+      // Le niveau AVANT le premier front se déduit de ce premier front : une
+      // broche qui monte était basse, et inversement. C'est la seule
+      // information fiable sur le passé qu'on n'a pas observé.
+      if (v.fronts.length === 0 && v.niveauInitial === null) {
+        v.niveauInitial = niveau === 1 ? 0 : 1;
+      }
+      v.fronts.push({ t, niveau });
+      if (t > this.tDernier) this.tDernier = t;
+    }
+    // Avant le rabot : ce qui va être jeté doit avoir été lu.
+    this.suivreDeclenchement(v);
+    if (!this.plein) this.raboter(v);
+  }
+
 
   /**
    * Verse une capture ENTIÈRE comme le moteur l'aurait versée en direct : par

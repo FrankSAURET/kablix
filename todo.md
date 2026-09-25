@@ -1,12 +1,4 @@
 # À faire
-1. Analyseur logique :
-    1. Fait moi un fichier de test pour l'uart arduino et pico 
-    1. Dans la marge tu affiches la valeur des tensions de l'état haut et l'état bas avec 1 chiffre aprés la virgule (mais pas le 0)
-    1. DMX (mon fichier de test principal est maintenant dmx-uno-lib) :
-        1. Dmx+ affiche le signal mais dmx- et sig n'affichent rien. je veux le signal sur sig et dmx+ et le signal inversé sur dmx-. 
-    1. dsb1820
-        1. je ne comprends pas ce qu'affiche l'analyseur. Explique
-        1. 
 ## fait
 
 
@@ -15,6 +7,20 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.151
+1. ✅ **DMX : les trois pinces tracent** (Frank, dmx-uno-lib : « Dmx+ affiche le signal mais dmx- et sig n'affichent rien »). Mesuré sur le vrai schéma : le modèle résolvait bien les trois pinces (Sig, DMX-, DMX+) sur la broche `3`, mais la capture de l'onglet rangeait ses voies dans une table broche → voie à UNE entrée ; seule la dernière déclarée (DMX+) recevait les fronts. [analyseur-capture.mts](src/webview/analyseur-capture.mts) : `parPin` → liste de voies par broche, `verser` sert chacune (`verserVoie`), `renumeroter` prend la liste du schéma et laisse en place une voie déjà à son numéro. [analyseur.mts](src/webview/analyseur.mts) `restaurer()` : même règle (une voie enregistrée à sa place y reste, les autres prennent un numéro libre de leur broche).
+2. ✅ **DMX- inversé** (« le signal inversé sur dmx- »). Nouveau champ de manifeste `probeInverted` (pattes reflétées à l'envers), lu par [model.mts](src/webview/diagram/model.mts) `suivreFilVersMcu` (parité des reflets traversés : deux inversions se compensent) → `LogicProbeVoie.inverse` → message des voies ([sim.mts](src/webview/sim.mts)) → [analyseur.mts](src/webview/analyseur.mts) `majInversions()` : inversion de CÂBLAGE et « Inverser » de l'élève se composent (cocher « Inverser » sur DMX- la remet à l'endroit pour la décoder). Transmis par [kompixLibrary.ts](src/kompixLibrary.ts), [catalog.mts](src/webview/diagram/catalog.mts), [build-kompix.mjs](scripts/build-kompix.mjs), [_lire-kompix.mjs](scripts/_lire-kompix.mjs). **Choix de compatibilité** : un premier essai en `"-": "!SIG"` rendait la pince `-` MUETTE (`not-mcu`) sous le code publié — or la 2026.9.5 télécharge ses composants depuis `main`. Avec un champ à part, l'ancien code l'ignore et garde le reflet (prouvé par la contre-épreuve).
+3. ✅ **Composant `dmx-grove` 2026.9.2** : `probeInverted: ["-"]` dans [_sources.json](kablix_components/_sources.json), fiche FR (paragraphe analyseur), `.kompix` et index reconstruits (seul `dmx-grove` gardé : les 8 autres paquets ne différaient que par le rendu Chromium Linux des vignettes, restaurés). Un projet rouvert reprend le composant plus récent de la bibliothèque (cf. `verify-projix-parts`).
+4. ✅ **Tensions dans la marge** (« avec 1 chiffre après la virgule (mais pas le 0) »). [analyseur-vue.mts](src/webview/analyseur-vue.mts) : `formatTension()` (« 3,3 V », « 5 V », « 0 V »), écrites à droite de la colonne des noms, face au trait haut et au trait bas du créneau (10 px, estompées) ; le nom se raccourcit d'autant. Tension de l'état haut = celle de la carte (`volts` du message des voies : 3,3 sur Pico, 5 sinon). Rien pour une voie en défaut ni pour une capture relue sans schéma.
+5. ✅ **Tests UART** `uart-uno`, `uart-pico` et le jumeau `uart-pico2` (« fais-moi un fichier de test pour l'uart arduino et pico ») : deux liaisons à deux vitesses, une pince posée sur chaque TX — Uno : `Serial` 9600 bauds sur D1 + `SoftwareSerial` 4800 bauds sur D3 ; Pico : UART0 9600 bauds sur GP0 + UART1 4800 bauds sur GP4. Les projets s'ouvrent avec les **deux décodages UART déjà réglés** : nouveau champ `analyseur` des tests ([_generate.mjs](testkablix/_generate.mjs) l'écrit dans `kablix.json`, [_verify.mjs](testkablix/_verify.mjs) le contrôle). Pinces calées sur leurs pastilles par `_diag-cale-sondes.mjs` (écart ≤ 0,03 px) et tenues au pixel (`GEOMETRIE_A_JOUR`). Nouveau `poseJumeau` dans [_spec.mjs](testkablix/_spec.mjs) : la Pico 2 est en portrait, la translation laissait les pinces du jumeau à 160 px de leurs broches. Ligne ajoutée à [testkablix/README.md](testkablix/README.md).
+6. ⏳ **Tests UART non joués en simulation ici** : l'environnement cloud n'a ni le firmware MicroPython (micropython.org refusé par le réseau) ni `arduino-cli`. À lancer par Frank dans VS Code : les octets « Bonjour n » (TX, TX0) et « Kn » (TX2, TX1) doivent s'écrire sous les créneaux.
+7. ✅ **DS18B20 : « je ne comprends pas ce qu'affiche l'analyseur »** — expliqué dans la conversation et dans la fiche [sonde-logique.md](docs/fr/composants/sonde-logique.md) (déroulé d'une mesure : `RESET` `PRÉSENT` `SKIP ROM` `CONVERT T`, puis `RESET` `PRÉSENT` `MATCH ROM` + 8 octets d'adresse, `READ SCRATCHPAD` + 9 octets dont la température en seizièmes de degré ; le `SEARCH ROM` du démarrage ne forme pas d'octets). **Défaut trouvé en route et corrigé** : l'impulsion de présence du capteur (110 µs, 30 µs après le RESET) était lue comme un bit et s'affichait en erreur magenta « 1 bits » juste après le `RESET`. [analyseur-decodage.mts](src/webview/analyseur-decodage.mts) : nommée `PRÉSENT` (repère de trame violet, chaîne `PRESENCE` déjà traduite pour le DHT). Le banc du décodeur fabriquait des RESET sans présence : cas réel ajouté à [verify-analyseur.mjs](scripts/verify-analyseur.mjs), avec le cas sans capteur ; contre-épreuve : « 1 bits » sur l'ancien code.
+8. ✅ **Banc** [verify-analyseur-voies-partagees.mjs](scripts/verify-analyseur-voies-partagees.mjs) (`verify:analyseur-voies-partagees`, dans `verify:all:serie`) : modèle sur le VRAI schéma de dmx-uno-lib, capture et format sous Node, onglet réel dans Chrome à la VRAIE souris (niveaux lus au réticule : Sig 1, DMX- 0, DMX+ 1 ; tensions ; Pico 3.3 V ; voie en défaut ; restauration avec « Inverser »). **16 contrôles verts ; contre-épreuve** `--ancien` (4 sources de HEAD) : 12 échecs. [verify-analyseur.mjs](scripts/verify-analyseur.mjs) : nouvelle signature de `renumeroter`, motif de `restaurer()` (fonction entière), reflet `probeInverted` du paquet publié.
+9. ⏳ Traductions avant publication : fiche EN de la sonde logique (tensions, pinces sur un même signal, déroulé DS18B20, `PRÉSENT`), fiche EN de `dmx-grove` (paragraphe analyseur). Aucune chaîne d'interface nouvelle.
+10. ℹ️ `Todo temp.md` non touché (port Arduino non sélectionné : pas dans todo.md).
 
 ---
 

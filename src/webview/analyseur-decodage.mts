@@ -910,6 +910,14 @@ const OW = {
   slot: 60,
   /** Silence qui referme un octet resté incomplet (fin de transaction). */
   repos: 200,
+  /**
+   * Impulsion de PRÉSENCE : l'esclave répond au RESET en tirant la ligne bas
+   * 60 à 240 µs, 15 à 60 µs après que le maître l'a relâchée. Bornes un peu
+   * élargies : au-delà, ce n'est plus la réponse au RESET.
+   */
+  presenceDebutMax: 80,
+  presenceMin: 40,
+  presenceMax: 300,
 } as const;
 
 /**
@@ -957,6 +965,14 @@ function decoderOneWire(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
   let attendCommande = false;
   /** Instant du dernier front montant : sert à mesurer le silence qui suit. */
   let tHaut = -Infinity;
+  /**
+   * Fin du dernier RESET, tant que sa réponse n'est pas passée. Le creux qui
+   * suit, s'il a la forme d'une présence, est la réponse du capteur : lu comme
+   * un bit, il décalait tout l'octet suivant et s'affichait en erreur
+   * « 1 bits » juste après le RESET (Frank, 25/09, DS18B20 : « je ne comprends
+   * pas ce qu'affiche l'analyseur »).
+   */
+  let finReset: number | null = null;
 
   /** Referme un octet incomplet quand la transaction s'arrête en route. */
   const clore = (t: number): void => {
@@ -985,7 +1001,17 @@ function decoderOneWire(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
       // Le RESET ouvre la transaction : c'est le « start » du 1-Wire.
       out.push({ t0: f.t, t1: suivant.t, texte: 'RESET', nature: 'start' });
       attendCommande = true;
+      finReset = suivant.t;
       continue;
+    }
+    if (finReset !== null) {
+      const apresUs = (f.t - finReset) / usMs;
+      finReset = null;
+      if (apresUs <= OW.presenceDebutMax && creuxUs >= OW.presenceMin && creuxUs <= OW.presenceMax) {
+        // Le capteur répond « je suis là » : un repère de trame, pas un bit.
+        out.push({ t0: f.t, t1: suivant.t, texte: t('PRESENCE'), nature: 'cadre' });
+        continue;
+      }
     }
     if (creuxUs < OW.miniSlot) continue; // trop bref pour être un slot
 

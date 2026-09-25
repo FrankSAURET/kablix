@@ -160,6 +160,14 @@ interface KompixManifest {
    * patte dont elle reflète le signal.
    */
   probeMirrors?: Record<string, string>;
+  /**
+   * Pattes REFLÉTÉES À L'ENVERS : parmi les clés de `probeMirrors`, celles qui
+   * portent le signal inversé (la ligne `-` d'une paire différentielle DMX).
+   * Champ à part, et non un « ! » dans `probeMirrors` : une version de Kablix
+   * qui ne le connaît pas l'ignore et trace la patte à l'endroit, au lieu de
+   * la croire débranchée.
+   */
+  probeInverted?: string[];
   /** Carte fille (Grove Shield…) : socle, pistes internes, interrupteur. */
   shield?: KompixShield;
   /** Bascules du dessin : pièces qu'un clic déplace (cavalier, badge RFID…).
@@ -222,6 +230,8 @@ interface CustomPartData {
   openDrain?: { out: string; supplies: Array<[string, string]> };
   /** Reflets de sonde (voir KompixManifest.probeMirrors). */
   probeMirrors?: Record<string, string>;
+  /** Reflets inversés (voir KompixManifest.probeInverted). */
+  probeInverted?: string[];
   /** Carte fille (voir KompixManifest.shield). */
   shield?: KompixShield;
   /** Bascules du dessin (voir KompixManifest.toggles). */
@@ -490,6 +500,7 @@ export class KompixLibrary {
         control: traduit.control,
         openDrain: manifest.openDrain,
         probeMirrors: manifest.probeMirrors,
+        probeInverted: manifest.probeInverted,
         shield: manifest.shield,
         toggles: manifest.toggles,
         rfid: manifest.rfid,
@@ -922,6 +933,7 @@ export class KompixLibrary {
       control: data.control ?? null,
       openDrain: data.openDrain,
       probeMirrors: data.probeMirrors,
+      probeInverted: data.probeInverted,
       shield: data.shield,
       toggles: data.toggles,
       rfid: data.rfid,

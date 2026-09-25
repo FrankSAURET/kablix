@@ -36,7 +36,7 @@ Composants de cette bibliothèque, à installer depuis Kablix (**⚙ Gérer les 
 
 | | Type | Label | Version | Catégorie | Description |
 |---|------|-------|---------|-----------|-------------|
-| <img src="thumbnails/dmx-grove.webp" alt="Grove DMX512" width="64"> | `dmx-grove` | Grove DMX512 | 2026.9.1 | Misc | Grove DMX512 shield (SP3485 line driver): turns the board UART into a DMX512 output on a 3-pin XLR socket. |
+| <img src="thumbnails/dmx-grove.webp" alt="Grove DMX512" width="64"> | `dmx-grove` | Grove DMX512 | 2026.9.2 | Misc | Grove DMX512 shield (SP3485 line driver): turns the board UART into a DMX512 output on a 3-pin XLR socket. |
 | <img src="thumbnails/ds18b20.webp" alt="Temperature sensor DS18B20 (TO-92)" width="64"> | `ds18b20` | Temperature sensor DS18B20 (TO-92) | 2026.9.2 | Sensors | Dallas DS18B20 digital temperature sensor (-55 to +125 °C, ±0.5 °C): it talks over a single data wire… |
 | <img src="thumbnails/ds18b20-etanche.webp" alt="Temperature sensor DS18B20 (waterproof probe)" width="64"> | `ds18b20-etanche` | Temperature sensor DS18B20 (waterproof probe) | 2026.9.2 | Sensors | Dallas DS18B20 digital temperature sensor (-55 to +125 °C, ±0.5 °C): it talks over a single data wire… |
 | <img src="thumbnails/grove-light-sensor.webp" alt="Grove light sensor" width="64"> | `grove-light-sensor` | Grove light sensor | 2026.9.1 | Sensors | Grove ambient light sensor (LS06-S phototransistor): the analog output rises with the light falling on it. In… |
@@ -169,4 +169,4 @@ Le point décisif est le dernier : tant qu'un composant de bibliothèque peut d�
 
 ---
 
-Généré le 25/09/2026 10:59:06 — Kablix v2026.9.5
+Généré le 25/09/2026 11:07:26 — Kablix v2026.9.5

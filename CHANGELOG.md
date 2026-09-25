@@ -11,11 +11,13 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **L'analyseur peut déclencher sur le START code DMX** : sur une voie décodée en DMX512, le menu T propose `START code 0x00`. La capture se fige au début de la trame d'éclairage suivante.
 - **Le décodage DMX512 détaille chaque trame** : `BREAK`, `MAB`, `START code`, puis pour chaque canal son `Start`, sa valeur en hexadécimal (`c1=0xC8`) et son `STOP`, avec les `PAUSE` et le `MBB` entre les créneaux.
 - **Le projecteur DMX PAR 38 lit son quatrième canal, les effets** : intensité de 0 à 189, clignotement de 190 à 250, couleur inchangée au-delà. À 0, le projecteur reste éteint.
+- **Tensions dans la marge de l'analyseur logique** : face aux deux niveaux de chaque courbe, la tension de la carte pour l'état haut (`5 V` sur Uno et Mega, `3,3 V` sur Pico) et `0 V` pour l'état bas.
 - **Affichage binaire dans l'analyseur logique** : la case `Bits` du panneau de décodage écrit chaque bit (`0` ou `1`) sous le créneau qui le porte, séparé du suivant par un trait pointillé posé sur les fronts. Elle vaut pour tous les protocoles.
 - **Marqueurs M1 et M2 dans l'analyseur logique** : ils attendent à gauche de la barre de temps. Glissés sur les courbes, ils se collent au front le plus proche et tracent un trait de leur couleur. Posés tous les deux, une flèche donne la durée qui les sépare.
 
 ### Modification
 
+- **Grove DMX512 (composant 2026.9.2) : une pince posée sur `−` montre le signal inversé**, comme sur la vraie paire différentielle. Cocher « Inverser » sur cette voie la remet à l'endroit pour la décoder.
 - **Le décodage DHT11/DHT22 s'écrit sur deux lignes** : les cinq octets, chacun dans sa case, puis l'humidité, la température et la somme cochée sous leurs octets. La température du DHT11 s'écrit au dixième (`22,0 °C`).
 - **Le départ est en vert et l'arrêt en rouge sous les courbes de l'analyseur**, pour tous les protocoles. Les données passent au bleu et les erreurs au magenta.
 - **Un caractère UART se découpe comme sur le fil** : `Start`, valeur, `STOP`. Une erreur de parité ou de cadrage se pose sur le bit fautif, et la valeur reste affichée.
@@ -27,6 +29,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Correction
 
+- **Plusieurs pinces sur un même signal tracent toutes.** Sur une carte DMX, les pinces posées sur `SIG`, `+` et `−` remontent à la même broche : seule la dernière montrait la trame, les autres restaient plates.
+- **Le décodage 1-Wire nomme la réponse du capteur au `RESET` (`PRÉSENT`).** Elle s'affichait en erreur « 1 bits » juste après le `RESET`.
 - **Déplacer l'onglet de l'analyseur vers une autre fenêtre (un second écran) ne fait plus disparaître les courbes.** Un onglet ouvert en pleine simulation, avec un déclenchement réglé, trace de nouveau.
 - **L'instant lu au curseur de l'analyseur reste lisible sur la barre de temps** : il s'écrit sur une plaque, et la graduation qu'il recouvre s'efface.
 - **Rouvrir un projet avec l'analyseur ouvert ne double plus sa capture.** Chaque courbe se barrait d'un trait parasite.

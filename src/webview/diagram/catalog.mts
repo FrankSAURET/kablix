@@ -425,6 +425,8 @@ export interface PartDef {
    * patte dont elle reflète le signal.
    */
   probeMirrors?: Record<string, string>;
+  /** Pattes reflétées à l'envers (la ligne `-` d'une paire DMX). */
+  probeInverted?: string[];
     /** Carte fille : socle, pistes internes et interrupteur (voir shield.mts). */
     shield?: ShieldSpec;
     /** Bascules du dessin : pièces déplacées par un clic (cavalier, badge…). */
@@ -480,6 +482,8 @@ export interface CustomPartData {
   openDrain?: CustomOpenDrain;
   /** Reflets de sonde : « cette patte porte le même signal que celle-là ». */
   probeMirrors?: Record<string, string>;
+  /** Pattes reflétées à l'envers (la ligne `-` d'une paire DMX). */
+  probeInverted?: string[];
   /** Carte fille : socle, pistes internes et interrupteur (voir shield.mts). */
   shield?: ShieldSpec;
   /** Bascules du dessin (voir CustomToggle). */
@@ -1675,6 +1679,7 @@ export function registerCustomPart(data: CustomPartData): PartDef {
       hasHelp: data.hasHelp,
       openDrain: data.openDrain,
       probeMirrors: data.probeMirrors,
+      probeInverted: data.probeInverted,
       shield: data.shield,
       toggles: data.toggles,
       rfid: data.rfid,
