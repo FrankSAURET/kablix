@@ -27,6 +27,7 @@ while True:
         trame[ADRESSE] = rouge
         trame[ADRESSE + 1] = vert
         trame[ADRESSE + 2] = bleu
+        trame[ADRESSE + 3] = 220
         envoyer()
         print("Couleur envoyée :", rouge, vert, bleu)
         time.sleep(1)
