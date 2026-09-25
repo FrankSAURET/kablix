@@ -4057,6 +4057,13 @@ function clearDebugVarsDisplay(): void {
 function renderDebugPause(state: DebugPauseState, redraw = false): void {
   lastPauseState = state;
   debugSection.hidden = false;
+  // Un arrêt du débogage sert à LIRE les variables : replié (par l'analyseur au
+  // lancement, ou par l'élève), le panneau se déplie — sinon la pause ne montre
+  // rien et le débogueur paraît muet (Frank, 25/09). Repli de nouveau à la reprise.
+  if (!redraw && inspectorFolded && !inspectorFoldedInPause) {
+    inspectorOpenedByPause = true;
+    setInspectorFolded(false, false);
+  }
   debugLineEl.textContent = state.line !== undefined ? t('Line {0}', state.line) : '';
   debugVarsEl.innerHTML = '';
   // En-tête permanent en C/Arduino : ne sont lisibles que les variables à
@@ -4369,6 +4376,11 @@ pauseBtn.addEventListener('click', () => {
   if (!engine) return;
   if (engine.paused) {
     engine.resume();
+    inspectorFoldedInPause = false;
+    if (inspectorOpenedByPause) {
+      inspectorOpenedByPause = false;
+      setInspectorFolded(true, false); // la pause l'avait déplié : on rend la place
+    }
     setStatus(t('Running…'));
     vscode.postMessage({ type: 'debugResumed' });
   } else {
@@ -4654,6 +4666,12 @@ function stopRun(): void {
   if (paletteFoldedByRun) {
     paletteFoldedByRun = false;
     setPaletteFolded(false, false);
+  }
+  // Arrêt en pleine pause : si l'élève avait replié le panneau, son repli revient.
+  inspectorFoldedInPause = false;
+  if (inspectorOpenedByPause) {
+    inspectorOpenedByPause = false;
+    if (!inspectorFoldedByRun) setInspectorFolded(true, false);
   }
   if (inspectorFoldedByRun) {
     inspectorFoldedByRun = false;
@@ -5010,7 +5028,7 @@ function saveUiState(): void {
       inspectorWidth,
       // Le repli fait par la simulation n'est pas un choix : on garde celui de l'élève.
       paletteFolded: paletteFolded && !paletteFoldedByRun,
-      inspectorFolded: inspectorFolded && !inspectorFoldedByRun,
+      inspectorFolded: !inspectorFoldedByRun && (inspectorFolded || inspectorOpenedByPause),
       serialVisible,
       plotterVisible: plotterUserPref,
       gridShown,
@@ -5038,6 +5056,13 @@ let foldLibraryOnRun = true;
 let paletteFoldedByRun = false;
 /** Même chose pour Variables, replié au démarrage quand l'analyseur logique s'ouvre. */
 let inspectorFoldedByRun = false;
+/**
+ * Vrai si c'est UN ARRÊT DU DÉBOGAGE qui a déplié Variables (replié par la
+ * simulation ou par l'élève) : à la reprise, il se replie de nouveau.
+ */
+let inspectorOpenedByPause = false;
+/** Variables replié à la main PENDANT la pause : les pas suivants le laissent replié. */
+let inspectorFoldedInPause = false;
 
 /** Colonne de droite réellement affichée : Propriétés, ou Variables en simulation. */
 function rightColumn(): HTMLElement {
@@ -5087,11 +5112,15 @@ foldPaletteBtn?.addEventListener('click', (e) => {
 foldInspectorBtn?.addEventListener('click', (e) => {
   e.stopPropagation();
   inspectorFoldedByRun = false; // repli décidé à la main : la fin du run n'y touchera pas
+  inspectorOpenedByPause = false;
+  inspectorFoldedInPause = !!engine?.paused && !inspectorFolded;
   setInspectorFolded(!inspectorFolded);
 });
 foldDebugBtn?.addEventListener('click', (e) => {
   e.stopPropagation();
   inspectorFoldedByRun = false;
+  inspectorOpenedByPause = false;
+  inspectorFoldedInPause = !!engine?.paused && !inspectorFolded;
   setInspectorFolded(!inspectorFolded);
 });
 

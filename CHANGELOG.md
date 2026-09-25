@@ -20,10 +20,11 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Le texte sous les courbes de l'analyseur est plus grand et en gras.**
 - **Le message gris sur les courbes passe à la ligne** quand l'onglet est étroit.
 - **« Repos haut » devient « Inverser »** dans le menu d'une voie de l'analyseur.
-- **Le panneau Variables se replie au lancement quand un analyseur logique s'ouvre**, et se rouvre à l'arrêt, comme la bibliothèque.
+- **Le panneau Variables se replie au lancement quand un analyseur logique s'ouvre**, se déplie à chaque pause du débogage, et se rouvre à l'arrêt.
 
 ### Correction
 
+- **Les variables Arduino sont de nouveau visibles en pause de débogage.** Un panneau Variables replié restait fermé à la pause ; il se déplie désormais, et se replie à la reprise.
 - **Les propriétés d'une sonde logique ne s'affichent plus en plusieurs exemplaires** quand on la pose sur une patte. Même correction pour l'interrupteur 3V3/5V du Grove Shield et les bascules dessinées sur les composants.
 - **Changer le déclenchement de l'analyseur ne fait plus disparaître la courbe** au premier lancement de la simulation.
 - **Ouvrir une deuxième fenêtre de VS Code n'efface plus la mesure de l'analyseur logique en cours dans la première.** L'export CSV restait incomplet.
