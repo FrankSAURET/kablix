@@ -33,6 +33,8 @@ const ANNOT_H = 18;
  * les créneaux (Frank, 24/09) ; la bande est haussée d'autant.
  */
 const ANNOT_PX = 11;
+/** Largeur sous laquelle un bit de l'affichage binaire n'est plus dessiné. */
+const BIT_MIN_PX = 3;
 
 /**
  * Couleurs du niveau lu au réticule : 0 en rouge, 1 en vert (Frank, 24/09). Le
@@ -883,6 +885,39 @@ export class AnalyseurVue {
       couverts.push({ rangee: rangee(piste, ligne), t0: r.t0, t1: r.t1 });
     }
 
+    // Affichage binaire : un trait pointillé à chaque bord de bit, du haut du
+    // créneau jusqu'au bas de la ligne des bits — l'œil suit le bit du front
+    // qui l'a posé au chiffre qui le lit. Un bit de moins de BIT_MIN_PX n'est
+    // plus dessiné du tout : de loin, bits et traits ne feraient qu'un aplat.
+    const separes = new Map<number, Set<number>>();
+    ctx.save();
+    ctx.strokeStyle = fg;
+    ctx.globalAlpha = 0.45;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 2]);
+    ctx.beginPath();
+    for (const a of e.annotations) {
+      if (!a.bit) continue;
+      const piste = pisteDe(a);
+      const { x0, x1 } = boite(a);
+      if (x1 - x0 < BIT_MIN_PX || x1 < xMin || x0 > xMax) continue;
+      const haut = hauts[piste]! + (PISTE_H - CRENEAU_H) / 2;
+      const bas = yDe(piste, ligneDe(a, piste)) + ANNOT_H - 3;
+      let vus = separes.get(piste);
+      if (!vus) separes.set(piste, (vus = new Set()));
+      for (const x of [x0, x1]) {
+        const xr = Math.round(x);
+        // Deux bits voisins partagent un bord : un seul trait, sinon les deux
+        // pointillés décalés d'un demi-pas en font un plein.
+        if (x < xMin || x > xMax || vus.has(xr)) continue;
+        vus.add(xr);
+        ctx.moveTo(xr + 0.5, haut);
+        ctx.lineTo(xr + 0.5, bas);
+      }
+    }
+    ctx.stroke();
+    ctx.restore();
+
     // Dernier x occupé, PAR RANGÉE : une annotation qui chevaucherait la
     // précédente est dessinée en trait seul, sans texte — l'élève zoome pour
     // la lire. Le suivi est par piste depuis qu'on décode plusieurs bus (un
@@ -905,6 +940,7 @@ export class AnalyseurVue {
       const y = yDe(piste, ligne);
       const { x0, x1, g, d } = boite(a);
       if (x1 < xMin || x0 > xMax) continue;
+      if (a.bit && x1 - x0 < BIT_MIN_PX) continue;
       const c = couleurs[a.nature];
       ctx.fillStyle = c;
       ctx.globalAlpha = 0.22;

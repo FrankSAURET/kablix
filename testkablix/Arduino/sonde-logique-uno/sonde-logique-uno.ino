@@ -10,6 +10,7 @@
 //               aucun front a montrer ;
 //   SD4 (A0)  : broche analogique lisible en numerique — tracee, mais
 //               signalee : on ne verra que 0 ou 1, pas la tension.
+bool lent = false;
 void setup()
 {
   pinMode(8, OUTPUT);
@@ -25,7 +26,6 @@ void loop()
   digitalWrite(8, LOW);
   delayMicroseconds(200);
   // D9 : un tour sur deux, donc deux fois plus lent que D8.
-  static bool lent = false;
   lent = !lent;
   if (lent)
   {

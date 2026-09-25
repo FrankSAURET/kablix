@@ -27,8 +27,6 @@ L'ordre des numéros est celui **choisi par Frank**, pas un classement par inté
 | 9   | [Notation automatique](#9-notation-automatique-par-assertions)                | ★★★★☆   | **L** | À faire, plus tard             |
 | 10  | [Vue des périphériques internes](#10-vue-des-périphériques-internes-timer-adc) | ★★★★☆   | **L** | À faire, plus tard             |
 
-Cinq pistes ont quitté cette feuille : **l'analyseur logique** et **les variables locales sur AVR** sont **livrés** (v2026.9.5) ; la **comparaison visuelle de schémas**, le **rembobinage de la simulation** et le **mode Time Attack** ont été écartés.
-
 ---
 
 ## 1. Consommation énergétique en temps réel

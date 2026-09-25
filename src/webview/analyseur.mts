@@ -773,12 +773,14 @@ function panneauDecodage(d: ReglageDecodage, voie: number): HTMLElement {
     // Changer de protocole vide les rôles : les voies d'un I²C (SCL/SDA) ne
     // veulent rien dire pour un DMX, et les garder ferait décoder n'importe
     // quoi. La voie de données, elle, reste — c'est celle qu'on regarde.
-    // La base d'affichage, elle, est une façon de LIRE, pas un rôle : elle reste.
-    const { id, base } = d;
+    // La base d'affichage et les bits, eux, sont une façon de LIRE, pas un
+    // rôle : ils restent.
+    const { id, base, bits } = d;
     for (const k of Object.keys(d)) delete (d as unknown as Record<string, unknown>)[k];
     d.protocole = selProto.value as Protocole;
     d.id = id;
     if (base) d.base = base;
+    if (bits) d.bits = true;
     d.donnees = voie;
     refaire();
     // Le panneau montre d'autres rôles selon le bus : on le refait sur place.
@@ -904,6 +906,21 @@ function panneauDecodage(d: ReglageDecodage, voie: number): HTMLElement {
   });
   labBase.append(selBase);
   boite.append(labBase);
+
+  // Affichage binaire, pour tous les bus : chaque bit sous son créneau, borné
+  // par un séparateur. Décochée (défaut), la case n'écrit rien dans le projet.
+  const labBits = document.createElement('label');
+  labBits.title = t('Write each bit under the signal, with a marker between bits.');
+  const caseBits = document.createElement('input');
+  caseBits.type = 'checkbox';
+  caseBits.checked = d.bits === true;
+  caseBits.addEventListener('change', () => {
+    if (caseBits.checked) d.bits = true;
+    else delete d.bits;
+    refaire();
+  });
+  labBits.append(caseBits, document.createTextNode(t('Bits')));
+  boite.append(labBits);
 
   const oter = document.createElement('button');
   oter.type = 'button';

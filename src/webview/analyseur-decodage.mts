@@ -83,6 +83,12 @@ export interface Annotation {
    * dernière piste, comme avant.
    */
   voie?: number;
+  /**
+   * Un BIT de l'affichage binaire (`ReglageDecodage.bits`) : sa cellule sur le
+   * fil, et `0`/`1` pour texte. La vue trace un séparateur à chacun de ses
+   * bords, du créneau jusqu'au chiffre.
+   */
+  bit?: boolean;
 }
 
 /**
@@ -143,6 +149,12 @@ export interface ReglageDecodage {
    * noms de commande et les grandeurs physiques (°C, %HR) restent tels quels.
    */
   base?: 'hex' | 'dec';
+  /**
+   * Affichage binaire : chaque bit lu s'écrit (`0`/`1`) juste sous le créneau,
+   * dans sa cellule, et un séparateur borne chaque cellule. Les octets et les
+   * repères de trame descendent d'une ligne. Absent = pas de bits.
+   */
+  bits?: boolean;
   /**
    * Identifiant stable du réglage, pour que l'interface puisse en éditer un
    * parmi plusieurs sans se tromper de ligne. Le décodage ne s'en sert pas.
@@ -285,6 +297,38 @@ function frontAvant(fronts: Front[], t: number, borne: number, niveau: 0 | 1 | n
   return null;
 }
 
+/** Pose un bit de l'affichage binaire : cellule, valeur lue, nature de la partie qu'il porte. */
+type PoseBit = (t0: number, t1: number, valeur: 0 | 1 | null, nature: NatureAnnotation) => void;
+
+/**
+ * Le poseur de bits d'un décodeur : il n'écrit rien quand le réglage ne demande
+ * pas l'affichage binaire — dix annotations de plus par caractère pour rien.
+ */
+function poseurBits(out: Annotation[], r: ReglageDecodage): PoseBit {
+  if (!r.bits) return () => {};
+  return (t0, t1, valeur, nature) => {
+    out.push({ t0, t1, texte: valeur === null ? '?' : String(valeur), nature, bit: true });
+  };
+}
+
+/**
+ * Cellule d'un bit de bus à horloge, échantillonné au front `t` : du front
+ * d'horloge OPPOSÉ qui le précède à celui qui le suit — c'est entre eux que
+ * l'émetteur pose sa donnée et la tient. Un côté plus de deux fois plus long
+ * que l'autre (premier bit après un repos, dernier de la capture) est ramené à
+ * la demi-période de l'autre : sinon le premier bit d'une trame s'étalerait sur
+ * tout le silence qui la précède.
+ */
+function celluleHorloge(fronts: Front[], t: number, oppose: 0 | 1): [number, number] {
+  const avant = frontAvant(fronts, t, Number.NEGATIVE_INFINITY, oppose);
+  const apres = frontApres(fronts, t, Number.POSITIVE_INFINITY, oppose);
+  let g = avant ? t - avant.t : Number.POSITIVE_INFINITY;
+  let d = apres ? apres.t - t : Number.POSITIVE_INFINITY;
+  if (g > 2 * d) g = d;
+  if (d > 2 * g) d = g;
+  return Number.isFinite(g) ? [t - g, t + d] : [t, t];
+}
+
 // --- I²C ---------------------------------------------------------------------
 
 /**
@@ -306,6 +350,7 @@ function decoderI2c(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
   if (!scl || !sda) return [];
 
   const out: Annotation[] = [];
+  const poseBit = poseurBits(out, r);
   const lecteurSda = new Lecteur(sda.fronts, sda.niveauInitial);
   // Les fronts de SDA servent à repérer START/STOP : on les parcourt en
   // parallèle de l'horloge, avec un curseur propre.
@@ -320,6 +365,17 @@ function decoderI2c(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
   let attendAdresse = false;
   /** Vrai entre un START et son STOP. */
   let dansTrame = false;
+  /**
+   * Bits de l'octet en cours, posés à l'affichage binaire quand l'octet se
+   * termine. Un STOP (ou un START répété) est précédé d'une impulsion d'horloge
+   * que l'échantillonnage lit comme le 1er bit d'un octet : seul, ce bit n'en
+   * est pas un et s'efface.
+   */
+  let enAttente: Parameters<PoseBit>[] = [];
+  const verser = (): void => {
+    for (const b of enAttente) poseBit(...b);
+    enAttente = [];
+  };
 
   /**
    * Consomme les fronts de SDA antérieurs à `limite` : ceux qui tombent horloge
@@ -342,6 +398,8 @@ function decoderI2c(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
           texte: dansTrame ? t('START rep.') : 'START',
           nature: 'start',
         });
+        if (bits > 1) verser();
+        enAttente = [];
         dansTrame = true;
         attendAdresse = true;
         bits = 0;
@@ -352,9 +410,13 @@ function decoderI2c(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
         // de SDA.
         const debut = frontAvant(scl.fronts, fs.t, Number.NEGATIVE_INFINITY, 1);
         out.push({ t0: debut ? debut.t : fs.t, t1: fs.t, texte: 'STOP', nature: 'stop' });
-        if (bits > 0) {
+        // Un seul bit lu : c'est l'impulsion d'horloge du STOP lui-même (SCL
+        // remonte, SDA basse, puis SDA remonte), pas un octet commencé.
+        if (bits > 1) {
           out.push({ t0: debutOctet, t1: fs.t, texte: t('truncated'), nature: 'erreur' });
+          verser();
         }
+        enAttente = [];
         dansTrame = false;
         attendAdresse = false;
         bits = 0;
@@ -373,12 +435,19 @@ function decoderI2c(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
 
     const bit = lecteurSda.a(f.t);
     if (bit === null) continue; // SDA jamais observée : on ne devine pas
+    // Le bit vit entre deux fronts DESCENDANTS de SCL : SDA change horloge basse.
+    if (r.bits) {
+      const cellule = celluleHorloge(scl.fronts, f.t, 0);
+      if (bits < 8) enAttente.push([...cellule, bit, 'donnee']);
+      else poseBit(...cellule, bit, 'controle');
+    }
 
     if (bits === 0) debutOctet = f.t;
     if (bits < 8) {
       acc = (acc << 1) | bit; // I²C : MSB en premier
       bits += 1;
       if (bits === 8) {
+        verser();
         if (attendAdresse) {
           const adr = acc >> 1;
           const sens = (acc & 1) === 1 ? 'R' : 'W';
@@ -410,6 +479,8 @@ function decoderI2c(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
   // impulsion d'horloge. Sans cette purge, la fin de toute trame I²C serait
   // muette — le défaut passe inaperçu tant qu'on ne regarde que le milieu.
   delimiteurs(Number.POSITIVE_INFINITY);
+  // Capture arrêtée au milieu d'un octet : ses bits restent lisibles.
+  verser();
   return out;
 }
 
@@ -440,6 +511,7 @@ function decoderSpi(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
   const mode = r.mode ?? 0;
   const surMontant = mode === 0 || mode === 3;
   const out: Annotation[] = [];
+  const poseBit = poseurBits(out, r);
 
   const lMosi = mosi ? new Lecteur(mosi.fronts, mosi.niveauInitial) : null;
   const lMiso = miso ? new Lecteur(miso.fronts, miso.niveauInitial) : null;
@@ -492,6 +564,9 @@ function decoderSpi(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
 
     const bM = lMosi ? lMosi.a(f.t) : null;
     const bS = lMiso ? lMiso.a(f.t) : null;
+    // Les bits de la ligne sous laquelle ils s'écrivent : MOSI, ou MISO seule.
+    // La donnée change sur le front OPPOSÉ à celui qui l'échantillonne.
+    if (r.bits) poseBit(...celluleHorloge(sck.fronts, f.t, surMontant ? 0 : 1), mosi ? bM : bS, 'donnee');
     if (bits === 0) debutOctet = f.t;
     accMosi = (accMosi << 1) | (bM ?? 0); // SPI : MSB en premier
     accMiso = (accMiso << 1) | (bS ?? 0);
@@ -560,6 +635,7 @@ function decoderDmx(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
   const fr = v.fronts;
   const lect = new Lecteur(fr, v.niveauInitial);
   const out: Annotation[] = [];
+  const poseBit = poseurBits(out, r);
 
   /** Numéro du prochain canal (1..512) ; −1 = trame sans canaux lisibles. */
   let canal = -1;
@@ -655,6 +731,17 @@ function decoderDmx(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
       texte: stop === 1 ? 'STOP' : t('framing'),
       nature: stop === 1 ? 'stop' : 'erreur',
     });
+    if (r.bits) {
+      poseBit(t0, t0 + b, 0, 'start');
+      for (let k = 0; k < 8; k++) poseBit(t0 + b * (1 + k), t0 + b * (2 + k), ((acc >> k) & 1) as 0 | 1, 'donnee');
+      poseBit(t0 + b * 9, t0 + b * 10, stop, stop === 1 ? 'stop' : 'erreur');
+      // Le 2e bit d'arrêt, seulement s'il est là : un émetteur à un seul bit
+      // d'arrêt enchaîne le créneau suivant dès le 10e bit.
+      if (finArret >= t0 + b * 10.5) {
+        const stop2 = lect.a(t0 + b * 10.5);
+        poseBit(t0 + b * 10, Math.min(finArret, t0 + b * 11), stop2, stop2 === 1 ? 'stop' : 'erreur');
+      }
+    }
 
     if (attendStart) canal = acc === 0 && !malCadre ? 1 : -1;
     else if (canal >= 1) canal += 1;
@@ -713,6 +800,7 @@ function decoderUart(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
   const tol = r.tolerance && r.tolerance > 0 ? r.tolerance : 0.25;
 
   const out: Annotation[] = [];
+  const poseBit = poseurBits(out, r);
   const lect = new Lecteur(v.fronts, v.niveauInitial);
   /** Instant au-delà duquel le caractère en cours est terminé. */
   let finCourante = -Infinity;
@@ -744,10 +832,13 @@ function decoderUart(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
 
     let rang = 1 + nbData;
     let pariteFausse = false;
+    /** Bit de parité lu, pour l'affichage binaire. */
+    let bitParite: 0 | 1 | null = null;
     if (parite !== 'none') {
       const p = lect.a(t0 + bitMs * (0.5 + rang));
       const attendu = parite === 'even' ? uns % 2 : 1 - (uns % 2);
       pariteFausse = p !== null && p !== attendu;
+      bitParite = p;
       rang += 1;
     }
     // Le bit d'arrêt doit valoir 1. À 0, c'est un « framing error » : vitesse
@@ -785,6 +876,22 @@ function decoderUart(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
       texte: stop === 0 ? t('framing') : 'STOP',
       nature: stop === 0 ? 'erreur' : 'stop',
     });
+    if (r.bits) {
+      poseBit(t0, t0 + bitMs, 0, 'start');
+      for (let i = 0; i < nbData; i++) {
+        poseBit(t0 + bitMs * (1 + i), t0 + bitMs * (2 + i), ((acc >> i) & 1) as 0 | 1, 'donnee');
+      }
+      if (parite !== 'none') {
+        poseBit(t0 + bitMs * (1 + nbData), t0 + bitMs * rang, bitParite, pariteFausse ? 'erreur' : 'controle');
+      }
+      poseBit(t0 + bitMs * rang, t0 + bitMs * (rang + 1), stop, stop === 0 ? 'erreur' : 'stop');
+      if (nbStop === 2) {
+        // Lu en son milieu, comme les autres : le caractère suivant ne peut pas
+        // commencer avant (cf. `finCourante`), le curseur reste monotone.
+        const stop2 = lect.a(t0 + bitMs * (rang + 1.5));
+        poseBit(t0 + bitMs * (rang + 1), t1, stop2, stop2 === 0 ? 'erreur' : 'stop');
+      }
+    }
   }
   return out;
 }
@@ -799,6 +906,8 @@ const OW = {
   seuilBit: 30,
   /** Un creux plus court que cela n'est pas un slot : c'est du parasite. */
   miniSlot: 1,
+  /** Durée d'un slot de bit (norme : 60 à 120 µs) : la cellule de l'affichage binaire. */
+  slot: 60,
   /** Silence qui referme un octet resté incomplet (fin de transaction). */
   repos: 200,
 } as const;
@@ -839,6 +948,7 @@ function decoderOneWire(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
 
   const usMs = 1 / 1000; // un µs en ms simulées
   const out: Annotation[] = [];
+  const poseBit = poseurBits(out, r);
 
   let acc = 0;
   let bits = 0;
@@ -880,6 +990,14 @@ function decoderOneWire(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
     if (creuxUs < OW.miniSlot) continue; // trop bref pour être un slot
 
     const bit = creuxUs < OW.seuilBit ? 1 : 0;
+    if (r.bits) {
+      // Le slot dure 60 µs par la norme, un « 0 » long davantage ; il s'arrête
+      // au plus tard au creux qui ouvre le slot suivant.
+      const ouvre = frontApres(v.fronts, suivant.t, Number.POSITIVE_INFINITY, 0);
+      let fin = Math.max(suivant.t, f.t + OW.slot * usMs);
+      if (ouvre && ouvre.t < fin) fin = ouvre.t;
+      poseBit(f.t, fin, bit, 'donnee');
+    }
     if (bits === 0) tOctet = f.t;
     if (bit === 1) acc |= 1 << bits; // 1-Wire : LSB en premier
     bits += 1;
@@ -949,6 +1067,7 @@ function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
   const usMs = 1 / 1000;
   const modele = r.modele ?? 'dht22';
   const out: Annotation[] = [];
+  const poseBit = poseurBits(out, r);
 
   /** Bits de la trame en cours, MSB d'abord (le DHT n'inverse pas, lui). */
   let bits: number[] = [];
@@ -1050,6 +1169,13 @@ function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
     }
     if (!enTrame) continue; // du bruit hors trame : rien à en tirer
 
+    if (r.bits) {
+      // Le bit va de son creux au creux suivant. Pour le dernier, que suit le
+      // repos, son palier est rendu à la durée que lui donne le capteur.
+      const bit = hautUs >= DHT.seuilBit ? 1 : 0;
+      const fin = descendant && hautUs < DHT.repos ? descendant.t : montant.t + (bit ? 70 : 28) * usMs;
+      poseBit(f.t, fin, bit, 'donnee');
+    }
     if (hautUs >= DHT.repos) {
       // La ligne est retombée au repos : la trame s'arrête ici, complète ou non.
       bits.push(hautUs >= DHT.seuilBit ? 1 : 0);
@@ -1120,10 +1246,13 @@ export function decoder(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
         return decoderDht(voies, r);
     }
   })();
+  // Affichage binaire : les bits prennent la ligne juste sous le créneau, au
+  // plus près des fronts qu'ils lisent ; octets et repères descendent d'une.
+  const placees = r.bits ? sorties.map((a) => (a.bit ? a : { ...a, ligne: (a.ligne ?? 0) + 1 })) : sorties;
   // Chaque annotation part avec SA voie de données : c'est ce qui permet à la
   // vue de poser deux décodages simultanés sous deux pistes différentes.
   const ancre = ancreDe(r);
-  return ancre === undefined ? sorties : sorties.map((a) => ({ ...a, voie: ancre }));
+  return ancre === undefined ? placees : placees.map((a) => ({ ...a, voie: ancre }));
 }
 
 /**
@@ -1153,7 +1282,8 @@ export function lignesDe(p: Protocole): number {
 export function lignesSousVoie(reglages: ReglageDecodage[], voie: number): number {
   let n = 1;
   for (const r of reglages) {
-    if (reglageComplet(r) && ancreDe(r) === voie) n = Math.max(n, lignesDe(r.protocole));
+    // L'affichage binaire ajoute sa ligne au-dessus de celles du protocole.
+    if (reglageComplet(r) && ancreDe(r) === voie) n = Math.max(n, lignesDe(r.protocole) + (r.bits ? 1 : 0));
   }
   return n;
 }
