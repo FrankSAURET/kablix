@@ -1423,7 +1423,7 @@ const oneWireDe = (sequence) => {
     /labBase\.textContent = t\('Values'\)/.test(js) && /\['dec', t\('Decimal'\)\]/.test(js) &&
       !/if \(d\.protocole === '[a-z0-9]+'\) \{[^}]*labBase/.test(js));
   check('Base : changer de protocole garde la base choisie',
-    /const \{ id, base \} = d;[\s\S]{0,200}if \(base\) d\.base = base;/.test(js));
+    /const \{ id, base(?:, \w+)* \} = d;[\s\S]{0,200}if \(base\) d\.base = base;/.test(js));
   const fiche = readFileSync(join(root, 'docs', 'fr', 'composants', 'sonde-logique.md'), 'utf8');
   check('Base : la fiche d\'aide explique le choix hexadécimal / décimal',
     /\*\*Valeurs\*\*[^\n]*hexadécimal[^\n]*décimal/i.test(fiche));

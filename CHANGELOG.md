@@ -11,6 +11,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **L'analyseur peut déclencher sur le START code DMX** : sur une voie décodée en DMX512, le menu T propose `START code 0x00`. La capture se fige au début de la trame d'éclairage suivante.
 - **Le décodage DMX512 détaille chaque trame** : `BREAK`, `MAB`, `START code`, puis pour chaque canal son `Start`, sa valeur en hexadécimal (`c1=0xC8`) et son `STOP`, avec les `PAUSE` et le `MBB` entre les créneaux.
 - **Le projecteur DMX PAR 38 lit son quatrième canal, les effets** : intensité de 0 à 189, clignotement de 190 à 250, couleur inchangée au-delà. À 0, le projecteur reste éteint.
+- **Affichage binaire dans l'analyseur logique** : la case `Bits` du panneau de décodage écrit chaque bit (`0` ou `1`) sous le créneau qui le porte, séparé du suivant par un trait pointillé posé sur les fronts. Elle vaut pour tous les protocoles.
 - **Marqueurs M1 et M2 dans l'analyseur logique** : ils attendent à gauche de la barre de temps. Glissés sur les courbes, ils se collent au front le plus proche et tracent un trait de leur couleur. Posés tous les deux, une flèche donne la durée qui les sépare.
 
 ### Modification

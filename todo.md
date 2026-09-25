@@ -1,6 +1,5 @@
 # À faire
 1. Analyseur logique :
-    1. Rajoute un affichage binaire. S'il est sélectionné, les bit s'affichent en dessous du signal en  étant synchronisé avec et un marqueur sépare chaque bit
     1. Fait moi un fichier de test pour l'uart arduino et pico 
     1. Dans la marge tu affiches la valeur des tensions de l'état haut et l'état bas avec 1 chiffre aprés la virgule (mais pas le 0)
     1. DMX (mon fichier de test principal est maintenant dmx-uno-lib) :
@@ -16,6 +15,16 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.150
+1. ✅ **Affichage binaire dans l'analyseur** (Frank : « Rajoute un affichage binaire. S'il est sélectionné, les bits s'affichent en dessous du signal en étant synchronisé avec et un marqueur sépare chaque bit »). Code et banc écrits dans la session VS Code (commits « v2026.9.5.149 intermédiaire » et « intermédiaire 2 »), repris et livrés ici. [analyseur-decodage.mts](src/webview/analyseur-decodage.mts) : réglage `bits`, les six décodeurs sortent chaque bit lu en annotation `bit` dans SA cellule sur le fil (UART/DMX : durée du bit ; I²C/SPI : d'un front d'horloge au suivant ; 1-Wire : le slot ; DHT : de creux à creux), octets et repères descendus d'une ligne. [analyseur-vue.mts](src/webview/analyseur-vue.mts) : chiffres sous le créneau, trait pointillé à chaque bord de bit (un seul par bord), rien sous `BIT_MIN_PX` = 3 px. [analyseur.mts](src/webview/analyseur.mts) : case « Bits » du panneau de décodage, décochée = rien écrit dans le projet, gardée au changement de protocole.
+2. ✅ **Fiche d'aide** [sonde-logique.md](docs/fr/composants/sonde-logique.md) : paragraphe de la case **Bits** (ordre des bits par protocole, repères descendus, chiffres masqués de loin). **CHANGELOG** : entrée « Affichage binaire » sous 2026.9.6.
+3. ✅ **Banc** [verify-analyseur-bits.mjs](scripts/verify-analyseur-bits.mjs) déclaré (`verify:analyseur-bits`, dans `verify:all:serie`) ; il accepte aussi `CHROME_PATH` (chemins Windows inchangés). **43 contrôles verts**. **Contre-épreuve** avec les trois sources de `100d08b` (d'avant l'affichage binaire) : **30 échecs sur 43**. ℹ️ `--ancien` compile HEAD, qui contient déjà la fonction depuis les commits intermédiaires : il ne vaut contre-épreuve que sur un arbre non commité.
+4. ✅ **Correction du banc** [verify-analyseur.mjs](scripts/verify-analyseur.mjs) : le contrôle « changer de protocole garde la base choisie » exigeait le texte exact `const { id, base } = d;` — il accepte désormais d'autres réglages gardés (`bits`). Le comportement n'a pas changé.
+5. ✅ **Tests** : `typecheck` et construction verts ; tous les `verify:analyseur-*` verts (rendu, dht-vue, marqueurs, projix, recharge, export joués dans Chromium), `verify:decode` vert.
+6. ⏳ Traductions avant publication : `Bits` et l'infobulle `Write each bit under the signal, with a marker between bits.` ([i18n.mts](src/webview/i18n.mts)), fiche EN de la sonde logique à aligner.
 
 ---
 

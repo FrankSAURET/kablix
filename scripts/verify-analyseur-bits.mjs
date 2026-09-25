@@ -347,8 +347,8 @@ const FRONTS_PLATS = FRONTS.flatMap(({ t, niveau }) => [t, niveau]);
 const T_DEBUT = FRONTS[0].t;
 const T_FIN = FRONTS[FRONTS.length - 1].t;
 
-const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
-	'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
+const chrome = [process.env.CHROME_PATH, 'C:/Program Files/Google/Chrome/Application/chrome.exe',
+	'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find((p) => p && existsSync(p));
 const proc = spawn(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox', '--force-device-scale-factor=1',
 	`--remote-debugging-port=${PORT}`, `--user-data-dir=${join(tmp, 'profil')}`, '--window-size=1200,700',
 	`file:///${fichier.replace(/\\/g, '/')}`], { stdio: 'ignore' });

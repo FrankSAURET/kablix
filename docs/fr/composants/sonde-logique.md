@@ -88,6 +88,8 @@ La **vitesse** et le **format** d'une ligne UART non plus : deux vitesses voisin
 
 La **base** des octets, elle, est un simple choix de lecture, commun à tous les protocoles : le réglage **Valeurs** du décodage les écrit en **hexadécimal** (`0x44`, par défaut — l'écriture des fiches techniques) ou en **décimal** (`68`, celle du programme qui compare une lecture à un nombre). Les repères de trame, les noms de commande (`CONVERT T`) et les mesures (`23,4 °C`) ne changent pas. Deux décodages d'une même capture gardent chacun leur base.
 
+La case **Bits** ajoute, elle aussi pour tous les protocoles, l'**affichage binaire** : chaque bit lu s'écrit en `0` ou `1` juste sous le créneau qui le porte, dans l'ordre du fil, et un trait pointillé sépare deux bits voisins, pile sur les fronts. C'est la trame telle que le récepteur la lit : le bit de `Start` et les bits de `STOP` d'un caractère UART, les données envoyées **bit de poids faible d'abord** (UART, DMX, 1-Wire) ou **de poids fort d'abord** (I²C, SPI, DHT), le bit d'`ACK` d'un octet I²C. Les octets et les repères descendent d'une ligne pour laisser la place. De loin, quand un bit ne fait plus que quelques pixels, les chiffres disparaissent : zoomez pour les lire. Changer de protocole garde la case cochée.
+
 ### Ce que chaque décodage montre
 
 - **UART** — chaque caractère se découpe comme sur le fil : le `Start` (un bit, vert), la valeur et, quand il est imprimable, le caractère lui-même (`0x48 'H'`), puis le `STOP` (rouge). Un bit d'arrêt manquant est signalé `cadrage` à la place du `STOP`, une parité fausse `parité` sur le bit de parité — la valeur reste affichée, à vous de juger.
