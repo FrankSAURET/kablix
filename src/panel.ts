@@ -1593,14 +1593,21 @@ export class SimulatorPanel {
    * les voies déjà déclarées et la capture déjà faite, pas partir du vide.
    */
   private etatAnalyseur(): EtatAnalyseur {
+    // La mesure de CETTE session d'abord : le journal la tient au fil de l'eau,
+    // la page, elle, la perd dès que VS Code la recharge (onglet déplacé vers une
+    // autre fenêtre). La capture d'un ancien .projix ne vaut que si aucun run n'a
+    // eu lieu : juste après un départ, le journal est encore vide, et la rendre
+    // ferait rejouer la vieille mesure devant les fronts du run qui commence.
+    const journal = AnalyseurJournal.existant(this.analyseurCle());
+    const mesure = journal ? journal.capture() : this.analyseurCapture;
     return {
       voies: this.analyseurVoies,
       enCours: this.analyseurEnCours,
       // La capture PORTE les réglages : l'onglet les applique dans le même
       // geste (message `restaure`), sinon il afficherait la bonne capture avec
       // le déclenchement de personne.
-      capture: this.analyseurCapture
-        ? { ...(this.analyseurCapture as object), ...((this.analyseurReglages as object) ?? {}) }
+      capture: mesure
+        ? { ...(mesure as object), ...((this.analyseurReglages as object) ?? {}) }
         : this.analyseurReglages
           ? { voies: [], ...(this.analyseurReglages as object) }
           : null,
@@ -1687,14 +1694,16 @@ export class SimulatorPanel {
    */
   public static reprendreAnalyseur(
     cle: string
-  ): { etat: EtatAnalyseur; surReglages: (m: AnalyseurVersHote) => void } {
+  ): { fournirEtat: () => EtatAnalyseur; surReglages: (m: AnalyseurVersHote) => void } {
     // L'ATELIER N'EST PAS ENCORE LÀ, et c'est le cas NORMAL. VS Code restaure
     // les webviews à l'activation, bien avant d'avoir rouvert le .projix qui
     // fabrique l'atelier. On ne refuse donc pas l'onglet : on le rend vivant
     // tout de suite et on le sert au vol — l'atelier est cherché À CHAQUE appel,
     // si bien qu'il suffit qu'il arrive plus tard pour que tout reparte.
+    // L'état aussi : la page prête reçoit l'état DU MOMENT, pas celui du réveil.
     return {
-      etat: SimulatorPanel.parCleAnalyseur(cle)?.etatAnalyseur() ?? { voies: [], capture: null },
+      fournirEtat: () =>
+        SimulatorPanel.parCleAnalyseur(cle)?.etatAnalyseur() ?? { voies: [], capture: null },
       surReglages: (m: AnalyseurVersHote) => {
         SimulatorPanel.parCleAnalyseur(cle)?.surReglagesAnalyseur(m);
       },

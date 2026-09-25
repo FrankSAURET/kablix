@@ -1,7 +1,6 @@
 # À faire
 1. Analyseur logique :
-    1. Si je déplace l'onglet vscode (sur un autre écran par exemple) les courbes disparaissent
-        1. Rajoute un affichage binaire. S'il est sélectionné, les bit s'affichent en dessous du signal en  étant synchronisé avec et un marqueur sépare chaque bit
+    1. Rajoute un affichage binaire. S'il est sélectionné, les bit s'affichent en dessous du signal en  étant synchronisé avec et un marqueur sépare chaque bit
     1. Fait moi un fichier de test pour l'uart arduino et pico 
     1. Dans la marge tu affiches la valeur des tensions de l'état haut et l'état bas avec 1 chiffre aprés la virgule (mais pas le 0)
     1. DMX (mon fichier de test principal est maintenant dmx-uno-lib) :
@@ -14,6 +13,17 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.149
+1. ✅ **Correction : déplacer l'onglet de l'analyseur vers une autre fenêtre effaçait les courbes** (Frank : « si je déplace l'onglet VS Code, sur un autre écran par exemple, les courbes disparaissent »). Cause : VS Code RECHARGE la page d'un onglet déplacé ; elle repart vide et se redit prête. L'hôte ne lui rendait que la capture de l'ancien .projix (souvent rien), les salves postées pendant le rechargement étaient perdues, et le `depart` renvoyé effaçait le reste. La mesure du run n'existait plus que dans le journal CSV.
+2. ✅ **Le journal garde la mesure en mémoire** : [analyseur-journal.ts](src/analyseur-journal.ts) retient par broche une TÊTE (70 000 premiers fronts : capture déclenchée tôt) et une QUEUE (70 000 derniers : fin du run), `capture()` les rend. [panel.ts](src/panel.ts) `etatAnalyseur()` : la mesure de la session d'abord, celle du .projix seulement si aucun run n'a eu lieu.
+3. ✅ **La page rechargée reçoit l'état complet** : [analyseur-panel.ts](src/analyseur-panel.ts), à chaque « prête », la file d'attente est jetée (la mesure la contient déjà) et l'hôte pousse voies → départ (si run en cours) → mesure, via `fournirEtat()` lu à l'instant. Révéler un onglet déjà vivant ne lui renvoie plus que ses voies.
+4. ✅ **Rejeu fidèle** : [analyseur-capture.mts](src/webview/analyseur-capture.mts) `rejouer()` verse la mesure par tranches de temps (1 024 fronts, toutes broches ensemble), [analyseur.mts](src/webview/analyseur.mts) `restaurer()` règle échantillonnage, inversions, vitesses et déclenchement AVANT le rejeu (versée d'abord, la mesure était rabotée à la fin du run avant que le déclenchement n'existe). `verser()` garde un front d'AVANT l'instant où la capture s'est remplie : versé dans la même salve après la broche qui l'a remplie, il était jeté et la voie restait plate jusqu'à 10 ms avant la fin.
+5. ✅ **Deux trous bouchés en route** : un départ sans front encore reçu renvoyait la vieille capture du .projix (rejouée devant le nouveau run) ; une mesure vide accompagnée de réglages vidait les voies de la capture de la page — un onglet ouvert en plein run avec un déclenchement réglé restait plat. Les voies du schéma sont gardées.
+6. ✅ **Banc** [verify-analyseur-recharge.mjs](scripts/verify-analyseur-recharge.mjs) (`verify:analyseur-recharge`, dans `verify:all:serie`) : hôte (vrais panel.ts, analyseur-panel.ts, journal ; page rechargée en plein run, à l'arrêt, onglet ouvert en plein run, .projix hérité, run de 250 000 fronts), capture (rejeu = direct, avec et sans déclenchement, sur tête + queue), page dans Chrome (même état « Capture full at 600.0 ms » qu'en direct, pistes tracées contre un témoin). 32 contrôles verts ; **contre-épreuve** `--ancien` (5 fichiers de HEAD) : 19 échecs. [verify-analyseur.mjs](scripts/verify-analyseur.mjs) : motif de `declarerVoies` mis à jour, contrôle « réglages seuls ». Tous les `verify:analyseur-*`, `verify:oscillo`, `verify:sonde-fil`, typecheck et construction verts.
+7. ℹ️ Limite : un déclenchement réarmé en plein run, ou tombé dans le trou entre tête et queue d'un très long run, ne se rejoue pas à l'identique après un rechargement.
 
 ---
 

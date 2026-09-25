@@ -78,6 +78,13 @@ export const FRONTS_MAX_PAR_VOIE = 60_000;
  */
 export const RESERVE_AVANT = FRONTS_MAX_PAR_VOIE / 10;
 
+/**
+ * Fronts par broche et par tranche, au plus, quand on rejoue une capture
+ * entière (`rejouer`). Plus fin qu'une salve du moteur en plein DMX : la
+ * capture s'arrête au même front qu'en direct.
+ */
+const TRANCHE_REJEU = 1024;
+
 /** Premier indice dont l'instant est ≥ t ; `fronts.length` si aucun. */
 function premierDes(fronts: Front[], t: number): number {
   let lo = 0;
@@ -498,9 +505,13 @@ export class AnalyseurCapture {
         const t = plat[i]!;
         const niveau: 0 | 1 = plat[i + 1] ? 1 : 0;
         if (t > this.tVu) this.tVu = t;
-        // Capture pleine : le front n'entre plus, on retient seulement où en
-        // est la broche pour la prochaine acquisition.
-        if (this.plein) {
+        // Capture pleine : un front d'APRÈS l'instant où elle s'est remplie
+        // n'entre plus, on retient seulement où en est la broche pour la
+        // prochaine acquisition. Un front d'AVANT, si : il arrive dans la
+        // salve même où une broche versée plus tôt a rempli la capture, et le
+        // jeter laissait cette voie plate juste avant la fin (sur toute une
+        // tranche quand une page rechargée rejoue sa mesure).
+        if (this.plein && (t > this.tDernier || v.fronts.length >= FRONTS_MAX_PAR_VOIE)) {
           this.niveauxHors.set(pin, niveau);
           continue;
         }
@@ -523,6 +534,43 @@ export class AnalyseurCapture {
     const d = this.declenchement;
     const vd = d ? this.voies.get(d.voie) : undefined;
     if (vd) this.suivreDeclenchement(vd);
+  }
+
+  /**
+   * Verse une capture ENTIÈRE comme le moteur l'aurait versée en direct : par
+   * tranches de temps, toutes broches ensemble. D'un seul bloc, broche après
+   * broche, une capture qui se remplit (déclenchement survenu, profondeur
+   * atteinte) le faisait sur la première broche versée, et les suivantes,
+   * rendues trop tard, restaient vides. Sert au journal de session rendu à une
+   * page rechargée : il dépasse souvent de loin la profondeur de la page.
+   */
+  rejouer(salves: Record<string, number[]>): void {
+    const pins = Object.keys(salves).filter((p) => Array.isArray(salves[p]) && salves[p]!.length >= 2);
+    const pos = new Map<string, number>(pins.map((p) => [p, 0]));
+    for (;;) {
+      // Borne de la tranche : l'instant le plus proche atteint en avançant
+      // chaque broche de TRANCHE_REJEU fronts. La broche qui la fixe avance
+      // donc toujours, la boucle finit.
+      let borne = Infinity;
+      for (const p of pins) {
+        const plat = salves[p]!;
+        const i = pos.get(p)!;
+        if (i + 1 >= plat.length) continue;
+        const j = Math.min(i + 2 * TRANCHE_REJEU, plat.length - (plat.length % 2)) - 2;
+        borne = Math.min(borne, plat[j]!);
+      }
+      if (borne === Infinity) return;
+      const tranche: Record<string, number[]> = {};
+      for (const p of pins) {
+        const plat = salves[p]!;
+        const debut = pos.get(p)!;
+        let i = debut;
+        while (i + 1 < plat.length && plat[i]! <= borne) i += 2;
+        if (i > debut) tranche[p] = plat.slice(debut, i);
+        pos.set(p, i);
+      }
+      this.verser(tranche);
+    }
   }
 
   /**

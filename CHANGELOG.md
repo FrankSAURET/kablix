@@ -26,6 +26,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Correction
 
+- **Déplacer l'onglet de l'analyseur vers une autre fenêtre (un second écran) ne fait plus disparaître les courbes.** Un onglet ouvert en pleine simulation, avec un déclenchement réglé, trace de nouveau.
 - **L'instant lu au curseur de l'analyseur reste lisible sur la barre de temps** : il s'écrit sur une plaque, et la graduation qu'il recouvre s'efface.
 - **Rouvrir un projet avec l'analyseur ouvert ne double plus sa capture.** Chaque courbe se barrait d'un trait parasite.
 - **Les variables Arduino sont de nouveau visibles en pause de débogage.** Un panneau Variables replié restait fermé à la pause ; il se déplie désormais, et se replie à la reprise.

@@ -1259,16 +1259,21 @@ function restaurer(etat: EtatSerialise): void {
   const parPin = new Map<string, number>();
   for (const d of diagnostics) if (d.pin) parPin.set(d.pin, d.voie);
   const voieDe = (v: { voie: number; pin: string }): number => parPin.get(v.pin) ?? v.voie;
-  capture.declarerVoies(etat.voies.map((v) => ({ voie: voieDe(v), pin: v.pin, nom: v.nom })));
+  capture.declarerVoies(
+    etat.voies.length > 0
+      ? etat.voies.map((v) => ({ voie: voieDe(v), pin: v.pin, nom: v.nom }))
+      : // Réglages SEULS : l'hôte n'a aucune mesure à rendre (run qui démarre,
+        // projet sans capture). Les voies restent celles du schéma — les jeter
+        // laissait la capture sans broche où ranger les fronts, et l'onglet
+        // ouvert en plein run restait plat jusqu'au prochain message `voies`.
+        diagnostics.filter((d) => !d.probleme && d.pin).map((d) => ({ voie: d.voie, pin: d.pin, nom: d.nom }))
+  );
   // Une capture enregistrée est COMPLÈTE : elle remplace ce qui est affiché,
   // elle ne s'y ajoute pas. `declarerVoies` garde les fronts d'une voie à broche
   // inchangée — voulu pendant un run, faux ici : rouvrir le même projet, onglet
   // ouvert, versait une seconde fois les mêmes fronts derrière les premiers, le
   // temps repartait en arrière et chaque piste se barrait d'un trait parasite.
   capture.reinitialiser();
-  const salves: Record<string, number[]> = {};
-  for (const v of etat.voies) salves[v.pin] = v.fronts;
-  capture.verser(salves);
   // Les PISTES viennent normalement du message `voies`, que pousse l'atelier.
   // Mais à la réouverture d'un projet sans avoir relancé la simulation, l'atelier
   // n'a encore rien poussé : la liste de l'hôte est vide, et la capture du
@@ -1310,6 +1315,13 @@ function restaurer(etat: EtatSerialise): void {
   majInversions();
   majVitesses();
   capture.reglerDeclenchement(etat.declenchement ?? null);
+  // Les fronts APRÈS les réglages : la capture les reçoit comme en direct, et
+  // garde ce qu'elle aurait gardé — la fenêtre autour du déclenchement, ou la
+  // fin du run sans lui. Versés d'abord, ils étaient rabotés à la fin du run
+  // avant que le déclenchement n'existe.
+  const salves: Record<string, number[]> = {};
+  for (const v of etat.voies) salves[v.pin] = v.fronts;
+  capture.rejouer(salves);
   // Capture arrêtée : le front qui a déclenché est déjà dans les fronts rechargés.
   capture.chercherDeclenchement();
   // `decodages` depuis v2026.9.4.94 ; `decodage` (un seul) est ce qu'ont écrit

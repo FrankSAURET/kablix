@@ -530,7 +530,11 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   // sur un schéma déjà connu) et à la réception des voies (le schéma arrive sur
   // une capture déjà restaurée — l'atelier résout ses sondes en retard).
   check('réouverture : restaurer() range la capture sur les voies du SCHÉMA, par broche',
-    /parPin\.get\(v\.pin\) \?\? v\.voie/.test(bloc) && /capture\.declarerVoies\(etat\.voies\.map/.test(bloc));
+    /parPin\.get\(v\.pin\) \?\? v\.voie/.test(bloc) && /capture\.declarerVoies\(\s*(etat\.voies\.length > 0\s*\?\s*)?etat\.voies\.map/.test(bloc));
+  // Réglages SEULS (v2026.9.5.149 : run qui démarre, aucune mesure à rendre) :
+  // la capture garde les voies du schéma. Bout à bout : verify-analyseur-recharge.mjs.
+  check('réouverture : des réglages seuls ne vident pas les voies de la capture',
+    /etat\.voies\.length > 0[\s\S]{0,400}: [\s\S]{0,600}diagnostics\.filter\(\(d\) => !d\.probleme && d\.pin\)/.test(bloc));
   check('réouverture : et un message `voies` tardif renumérote la capture au lieu de la jeter',
     /capture\.renumeroter\(/.test(surVoies));
 

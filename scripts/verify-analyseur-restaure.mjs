@@ -130,7 +130,7 @@ check(typeof AnalyseurPanel.enregistrerRestauration === 'function',
 
 if (typeof AnalyseurPanel.enregistrerRestauration === 'function') {
 	AnalyseurPanel.enregistrerRestauration(extUri, (cle) => ({
-		etat: ETAT(),
+		fournirEtat: ETAT,
 		surReglages: () => {},
 	}));
 	check(vs.serialiseurs.has('kablix.analyseur'),

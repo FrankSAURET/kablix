@@ -85,7 +85,10 @@ export type HoteVersAnalyseur =
 /** Ce dont l'onglet a besoin quand il s'ouvre (ou se recharge). */
 export interface EtatAnalyseur {
   voies: unknown[];
-  /** Dernière capture connue, telle qu'enregistrée dans le .projix. */
+  /**
+   * Dernière capture connue : celle du journal de session, à défaut celle d'un
+   * ancien .projix. Porte aussi les réglages de l'instrument.
+   */
   capture: unknown | null;
   /**
    * Vrai si une simulation tourne. Au PREMIER lancement, l'atelier annonce le
@@ -129,10 +132,10 @@ export class AnalyseurPanel {
     const existant = AnalyseurPanel.ouverts.get(cle);
     if (existant) {
       existant.panel.reveal(undefined, true);
-      // La page vit déjà : on lui repousse l'état, au cas où des sondes auraient
-      // été posées pendant que l'onglet était caché. Elle a reçu le `depart`
-      // elle-même : le renvoyer effacerait ce qu'elle a déjà capturé.
-      existant.pousserEtat(fournirEtat(), false);
+      // La page vit déjà : on lui repousse ses voies, au cas où des sondes
+      // auraient été posées pendant que l'onglet était caché. Rien de plus : elle
+      // tient sa capture, et un `depart` ou un `restaure` la lui ferait refaire.
+      existant.envoyer({ type: 'voies', voies: fournirEtat().voies });
       return existant;
     }
     const panel = vscode.window.createWebviewPanel(
@@ -171,10 +174,17 @@ export class AnalyseurPanel {
     panel.webview.onDidReceiveMessage(
       (m: AnalyseurVersHote) => {
         if (m?.type === 'analyseurPret') {
+          // La page peut se dire prête PLUSIEURS FOIS : VS Code la recharge
+          // quand on déplace l'onglet vers une autre fenêtre (un second écran).
+          // Elle repart alors vide, et ce qu'on lui a posté pendant le
+          // rechargement s'est perdu. On lui rend donc l'état COMPLET du moment,
+          // capture comprise (le journal de session la tient) — et la file
+          // d'attente est jetée : tout ce qu'elle portait y est déjà. La rejouer
+          // en plus verserait deux fois les mêmes fronts, et un `depart` en file
+          // effacerait la capture qu'on vient de rendre.
           vue.prete = true;
-          vue.pousserEtat(fournirEtat());
-          for (const msg of vue.enAttente) panel.webview.postMessage(msg);
           vue.enAttente = [];
+          vue.pousserEtat(fournirEtat());
           return;
         }
         surReglages(m);
@@ -202,7 +212,9 @@ export class AnalyseurPanel {
    */
   public static enregistrerRestauration(
     extensionUri: vscode.Uri,
-    reprendre: (cle: string) => { etat: EtatAnalyseur; surReglages: (m: AnalyseurVersHote) => void } | undefined
+    reprendre: (
+      cle: string
+    ) => { fournirEtat: () => EtatAnalyseur; surReglages: (m: AnalyseurVersHote) => void } | undefined
   ): vscode.Disposable {
     return vscode.window.registerWebviewPanelSerializer(AnalyseurPanel.viewType, {
       async deserializeWebviewPanel(panel: vscode.WebviewPanel, etatRange: unknown): Promise<void> {
@@ -216,7 +228,7 @@ export class AnalyseurPanel {
         const repris = reprendre(cle);
         if (!repris) { panel.dispose(); return; }
         panel.webview.options = { enableScripts: true, localResourceRoots: [extensionUri] };
-        AnalyseurPanel.brancher(panel, extensionUri, cle, () => repris.etat, repris.surReglages);
+        AnalyseurPanel.brancher(panel, extensionUri, cle, repris.fournirEtat, repris.surReglages);
       },
     });
   }
@@ -274,8 +286,9 @@ export class AnalyseurPanel {
 
   /**
    * Envoie un message à la page. Avant qu'elle soit prête les messages sont mis
-   * de côté : un onglet ouvert au milieu d'un run doit recevoir les salves qui
-   * arrivent pendant son chargement, sinon il démarre sur un trou.
+   * de côté. Depuis v2026.9.5.149, la page prête reçoit l'état complet du moment
+   * (capture du journal comprise) et la file est jetée : elle ne sert plus qu'à
+   * ne rien poster dans une page qui ne sait pas encore écouter.
    */
   public envoyer(msg: HoteVersAnalyseur): void {
     if (!this.prete) {
@@ -297,13 +310,15 @@ export class AnalyseurPanel {
   }
 
   /**
-   * Déclare les voies, restaure la dernière capture, puis annonce le run en
-   * cours s'il y en a un (`depart` : la page qui vient de naître ne l'a pas reçu).
+   * Déclare les voies, annonce le run en cours s'il y en a un (`depart` : la
+   * page qui vient de naître ne l'a pas reçu), puis restaure la capture.
+   * Dans CET ordre : `depart` vide la capture de la page, il effaçait celle
+   * qu'on venait de lui rendre.
    */
   private pousserEtat(etat: EtatAnalyseur, depart = true): void {
     this.envoyer({ type: 'voies', voies: etat.voies });
-    if (etat.capture) this.envoyer({ type: 'restaure', etat: etat.capture });
     if (depart && etat.enCours) this.envoyer({ type: 'depart' });
+    if (etat.capture) this.envoyer({ type: 'restaure', etat: etat.capture });
   }
 
   private onDispose(): void {

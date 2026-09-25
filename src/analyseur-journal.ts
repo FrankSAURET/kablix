@@ -33,6 +33,25 @@ export interface VoieJournal {
 /** En-tête du CSV : une ligne de commentaire par voie, puis les colonnes. */
 const ENTETE = 'temps_ms,voie,broche,nom,niveau';
 
+/**
+ * Fronts gardés EN MÉMOIRE par broche, pour rendre sa capture à une page
+ * d'analyseur rechargée. Deux morceaux, tous deux au-delà des 60 000 fronts que
+ * la page garde (FRONTS_MAX_PAR_VOIE) :
+ *  - la TÊTE, les premiers fronts du run : une capture déclenchée tôt s'y fige
+ *    (réserve d'avant + profondeur d'après), la page ne garde rien d'autre ;
+ *  - la QUEUE, les derniers : sans déclenchement, la page suit la fin du run.
+ * Entre les deux, le fichier seul garde tout. Le relire ferait envoyer à la page
+ * des millions de fronts (une trame DMX en compte des milliers) pour qu'elle en
+ * jette presque tout.
+ */
+const TETE_MAX = 70_000;
+const QUEUE_MAX = 70_000;
+
+/** Voie d'une capture rendue à la page : ses fronts à plat `[t, niveau, …]`. */
+export interface VoieCaptureJournal extends VoieJournal {
+  fronts: number[];
+}
+
 /** Racine commune des journaux de session, sous le temporaire du système. */
 function racineJournaux(): string {
   return path.join(os.tmpdir(), 'kablix-analyseur');
@@ -92,6 +111,9 @@ export class AnalyseurJournal {
   private ecrits = new Map<string, number>();
   /** Vrai dès qu'au moins un front est passé dans le fichier. */
   private garni = false;
+  /** Tête et queue du run, par broche, à plat (cf. TETE_MAX). */
+  private tetes = new Map<string, number[]>();
+  private queues = new Map<string, number[]>();
 
   private constructor(
     public readonly cle: string,
@@ -207,6 +229,8 @@ export class AnalyseurJournal {
     this.voies = voies.slice();
     this.ecrits.clear();
     this.garni = false;
+    this.tetes.clear();
+    this.queues.clear();
     const entete = [
       '# Kablix — analyseur logique, journal de session',
       `# ${new Date().toISOString()}`,
@@ -251,6 +275,7 @@ export class AnalyseurJournal {
         const niveau = plat[i + 1];
         if (t <= dernier) continue;
         lignes.push(`${t},${voie},${pin},${csv(nom)},${niveau}`);
+        this.retenir(pin, t, niveau);
         if (t > plusRecent) plusRecent = t;
       }
       if (plusRecent > dernier) this.ecrits.set(pin, plusRecent);
@@ -262,6 +287,39 @@ export class AnalyseurJournal {
     } catch {
       /* écriture impossible : on n'interrompt pas la simulation pour un journal */
     }
+  }
+
+  /** Range un front en tête tant qu'elle a de la place, en queue ensuite. */
+  private retenir(pin: string, t: number, niveau: number): void {
+    let tete = this.tetes.get(pin);
+    if (!tete) this.tetes.set(pin, (tete = []));
+    if (tete.length < 2 * TETE_MAX) {
+      tete.push(t, niveau);
+      return;
+    }
+    let queue = this.queues.get(pin);
+    if (!queue) this.queues.set(pin, (queue = []));
+    queue.push(t, niveau);
+    // Rabot par paquets : un `splice` à chaque front coûterait la queue entière.
+    if (queue.length > 2 * QUEUE_MAX * 1.25) queue.splice(0, queue.length - 2 * QUEUE_MAX);
+  }
+
+  /**
+   * La mesure du run, au format du message `restaure` : ce qu'une page
+   * d'analyseur RECHARGÉE doit rejouer pour retrouver ses courbes. VS Code
+   * recharge la page d'un onglet qu'on déplace vers une autre fenêtre (un
+   * second écran) : elle repart vide, et ce qu'elle avait capturé n'existe plus
+   * que dans ce journal. `undefined` si aucune voie n'a de front.
+   *
+   * Tête et queue sont mises bout à bout : la page, qui rejoue les fronts dans
+   * l'ordre du temps, garde de ce trou ce qu'elle aurait gardé en direct.
+   */
+  public capture(): { voies: VoieCaptureJournal[] } | undefined {
+    const voies = this.voies.map((v) => ({
+      ...v,
+      fronts: (this.tetes.get(v.pin) ?? []).concat(this.queues.get(v.pin) ?? []),
+    }));
+    return voies.some((v) => v.fronts.length > 0) ? { voies } : undefined;
   }
 
   /** Le journal porte-t-il au moins un front ? */
