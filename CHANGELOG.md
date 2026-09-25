@@ -17,7 +17,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Le décodage DHT11/DHT22 s'écrit sur deux lignes** : les cinq octets, chacun dans sa case, puis l'humidité, la température et la somme cochée sous leurs octets. La température du DHT11 s'écrit au dixième (`22,0 °C`).
 - **Le départ est en vert et l'arrêt en rouge sous les courbes de l'analyseur**, pour tous les protocoles. Les données passent au bleu et les erreurs au magenta.
 - **Un caractère UART se découpe comme sur le fil** : `Start`, valeur, `STOP`. Une erreur de parité ou de cadrage se pose sur le bit fautif, et la valeur reste affichée.
-- **Les niveaux 0 et 1 à gauche des courbes de l'analyseur logique sont en gras**, 0 en rouge et 1 en vert.
+- **Les niveaux 0 et 1 à gauche des courbes de l'analyseur logique sont en gras**, 0 en rouge et 1 en vert (le vert des départs de décodage).
 - **Le texte sous les courbes de l'analyseur est plus grand et en gras.**
 - **Le message gris sur les courbes passe à la ligne** quand l'onglet est étroit.
 - **« Repos haut » devient « Inverser »** dans le menu d'une voie de l'analyseur.
@@ -25,6 +25,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Correction
 
+- **L'instant lu au curseur de l'analyseur reste lisible sur la barre de temps** : il s'écrit sur une plaque, et la graduation qu'il recouvre s'efface.
 - **Les variables Arduino sont de nouveau visibles en pause de débogage.** Un panneau Variables replié restait fermé à la pause ; il se déplie désormais, et se replie à la reprise.
 - **Les propriétés d'une sonde logique ne s'affichent plus en plusieurs exemplaires** quand on la pose sur une patte. Même correction pour l'interrupteur 3V3/5V du Grove Shield et les bascules dessinées sur les composants.
 - **Changer le déclenchement de l'analyseur ne fait plus disparaître la courbe** au premier lancement de la simulation.

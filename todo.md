@@ -2,8 +2,6 @@
 1. Analyseur logique :
     1. Ajoute la possibilité de poser des marqueurs, ils  doivent avoir tendance à coller sur les fronts. 2 marqueurs succesifs affichent entre eux une fleche qui donne la durée entre eux.
     Tu les appelles M1 et M2 ils apparaissent dés l'ouverture complètement à gauche dans la barre de temps M1 bleu et M2 orangé. Quand on les déplacent et qu'on les posent, ils affichent un trait vertical de leur couleur
-    1. Actuellement, le temps qui suit le curseur temporel n'est pas lisible s'il  se superpose à une info de la barre temporelle, corrige ça
-    1. Pour le niveau des courbes, change le vert de l'état 1 pour #1BAF7A
     1. Si je déplace l'onglet vscode (sur un autre écran par exemple) les courbes disparaissent
         1. Rajoute un affichage binaire. S'il est sélectionné, les bit s'affichent en dessous du signal en  étant synchronisé avec et un marqueur sépare chaque bit
     1. Fait moi un fichier de test pour l'uart arduino et pico 
@@ -18,6 +16,13 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.147
+1. ✅ **Instant du réticule lisible sur la barre de temps** (Frank : « le temps qui suit le curseur temporel n'est pas lisible s'il se superpose à une info de la barre temporelle »). [analyseur-vue.mts](src/webview/analyseur-vue.mts) : `boiteInstant()` calcule la place de l'instant AVANT la règle ; `regle()` tait la graduation qu'il recouvre (la plaque seule en laissait dépasser un bout : « 16,194 mss ») ; `reticule()` peint une plaque opaque au fond de l'éditeur (`--vscode-editor-background`) cerclée d'un trait léger, puis l'instant dessus.
+2. ✅ **Niveau 1 en #1BAF7A** (Frank) : `NIVEAU_COULEUR`, thème clair et sombre (c'est le vert des start de décodage).
+3. ✅ **Banc** [verify-analyseur-marqueurs.mjs](scripts/verify-analyseur-marqueurs.mjs) (`verify:analyseur-marqueurs`, dans `verify:all:serie`) : vrai HTML de l'onglet, Chrome en CDP, VRAIE souris ; deux thèmes ; instant posé sur une graduation à gauche et à droite : aucune graduation écrite dessous, plaque opaque à la couleur du fond juste sous le texte ; niveau 1 vert #1BAF7A, 0 rouge. 24 contrôles verts. **Contre-épreuve** `--ancien=analyseur-vue` : 14 échecs. Le banc accueillera les marqueurs M1/M2.
 
 ---
 

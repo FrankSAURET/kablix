@@ -34,10 +34,13 @@ const ANNOT_H = 18;
  */
 const ANNOT_PX = 11;
 
-/** Couleurs du niveau lu au réticule : 0 en rouge, 1 en vert (Frank, 24/09). */
+/**
+ * Couleurs du niveau lu au réticule : 0 en rouge, 1 en vert (Frank, 24/09). Le
+ * vert est celui des start de décodage, dans les deux thèmes (Frank, 25/09).
+ */
 const NIVEAU_COULEUR = {
-  clair: { 0: '#d1242f', 1: '#1a7f37' },
-  sombre: { 0: '#f85149', 1: '#3fb950' },
+  clair: { 0: '#d1242f', 1: '#1BAF7A' },
+  sombre: { 0: '#f85149', 1: '#1BAF7A' },
 } as const;
 /** Largeur de la colonne des noms de voie. */
 const MARGE_G = 104;
@@ -201,6 +204,17 @@ export function pasRond(brut: number): number {
   return (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10) * mag;
 }
 
+/** Instant du réticule écrit en haut : texte, ancrage et bords de sa plaque. */
+interface BoiteInstant {
+  texte: string;
+  /** Abscisse d'ancrage du texte (aligné à droite si `droite`). */
+  x: number;
+  droite: boolean;
+  /** Bords gauche et droit de la plaque, marge comprise. */
+  g: number;
+  d: number;
+}
+
 /** Ce que l'appelant fournit à chaque rendu. */
 export interface EtatRendu {
   capture: AnalyseurCapture;
@@ -307,7 +321,8 @@ export class AnalyseurVue {
     const plot = w - MARGE_G - MARGE_D;
     if (plot <= 10) return;
 
-    this.regle(ctx, e, w, fg, faible, police);
+    const instant = e.souris ? this.boiteInstant(ctx, e, w) : null;
+    this.regle(ctx, e, w, fg, faible, police, instant);
 
     const hauts = hautsPistes(e.voies);
     for (let i = 0; i < e.voies.length; i++) {
@@ -324,7 +339,28 @@ export class AnalyseurVue {
 
     this.annotations(ctx, e, w, fg, sombre);
     this.declenchement(ctx, e, w, h);
-    if (e.souris) this.reticule(ctx, e, w, h, fg, sombre);
+    if (e.souris) this.reticule(ctx, e, w, h, fg, sombre, instant);
+  }
+
+  /**
+   * Où s'écrit l'instant du réticule : à droite de la souris dans la moitié
+   * gauche, à gauche dans la moitié droite. Calculé AVANT la règle, qui s'en
+   * sert pour taire les graduations qu'il recouvre.
+   */
+  private boiteInstant(
+    ctx: CanvasRenderingContext2D,
+    e: EtatRendu,
+    w: number
+  ): BoiteInstant | null {
+    const s = e.souris!;
+    if (s.x < MARGE_G || s.x > w - MARGE_D) return null;
+    const t = this.tDe(s.x, e.fenetre, w);
+    const texte = formatTemps(t - (e.capture.tTrigger ?? 0), e.lang);
+    const droite = s.x > w / 2;
+    const x = s.x + (droite ? -4 : 4);
+    const largeur = ctx.measureText(texte).width;
+    const g = droite ? x - largeur : x;
+    return { texte, x, droite, g: g - 3, d: g + largeur + 3 };
   }
 
   /**
@@ -357,7 +393,8 @@ export class AnalyseurVue {
     w: number,
     fg: string,
     faible: string,
-    police: string
+    police: string,
+    instant: BoiteInstant | null
   ): void {
     const plot = w - MARGE_G - MARGE_D;
     // Une graduation tous les ~90 px : au-delà l'axe devient illisible, en
@@ -378,7 +415,12 @@ export class AnalyseurVue {
       ctx.moveTo(Math.round(x) + 0.5, REGLE_H - 5);
       ctx.lineTo(Math.round(x) + 0.5, REGLE_H);
       ctx.stroke();
-      ctx.fillText(formatTemps(t - origine, e.lang), x, REGLE_H / 2 - 2);
+      // Graduation sous l'instant du réticule : on la tait. La plaque seule en
+      // laissait dépasser un bout (« 16,194 mss »).
+      const libelle = formatTemps(t - origine, e.lang);
+      const demi = ctx.measureText(libelle).width / 2;
+      if (instant && x - demi < instant.d && x + demi > instant.g) continue;
+      ctx.fillText(libelle, x, REGLE_H / 2 - 2);
     }
     // Trait de base de la règle.
     ctx.globalAlpha = 1;
@@ -883,12 +925,12 @@ export class AnalyseurVue {
     w: number,
     h: number,
     fg: string,
-    sombre: boolean
+    sombre: boolean,
+    instant: BoiteInstant | null
   ): void {
     const s = e.souris!;
-    if (s.x < MARGE_G || s.x > w - MARGE_D) return;
+    if (!instant) return;
     const t = this.tDe(s.x, e.fenetre, w);
-    const origine = e.capture.tTrigger ?? 0;
     ctx.save();
     ctx.strokeStyle = fg;
     ctx.globalAlpha = 0.45;
@@ -897,11 +939,22 @@ export class AnalyseurVue {
     ctx.lineTo(Math.round(s.x) + 0.5, h);
     ctx.stroke();
 
+    // L'instant sur une PLAQUE opaque : écrit à nu, il se mêlait aux
+    // graduations qu'il survolait et ne se lisait plus (Frank, 25/09).
+    ctx.globalAlpha = 1;
+    const fond =
+      getComputedStyle(document.body).getPropertyValue('--vscode-editor-background').trim() ||
+      (sombre ? '#1e1e1e' : '#ffffff');
+    const largeur = instant.d - instant.g;
+    ctx.fillStyle = fond;
+    ctx.fillRect(instant.g, 1, largeur, REGLE_H - 5);
+    ctx.strokeStyle = fg;
+    ctx.globalAlpha = 0.45;
+    ctx.strokeRect(Math.round(instant.g) + 0.5, 1.5, Math.round(largeur) - 1, REGLE_H - 6);
     ctx.globalAlpha = 1;
     ctx.fillStyle = fg;
-    ctx.textAlign = s.x > w / 2 ? 'right' : 'left';
-    const dx = s.x > w / 2 ? -4 : 4;
-    ctx.fillText(formatTemps(t - origine, e.lang), s.x + dx, REGLE_H / 2 - 2);
+    ctx.textAlign = instant.droite ? 'right' : 'left';
+    ctx.fillText(instant.texte, instant.x, REGLE_H / 2 - 2);
 
     // Niveau de chaque voie sous le curseur, à droite de son nom : en gras,
     // 0 rouge et 1 vert, pour le lire sans chercher (Frank, 24/09).
