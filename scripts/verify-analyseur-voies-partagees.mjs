@@ -124,22 +124,29 @@ const publie = JSON.parse(readFileSync(join(ROOT, 'kablix_components', '_sources
 	.components.find((c) => c.type === 'dmx-grove');
 check('témoin : le schéma de dmx-uno-lib porte ses trois pinces et la carte DMX', () =>
 	diagram.parts.filter((p) => p.type === 'sonde-logique').length === 3 && diagram.parts.some((p) => p.type === 'dmx-grove'));
-const voiesAvec = (miroirs, inversees) => {
+const voiesAvec = (miroirs, inversees, niveaux) => {
 	for (const c of diagram.customParts ?? []) {
 		try { M.unregisterCustomPart(c.type); } catch { /* */ }
-		M.registerCustomPart(c.type === 'dmx-grove' ? { ...c, probeMirrors: miroirs, probeInverted: inversees } : c);
+		M.registerCustomPart(c.type === 'dmx-grove' ? { ...c, probeMirrors: miroirs, probeInverted: inversees, probeLevels: niveaux } : c);
 	}
 	return M.logicProbeVoies(diagram);
 };
-const voies = voiesAvec(publie.probeMirrors, publie.probeInverted);
+const voies = voiesAvec(publie.probeMirrors, publie.probeInverted, publie.probeLevels);
 const parNom = Object.fromEntries(voies.map((v) => [v.etiquette, v]));
 check('les trois pinces (Sig, DMX-, DMX+) remontent à la broche 3', () =>
 	['Sig', 'DMX-', 'DMX+'].every((n) => parNom[n]?.pin === '3' && !parNom[n].probleme), () => JSON.stringify(voies));
 check('seule la pince du « - » est inversée (manifeste publié : probeInverted ["-"])', () =>
 	parNom['DMX-']?.inverse === true && !parNom['Sig']?.inverse && !parNom['DMX+']?.inverse, () => JSON.stringify(voies));
-const sansInversion = voiesAvec({ '+': 'SIG', '-': 'SIG' }, undefined);
+// Tensions de l'émetteur de ligne (Frank, 25/09 : « pour le SN75176A VOH =
+// 3,7 V et VOL = 1,1 V ce sont ces tensions que je veux sur DMX- et DMX+ »).
+const dmx = (n) => parNom[n]?.niveaux;
+check('DMX+ et DMX- portent les tensions de l\'émetteur (1,1 V / 3,7 V), Sig celles de la carte', () =>
+	['DMX-', 'DMX+'].every((n) => dmx(n)?.bas === 1.1 && dmx(n)?.haut === 3.7) && !dmx('Sig'), () => JSON.stringify(voies));
+const sansInversion = voiesAvec({ '+': 'SIG', '-': 'SIG' }, undefined, undefined);
 check('sans probeInverted, rien n\'est inversé (manifeste d\'avant, embarqué dans un .projix)', () =>
 	sansInversion.every((v) => v.pin === '3' && !v.inverse), () => JSON.stringify(sansInversion));
+check('sans probeLevels, les tensions restent celles de la carte (manifeste d\'avant)', () =>
+	sansInversion.every((v) => !v.niveaux), () => JSON.stringify(sansInversion));
 
 // Deux cartes inversantes en chaîne : les inversions se compensent.
 M.registerCustomPart({
@@ -163,6 +170,32 @@ const chaine = M.logicProbeVoies({
 });
 check('une carte inversante : inversée ; deux à la suite : les inversions se compensent', () =>
 	chaine[0]?.pin === '1' && chaine[0].inverse === true && chaine[1]?.pin === '1' && !chaine[1].inverse, () => JSON.stringify(chaine));
+
+// Tensions : celles de la carte qui PILOTE le point pincé, pas d'une carte
+// traversée plus loin. Un émetteur à tensions propres (0,5 / 2,5 V) suivi d'un
+// inverseur qui n'en déclare pas : la sortie de l'inverseur garde la carte.
+M.registerCustomPart({
+	type: 'banc-emetteur', label: 'Émetteur', kind: 'passive', svg: '<svg viewBox="0 0 100 100"></svg>',
+	pins: [{ name: 'IN', x: 10, y: 50 }, { name: 'OUT', x: 90, y: 50 }],
+	probeMirrors: { OUT: 'IN' },
+	probeLevels: { OUT: [0.5, 2.5] },
+});
+const chaineTensions = M.logicProbeVoies({
+	parts: [
+		{ id: 'u', type: 'uno', x: 0, y: 0, attrs: {} },
+		{ id: 'e1', type: 'banc-emetteur', x: 300, y: 0, attrs: {} },
+		{ id: 'k2', type: 'banc-inverseur', x: 500, y: 0, attrs: {} },
+		sonde('s1', 0, 'e1/OUT'), sonde('s2', 1, 'k2/OUT'), sonde('s3', 2, 'u/1'),
+	],
+	wires: [
+		{ id: 'w1', a: { partId: 'u', pin: '1' }, b: { partId: 'e1', pin: 'IN' }, path: [] },
+		{ id: 'w2', a: { partId: 'e1', pin: 'OUT' }, b: { partId: 'k2', pin: 'IN' }, path: [] },
+	],
+});
+check('tensions : celles de l\'émetteur à sa sortie, rien derrière la carte suivante ni sur la broche', () =>
+	chaineTensions[0]?.niveaux?.bas === 0.5 && chaineTensions[0].niveaux.haut === 2.5
+	&& chaineTensions[1]?.pin === '1' && !chaineTensions[1].niveaux && chaineTensions[2]?.pin === '1' && !chaineTensions[2].niveaux,
+	() => JSON.stringify(chaineTensions));
 
 // --- Volet B : capture et format --------------------------------------------------
 console.log('Volet B — trois voies sur une broche, format des tensions');
@@ -317,6 +350,24 @@ try {
 	const pico = await ev('window.__textes');
 	check('Pico : « 3.3 V » face au trait haut, le chiffre après la virgule gardé', () =>
 		[0, 1, 2].every((k) => pico.some((x) => x.t === '3.3 V' && Math.abs(x.y - yHaut(k)) < 0.6)), () => JSON.stringify(pico.filter((x) => / V$/.test(x.t))));
+
+	// DMX : les voies DMX- et DMX+ portent les tensions du SN75176A, telles que
+	// sim.mts les envoie (volts = haut, voltsBas = bas) ; Sig garde la carte.
+	const marge = async (voies) => {
+		await poster({ type: 'voies', voies });
+		await ev(`window.__textes = []; window.postMessage({ type: 'repeindre' }, '*')`);
+		await attendre(100);
+		const tx = await ev('window.__textes');
+		const a = (t, y) => tx.filter((x) => x.t === t && x.align === 'right' && Math.abs(x.x - (MARGE_G - 4)) < 0.6 && Math.abs(x.y - y) < 0.6).length === 1;
+		return { a, tx };
+	};
+	const dmxV = await marge(VOIES.map((v) => (v.nom === 'Sig' ? v : { ...v, volts: 3.7, voltsBas: 1.1 })));
+	check('DMX : « 3.7 V » face au trait haut et « 1.1 V » face au trait bas de DMX- et DMX+', () =>
+		[1, 2].every((k) => dmxV.a('3.7 V', yHaut(k)) && dmxV.a('1.1 V', yBas(k))), () => JSON.stringify(dmxV.tx.filter((x) => / V$/.test(x.t))));
+	check('DMX : Sig garde « 5 V » / « 0 V » (tensions de la carte)', () => dmxV.a('5 V', yHaut(0)) && dmxV.a('0 V', yBas(0)));
+	const incoherent = await marge(VOIES.map((v) => ({ ...v, volts: 3.7, voltsBas: 4 })));
+	check('tension basse incohérente (au-dessus de la haute) : ignorée, « 0 V » écrit', () =>
+		[0, 1, 2].every((k) => incoherent.a('0 V', yBas(k))), () => JSON.stringify(incoherent.tx.filter((x) => / V$/.test(x.t))));
 	// Voie en défaut : ni tension ni niveau.
 	await poster({ type: 'voies', voies: [...VOIES, { voie: 4, nom: 'X', pin: '', probleme: 'nowhere', analogique: false, volts: 5 }] });
 	await ev(`window.__textes = []; window.postMessage({ type: 'repeindre' }, '*')`);
@@ -351,7 +402,7 @@ try {
 	try { rmSync(tmp, { recursive: true, force: true }); } catch { /* */ }
 }
 // Un banc qui s'arrête tôt paraît vert : on exige le compte complet.
-const MIN = 16;
+const MIN = 22;
 if (controles < MIN) {
 	echecs++;
 	console.log(`  ❌ ${controles} contrôles joués, ${MIN} attendus`);

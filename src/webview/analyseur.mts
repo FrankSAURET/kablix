@@ -75,6 +75,8 @@ type MessageEntrant =
         inverse?: boolean;
         /** Tension du niveau haut, en volts (celle de la carte). */
         volts?: number;
+        /** Tension du niveau bas, en volts, quand elle n'est pas 0 V (paire DMX). */
+        voltsBas?: number;
       }>;
     }
   /** Salve de fronts : `{ broche: [t, niveau, …] }`, en ms simulées. */
@@ -1383,6 +1385,7 @@ window.addEventListener('message', (ev) => {
         suivi: v.suivi === true,
         ...(v.inverse ? { inverse: true } : {}),
         ...(typeof v.volts === 'number' && v.volts > 0 ? { volts: v.volts } : {}),
+        ...(typeof v.voltsBas === 'number' && v.voltsBas > 0 && v.voltsBas < (v.volts ?? 0) ? { voltsBas: v.voltsBas } : {}),
       }));
       // La capture suit ses BROCHES, pas ses numéros. Si ce message arrive après
       // un `restaure` — l'atelier résout ses sondes en retard —, la capture est

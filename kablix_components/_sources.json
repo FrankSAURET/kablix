@@ -6,7 +6,7 @@
       "type": "dmx-grove",
       "label": "Grove DMX512",
       "description": "Grove DMX512 shield (SP3485 line driver): turns the board UART into a DMX512 output on a 3-pin XLR socket.",
-      "version": "2026.9.2",
+      "version": "2026.9.3",
       "author": "Frank Sauret",
       "reference": "https://wiki.seeedstudio.com/Grove-DMX512/",
       "kind": "passive",
@@ -16,6 +16,10 @@
         "-": "SIG"
       },
       "probeInverted": ["-"],
+      "probeLevels": {
+        "+": [1.1, 3.7],
+        "-": [1.1, 3.7]
+      },
       "l10n": {
         "fr": {
           "label": "Grove DMX512",

@@ -520,7 +520,9 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   // « neutres » d'après chargement compris, avant d'avoir résolu la moindre
   // sonde. Ce message-là écrasait la capture restaurée et rendait l'onglet
   // gris (20/09) ; le contrôle de bout en bout est dans verify-analyseur-rendu.
-  const surVoies = src.slice(src.indexOf("case 'voies'"), src.indexOf("case 'voies'") + 3600);
+  // Tout le `case 'voies'`, jusqu'au `case` suivant : une longueur fixe
+  // laissait sortir la fin du bloc dès qu'une ligne s'y ajoutait.
+  const surVoies = src.slice(src.indexOf("case 'voies'"), src.indexOf("case 'fronts'"));
   check('réouverture : le message `voies` de l\'atelier reprend la main',
     /diagnostics = msg\.voies\.map/.test(surVoies) && !/diagnostics\.length === 0/.test(surVoies));
   check('réouverture : mais une liste VIDE ne jette pas une capture déjà affichée',
@@ -2084,6 +2086,14 @@ const dhtDe = (tempC, humidity, model) => {
     /if \(inspectorFoldedByRun\) \{\s*inspectorFoldedByRun = false;/.test(sim));
   check('déclenchement : la fonction d\'ouverture déclare aussi les voies à l\'hôte',
     /function ouvrirAnalyseur[\s\S]{0,400}?'openAnalyseur'[\s\S]{0,200}?pousserVoiesLogiques\(\)/.test(sim));
+  // Tensions de la marge : derrière l'émetteur d'une carte d'interface (DMX),
+  // celles du manifeste (`probeLevels` → `niveaux`), sinon celles de la carte.
+  const debutVoies = sim.indexOf('function pousserVoiesLogiques');
+  const pousser = debutVoies < 0 ? '' : sim.slice(debutVoies, sim.indexOf('\n}', debutVoies));
+  check('voies : tension haute de l\'émetteur (niveaux.haut), sinon 3,3 V / 5 V de la carte',
+    /volts:\s*v\.niveaux\?\.haut\s*\?\?\s*\(isPicoBoard\(board\)\s*\?\s*3\.3\s*:\s*5\)/.test(pousser));
+  check('voies : tension basse de l\'émetteur envoyée à part (voltsBas), absente sans niveaux',
+    /\.\.\.\(v\.niveaux\s*\?\s*\{\s*voltsBas:\s*v\.niveaux\.bas\s*\}\s*:\s*\{\}\)/.test(pousser));
   // Contre-épreuve par le modèle : sans pince, `logicProbeVoies` rend une liste
   // vide, donc la condition ci-dessus est fausse et aucun onglet ne s'ouvre.
   check('déclenchement : aucune pince → aucune voie, donc aucun onglet',

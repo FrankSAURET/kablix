@@ -168,6 +168,13 @@ interface KompixManifest {
    * la croire débranchée.
    */
   probeInverted?: string[];
+  /**
+   * Tensions de sortie des pattes reflétées, `[bas, haut]` en volts : celles de
+   * l'émetteur de la carte (paire DMX : 1,1 V et 3,7 V), que l'analyseur écrit
+   * dans sa marge à la place de celles de la carte. Champ à part lui aussi :
+   * une version qui l'ignore garde les tensions de la carte.
+   */
+  probeLevels?: Record<string, [number, number]>;
   /** Carte fille (Grove Shield…) : socle, pistes internes, interrupteur. */
   shield?: KompixShield;
   /** Bascules du dessin : pièces qu'un clic déplace (cavalier, badge RFID…).
@@ -232,6 +239,8 @@ interface CustomPartData {
   probeMirrors?: Record<string, string>;
   /** Reflets inversés (voir KompixManifest.probeInverted). */
   probeInverted?: string[];
+  /** Tensions des reflets (voir KompixManifest.probeLevels). */
+  probeLevels?: Record<string, [number, number]>;
   /** Carte fille (voir KompixManifest.shield). */
   shield?: KompixShield;
   /** Bascules du dessin (voir KompixManifest.toggles). */
@@ -501,6 +510,7 @@ export class KompixLibrary {
         openDrain: manifest.openDrain,
         probeMirrors: manifest.probeMirrors,
         probeInverted: manifest.probeInverted,
+        probeLevels: manifest.probeLevels,
         shield: manifest.shield,
         toggles: manifest.toggles,
         rfid: manifest.rfid,
@@ -934,6 +944,7 @@ export class KompixLibrary {
       openDrain: data.openDrain,
       probeMirrors: data.probeMirrors,
       probeInverted: data.probeInverted,
+      probeLevels: data.probeLevels,
       shield: data.shield,
       toggles: data.toggles,
       rfid: data.rfid,

@@ -1,7 +1,4 @@
 # À faire
-1. Analyseur logique :
-    1. DMX 
-         1. Trés bien les tensions affichées mais pour le sn 75176A VOH = 3,7 V et VOL = 1,1 V ce sont ces tensions que je veux sur DMx- et DMx+
 1. Vérifie (rp2040js 1.3.4 → 1.4.0) et si nécessaire fais la mise à jour — ⏳ **vérifié : nécessaire, portage prêt ; attend ton accord** pour sortir `patches/rp2040js+1.3.4.patch` du dossier `patches/` (voir v2026.9.5.152, point 8)
 1. 
 ## fait
@@ -12,6 +9,18 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.154
+1. ✅ **Tensions du SN75176A sur les voies DMX- et DMX+** (« pour le sn 75176A VOH = 3,7 V et VOL = 1,1 V ce sont ces tensions que je veux sur DMx- et DMx+ »). Nouveau champ de manifeste `probeLevels` (patte → `[bas, haut]` en volts), à côté de `probeMirrors` et `probeInverted` : [catalog.mts](src/webview/diagram/catalog.mts), [kompixLibrary.ts](src/kompixLibrary.ts), [build-kompix.mjs](scripts/build-kompix.mjs), [_lire-kompix.mjs](scripts/_lire-kompix.mjs). Champ à part : une version qui ne le connaît pas (la 2026.9.5 en ligne, qui télécharge les composants depuis main) l'ignore et garde les tensions de la carte.
+2. ✅ **Modèle** [model.mts](src/webview/diagram/model.mts) : `LogicProbeVoie.niveaux?: { bas, haut }`. Le suivi du fil garde les tensions du PREMIER reflet traversé, celui dont la sortie pilote le point pincé ; une carte traversée plus loin ne les reprend pas. Aide `inversion` renommée `apportReflet` (inversion et tensions, trois appels).
+3. ✅ **Atelier et onglet** : [sim.mts](src/webview/sim.mts) envoie `volts` = `niveaux.haut` (sinon 3,3 V / 5 V de la carte) et `voltsBas` = `niveaux.bas` (absent sans niveaux). [analyseur.mts](src/webview/analyseur.mts) le garde s'il est entre 0 et la tension haute, [analyseur-vue.mts](src/webview/analyseur-vue.mts) l'écrit face au trait bas (0 V sinon).
+4. ✅ **Composant dmx-grove 2026.9.3** : `"probeLevels": { "+": [1.1, 3.7], "-": [1.1, 3.7] }` dans [_sources.json](kablix_components/_sources.json) ; `build-kompix` et `build-components-index` relancés (paquet, vignette, index, README). Fiche [dmx-grove/fr.md](kablix_components/help/dmx-grove/fr.md) et [sonde-logique.md](docs/fr/composants/sonde-logique.md) : phrase sur les tensions de l'émetteur.
+5. ✅ **Bancs** : [verify-analyseur-voies-partagees.mjs](scripts/verify-analyseur-voies-partagees.mjs), 6 contrôles de plus (22) — modèle sur le vrai schéma dmx-uno-lib (DMX± à 1,1 / 3,7 V, Sig sans, manifeste d'avant sans tensions, émetteur suivi d'une carte sans tensions), marge relevée à l'écran (« 3.7 V » face au haut, « 1.1 V » face au bas, Sig à « 5 V » / « 0 V », tension basse incohérente écartée). **Contre-épreuve** `--ancien` : 3 échecs. [verify-analyseur.mjs](scripts/verify-analyseur.mjs) : deux contrôles sur l'envoi de `sim.mts` (hors `--ancien`), et le bloc `case 'voies'` découpé jusqu'au `case` suivant (la longueur fixe de 3 600 caractères laissait sortir `capture.renumeroter(` dès qu'une ligne s'ajoutait).
+6. ✅ **Tests** : `typecheck` et construction verts ; les 19 bancs de l'analyseur et des sondes, `verify:kompix`, `verify:dmx` (109), `verify:docs` verts.
+7. ℹ️ `build-kompix` a réécrit huit autres paquets (ds18b20, ds18b20-etanche, grove-light-sensor, grove-rfid, grove-uno, ir-barrier, soil-moisture-sensor, spot) : contenu identique fichier par fichier, seules les dates du zip changent. Enregistrés tels quels.
+8. ⏳ Traductions avant publication : fiche EN de dmx-grove (`help/dmx-grove/en.md`) et de la sonde logique (tensions de l'émetteur).
 
 ---
 

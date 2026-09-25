@@ -29,6 +29,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **« Repos haut » devient « Inverser »** dans le menu d'une voie de l'analyseur.
 - **Le panneau Variables se replie au lancement quand un analyseur logique s'ouvre**, se déplie à chaque pause du débogage, et se rouvre à l'arrêt.
 - **Les traits des marqueurs M1 et M2 sont en pointillés.**
+- **Grove DMX512 (composant 2026.9.3) : les voies `+` et `−` de l'analyseur affichent `3,7 V` et `1,1 V`**, les tensions de sortie de l'émetteur de ligne SN75176A. La voie `SIG` garde celles de la carte.
 
 ### Correction
 

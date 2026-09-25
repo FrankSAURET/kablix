@@ -281,6 +281,10 @@ async function main() {
       // Pattes reflétées À L'ENVERS (le `-` d'une paire DMX). Champ à part : une
       // version de Kablix qui l'ignore trace la patte à l'endroit, sans la perdre.
       probeInverted: comp.probeInverted,
+      // Tensions de sortie des pattes reflétées, [bas, haut] en volts (l'émetteur
+      // de ligne de la carte DMX : 1,1 V et 3,7 V). Même logique : ignoré par une
+      // version qui ne le connaît pas, qui garde les tensions de la carte.
+      probeLevels: comp.probeLevels,
       // Bascules du DESSIN : les pièces qu'un clic déplace (le cavalier de mode
       // d'une carte RFID, la flèche qui pousse le badge dans la boucle). Rien à
       // voir avec la simulation : c'est de la mécanique, décrite une fois ici.

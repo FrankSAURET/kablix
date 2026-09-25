@@ -155,10 +155,16 @@ export interface VoieVue {
   inverse?: boolean;
   /**
    * Tension du niveau haut, en volts (celle de la carte : 3,3 ou 5). Écrite
-   * dans la marge de la piste, face au niveau haut, avec 0 V face au bas.
+   * dans la marge de la piste, face au niveau haut, avec `voltsBas` (0 V par
+   * défaut) face au bas. Derrière une carte d'interface : sa tension haute.
    * Absente (capture relue sans schéma) : rien d'écrit.
    */
   volts?: number;
+  /**
+   * Tension du niveau bas, en volts, quand ce n'est pas 0 V : la pince est
+   * derrière l'émetteur d'une carte d'interface (paire DMX, 1,1 V).
+   */
+  voltsBas?: number;
 }
 
 /** Lignes de décodage réservées sous une piste. */
@@ -548,7 +554,7 @@ export class AnalyseurVue {
       ctx.save();
       ctx.font = `${TENSION_PX}px ${police}`;
       const haut1 = formatTension(volts, e.lang);
-      const bas0 = formatTension(0, e.lang);
+      const bas0 = formatTension(vv.voltsBas ?? 0, e.lang);
       placeTension = Math.max(ctx.measureText(haut1).width, ctx.measureText(bas0).width) + 4;
       ctx.fillStyle = fg;
       ctx.globalAlpha = 0.6;

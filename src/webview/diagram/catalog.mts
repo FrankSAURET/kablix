@@ -427,6 +427,12 @@ export interface PartDef {
   probeMirrors?: Record<string, string>;
   /** Pattes reflétées à l'envers (la ligne `-` d'une paire DMX). */
   probeInverted?: string[];
+  /**
+   * Tensions de sortie d'une patte reflétée, `[bas, haut]` en volts : celles
+   * de l'émetteur de la carte, écrites par l'analyseur à la place de celles de
+   * la carte (`{ "+": [1.1, 3.7] }` pour la paire DMX).
+   */
+  probeLevels?: Record<string, [number, number]>;
     /** Carte fille : socle, pistes internes et interrupteur (voir shield.mts). */
     shield?: ShieldSpec;
     /** Bascules du dessin : pièces déplacées par un clic (cavalier, badge…). */
@@ -484,6 +490,8 @@ export interface CustomPartData {
   probeMirrors?: Record<string, string>;
   /** Pattes reflétées à l'envers (la ligne `-` d'une paire DMX). */
   probeInverted?: string[];
+  /** Tensions de sortie des pattes reflétées, `[bas, haut]` en volts. */
+  probeLevels?: Record<string, [number, number]>;
   /** Carte fille : socle, pistes internes et interrupteur (voir shield.mts). */
   shield?: ShieldSpec;
   /** Bascules du dessin (voir CustomToggle). */
@@ -1680,6 +1688,7 @@ export function registerCustomPart(data: CustomPartData): PartDef {
       openDrain: data.openDrain,
       probeMirrors: data.probeMirrors,
       probeInverted: data.probeInverted,
+      probeLevels: data.probeLevels,
       shield: data.shield,
       toggles: data.toggles,
       rfid: data.rfid,

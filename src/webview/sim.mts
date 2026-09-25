@@ -1703,7 +1703,10 @@ function pousserVoiesLogiques(): void {
       // Niveau HAUT de la broche écoutée : la tension d'alimentation de la
       // carte (3,3 V sur un Pico, 5 V sur un Uno ou un Mega). L'onglet l'écrit
       // dans la marge de chaque piste, face au niveau haut du créneau.
-      volts: isPicoBoard(board) ? 3.3 : 5,
+      // Derrière l'émetteur d'une carte d'interface (paire DMX), ce sont SES
+      // tensions : haut ET bas (`voltsBas`, 0 V quand il manque).
+      volts: v.niveaux?.haut ?? (isPicoBoard(board) ? 3.3 : 5),
+      ...(v.niveaux ? { voltsBas: v.niveaux.bas } : {}),
     })),
   });
 }

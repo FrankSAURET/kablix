@@ -3752,6 +3752,12 @@ export interface LogicProbeVoie {
    * l'envers — c'est ce que la pince verrait sur le fil.
    */
   inverse?: boolean;
+  /**
+   * Tensions des deux niveaux au point pincé, quand ce n'est pas la carte qui
+   * le pilote mais l'émetteur d'une carte d'interface (`probeLevels`) : la
+   * paire DMX oscille entre 1,1 V et 3,7 V. Absent = celles de la carte.
+   */
+  niveaux?: { bas: number; haut: number };
 }
 
 /**
@@ -3811,15 +3817,19 @@ export interface LogicProbeVoie {
  * (Frank, 25/09 : « je veux le signal sur sig et dmx+ et le signal inversé sur
  * dmx- »). Deux reflets inversants à la suite se compensent.
  *
+ * `probeLevels` donne les tensions de sortie d'une patte reflétée, `[bas, haut]`
+ * en volts : la paire DMX sort de l'émetteur de ligne, pas de la carte (Frank,
+ * 25/09 : « pour le SN75176A VOH = 3,7 V et VOL = 1,1 V ce sont ces tensions
+ * que je veux sur DMX- et DMX+ »).
+ *
  * Un reflet peut mener à un autre (une carte qui en traverse une seconde) :
  * parcours en largeur, chaque nœud visité une fois, avec une borne de sauts
  * pour qu'un manifeste mal écrit ne fasse pas tourner l'éditeur dans le vide.
  */
-function refletsDeSonde(
-  diagram: Diagram,
-  nets: Nets,
-): Array<{ depuis: string; vers: string; inverse: boolean }> {
-  const reflets: Array<{ depuis: string; vers: string; inverse: boolean }> = [];
+type RefletSonde = { depuis: string; vers: string; inverse: boolean; niveaux?: { bas: number; haut: number } };
+
+function refletsDeSonde(diagram: Diagram, nets: Nets): RefletSonde[] {
+  const reflets: RefletSonde[] = [];
   for (const part of diagram.parts) {
     const custom = partDef(part.type).custom;
     const miroirs = custom?.probeMirrors;
@@ -3828,52 +3838,63 @@ function refletsDeSonde(
     for (const [pin, reflet] of Object.entries(miroirs)) {
       if (!reflet || reflet === pin) continue;
       const inverse = inversees.includes(pin);
+      const n = custom.probeLevels?.[pin];
+      const niveaux = Array.isArray(n) && n.length === 2 && n.every((v) => Number.isFinite(v)) && n[0] < n[1]
+        ? { bas: n[0], haut: n[1] }
+        : undefined;
       reflets.push({
         depuis: nets.netOf({ partId: part.id, pin }),
         vers: nets.netOf({ partId: part.id, pin: reflet }),
         inverse,
+        ...(niveaux ? { niveaux } : {}),
       });
     }
   }
   return reflets;
 }
 
-function suivreFilVersMcu(
-  diagram: Diagram,
-  point: { partId: string; pin: string },
-): { pin: string; analogique: boolean; inverse: boolean } | null {
+type SuiviSonde = { pin: string; analogique: boolean; inverse: boolean; niveaux?: { bas: number; haut: number } };
+
+function suivreFilVersMcu(diagram: Diagram, point: { partId: string; pin: string }): SuiviSonde | null {
   if (!point.partId || !point.pin) return null;
   const nets = buildNets(diagram, false);
   const reflets = refletsDeSonde(diagram, nets);
   const depart = nets.netOf(point);
   const vus = new Set([depart]);
-  // Chaque nœud atteint porte la parité des reflets inversants traversés.
-  let front: Array<{ net: string; inverse: boolean }> = [{ net: depart, inverse: false }];
+  // Chaque nœud atteint porte la parité des reflets inversants traversés, et
+  // les tensions du PREMIER reflet : celui qui pilote le nœud pincé. Les cartes
+  // traversées ensuite n'y changent rien.
+  type Etape = { net: string; inverse: boolean; niveaux?: { bas: number; haut: number } };
+  let front: Etape[] = [{ net: depart, inverse: false }];
   for (let saut = 0; saut <= 8 && front.length > 0; saut++) {
-    for (const { net, inverse } of front) {
+    for (const { net, inverse, niveaux } of front) {
       for (const { part, board } of mcuParts(diagram)) {
         for (const pin of mcuPins(board)) {
           const role = mcuPinRole(board, pin);
           if (role.role !== 'digital' || !role.name) continue;
           if (nets.netOf({ partId: part.id, pin }) !== net) continue;
-          return { pin: role.name, analogique: role.adcChannel !== undefined, inverse };
+          return { pin: role.name, analogique: role.adcChannel !== undefined, inverse, ...(niveaux ? { niveaux } : {}) };
         }
       }
     }
-    const suivant: Array<{ net: string; inverse: boolean }> = [];
+    const suivant: Etape[] = [];
     for (const r of reflets) {
       const de = front.find((f) => f.net === r.depuis);
       if (!de || vus.has(r.vers)) continue;
       vus.add(r.vers);
-      suivant.push({ net: r.vers, inverse: de.inverse !== r.inverse });
+      const niveaux = saut === 0 ? r.niveaux : de.niveaux;
+      suivant.push({ net: r.vers, inverse: de.inverse !== r.inverse, ...(niveaux ? { niveaux } : {}) });
     }
     front = suivant;
   }
   return null;
 }
 
-/** Drapeau `inverse` d'une voie suivie, omis quand il est faux. */
-const inversion = (s: { inverse: boolean }): { inverse?: true } => (s.inverse ? { inverse: true } : {});
+/** Drapeau `inverse` et tensions d'une voie suivie, omis quand ils n'y sont pas. */
+const apportReflet = (s: SuiviSonde): { inverse?: true; niveaux?: { bas: number; haut: number } } => ({
+  ...(s.inverse ? { inverse: true as const } : {}),
+  ...(s.niveaux ? { niveaux: s.niveaux } : {}),
+});
 
 export function logicProbeVoies(diagram: Diagram): LogicProbeVoie[] {
   const sondes = diagram.parts.filter((p) => partDef(p.type).kind === 'logic-probe');
@@ -3895,7 +3916,7 @@ export function logicProbeVoies(diagram: Diagram): LogicProbeVoie[] {
       // relie son crochet au point à écouter par un cordon.
       const parFil = suivreFilVersMcu(diagram, { partId: sonde.id, pin: 'G' });
       if (parFil) {
-        out.push({ ...base, pin: parFil.pin, suivi: true, analogique: parFil.analogique, ...inversion(parFil) });
+        out.push({ ...base, pin: parFil.pin, suivi: true, analogique: parFil.analogique, ...apportReflet(parFil) });
         continue;
       }
       out.push({ ...base, probleme: 'nowhere' });
@@ -3918,7 +3939,7 @@ export function logicProbeVoies(diagram: Diagram): LogicProbeVoie[] {
         out.push({ ...base, accroche, probleme: 'not-mcu' });
         continue;
       }
-      out.push({ ...base, accroche, pin: suivie.pin, suivi: true, analogique: suivie.analogique, ...inversion(suivie) });
+      out.push({ ...base, accroche, pin: suivie.pin, suivi: true, analogique: suivie.analogique, ...apportReflet(suivie) });
       continue;
     }
     const role = mcuPinRole(def.board, ciblePin);
@@ -3935,7 +3956,7 @@ export function logicProbeVoies(diagram: Diagram): LogicProbeVoie[] {
         out.push({ ...base, accroche, probleme: 'not-mcu' });
         continue;
       }
-      out.push({ ...base, accroche, pin: suivie.pin, suivi: true, analogique: suivie.analogique, ...inversion(suivie) });
+      out.push({ ...base, accroche, pin: suivie.pin, suivi: true, analogique: suivie.analogique, ...apportReflet(suivie) });
       continue;
     }
     out.push({
