@@ -1,18 +1,9 @@
 # À faire
-1. commit et pusg ce que j'ai modifié
-1. Si aucun port n'est sélectionné pour arduino, clique sur la flèche de téléversemment provoque 10 tentatives puis une erreur. il faut afficher qqc de plus visible pour forcer la sélection d'un port. Dis comment interompre les tentatives et comment et si c'est dans kablix ou dans vscode-arduino-ide quil faut modifier qqc. Si c'est dans kablix eu le fais sinon tu me fais un prompt pour l'autre extension
-1. j"ai modifié dmx-pico tu repars de celui-ci maintenant
 1. Analyseur logique :
     1. Rajoute des fleches (fleche avec trait vertical ⏮ ⏭) qui permettent de sauter d'une trame à l'autre en positionnant le début de la trame à gauche. Et du coup pour tous les protocoles, tu prévois un déclenchement sur début de trame comme pour le DMX
-    1. dsb1820
-        1. je ne comprends pas ce qu'affiche l'analyseur. Explique
     1. DMX 
          1. Trés bien les tensions affichées mais pour le sn 75176A VOH = 3,7 V et VOL = 1,1 V ce sont ces tensions que je veux sur DMx- et DMx+
-         1. Quand j'utilise la librairie arduino dmx simple je vois parfaitement le décodage des valeurs par canal. Si je ne l'utilise pas (par exemple avec dmx-pico) je ne vois pas le bon décodage mais des pauses et cadrages. Une fois ça à marché mais je n'ai pas réussis à le reproduire.
-        1. Les trais des marqueur M1 et M2 doivent être pointillés
-        1. Maintenant si je déplace l'onglet ou que je change un eparamètre (pae exemple le déclenchement) la courbe est bien gardée mais pas le facteur de zoom
-        1. 
-1. Vérifie (rp2040js 1.3.4 → 1.4.0) et si nécessaire fais la mise à jour
+1. Vérifie (rp2040js 1.3.4 → 1.4.0) et si nécessaire fais la mise à jour — ⏳ **vérifié : nécessaire, portage prêt ; attend ton accord** pour sortir `patches/rp2040js+1.3.4.patch` du dossier `patches/` (voir v2026.9.5.152, point 8)
 1. 
 ## fait
 
@@ -22,6 +13,51 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.152
+1. ✅ **Tes modifications enregistrées et envoyées** (70064ec : todo, dmx-pico avec canal 4 = 220, projets DMX).
+2. ✅ **dmx-pico : on repart du tien.** Programme de [_spec.mjs](testkablix/_spec.mjs) aligné sur ton `dmx-pico.py`, avec la mention « ne pas régénérer dmx-pico » ; `_generate.mjs` n'a pas été relancé.
+3. ✅ **Décodage DMX du Pico sans bibliothèque** (« je ne vois pas le bon décodage mais des pauses et cadrages. Une fois ça a marché »). Deux causes, mesurées sur ton programme avec [_diag-dmx-pico-decodage.mjs](scripts/_diag-dmx-pico-decodage.mjs) :
+    1. **Débit faux** : MicroPython branche `clk_peri` sur la PLL USB (48 MHz, `CLK_PERI_CTRL = 0x840`) et calcule le diviseur de l'UART pour 48 MHz ; rp2040js le lisait à 125 MHz. `UART(…, 250000)` sortait à 651 000 bauds. [rp-chip.mts](src/webview/engines/rp-chip.mts) : `suivreClkPeri()` suit la source choisie par le programme (clk_sys, PLL USB, ROSC, XOSC), sur RP2040 et RP2350 (où le registre est gardé par Kablix, la bibliothèque le relisant `0xFFFFFFFF`).
+    2. **BREAK sur le fil du rasoir** : l'émulateur émettait 88 µs pile, le seuil du récepteur. À plusieurs secondes d'heure absolue, la différence de deux dates flottantes donnait 87,999… µs : BREAK lu comme un octet mal cadré. D'où le « une fois ça a marché » : ça dépendait de l'instant. [uart-fronts.mts](src/webview/engines/uart-fronts.mts) `frontsDeBreak` émet les minima de l'ÉMETTEUR (92 µs + 12 µs de marque) ; décodeur ([analyseur-decodage.mts](src/webview/analyseur-decodage.mts)) et déclenchement ([analyseur-capture.mts](src/webview/analyseur-capture.mts)) acceptent 88 µs moins 1 ns.
+4. ✅ **Banc** [verify-dmx.mjs](scripts/verify-dmx.mjs) : pinces posées (`setPulseMonitors`, sans elles l'Uno rendait « 0 BREAK »), un BREAK sans START code toléré au démarrage du Pico, contrôles du décodage analyseur sur uno, uno-lib et pico. **109/109**.
+5. ✅ **Traits de M1 et M2 en pointillés** ([analyseur-vue.mts](src/webview/analyseur-vue.mts), `setLineDash([2, 3])`, remis à plein après).
+6. ✅ **L'analyseur garde son zoom** (« si je déplace l'onglet ou que je change un paramètre … la courbe est bien gardée mais pas le facteur de zoom »). Deux causes :
+    1. **Onglet déplacé** : VS Code recharge la page, qui repartait de « toute la capture ». [analyseur.mts](src/webview/analyseur.mts) range la fenêtre (`t0`, `duree`, suivi) dans l'état de la page (`getState`/`setState`, la `cle` du sérialiseur gardée), la reprend au rechargement : fenêtre entière si elle recouvre encore la capture, sinon sa durée seule ; en plein run, la durée et le suivi.
+    2. **Réglage changé** : chaque réglage marque le projet modifié → `updateTitle` → `suivreAnalyseur` → `reprendreOngletRestaure`, qui renvoyait toute la capture à l'onglet : la page se recadrait. [panel.ts](src/panel.ts) : l'onglet déjà rattaché n'est plus resservi.
+    3. **Banc** [verify-analyseur-zoom.mjs](scripts/verify-analyseur-zoom.mjs) (`verify:analyseur-zoom`, dans `verify:all:serie`, port 9428) : hôte réel (panel.ts) et page réelle en Chrome, VRAIE molette (10 crans), menus T et P à la vraie souris, rechargement de page. **15 contrôles verts** ; **contre-épreuve** `--ancien` (analyseur.mts et panel.ts de HEAD) : **4 échecs** (2 hôte, 2 rechargement).
+7. ✅ **Téléversement Arduino sans port : c'est dans Arduino-VsCode-IDE, rien à changer dans Kablix.** Lu dans [arduino.ts](../Arduino-VsCode-IDE/src/arduino/arduino.ts) (sans rien modifier) :
+    1. Sans port du tout, l'extension ne lance rien : elle pose une simple notification « Serial port is not specified… » (Oui/Non) qui disparaît seule dans le coin.
+    2. Les **10 tentatives** viennent d'un port **réglé mais faux** : l'échafaudage des exemples écrit `COM1` en dur dans `arduino.yaml` (`/dev/cu.usbmodem1`, `/dev/ttyUSB0` ailleurs), ou le port est périmé (carte débranchée, autre numéro). avrdude boucle alors sur `stk500_getsync() attempt x of 10`.
+    3. **Interrompre** : rien d'annulable dans l'extension (aucune progression `cancellable`). Dans un terminal : `Stop-Process -Name avrdude -Force` (PowerShell) ou `taskkill /IM avrdude.exe /T /F`. arduino-cli s'arrête aussitôt en erreur.
+    4. **Prompt pour Arduino-VsCode-IDE** (à coller dans une session ouverte sur ce projet) :
+
+```text
+Défaut : téléverser avec un port série absent ou faux fait tourner avrdude dix fois (« stk500_getsync(): not in sync … attempt 1 of 10 ») pendant une vingtaine de secondes, puis échoue. L'utilisateur ne voit rien de clair et ne peut rien annuler.
+
+Constaté dans src/arduino/arduino.ts :
+- sans port, `selectSerial` (vers la ligne 617) ne pose qu'un showInformationMessage « Serial port is not specified… » (Yes/No), qui disparaît seul dans le coin ; puis retour false.
+- l'échafaudage des exemples (vers les lignes 431-436) écrit `port: dc.port || defaultPort` avec COM1 en dur sous Windows (/dev/cu.usbmodem1, /dev/ttyUSB0 ailleurs) : un port qui n'existe presque jamais, et qui, lui, déclenche les dix tentatives. Même effet avec un port périmé dans arduino.yaml (carte débranchée, autre numéro COM).
+- aucune progression annulable autour de arduino-cli upload (lancement du processus dans src/common/util.ts, vers la ligne 210).
+
+À faire :
+1. Sans port : fenêtre MODALE (`{ modal: true }`) « Aucun port série choisi pour le téléversement », bouton « Choisir un port » qui ouvre arduino.selectSerialPort puis RELANCE le téléversement une fois le port choisi.
+2. Avant de lancer arduino-cli : vérifier que dc.port figure dans la liste des ports présents (même source que le sélecteur de port). Absent → même fenêtre modale, texte « Le port COMx n'est pas branché », sans lancer avrdude.
+3. Un seul port USB présent (VID/PID connus) et port vide ou absent → le proposer directement dans la fenêtre (« Téléverser sur COM5 »).
+4. Barre d'état : l'élément du port passe en avertissement (backgroundColor = new ThemeColor('statusBarItem.warningBackground'), texte « $(warning) Aucun port ») tant que le port est vide ou absent.
+5. Téléversement dans un withProgress (notification) cancellable: true : l'annulation tue l'ARBRE de processus — arduino-cli lance avrdude en fils ; sous Windows `taskkill /PID <pid> /T /F`, ailleurs spawn `detached` puis `process.kill(-pid)`.
+6. Lire la sortie d'avrdude : au premier « not in sync » ou « programmer is not responding », tuer l'arbre et afficher « La carte ne répond pas sur COMx : vérifier le port et la carte choisie », avec le bouton « Choisir un port ».
+7. Échafaudage des exemples : ne plus écrire de port par défaut (laisser `port` absent si dc.port est vide) ; le point 1 prend le relais.
+8. Chaînes nouvelles via vscode.l10n.t, langue de base (EN) seulement ; les traductions attendent la publication (⏳ dans todo.md).
+9. Tests : un banc par cas (port vide, port absent, port unique, annulation). L'annulation se prouve avec un faux arduino-cli qui lance un fils endormi : vérifier que le fils meurt aussi.
+```
+8. ⏳ **rp2040js 1.3.4 → 1.4.0 : mise à jour utile, portage prêt, attend ton accord.** La 1.4.0 (parue le 25/09) modélise les PLL et fait suivre `clk_peri` à sa source, avec recalcul du débit des UART (`updateClkPeri`, `uart.clkPeriChanged`) — la correction du point 3.1, côté bibliothèque. Notre correctif `patches/rp2040js+1.3.4.patch` (7 fichiers : horloge de simulation, cœur M0, PIO, UART, rp2040.js) est porté sur la 1.4.0 dans le brouillon (`rp140/essai/node_modules/rp2040js`), pas encore passé aux bancs du projet. **Bloquant** : `patch-package` applique tout `patches/` ; l'ancien fichier doit quitter ce dossier (vers `A Examiner/patches/`) avant de produire `rp2040js+1.4.0.patch`. Je n'y ai pas touché — dis-moi si je le déplace. `suivreClkPeri` reste nécessaire pour le RP2350 (rp2350js ne garde que REF et SYS), sans effet sur le RP2040 une fois en 1.4.0.
+9. ✅ [verify-analyseur.mjs](scripts/verify-analyseur.mjs) : sources lues avec fins de ligne ramenées à `\n`. Le rapatriement des lots .150 et .151 (tirage de `claude/exciting-johnson-poy463`, 25/09 à 13:28) a réécrit les fichiers en CRLF (git `autocrlf`) ; ces lots avaient été testés dans un environnement en LF. Le bloc de `restaurer()` se découpait à vide et six contrôles tombaient sans rapport avec le code. D'autres bancs à motifs textuels peuvent avoir le même travers : `verify:all` le dira.
+10. ⏳ **Défaut repéré, pas corrigé** : `restaurer()` garde les identifiants de décodage enregistrés (`d1`, `d2`…) sans avancer le compteur `idDecodage` ; un décodage ajouté ensuite reprend `d1`. À corriger avec les flèches ⏮ ⏭ (même code).
+11. ℹ️ **DS18B20 « explique »** : déjà traité au lot .151, point 7 (conversation et fiche [sonde-logique.md](docs/fr/composants/sonde-logique.md)).
+12. ✅ **Tests** : `typecheck` et construction verts. Tous les `verify:analyseur*` verts (zoom compris), `verify:dmx` 109/109, `verify:decode`, `verify:serial`, `verify:pico2`, `verify:micropython`, `verify:souris`, `verify:reouverture` verts.
 
 ---
 

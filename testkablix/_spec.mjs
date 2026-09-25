@@ -5881,20 +5881,22 @@ while True:
         ['Mod2/GND', 'Mod1/GND.2'],
       ],
     },
+    // Programme ET .projix retouchés par Frank (25/09/2026 : 5 canaux, jaune,
+    // canal 4 à 220 = clignotement ; quatre pinces et deux décodages DMX dans
+    // son .projix) : le programme ci-dessous est le sien, mot pour mot. Le
+    // schéma de la spec n'a plus ses pinces — ne pas régénérer dmx-pico.
     code: `# Test DMX512 : la carte Grove-DMX512 transforme l'UART0 (GP0) en ligne DMX,
-# le projecteur PAR 38 prend la couleur envoyée sur ses canaux.
-# Adresse du projecteur : 1 -> canal 1 = rouge, 2 = vert, 3 = bleu,
-# 4 = effets (0 à 189 : intensité, 190 à 250 : clignotement).
+# le projecteur PAR 38 prend la couleur envoyée sur ses trois canaux.
+# Adresse du projecteur : 1 -> canal 1 = rouge, 2 = vert, 3 = bleu.
 from machine import UART, Pin
 import time
 
 ADRESSE = 1
-CANAUX = 512
+CANAUX = 5
 
 # 250 kbauds, 8 bits, sans parité, 2 bits de stop : c'est la trame DMX512.
 uart = UART(0, baudrate=250000, bits=8, parity=None, stop=2, tx=Pin(0))
 trame = bytearray(CANAUX + 1)   # trame[0] = octet de départ, 0 pour l'éclairage
-trame[ADRESSE + 3] = 189        # canal effets : plein feu (à 0, le projecteur reste éteint)
 
 
 def envoyer():
@@ -5906,12 +5908,13 @@ def envoyer():
     uart.write(trame)
 
 
-COULEURS = ((255, 0, 0), (0, 255, 0), (0, 0, 255))
+COULEURS = ((255, 0, 0), (0, 255, 0), (0, 0, 255), (255,255,0))
 while True:
     for rouge, vert, bleu in COULEURS:
         trame[ADRESSE] = rouge
         trame[ADRESSE + 1] = vert
         trame[ADRESSE + 2] = bleu
+        trame[ADRESSE + 3] = 220
         envoyer()
         print("Couleur envoyée :", rouge, vert, bleu)
         time.sleep(1)

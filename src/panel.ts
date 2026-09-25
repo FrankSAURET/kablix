@@ -1718,6 +1718,12 @@ export class SimulatorPanel {
    */
   private reprendreOngletRestaure(): void {
     const cle = this.analyseurCle();
+    // DÉJÀ RATTACHÉ : l'onglet est servi au fil de l'eau, il n'a rien à
+    // reprendre. On passe pourtant ici à CHAQUE mise à jour du titre
+    // (`updateTitle` → `suivreAnalyseur`), donc à chaque réglage de l'onglet et
+    // à chaque retouche du schéma : l'onglet recevait toute la capture, la
+    // recadrait en entier, et le zoom de l'élève sautait (Frank, 25/09).
+    if (this.analyseurCleRangee === cle) return;
     if (!AnalyseurPanel.pour(cle)) return;
     this.analyseurCleRangee = cle;
     AnalyseurPanel.pour(cle)?.reprendreEtat(this.etatAnalyseur());

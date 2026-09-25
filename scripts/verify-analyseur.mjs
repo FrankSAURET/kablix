@@ -20,10 +20,18 @@
 //    canaux, start code non nul ignoré) — un décodeur nourri de fronts
 //    FABRIQUÉS à la main, pour que le banc prouve le décodage et non le moteur.
 import esbuild from 'esbuild';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync as lireBrut } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+
+// Les motifs des contrôles de texte s'écrivent en `\n` : une copie de travail
+// passée en CRLF (git autocrlf) vidait le bloc de `restaurer()` et faisait
+// échouer six contrôles sans rapport avec le code (25/09).
+const readFileSync = (chemin, codage) => {
+  const texte = lireBrut(chemin, codage);
+  return typeof texte === 'string' ? texte.replace(/\r\n/g, '\n') : texte;
+};
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const tmp = mkdtempSync(join(tmpdir(), 'kablix-analyseur-'));

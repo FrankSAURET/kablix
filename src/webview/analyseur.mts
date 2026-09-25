@@ -47,6 +47,7 @@ declare global {
     acquireVsCodeApi?: () => {
       postMessage(m: unknown): void;
       setState?(s: unknown): void;
+      getState?(): unknown;
     };
   }
 }
@@ -110,13 +111,27 @@ export interface EtatSerialise {
 }
 
 const vscode = window.acquireVsCodeApi?.();
+
+/** Ce que la page confie à VS Code (`setState`), qui le lui rend à chaque rechargement. */
+interface EtatPage {
+  /** Clé du projet : le sérialiseur la relit pour rendre l'onglet à son atelier. */
+  cle?: string;
+  /** Fenêtre de temps affichée : le zoom de l'élève. */
+  fenetre?: Fenetre;
+  /** La vue suivait-elle la fin de la capture ? */
+  suivi?: boolean;
+}
+const etatRendu = (vscode?.getState?.() ?? {}) as EtatPage;
 // LA CLÉ CONFIÉE À VS CODE. C'est le seul état qui survive à la fermeture de
 // l'éditeur, et c'est ce que le sérialiseur recevra au prochain démarrage pour
 // rendre l'onglet à son atelier. Sans lui, l'onglet restauré revient à l'écran
 // détaché de tout : plus un message ne l'atteint, la page reste vide.
 // La CAPTURE, elle, n'est pas mémorisée : une mesure appartient à une
-// simulation, pas à une fenêtre.
-if (window.KABLIX_ANALYSEUR_CLE) vscode?.setState?.({ cle: window.KABLIX_ANALYSEUR_CLE });
+// simulation, pas à une fenêtre. La FENÊTRE, si : voir `fenetreAReprendre`.
+let etatPage: EtatPage = window.KABLIX_ANALYSEUR_CLE
+  ? { ...etatRendu, cle: window.KABLIX_ANALYSEUR_CLE }
+  : etatRendu;
+if (window.KABLIX_ANALYSEUR_CLE) vscode?.setState?.(etatPage);
 initLocale(window.KABLIX_LANG);
 
 const capture = new AnalyseurCapture();
@@ -125,6 +140,20 @@ let diagnostics: VoieVue[] = [];
 let fenetre: Fenetre = { t0: 0, duree: 10 };
 /** Vrai tant que la vue suit la fin de la capture (zoom molette la libère). */
 let suivi = true;
+/**
+ * Fenêtre que VS Code vient de rendre à la page, à reprendre sur la première
+ * capture qui arrive.
+ *
+ * Déplacer l'onglet vers une autre fenêtre RECHARGE la page : elle repartait de
+ * sa fenêtre par défaut, et la capture que l'hôte lui rend était recadrée en
+ * entier — la courbe revenait, pas le zoom (Frank, 25/09). La fenêtre est donc
+ * confiée à VS Code à chaque rendu (`memoriserFenetre`), et reprise ici une
+ * seule fois : une capture rendue plus tard (autre projet) se recadre comme
+ * avant.
+ */
+let fenetreAReprendre: { fenetre: Fenetre; suivi: boolean } | null = fenetreValide(etatRendu.fenetre)
+  ? { fenetre: { t0: etatRendu.fenetre.t0, duree: etatRendu.fenetre.duree }, suivi: etatRendu.suivi === true }
+  : null;
 let souris: { x: number; y: number } | null = null;
 let annotations: Annotation[] = [];
 /**
@@ -177,6 +206,54 @@ function suivreFin(): void {
   const fin = capture.tFin;
   if (fin <= 0) return;
   fenetre = { t0: Math.max(0, fin - fenetre.duree), duree: fenetre.duree };
+}
+
+/** Fenêtre lisible, telle que VS Code la rend (l'état peut venir d'une ancienne page). */
+function fenetreValide(f: unknown): f is Fenetre {
+  const g = f as Fenetre | undefined;
+  return !!g && Number.isFinite(g.t0) && Number.isFinite(g.duree) && g.duree > 0;
+}
+
+/** Dernière fenêtre confiée à VS Code : on ne la réécrit que si elle change. */
+let fenetreMemorisee = '';
+
+/** Confie la fenêtre affichée à VS Code, qui la rendra si la page est rechargée. */
+function memoriserFenetre(): void {
+  // Tant que la fenêtre rendue n'est pas reprise, la vue montre la fenêtre par
+  // défaut : l'écrire effacerait celle qu'on attend de reprendre.
+  if (!vscode?.setState || fenetreAReprendre) return;
+  // En suivi, t0 court avec la capture : seul le zoom compte.
+  const empreinte = suivi ? `s|${fenetre.duree}` : `${fenetre.t0}|${fenetre.duree}`;
+  if (empreinte === fenetreMemorisee) return;
+  fenetreMemorisee = empreinte;
+  etatPage = { ...etatPage, fenetre: { t0: fenetre.t0, duree: fenetre.duree }, suivi };
+  vscode.setState(etatPage);
+}
+
+/**
+ * Reprend la fenêtre rendue par VS Code sur la capture qui vient d'arriver.
+ * Rend faux si elle ne montre rien de cette capture : la vue se cadre alors
+ * comme d'habitude.
+ */
+function reprendreFenetre(): boolean {
+  const reprise = fenetreAReprendre;
+  fenetreAReprendre = null;
+  if (!reprise) return false;
+  if (enCours) {
+    // En plein run, le zoom revient ; la position suit le direct, sauf si
+    // l'élève regardait un passage qui est toujours là.
+    const dedans = capture.aDesDonnees && reprise.fenetre.t0 < capture.tFin;
+    fenetre = dedans ? reprise.fenetre : { t0: fenetre.t0, duree: reprise.fenetre.duree };
+    suivi = dedans ? reprise.suivi : true;
+    suivreFin();
+    return true;
+  }
+  const f = reprise.fenetre;
+  if (!capture.aDesDonnees || f.t0 >= capture.tFin || f.t0 + f.duree <= capture.tDebut) return false;
+  fenetre = f;
+  suivi = reprise.suivi;
+  suivreFin();
+  return true;
 }
 
 /** Zoom autour d'un point de temps (molette) : le point sous la souris ne bouge pas. */
@@ -377,6 +454,7 @@ function rendu(): void {
     marqueurs,
     marqueurPris,
   });
+  memoriserFenetre();
   majEtat();
   majMasquees();
 }
@@ -1234,6 +1312,9 @@ window.addEventListener('message', (ev) => {
       return;
     }
     case 'fronts': {
+      // Des fronts sans capture rendue avant eux : la fenêtre gardée ne
+      // correspond plus à rien.
+      fenetreAReprendre = null;
       const attendait = capture.tTrigger === null;
       capture.verser(msg.salves);
       // Le déclenchement vient de tomber : la vue saute dessus et y reste.
@@ -1375,7 +1456,10 @@ function restaurer(etat: EtatSerialise): void {
   // En plein run (l'atelier repousse ses réglages à chaque lancement), cadrer
   // la capture encore vide coupait le suivi : la vue restait figée sur ses
   // premières millisecondes.
-  if (enCours) {
+  // Page tout juste rechargée (onglet déplacé) : la fenêtre de l'élève d'abord.
+  if (reprendreFenetre()) {
+    dessiner();
+  } else if (enCours) {
     suivi = true;
     suivreFin();
     dessiner();

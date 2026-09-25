@@ -1113,12 +1113,16 @@ export class AnalyseurVue {
         ctx.fill();
         continue;
       }
+      // Trait en pointillés (Frank, 25/09) : il ne masque pas le front qu'il
+      // mesure, et ne se confond pas avec les tirets du déclenchement.
       ctx.strokeStyle = couleur;
       ctx.lineWidth = 1.5;
+      ctx.setLineDash([2, 3]);
       ctx.beginPath();
       ctx.moveTo(Math.round(x) + 0.5, yD + DRAPEAU_H);
       ctx.lineTo(Math.round(x) + 0.5, h);
       ctx.stroke();
+      ctx.setLineDash([]);
       this.drapeau(ctx, m, x, yD, couleur);
       this.zonesMarqueurs.push(
         { m, x: x - 4, y: REGLE_H, w: 8, h: h - REGLE_H },

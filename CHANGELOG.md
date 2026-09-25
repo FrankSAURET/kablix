@@ -26,6 +26,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Le message gris sur les courbes passe à la ligne** quand l'onglet est étroit.
 - **« Repos haut » devient « Inverser »** dans le menu d'une voie de l'analyseur.
 - **Le panneau Variables se replie au lancement quand un analyseur logique s'ouvre**, se déplie à chaque pause du débogage, et se rouvre à l'arrêt.
+- **Les traits des marqueurs M1 et M2 sont en pointillés.**
 
 ### Correction
 
@@ -39,6 +40,9 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Changer le déclenchement de l'analyseur ne fait plus disparaître la courbe** au premier lancement de la simulation.
 - **Ouvrir une deuxième fenêtre de VS Code n'efface plus la mesure de l'analyseur logique en cours dans la première.** L'export CSV restait incomplet.
 - **Le déclenchement tombe sur un front affiché** quand l'analyseur échantillonne. Il était posé sur le front réel, parfois plusieurs millisecondes avant le front dessiné, et « montant » ou « descendant » semblait sans effet.
+- **Le DMX d'un Pico programmé sans bibliothèque se décode canal par canal.** L'analyseur n'y voyait que des pauses et des erreurs de cadrage.
+- **L'UART du Pico tourne à la vitesse réglée par le programme MicroPython.** Les octets partaient plus de deux fois trop vite.
+- **L'analyseur garde son zoom** quand on déplace son onglet ou qu'on change un réglage (déclenchement, protocole…).
 
 ## 2026.9.5 (24 septembre 2026)
 

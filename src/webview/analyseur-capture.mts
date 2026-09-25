@@ -33,8 +33,13 @@ export type SensDeclenchement = 'rising' | 'falling' | 'dmxStart';
 /** Vitesse DMX512 de la norme, quand la voie n'en règle pas d'autre. */
 const BAUDS_DMX = 250_000;
 
-/** Palier bas minimal d'un BREAK DMX, en ms (88 µs, norme — comme le décodeur). */
-const BREAK_DMX_MS = 0.088;
+/**
+ * Palier bas minimal d'un BREAK DMX, en ms (88 µs, norme — comme le décodeur),
+ * moins une nanoseconde : à plusieurs secondes d'heure absolue, la différence
+ * de deux dates flottantes perd assez de chiffres pour qu'un BREAK de 88 µs
+ * pile mesure 87,999… µs.
+ */
+const BREAK_DMX_MS = 0.088 - 1e-6;
 
 /** Réglage du déclenchement : la voie surveillée et le sens du front. */
 export interface Declenchement {

@@ -76,14 +76,17 @@ export function dureeTrameUs(trame: TrameSerie): number {
 
 /**
  * Fronts d'un BREAK : la ligne est tenue BASSE plus longtemps qu'une trame
- * entière, puis relâchée. C'est le début de trame du DMX512, qui impose au
- * moins 88 µs de bas suivis d'au moins 8 µs de haut (la « marque après
- * break »). On rend cette durée minimale quand le débit ne donne pas mieux :
- * l'émulateur ne date pas la pose et la levée du bit BRK séparément, seule la
- * levée nous parvient.
+ * entière, puis relâchée. C'est le début de trame du DMX512. La norme
+ * distingue l'émetteur — au moins 92 µs de bas, puis 12 µs de haut (la
+ * « marque après break ») — du récepteur, qui accepte dès 88 et 8 µs. On émet
+ * les minima de l'ÉMETTEUR quand le débit ne donne pas mieux : l'émulateur ne
+ * date pas la pose et la levée du bit BRK séparément, seule la levée nous
+ * parvient. Émettre 88 µs pile, c'était tomber sur le seuil du récepteur : à
+ * l'heure absolue près, l'arrondi flottant le faisait passer dessous, et
+ * l'analyseur lisait un octet mal cadré au lieu du BREAK (Frank, 25/09/2026).
  */
 export function frontsDeBreak(baudRate: number): { fronts: number[]; dureeUs: number } {
   const baud = baudRate > 0 ? baudRate : 250_000;
-  const basUs = Math.max(88, (1_000_000 / baud) * 12); // 12 temps-bit, minimum DMX
-  return { fronts: [0, 0, basUs, 1], dureeUs: basUs + 8 };
+  const basUs = Math.max(92, (1_000_000 / baud) * 12); // 12 temps-bit, minimum émetteur DMX
+  return { fronts: [0, 0, basUs, 1], dureeUs: basUs + 12 };
 }

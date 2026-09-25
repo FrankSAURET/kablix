@@ -478,6 +478,9 @@ function passagesDe(couleurs) {
 /** Dernier univers relevé par boutEnBout (copie : le moteur est libéré après). */
 let dernierUnivers = null;
 
+/** Décodeur de l'analyseur logique, chargé avant les étapes de bout en bout. */
+let decoderAnalyseur = null;
+
 async function boutEnBout(nom, engine, pin, limiteMs, canaux, attendues = ATTENDUES) {
 	dernierUnivers = null;
 	const vues = new Set();
@@ -486,14 +489,21 @@ async function boutEnBout(nom, engine, pin, limiteMs, canaux, attendues = ATTEND
 	// DMX. Le projecteur changeait donc de couleur pendant que la sonde montrait
 	// une ligne parfaitement plate. On draine ici les fronts pour de vrai.
 	engine.setLogicProbes?.([pin]);
+	// Comme l'atelier (`pulseMonitorPins` y range les broches sondées) : sans
+	// cela, les bascules de port ne sont pas datées et le BREAK que l'Uno tient
+	// à la main (`digitalWrite`) n'entre pas dans le journal.
+	engine.setPulseMonitors?.([pin]);
 	let fronts = 0;
 	let niveaux = new Set();
+	/** Journal complet de la sonde (ms, niveau), pour le décodeur de l'analyseur. */
+	const journal = [];
 	const draine = () => {
 		const lots = engine.drainScopeEdges?.() ?? {};
 		const log = lots[pin];
 		if (!log) return;
 		fronts += log.length / 2;
 		for (let i = 1; i < log.length; i += 2) niveaux.add(log[i]);
+		for (const x of log) journal.push(x);
 	};
 	const releve = () => {
 		draine();
@@ -532,6 +542,24 @@ async function boutEnBout(nom, engine, pin, limiteMs, canaux, attendues = ATTEND
 		fronts >= seuil, `${fronts} front(s), seuil ${seuil}`);
 	check(`${nom} : la ligne monte ET descend, pas un niveau figé`,
 		niveaux.has(0) && niveaux.has(1), `niveaux vus : ${[...niveaux].join(',') || 'aucun'}`);
+	// Ce que Frank lit dans l'analyseur (25/09/2026) : sur Pico, des « PAUSE » et
+	// des « framing » au lieu des canaux. Deux causes : l'UART débitait 2,6 fois
+	// trop vite (clk_peri figé à 125 MHz, MicroPython le met à 48), et le BREAK
+	// de 88 µs pile passait sous le seuil au gré de l'arrondi flottant.
+	if (!decoderAnalyseur) return;
+	const pas = [];
+	for (let i = 0; i + 1 < journal.length; i += 2) pas.push({ t: journal[i], niveau: journal[i + 1] });
+	const ann = decoderAnalyseur([{ voie: 0, pin, nom: pin, niveauInitial: 1, fronts: pas }], { protocole: 'dmx', donnees: 0 });
+	const breaks = ann.filter((a) => a.texte === 'BREAK').length;
+	const starts = ann.filter((a) => /^START code/.test(a.texte)).length;
+	const erreurs = ann.filter((a) => a.nature === 'erreur');
+	// Un BREAK peut rester sans START code : sur Pico, GP0 est tirée à la masse
+	// au reset et reste basse ~40 ms avant que l'UART ne la prenne. Un vrai
+	// analyseur y lirait aussi un BREAK. Un seul, pas plus.
+	check(`${nom} : l'analyseur décode chaque trame (BREAK puis START code)`,
+		starts >= attendues.length && breaks - starts <= 1, `${breaks} BREAK, ${starts} START code`);
+	check(`${nom} : aucun octet mal cadré dans le décodage de l'analyseur`,
+		erreurs.length === 0, `${erreurs.length} : ${erreurs.slice(0, 4).map((a) => a.texte).join(' | ')}`);
 }
 
 // Les DEUX cartes : le projet dmx a sa version Pico 2, et il y restait muet.
@@ -539,6 +567,9 @@ async function boutEnBout(nom, engine, pin, limiteMs, canaux, attendues = ATTEND
 // pouvait effacer (patches/rp2350js/05-uart-txris.patch) : `UART(0, ...)` ne
 // rendait jamais la main, et aucun banc ne connaissait cette carte.
 console.log('\n--- 4. Bout en bout Pico : dmx-pico.py → UART0 → univers ---');
+if (!QUICK) {
+	({ decoder: decoderAnalyseur } = await bundle("export * from './src/webview/analyseur-decodage.mts';\n", 'decodage.mjs'));
+}
 if (QUICK) {
 	console.log('--quick : étape sautée.');
 } else {

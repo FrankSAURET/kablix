@@ -631,7 +631,10 @@ function decoderDmx(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
    * réglage de vitesse qui est faux.
    */
   const tol = r.tolerance && r.tolerance > 0 ? r.tolerance : 0.25;
-  const breakMs = DMX_BREAK_US / 1000;
+  // Moins une nanoseconde : à plusieurs secondes d'heure absolue, la différence
+  // de deux dates flottantes perd assez de chiffres pour qu'un BREAK de 88 µs
+  // pile mesure 87,999… µs et se lise en octet mal cadré.
+  const breakMs = DMX_BREAK_US / 1000 - 1e-6;
   const fr = v.fronts;
   const lect = new Lecteur(fr, v.niveauInitial);
   const out: Annotation[] = [];

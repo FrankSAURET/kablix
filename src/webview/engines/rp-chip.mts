@@ -95,6 +95,64 @@ const ATTENTE_PAS_MAX_NANOS = 1_000_000;
  */
 const SOMMEIL_MAX_NANOS = 1_000_000_000;
 
+// --- Horloge des périphériques (clk_peri) ----------------------------------
+/** Adresse (poids forts) du bloc CLOCKS dans la table des périphériques. */
+const CLOCKS_CLE = { rp2040: 0x40008, rp2350: 0x40010 } as const;
+/** CLK_PERI_CTRL : même adresse et mêmes champs sur les deux puces. */
+const CLK_PERI_CTRL = 0x48;
+/** Bits réels du registre : ENABLE (11), KILL (10), AUXSRC (7:5). */
+const CLK_PERI_CTRL_BITS = 0xce0;
+const CLK_PERI_ENABLE = 1 << 11;
+const CLK_PERI_KILL = 1 << 10;
+/** Oscillateur à quartz des cartes Pico, et PLL USB qui en dérive. */
+const XOSC_HZ = 12_000_000;
+const PLL_USB_HZ = 48_000_000;
+/** Oscillateur en anneau, fréquence nominale (elle dérive sur silicium). */
+const ROSC_HZ = { rp2040: 6_500_000, rp2350: 11_000_000 } as const;
+
+/**
+ * clk_peri suit la source que le firmware lui choisit (KABLIX).
+ *
+ * Les deux bibliothèques figent clk_peri, alors que MicroPython le branche sur
+ * la PLL USB (48 MHz) pour qu'un `machine.freq()` ne dérègle pas les UART. Or le
+ * débit série se déduit de clk_peri : le firmware écrit un diviseur calculé
+ * pour 48 MHz, l'émulateur le lisait à 125 — un UART réglé à 250 000 bauds
+ * sortait ses trames à 651 000, et l'analyseur n'y voyait plus que des erreurs
+ * de cadrage (DMX du Pico, retour Frank 25/09/2026).
+ *
+ * `garder` : la bibliothèque ne retient pas ce registre (RP2350) et le relit
+ * 0xFFFFFFFF ; les écritures masquées du SDK — lecture, puis XOR — partiraient
+ * de là. On le garde donc nous-mêmes. Le diviseur de clk_peri (RP2350 seul)
+ * est ignoré : MicroPython le laisse à 1.
+ */
+function suivreClkPeri(puce: RP2040 | RP2350, famille: keyof typeof CLK_SYS, garder: boolean): void {
+  const perif = puce.peripherals[CLOCKS_CLE[famille]] as unknown as {
+    readUint32(offset: number): number;
+    writeUint32(offset: number, value: number): void;
+  };
+  const lire = perif.readUint32.bind(perif);
+  const ecrire = perif.writeUint32.bind(perif);
+  let ctrl = 0;
+  if (garder) {
+    perif.readUint32 = (offset: number): number =>
+      offset === CLK_PERI_CTRL ? ctrl : lire(offset);
+  }
+  perif.writeUint32 = (offset: number, value: number): void => {
+    if (offset !== CLK_PERI_CTRL) {
+      ecrire(offset, value);
+      return;
+    }
+    ctrl = value & CLK_PERI_CTRL_BITS;
+    if (!garder) ecrire(offset, value);
+    // Horloge arrêtée (le SDK coupe ENABLE le temps de changer de source) :
+    // l'UART ne débite rien, on garde la fréquence précédente.
+    if (!(ctrl & CLK_PERI_ENABLE) || ctrl & CLK_PERI_KILL) return;
+    const hz = [puce.clkSys, puce.clkSys, PLL_USB_HZ, ROSC_HZ[famille], XOSC_HZ][(ctrl >>> 5) & 7];
+    // GPIN0/GPIN1 (entrées d'horloge externes) : non simulées.
+    if (hz) puce.clkPeri = hz;
+  };
+}
+
 export type PicoFamily = keyof typeof CLK_SYS;
 
 export { GPIOPinState };
@@ -217,6 +275,7 @@ class Rp2040Chip implements PicoChip {
 
   constructor(private readonly arret: Arret) {
     this.puce = new RP2040();
+    suivreClkPeri(this.puce, 'rp2040', false);
     this.clock = this.puce.clock as unknown as PicoClock;
     this.mcu = this.puce as unknown as PicoMcu;
     this.core = this.puce.core as unknown as PicoCore;
@@ -359,6 +418,8 @@ class Rp2350Chip implements PicoChip {
     // d'un cycle — serait 20 % trop lent par rapport au programme qui tourne.
     this.puce.clkSys = CLK_SYS.rp2350;
     this.puce.clkPeri = CLK_SYS.rp2350;
+    // AVANT compterLecturesHeure, qui habille à son tour tous les périphériques.
+    suivreClkPeri(this.puce, 'rp2350', true);
     this.clock = this.puce.clock as unknown as PicoClock;
     this.mcu = this.puce as unknown as PicoMcu;
     this.core = this.puce.core[0] as unknown as PicoCore;
