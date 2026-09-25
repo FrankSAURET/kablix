@@ -5,6 +5,9 @@
     1. Dans la marge tu affiches la valeur des tensions de l'état haut et l'état bas avec 1 chiffre aprés la virgule (mais pas le 0)
     1. DMX (mon fichier de test principal est maintenant dmx-uno-lib) :
         1. Dmx+ affiche le signal mais dmx- et sig n'affichent rien. je veux le signal sur sig et dmx+ et le signal inversé sur dmx-. 
+    1. dsb1820
+        1. je ne comprends pas ce qu'affiche l'analyseur. Explique
+        1. 
 ## fait
 
 

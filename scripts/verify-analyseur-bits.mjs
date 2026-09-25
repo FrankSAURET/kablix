@@ -343,6 +343,7 @@ for (const [n, t] of CARS) {
 	tCourant = t + 10 * B;
 }
 const FRONTS = paliers(T_A, liste);
+const FRONTS_PLATS = FRONTS.flatMap(({ t, niveau }) => [t, niveau]);
 const T_DEBUT = FRONTS[0].t;
 const T_FIN = FRONTS[FRONTS.length - 1].t;
 
@@ -377,7 +378,7 @@ try {
 	etape = 'restauration de la capture';
 
 	const etat = {
-		voies: [{ voie: 0, nom: 'TX', pin: 'D1', fronts: FRONTS, niveauInitial: 1 }],
+		voies: [{ voie: 0, nom: 'TX', pin: 'D1', fronts: FRONTS_PLATS, niveauInitial: 1 }],
 		decodages: [{ protocole: 'uart', id: 'd1', donnees: 0, bauds: 9600 }],
 	};
 	await ev(`window.postMessage(${JSON.stringify({ type: 'restaure', etat })}, '*')`);
