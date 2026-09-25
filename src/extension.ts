@@ -10,6 +10,7 @@ import { promptRecommendedExtensions } from './recommend';
 import { announceComponentLibrary } from './announce';
 import { showPartHelp, SHOW_PART_HELP } from './partHelp';
 import { ComponentManagerPanel } from './componentManager';
+import { checkComponentsOnStartup } from './componentUpdates';
 import { openNewProjix, openOrRevealProjix } from './openproject';
 import { KompixLibrary } from './kompixLibrary';
 import { PicoUploader } from './picoUploader';
@@ -307,6 +308,12 @@ export function activate(context: vscode.ExtensionContext): void {
   // seule fois par machine (le bouton d'import est en bas de la palette, donc
   // invisible pour qui ne le cherche pas).
   void announceComponentLibrary(context);
+
+  // Composants du dépôt : mis à jour depuis l'installation, ou apparus depuis la
+  // dernière vérification. Silence si rien de neuf ou si le réseau manque.
+  if (vscode.workspace.getConfiguration('kablix').get<boolean>('checkComponentsOnStartup', true)) {
+    void checkComponentsOnStartup(context, kompixLibrary);
+  }
 
   // Vérification au démarrage, opt-in et non bloquante (silence si à jour).
   const checkOnStartup = vscode.workspace

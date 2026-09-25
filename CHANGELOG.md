@@ -6,6 +6,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Nouveauté
 
+- **Signal des composants au démarrage** : une notification prévient quand un composant installé a une version plus récente dans le dépôt, ou quand de nouveaux composants y sont apparus. Chacun n'est signalé qu'une fois ; le réglage `kablix.checkComponentsOnStartup` le coupe.
 - **Octets en hexadécimal ou en décimal** : le panneau de décodage de l'analyseur propose le choix, pour tous les protocoles. L'hexadécimal reste le défaut.
 - **L'analyseur peut déclencher sur le START code DMX** : sur une voie décodée en DMX512, le menu T propose `START code 0x00`. La capture se fige au début de la trame d'éclairage suivante.
 - **Le décodage DMX512 détaille chaque trame** : `BREAK`, `MAB`, `START code`, puis pour chaque canal son `Start`, sa valeur en hexadécimal (`c1=0xC8`) et son `STOP`, avec les `PAUSE` et le `MBB` entre les créneaux.

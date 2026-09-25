@@ -521,7 +521,7 @@ Gestion depuis la palette : **clic** = poser sur le canvas, **double-clic** = ro
 
 Le bouton **⚙ Gérer les composants**, en bas de la palette (ou la commande **Kablix : Télécharger des composants**), ouvre la liste des composants, filtrable :
 
-- **Nouveaux** : ce que les dépôts proposent et qui n'est pas encore installé ;
+- **Nouveaux** : ce que les dépôts proposent et qui n'est pas encore installé, plus les composants installés dont le dépôt a une version plus récente (cadre orange, « Mise à jour disponible ») ;
 - **Installés** : tout ce que contient la bibliothèque locale, y compris les composants créés ici et ceux qu'aucun dépôt ne propose ;
 - **Tous** : les deux.
 
@@ -530,6 +530,8 @@ Le bouton **⚙ Gérer les composants**, en bas de la palette (ou la commande **
 Une carte peut porter la mention **Experimental** (pastille et cadre en pointillés) : le composant est publié, il marche, mais il n'est pas encore figé — son dessin, ses pattes ou sa simulation peuvent changer d'une version à l'autre. Rien n'empêche de s'en servir ; il faut juste s'attendre à devoir le remettre à jour.
 
 On sélectionne les cartes au clic, puis **Télécharger** installe, **Supprimer** désinstalle. La suppression demande confirmation, efface le fichier `.kompix` de la bibliothèque et retire le composant de la palette **et** des schémas ouverts. Elle est définitive : réinstaller passe par le dépôt d'origine, ou par un `.kompix` exporté au préalable (**⇩**).
+
+**Signal au démarrage.** À l'ouverture de Kablix, les dépôts sont consultés : une notification prévient quand un composant installé a une version plus récente dans le dépôt, ou quand de nouveaux composants y sont apparus depuis la dernière vérification. Son bouton **Ouvrir le gestionnaire** mène droit à la liste. Chaque mise à jour et chaque nouveau composant n'est signalé qu'une fois ; rien ne s'affiche si rien n'a changé ou si le réseau manque. La toute première vérification ne signale que les mises à jour : tout le dépôt n'est pas annoncé comme « nouveau ». Le réglage **Kablix › Check Components On Startup** (activé par défaut) coupe ce signal.
 
 Où vivent les composants installés : dans un dossier **partagé par tous les projets Kablix** de la machine — par défaut `%APPDATA%\Code\User\globalStorage\electropol-fr.kablix\kablix_components` sous Windows (`~/Library/Application Support/Code/User/globalStorage/...` sur macOS, `~/.config/Code/User/globalStorage/...` sous Linux). Le réglage **Kablix › Components Folder** en désigne un autre, et la commande **Kablix : Ouvrir la bibliothèque de composants** ouvre celui qui sert vraiment, réglage renseigné ou non. Les dépôts consultés par le gestionnaire se règlent de même (**Kablix › Component Repositories**).
 

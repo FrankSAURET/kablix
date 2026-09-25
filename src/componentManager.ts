@@ -1,52 +1,20 @@
 import * as vscode from 'vscode';
 import { randomBytes } from 'node:crypto';
 import { KompixLibrary } from './kompixLibrary';
-import { KompixL10nEntry, traduireKompix } from './kompixI18n';
+import { RemoteComponent, compareVersions, fetchRepositoryComponents } from './componentUpdates';
 import { SimulatorPanel } from './panel';
 
 const l10n = vscode.l10n;
 
-interface ComponentInfo {
-  type: string;
-  label: string;
-  description?: string;
-  reference?: string;
-  thumbnail?: string; // base64 ou URL
-  version: string;
-  author?: string;
+// La comparaison de versions vit avec la vérification du démarrage, qui s'en
+// sert aussi ; ré-exportée ici pour ses anciens utilisateurs.
+export { compareVersions };
+
+interface ComponentInfo extends RemoteComponent {
   local: boolean; // true = déjà dans la bibli locale (donc supprimable)
   origin?: 'local' | 'remote'; // pour un installé : créé ici ou téléchargé
-  file?: string; // nom du fichier .kompix dans le repo (ex. "led.kompix")
-  sourceUrl?: string; // URL complète du fichier .kompix
   installedVersion?: string; // version présente sur la machine (si installé)
   update?: boolean; // installé, mais le dépôt en propose une version plus récente
-  /** Composant encore à l'essai : sa carte porte la mention « Experimental ». */
-  experimental?: boolean;
-  /** Traductions des libellés portées par le paquet (voir kompixI18n). */
-  l10n?: Record<string, KompixL10nEntry>;
-}
-
-interface RepositoryIndex {
-  components: ComponentInfo[];
-}
-
-/**
- * Compare deux numéros de version « 1.2.10 » façon semver simplifié : rend un
- * nombre > 0 si `a` est plus récent que `b`. Les segments sont comparés en
- * NOMBRES — « 1.2.10 » est postérieur à « 1.2.9 », ce qu'une comparaison de
- * chaînes rendait faux. Un segment absent vaut 0 (« 1.2 » = « 1.2.0 »), et tout
- * ce qui n'est pas un nombre (suffixe « -beta ») est ignoré.
- */
-export function compareVersions(a: string | undefined, b: string | undefined): number {
-  const decoupe = (v: string | undefined): number[] =>
-    String(v ?? '').split('.').map((n) => parseInt(n, 10) || 0);
-  const ga = decoupe(a);
-  const gb = decoupe(b);
-  for (let i = 0; i < Math.max(ga.length, gb.length); i++) {
-    const diff = (ga[i] ?? 0) - (gb[i] ?? 0);
-    if (diff !== 0) return diff;
-  }
-  return 0;
 }
 
 export class ComponentManagerPanel {
@@ -170,23 +138,9 @@ export class ComponentManagerPanel {
     }
   }
 
-  private async fetchRepositoryComponents(repoUrl: string): Promise<ComponentInfo[]> {
-    const baseUrl = repoUrl.replace(/\/$/, '');
-    const indexUrl = baseUrl + '/index.json';
-    const response = await fetch(indexUrl);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    // `.json()` rend `any` : le typer ici est le seul endroit où la forme de
-    // l'index distant est vérifiée avant d'être servie au reste du panneau.
-    const data = (await response.json()) as Partial<RepositoryIndex>;
-    const components: ComponentInfo[] = data.components ?? [];
-    // Construit l'URL complète du .kompix pour chaque composant, et sert ses
-    // libellés dans la langue de VS Code : la carte d'un composant PAS ENCORE
-    // installé est dessinée depuis l'index, il n'y a pas de paquet local à
-    // relire — sans ça, elle sortait en anglais.
-    return components.map((c) => ({
-      ...traduireKompix(c),
-      sourceUrl: c.file ? baseUrl + '/' + c.file : undefined,
-    }));
+  /** Lecture d'un dépôt, partagée avec la vérification du démarrage. */
+  private fetchRepositoryComponents(repoUrl: string): Promise<RemoteComponent[]> {
+    return fetchRepositoryComponents(repoUrl);
   }
 
   private render(): void {
