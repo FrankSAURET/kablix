@@ -23,12 +23,32 @@ export interface Front {
   niveau: 0 | 1;
 }
 
+import { debutsDeTrame, reglageComplet, rolesDe, type ReglageDecodage } from './analyseur-decodage.mjs';
+
 /**
- * Sens de déclenchement sur une voie : un front, ou `dmxStart` — le start bit
- * du START code 0x00 d'une trame DMX512 (Frank, 24/09 : « déclenchement sur
- * start code (premier 0x00) »).
+ * Sens de déclenchement sur une voie : un front, `dmxStart` — le start bit du
+ * START code 0x00 d'une trame DMX512 (Frank, 24/09 : « déclenchement sur start
+ * code (premier 0x00) ») —, ou `trame` : le début de trame du protocole décodé
+ * sur la voie, quel qu'il soit (Frank, 25/09 : « pour tous les protocoles, tu
+ * prévois un déclenchement sur début de trame comme pour le DMX »).
  */
-export type SensDeclenchement = 'rising' | 'falling' | 'dmxStart';
+export type SensDeclenchement = 'rising' | 'falling' | 'dmxStart' | 'trame';
+
+/**
+ * Recul, en ms, du décodage qui cherche un début de trame en plein run : de
+ * quoi relire une ouverture de trame qui a commencé avant la salve (départ DHT
+ * de 18 ms, BREAK DMX) et le silence qui précède un caractère série.
+ */
+const RECUL_TRAME_MS = 100;
+
+/**
+ * Début de la fenêtre de recul où un début de trame N'EST PAS cru : le décodeur
+ * y lit le premier caractère série ou la première salve SPI sans ce qui les
+ * précède, et les prendrait pour des ouvertures de trame. 50 ms : le temps de
+ * se recaler sur trois caractères à 1200 bauds. Une ouverture plus courte que
+ * la garde est toujours trouvée : elle finit avant que la garde ne la dépasse.
+ */
+const GARDE_TRAME_MS = RECUL_TRAME_MS / 2;
 
 /** Vitesse DMX512 de la norme, quand la voie n'en règle pas d'autre. */
 const BAUDS_DMX = 250_000;
@@ -356,6 +376,7 @@ export class AnalyseurCapture {
     const v = d ? this.voies.get(d.voie) : undefined;
     if (!d || !v || v.fronts.length === 0) return null;
     if (d.sens === 'dmxStart') return this.chercherStartDmx(v, depuis, jusqua);
+    if (d.sens === 'trame') return this.chercherTrame(depuis, jusqua);
     if (this.periode <= 0) {
       for (let i = premierApres(v.fronts, depuis); i < v.fronts.length; i++) {
         const f = v.fronts[i]!;
@@ -420,6 +441,72 @@ export class AnalyseurCapture {
       niveau = f.niveau;
     }
     return null;
+  }
+
+  /**
+   * Premier début de trame du décodage de la voie surveillée, dans ]depuis,
+   * jusqua] et postérieur à l'armement.
+   *
+   * Le décodeur lui-même dit où s'ouvre une trame (`Annotation.trame`) : un
+   * seul endroit connaît les règles de chaque bus, la vue et le déclenchement
+   * ne peuvent pas diverger. On décode la même lecture que la vue (inversée,
+   * échantillonnée), toutes les voies du décodage — le START d'un I²C se lit
+   * sur SDA ET SCL.
+   *
+   * En plein run, on relit `RECUL_TRAME_MS` avant `depuis` : une ouverture de
+   * trame ne se reconnaît qu'une fois finie (le BREAK à sa remontée), et elle a
+   * pu commencer dans la salve d'avant. Sans rien trouver jusqu'ici, aucune
+   * trame postérieure à l'armement n'était encore complète : la première qu'on
+   * trouve est donc la bonne.
+   */
+  private chercherTrame(depuis: number, jusqua: number): number | null {
+    const r = this.reglageTrame();
+    if (!r) return null;
+    const numeros = new Set<number>();
+    for (const role of rolesDe(r.protocole)) {
+      const n = r[role.cle];
+      if (typeof n === 'number' && n >= 0 && this.voies.has(n)) numeros.add(n);
+    }
+    const complet = !Number.isFinite(depuis);
+    let t0 = depuis - RECUL_TRAME_MS;
+    if (complet) {
+      t0 = Infinity;
+      for (const n of numeros) t0 = Math.min(t0, this.voies.get(n)!.fronts[0]?.t ?? Infinity);
+      if (!Number.isFinite(t0)) return null;
+    }
+    const voies: VoieCapture[] = [...numeros].map((n) => {
+      const v = this.voies.get(n)!;
+      const f = this.fenetre(n, t0, jusqua);
+      return { ...v, niveauInitial: f.entrant, fronts: f.fronts };
+    });
+    // Toute la capture : son premier caractère suit bien le repos de la ligne.
+    // Une fenêtre de recul : son début n'a pas ce qui le précède.
+    const apres = Math.max(this.armeDepuis, complet ? -Infinity : t0 + GARDE_TRAME_MS);
+    for (const t of debutsDeTrame(voies, [r])) {
+      if (t > jusqua) break;
+      if (t > apres) return t;
+    }
+    return null;
+  }
+
+  /**
+   * Décodages posés dans la vue, avec les seuils de leur voie : le
+   * déclenchement `trame` décode comme la vue.
+   */
+  private decodages: ReglageDecodage[] = [];
+
+  /** Décodage de la voie surveillée, s'il est complet. */
+  private reglageTrame(): ReglageDecodage | undefined {
+    const d = this.declenchement;
+    return d ? this.decodages.find((r) => r.donnees === d.voie && reglageComplet(r)) : undefined;
+  }
+
+  /** Déclare les décodages de la vue ; un changement de celui qui déclenche refait la recherche. */
+  reglerDecodages(reglages: ReglageDecodage[]): void {
+    const trame = this.declenchement?.sens === 'trame';
+    const avant = trame ? JSON.stringify(this.reglageTrame() ?? null) : '';
+    this.decodages = reglages.map((r) => ({ ...r }));
+    if (trame && JSON.stringify(this.reglageTrame() ?? null) !== avant) this.recaler();
   }
 
   /**
@@ -569,8 +656,11 @@ export class AnalyseurCapture {
       v.fronts.push({ t, niveau });
       if (t > this.tDernier) this.tDernier = t;
     }
-    // Avant le rabot : ce qui va être jeté doit avoir été lu.
-    this.suivreDeclenchement(v);
+    // Avant le rabot : ce qui va être jeté doit avoir été lu. Sauf pour un début
+    // de trame : il se décode sur PLUSIEURS voies, qui n'ont pas encore reçu
+    // cette salve — SDA lue avant SCL voyait des START partout. `verser` le
+    // cherche une fois toutes les broches versées.
+    if (this.declenchement?.sens !== 'trame') this.suivreDeclenchement(v);
     if (!this.plein) this.raboter(v);
   }
 

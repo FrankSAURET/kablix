@@ -17,7 +17,12 @@
 // enregistrée dans le .projix avec le schéma. Ouvert le lendemain, il montre ce
 // que l'élève avait mesuré la veille.
 
-import { AnalyseurCapture, type Declenchement, type SensDeclenchement } from './analyseur-capture.mjs';
+import {
+  AnalyseurCapture,
+  type Declenchement,
+  type SensDeclenchement,
+  type VoieCapture,
+} from './analyseur-capture.mjs';
 import {
   AnalyseurVue,
   DISPOSITION,
@@ -28,6 +33,7 @@ import {
   type ZoneBouton,
 } from './analyseur-vue.mjs';
 import {
+  debutsDeTrame,
   decoderTous,
   lignesSousVoie,
   reculNecessaireMs,
@@ -343,6 +349,7 @@ function allerAuDeclenchement(): void {
  * est déjà capturé.
  */
 function choisirDeclenchement(d: Declenchement | null): void {
+  majDecodagesCapture();
   capture.reglerDeclenchement(d);
   if (enCours) {
     suivi = true;
@@ -544,13 +551,24 @@ function calculerAnnotations(): Annotation[] {
   const t1 = fenetre.t0 + fenetre.duree + marge;
   // `capture.fenetre` rend déjà les fronts INVERSÉS sur les voies réglées
   // actives-bas : le décodeur lit donc exactement ce que la vue dessine.
-  const tranche = capture.listeVoies.map((v) => {
+  return decoderTous(trancheCapture(t0, t1), reglagesEffectifs());
+}
+
+/** Les voies de la capture entre t0 et t1, telles que la vue les montre. */
+function trancheCapture(t0: number, t1: number): VoieCapture[] {
+  return capture.listeVoies.map((v) => {
     const f = capture.fenetre(v.voie, t0, t1);
     return { ...v, niveauInitial: f.entrant, fronts: f.fronts };
   });
-  // Les seuils de voie (vitesse, tolérance) priment sur ceux du décodage : deux
-  // lignes série d'un même montage ne tournent pas forcément à la même vitesse.
-  const avecSeuils = decodages.map((d) => {
+}
+
+/**
+ * Les décodages avec les seuils de leur voie (vitesse, tolérance), qui priment
+ * sur ceux du décodage : deux lignes série d'un même montage ne tournent pas
+ * forcément à la même vitesse.
+ */
+function reglagesEffectifs(): ReglageDecodage[] {
+  return decodages.map((d) => {
     const rv = d.donnees !== undefined ? reglagesVoies[d.donnees] : undefined;
     if (!rv?.bauds && !rv?.tolerance) return d;
     return {
@@ -559,7 +577,52 @@ function calculerAnnotations(): Annotation[] {
       ...(rv.tolerance ? { tolerance: rv.tolerance } : {}),
     };
   });
-  return decoderTous(tranche, avecSeuils);
+}
+
+/**
+ * Le déclenchement « début de trame » décode dans la capture : elle doit
+ * connaître les décodages tels que la vue les applique. Tout changement de
+ * réglage passe par `envoyerReglages`, qui l'appelle.
+ */
+function majDecodagesCapture(): void {
+  capture.reglerDecodages(reglagesEffectifs());
+  // ⏮ ⏭ n'ont rien à chercher sans décodage.
+  for (const id of ['trame-prec', 'trame-suiv']) {
+    const b = document.getElementById(id) as HTMLButtonElement | null;
+    if (b) b.disabled = decodages.length === 0;
+  }
+}
+
+/**
+ * Part de la largeur laissée AVANT le début de trame quand ⏮ ⏭ y amènent la
+ * vue : le trait vert qui l'ouvre reste visible, décollé du bord.
+ */
+const MARGE_TRAME = 0.02;
+
+/**
+ * Flèches ⏮ ⏭ : amène le début de la trame précédente (-1) ou suivante (+1)
+ * au bord gauche de la vue, zoom inchangé (Frank, 25/09).
+ *
+ * Les trames sont cherchées dans TOUTE la capture, pas dans la fenêtre : la
+ * suivante peut être à des secondes de là (un DS18B20 ne parle qu'une fois par
+ * seconde). Décoder toute la capture coûte, mais seulement au clic. Tous les
+ * décodages comptent : un montage à deux bus passe de l'un à l'autre dans
+ * l'ordre du temps.
+ */
+function sauterTrame(sens: -1 | 1): void {
+  if (decodages.length === 0 || !capture.aDesDonnees) return;
+  const debuts = debutsDeTrame(trancheCapture(capture.tDebut, capture.tFin), reglagesEffectifs());
+  // Le bord actuel, là où ⏮ ⏭ posent une trame ; un millième de largeur
+  // d'écart pour ne pas retomber sur celle qu'on vient de poser.
+  const bord = fenetre.t0 + fenetre.duree * MARGE_TRAME;
+  const eps = fenetre.duree * 1e-3;
+  const cible = sens > 0
+    ? debuts.find((t) => t > bord + eps)
+    : [...debuts].reverse().find((t) => t < bord - eps);
+  if (cible === undefined) return;
+  fenetre = { t0: cible - fenetre.duree * MARGE_TRAME, duree: fenetre.duree };
+  suivi = false;
+  dessiner();
 }
 
 // --- Barre d'outils ----------------------------------------------------------
@@ -700,6 +763,22 @@ function dessinMarche(sens: 'rising' | 'falling'): SVGElement {
   return svg;
 }
 
+/**
+ * Début de trame en SVG : un trait, puis le bloc de la trame qu'il ouvre. Le
+ * bouton « T » armé dessus montre le même dessin.
+ */
+function dessinDebutTrame(): SVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', '18');
+  svg.setAttribute('height', '14');
+  svg.setAttribute('viewBox', '0 0 18 14');
+  const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  p.setAttribute('d', 'M3 2 H4.8 V12 H3 Z M7 4 H16 V10 H7 Z');
+  p.setAttribute('fill', 'currentColor');
+  svg.append(p);
+  return svg;
+}
+
 /** « SC » en SVG : ce que montre le bouton « T » armé sur un START code DMX. */
 function dessinStartCode(): SVGElement {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -720,7 +799,8 @@ function dessinStartCode(): SVGElement {
 
 /**
  * Menu du bouton « T » d'une voie : aucun déclenchement, front montant, front
- * descendant — et, sur une voie décodée en DMX512, le START code 0x00.
+ * descendant — et, sur une voie décodée, le début de trame (le START code 0x00
+ * pour le DMX512).
  *
  * Le déclenchement reste UNIQUE pour toute la capture — c'est ainsi que
  * fonctionne un analyseur, et `AnalyseurCapture` n'en tient qu'un. Choisir un
@@ -751,10 +831,24 @@ function menuDeclenchement(z: ZoneBouton): void {
       dessinMarche('falling')
     )
   );
+  // Début de trame : sur toute voie décodée — le DMX a déjà le sien, plus
+  // précis, juste en dessous. Ce qu'est une trame, c'est le décodeur qui le
+  // dit (START I²C, CS ↓, RESET, départ DHT, caractère série après un silence).
+  const proto = decodageDe(z.voie)?.protocole;
+  if ((proto !== undefined && proto !== 'dmx') || sur === 'trame') {
+    boite.append(
+      entreeMenu(
+        t('Frame start'),
+        sur === 'trame',
+        () => choisirDeclenchement({ voie: z.voie, sens: 'trame' }),
+        dessinDebutTrame()
+      )
+    );
+  }
   // Proposé seulement là où il a un sens : une voie décodée en DMX512 (ou
   // déjà armée dessus, pour pouvoir le voir coché). Terme de la norme, jamais
   // traduit.
-  if (decodageDe(z.voie)?.protocole === 'dmx' || sur === 'dmxStart') {
+  if (proto === 'dmx' || sur === 'dmxStart') {
     boite.append(
       entreeMenu(
         'START code 0x00',
@@ -1030,6 +1124,7 @@ function panneauDecodage(d: ReglageDecodage, voie: number): HTMLElement {
  * l'instrument (personne ne rerègle un analyseur à chaque ouverture).
  */
 function envoyerReglages(): void {
+  majDecodagesCapture();
   vscode?.postMessage({
     type: 'analyseurReglages',
     declenchement: capture.reglageDeclenchement,
@@ -1434,6 +1529,24 @@ function restaurer(etat: EtatSerialise): void {
   majEchantillonnage();
   majInversions();
   majVitesses();
+  // Les décodages AVANT le déclenchement : « début de trame » décode pour
+  // trouver sa trame.
+  // `decodages` depuis v2026.9.4.94 ; `decodage` (un seul) est ce qu'ont écrit
+  // les .projix d'avant, qui doivent rouvrir avec leur réglage.
+  decodages = etat.decodages ?? (etat.decodage ? [etat.decodage] : []);
+  // Les numéros déjà pris d'abord : un décodage ajouté ensuite ne doit pas
+  // reprendre l'id d'un décodage rechargé.
+  for (const d of decodages) {
+    const n = /^d(\d+)$/.exec(d.id ?? '');
+    if (n) idDecodage = Math.max(idDecodage, Number(n[1]));
+  }
+  for (const d of decodages) {
+    if (!d.id) {
+      idDecodage += 1;
+      d.id = `d${idDecodage}`;
+    }
+  }
+  majDecodagesCapture();
   capture.reglerDeclenchement(etat.declenchement ?? null);
   // Les fronts APRÈS les réglages : la capture les reçoit comme en direct, et
   // garde ce qu'elle aurait gardé — la fenêtre autour du déclenchement, ou la
@@ -1444,15 +1557,6 @@ function restaurer(etat: EtatSerialise): void {
   capture.rejouer(salves);
   // Capture arrêtée : le front qui a déclenché est déjà dans les fronts rechargés.
   capture.chercherDeclenchement();
-  // `decodages` depuis v2026.9.4.94 ; `decodage` (un seul) est ce qu'ont écrit
-  // les .projix d'avant, qui doivent rouvrir avec leur réglage.
-  decodages = etat.decodages ?? (etat.decodage ? [etat.decodage] : []);
-  for (const d of decodages) {
-    if (!d.id) {
-      idDecodage += 1;
-      d.id = `d${idDecodage}`;
-    }
-  }
   // En plein run (l'atelier repousse ses réglages à chaque lancement), cadrer
   // la capture encore vide coupait le suivi : la vue restait figée sur ses
   // premières millisecondes.
@@ -1585,8 +1689,10 @@ selHorloge.addEventListener('change', () => {
   dessiner();
   envoyerReglages();
 });
+document.getElementById('trame-prec')?.addEventListener('click', () => sauterTrame(-1));
 document.getElementById('gauche')?.addEventListener('click', () => defiler(-1));
 document.getElementById('droite')?.addEventListener('click', () => defiler(1));
+document.getElementById('trame-suiv')?.addEventListener('click', () => sauterTrame(1));
 document.getElementById('tout')?.addEventListener('click', ajuster);
 document.getElementById('suivre')?.addEventListener('click', suivreFinDemande);
 btnReafficher?.addEventListener('click', () => {

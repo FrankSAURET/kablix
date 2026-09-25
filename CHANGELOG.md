@@ -14,6 +14,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Tensions dans la marge de l'analyseur logique** : face aux deux niveaux de chaque courbe, la tension de la carte pour l'état haut (`5 V` sur Uno et Mega, `3,3 V` sur Pico) et `0 V` pour l'état bas.
 - **Affichage binaire dans l'analyseur logique** : la case `Bits` du panneau de décodage écrit chaque bit (`0` ou `1`) sous le créneau qui le porte, séparé du suivant par un trait pointillé posé sur les fronts. Elle vaut pour tous les protocoles.
 - **Marqueurs M1 et M2 dans l'analyseur logique** : ils attendent à gauche de la barre de temps. Glissés sur les courbes, ils se collent au front le plus proche et tracent un trait de leur couleur. Posés tous les deux, une flèche donne la durée qui les sépare.
+- **Flèches ⏮ ⏭ dans l'analyseur logique** : elles amènent le début de la trame décodée précédente ou suivante au bord gauche, sans changer le zoom.
+- **Déclenchement sur début de trame pour tous les protocoles** : sur une voie décodée, le menu T propose `Frame start`. La capture se fige au début de la trame suivante : `START` en I²C, `CS` qui descend en SPI, premier caractère après un silence en UART, `RESET` en 1-Wire, demande du maître en DHT.
 
 ### Modification
 

@@ -89,6 +89,13 @@ export interface Annotation {
    * bords, du créneau jusqu'au chiffre.
    */
   bit?: boolean;
+  /**
+   * Ouvre une TRAME : BREAK DMX, START I²C (pas un START répété), CS ↓ ou début
+   * de salve SPI, premier caractère UART après un silence, RESET 1-Wire, départ
+   * DHT. Les flèches ⏮ ⏭ sautent de l'une à l'autre et le déclenchement « début
+   * de trame » s'y arrête (Frank, 25/09).
+   */
+  trame?: boolean;
 }
 
 /**
@@ -397,6 +404,8 @@ function decoderI2c(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
           t1: fin ? fin.t : fs.t,
           texte: dansTrame ? t('START rep.') : 'START',
           nature: 'start',
+          // Un START répété continue la trame en cours : seul le premier l'ouvre.
+          ...(dansTrame ? {} : { trame: true }),
         });
         if (bits > 1) verser();
         enAttente = [];
@@ -523,6 +532,16 @@ function decoderSpi(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
   let debutOctet = 0;
   /** État de sélection au front précédent, pour repérer les bascules de CS. */
   let selPrec: 0 | 1 | null = null;
+  /**
+   * Sans CS, une trame est une SALVE d'horloge : un front qui suit un silence de
+   * plus de quatre écarts ordinaires en ouvre une. `ecart` est le dernier écart
+   * pris dans une salve, `salveNeuve` attend le premier octet qui la porte.
+   */
+  let tPrec: number | null = null;
+  let ecart: number | null = null;
+  let salveNeuve = false;
+  /** L'octet en cours ouvre une salve. */
+  let octetOuvre = false;
 
   // Les changements de CS s'annoncent pour eux-mêmes, indépendamment de
   // l'horloge : une sélection sans un seul coup d'horloge est une information.
@@ -534,7 +553,7 @@ function decoderSpi(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
       if (f.niveau === 0) {
         const borne = cs.fronts[i + 1]?.t ?? Number.POSITIVE_INFINITY;
         const h = frontApres(sck.fronts, f.t, borne, null);
-        out.push({ t0: f.t, t1: h ? h.t : f.t, texte: 'CS ↓', nature: 'start' });
+        out.push({ t0: f.t, t1: h ? h.t : f.t, texte: 'CS ↓', nature: 'start', trame: true });
       } else {
         const borne = i > 0 ? cs.fronts[i - 1]!.t : Number.NEGATIVE_INFINITY;
         const h = frontAvant(sck.fronts, f.t, borne, null);
@@ -545,6 +564,17 @@ function decoderSpi(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
 
   for (const f of sck.fronts) {
     const attendu = surMontant ? 1 : 0;
+    if (!cs) {
+      const g = tPrec === null ? null : f.t - tPrec;
+      if (g === null || (ecart !== null && g > 4 * ecart)) {
+        // Un octet entamé avant le silence continue : cette salve-ci ne
+        // commence pas une trame qu'on saurait lire.
+        salveNeuve = bits === 0;
+      } else {
+        ecart = g;
+      }
+      tPrec = f.t;
+    }
     const sel = lCs ? lCs.a(f.t) : 0;
     // CS relâché : la trame se ferme, un octet incomplet est une anomalie.
     if (selPrec === 0 && sel !== 0 && bits > 0) {
@@ -567,7 +597,11 @@ function decoderSpi(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
     // Les bits de la ligne sous laquelle ils s'écrivent : MOSI, ou MISO seule.
     // La donnée change sur le front OPPOSÉ à celui qui l'échantillonne.
     if (r.bits) poseBit(...celluleHorloge(sck.fronts, f.t, surMontant ? 0 : 1), mosi ? bM : bS, 'donnee');
-    if (bits === 0) debutOctet = f.t;
+    if (bits === 0) {
+      debutOctet = f.t;
+      octetOuvre = salveNeuve;
+      salveNeuve = false;
+    }
     accMosi = (accMosi << 1) | (bM ?? 0); // SPI : MSB en premier
     accMiso = (accMiso << 1) | (bS ?? 0);
     bits += 1;
@@ -575,7 +609,13 @@ function decoderSpi(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
       const parts: string[] = [];
       if (mosi) parts.push(`MOSI ${octet(accMosi, r.base)}`);
       if (miso) parts.push(`MISO ${octet(accMiso, r.base)}`);
-      out.push({ t0: debutOctet, t1: f.t, texte: parts.join(' · '), nature: 'donnee' });
+      out.push({
+        t0: debutOctet,
+        t1: f.t,
+        texte: parts.join(' · '),
+        nature: 'donnee',
+        ...(octetOuvre ? { trame: true } : {}),
+      });
       bits = 0;
       accMosi = 0;
       accMiso = 0;
@@ -664,7 +704,7 @@ function decoderDmx(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
       if (finStop !== null && f.t > finStop) {
         out.push({ t0: finStop, t1: f.t, texte: 'MBB', nature: 'cadre' });
       }
-      out.push({ t0: f.t, t1: montant.t, texte: 'BREAK', nature: 'cadre' });
+      out.push({ t0: f.t, t1: montant.t, texte: 'BREAK', nature: 'cadre', trame: true });
       attendStart = true;
       canal = -1;
       finStop = null;
@@ -807,6 +847,14 @@ function decoderUart(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
   const lect = new Lecteur(v.fronts, v.niveauInitial);
   /** Instant au-delà duquel le caractère en cours est terminé. */
   let finCourante = -Infinity;
+  /**
+   * Fin des bits d'arrêt du caractère précédent. Une ligne série n'a pas de
+   * délimiteur de trame : un caractère qui suit un silence d'au moins un
+   * caractère entier en ouvre une — c'est le `println` suivant, la réponse
+   * suivante d'un module.
+   */
+  let finPrec = -Infinity;
+  const caractereMs = bitMs * (1 + nbData + (parite === 'none' ? 0 : 1) + nbStop);
 
   for (const f of v.fronts) {
     if (f.niveau !== 0) continue; // seul un front descendant ouvre un caractère
@@ -855,7 +903,14 @@ function decoderUart(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
     // données, la parité si elle est fausse, les bits d'arrêt en rouge. Une
     // erreur prend la place de la partie qu'elle concerne — l'octet reste lu,
     // à l'élève de juger s'il y croit.
-    out.push({ t0, t1: t0 + bitMs, texte: 'Start', nature: 'start' });
+    out.push({
+      t0,
+      t1: t0 + bitMs,
+      texte: 'Start',
+      nature: 'start',
+      ...(t0 - finPrec >= caractereMs ? { trame: true } : {}),
+    });
+    finPrec = t1;
     const car = litteral(acc);
     const val = octet(acc, r.base);
     out.push({
@@ -1002,7 +1057,7 @@ function decoderOneWire(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
     if (creuxUs >= OW.reset) {
       clore(f.t);
       // Le RESET ouvre la transaction : c'est le « start » du 1-Wire.
-      out.push({ t0: f.t, t1: suivant.t, texte: 'RESET', nature: 'start' });
+      out.push({ t0: f.t, t1: suivant.t, texte: 'RESET', nature: 'start', trame: true });
       attendCommande = true;
       finReset = suivant.t;
       continue;
@@ -1179,7 +1234,7 @@ function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
       // Signal de départ du maître : ce qui traînait avant n'appartient pas à
       // la trame qui commence.
       clore(f.t);
-      out.push({ t0: f.t, t1: montant.t, texte: t('REQUEST'), nature: 'start' });
+      out.push({ t0: f.t, t1: montant.t, texte: t('REQUEST'), nature: 'start', trame: true });
       attendAccuse = true;
       continue;
     }
@@ -1337,6 +1392,21 @@ export function decoderTous(voies: VoieCapture[], reglages: ReglageDecodage[]): 
     out.push(...decoder(voies, r));
   }
   return out.sort((a, b) => a.t0 - b.t0);
+}
+
+/**
+ * Débuts de trame de plusieurs décodages, dans l'ordre du temps : ce que
+ * parcourent les flèches ⏮ ⏭ et ce que cherche le déclenchement « début de
+ * trame ». Sans l'affichage binaire, qui ne change rien aux trames et
+ * multiplie les annotations par dix.
+ */
+export function debutsDeTrame(voies: VoieCapture[], reglages: ReglageDecodage[]): number[] {
+  const debuts: number[] = [];
+  for (const r of reglages) {
+    if (!reglageComplet(r)) continue;
+    for (const a of decoder(voies, { ...r, bits: false })) if (a.trame) debuts.push(a.t0);
+  }
+  return debuts.sort((a, b) => a - b);
 }
 
 /**

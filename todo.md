@@ -1,6 +1,5 @@
 # À faire
 1. Analyseur logique :
-    1. Rajoute des fleches (fleche avec trait vertical ⏮ ⏭) qui permettent de sauter d'une trame à l'autre en positionnant le début de la trame à gauche. Et du coup pour tous les protocoles, tu prévois un déclenchement sur début de trame comme pour le DMX
     1. DMX 
          1. Trés bien les tensions affichées mais pour le sn 75176A VOH = 3,7 V et VOL = 1,1 V ce sont ces tensions que je veux sur DMx- et DMx+
 1. Vérifie (rp2040js 1.3.4 → 1.4.0) et si nécessaire fais la mise à jour — ⏳ **vérifié : nécessaire, portage prêt ; attend ton accord** pour sortir `patches/rp2040js+1.3.4.patch` du dossier `patches/` (voir v2026.9.5.152, point 8)
@@ -13,6 +12,19 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.153
+1. ✅ **Flèches ⏮ ⏭ dans l'analyseur** (« Rajoute des flèches (flèche avec trait vertical ⏮ ⏭) qui permettent de sauter d'une trame à l'autre en positionnant le début de la trame à gauche »). [analyseur-panel.ts](src/analyseur-panel.ts) : `#trame-prec` et `#trame-suiv` autour de ◀ ▶, grisés sans décodage. [analyseur.mts](src/webview/analyseur.mts) `sauterTrame()` : cherche le début de trame suivant ou précédent, tous décodages mêlés dans l'ordre du temps, et le pose à 2 % du bord gauche (`MARGE_TRAME`), zoom inchangé. Au bout de la capture, la flèche ne bouge plus.
+2. ✅ **Début de trame, par protocole** : [analyseur-decodage.mts](src/webview/analyseur-decodage.mts), drapeau `trame` posé par chaque décodeur — I²C : `START` hors trame (pas le START répété) ; SPI : `CS ↓`, ou sans CS le premier octet d'une salve (écart > 4× l'écart ordinaire) ; UART : premier caractère après un silence d'au moins un caractère ; 1-Wire : `RESET` ; DHT : demande du maître ; DMX : `BREAK`. `debutsDeTrame()` les trie et ignore les décodages incomplets.
+3. ✅ **Déclenchement « Frame start »** (« pour tous les protocoles, tu prévois un déclenchement sur début de trame comme pour le DMX »). Menu T d'une voie de données décodée (hors DMX, qui garde `START code 0x00`). [analyseur-capture.mts](src/webview/analyseur-capture.mts) : sens `'trame'`, `chercherTrame()` décode les 100 ms qui précèdent (`RECUL_TRAME_MS`) et prend le premier début après l'armement ; en direct, une garde de 50 ms (`GARDE_TRAME_MS`) écarte un faux début : la fenêtre de recul coupe un caractère, et le suivant semble sortir d'un silence. Changer le décodage relance la recherche (`reglerDecodages`). Bouton T dessiné : trait suivi d'un créneau ([analyseur-vue.mts](src/webview/analyseur-vue.mts)). [projix.ts](src/projix.ts) : `'trame'` enregistré.
+4. ✅ **Défaut du point 10 de .152 corrigé** : `restaurer()` avance `idDecodage` au-delà des identifiants rechargés, et règle les décodages AVANT le déclenchement (le début de trame en a besoin).
+5. ✅ **Fiche d'aide** [sonde-logique.md](docs/fr/composants/sonde-logique.md) : flèches ⏮ ⏭, paragraphe « Début de trame » avec la liste par protocole. **CHANGELOG** : deux entrées Nouveauté sous 2026.9.6.
+6. ✅ **Bancs** : [verify-analyseur.mjs](scripts/verify-analyseur.mjs), section « Début de trame » (drapeaux des six décodeurs, `debutsDeTrame`, capture armée avant, pendant et après, décodage posé après coup, flot continu de 260 ms, I²C par tranches). Contre-épreuve de la garde (greffon qui la met à 0, dans le brouillon) : les contrôles du flot continu échouent. Nouveau [verify-analyseur-trames.mjs](scripts/verify-analyseur-trames.mjs) (`verify:analyseur-trames`, port 9429, dans `verify:all:serie`) : VRAIS clics sur ⏮ ⏭ et dans les menus P et T, position lue à l'écran (front d'ouverture au bord gauche à 2 px près) et dans la fenêtre confiée à VS Code, zoom gardé, « Frame start » absent d'une voie sans décodage, identifiant d'un décodage ajouté après réouverture. **22 contrôles verts ; contre-épreuve** `--ancien` : 14 échecs.
+7. ✅ **Tests** : `typecheck` et construction verts ; les 19 bancs de l'analyseur et des sondes verts.
+8. ℹ️ **Bilan `verify:all` du lot .152** : 142 bancs en 665 s, 141 verts. Seul rouge : `verify:i18n`, les traductions attendues à la publication.
+9. ⏳ Traductions avant publication : `Frame start` ([i18n.mts](src/webview/i18n.mts)), les deux infobulles de ⏮ ⏭ (`l10n/bundle.l10n.fr.json`), fiche EN de la sonde logique (flèches, début de trame).
 
 ---
 
@@ -55,7 +67,7 @@ Constaté dans src/arduino/arduino.ts :
 ```
 8. ⏳ **rp2040js 1.3.4 → 1.4.0 : mise à jour utile, portage prêt, attend ton accord.** La 1.4.0 (parue le 25/09) modélise les PLL et fait suivre `clk_peri` à sa source, avec recalcul du débit des UART (`updateClkPeri`, `uart.clkPeriChanged`) — la correction du point 3.1, côté bibliothèque. Notre correctif `patches/rp2040js+1.3.4.patch` (7 fichiers : horloge de simulation, cœur M0, PIO, UART, rp2040.js) est porté sur la 1.4.0 dans le brouillon (`rp140/essai/node_modules/rp2040js`), pas encore passé aux bancs du projet. **Bloquant** : `patch-package` applique tout `patches/` ; l'ancien fichier doit quitter ce dossier (vers `A Examiner/patches/`) avant de produire `rp2040js+1.4.0.patch`. Je n'y ai pas touché — dis-moi si je le déplace. `suivreClkPeri` reste nécessaire pour le RP2350 (rp2350js ne garde que REF et SYS), sans effet sur le RP2040 une fois en 1.4.0.
 9. ✅ [verify-analyseur.mjs](scripts/verify-analyseur.mjs) : sources lues avec fins de ligne ramenées à `\n`. Le rapatriement des lots .150 et .151 (tirage de `claude/exciting-johnson-poy463`, 25/09 à 13:28) a réécrit les fichiers en CRLF (git `autocrlf`) ; ces lots avaient été testés dans un environnement en LF. Le bloc de `restaurer()` se découpait à vide et six contrôles tombaient sans rapport avec le code. D'autres bancs à motifs textuels peuvent avoir le même travers : `verify:all` le dira.
-10. ⏳ **Défaut repéré, pas corrigé** : `restaurer()` garde les identifiants de décodage enregistrés (`d1`, `d2`…) sans avancer le compteur `idDecodage` ; un décodage ajouté ensuite reprend `d1`. À corriger avec les flèches ⏮ ⏭ (même code).
+10. ✅ (corrigé en .153, point 4) **Défaut repéré, pas corrigé** : `restaurer()` garde les identifiants de décodage enregistrés (`d1`, `d2`…) sans avancer le compteur `idDecodage` ; un décodage ajouté ensuite reprend `d1`. À corriger avec les flèches ⏮ ⏭ (même code).
 11. ℹ️ **DS18B20 « explique »** : déjà traité au lot .151, point 7 (conversation et fiche [sonde-logique.md](docs/fr/composants/sonde-logique.md)).
 12. ✅ **Tests** : `typecheck` et construction verts. Tous les `verify:analyseur*` verts (zoom compris), `verify:dmx` 109/109, `verify:decode`, `verify:serial`, `verify:pico2`, `verify:micropython`, `verify:souris`, `verify:reouverture` verts.
 

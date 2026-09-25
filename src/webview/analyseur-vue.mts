@@ -699,6 +699,13 @@ export class AnalyseurVue {
       ctx.fillStyle = sombre ? '#111' : '#fff';
       ctx.font = `bold 8px ${getComputedStyle(document.body).getPropertyValue('--vscode-font-family').trim() || 'sans-serif'}`;
       ctx.fillText('SC', x + BOUTON / 2, y + BOUTON / 2 + 0.5);
+    } else if (decl === 'trame') {
+      // Début de trame : un trait, puis le bloc de la trame qu'il ouvre — le
+      // même dessin que l'entrée du menu, sans mot à traduire.
+      const encre = sombre ? '#111' : '#fff';
+      ctx.fillStyle = encre;
+      ctx.fillRect(x + 4, y + 4, 1.6, BOUTON - 8);
+      ctx.fillRect(x + 7, y + BOUTON / 2 - 3, BOUTON - 11, 6);
     } else {
       this.marche(ctx, x, y, decl, sombre ? '#111' : '#fff');
     }

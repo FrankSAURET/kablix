@@ -427,8 +427,12 @@ export class AnalyseurPanel {
   </label>
   <!-- Flèches : reculer ou avancer d'une demi-fenêtre sans toucher au zoom
        (Frank, 23/09). Les touches ← → du clavier font la même chose. -->
+  <!-- ⏮ ⏭ : début de la trame décodée précédente ou suivante au bord gauche,
+       zoom inchangé (Frank, 25/09). Grisés tant qu'aucune voie n'est décodée. -->
+  <button id="trame-prec" type="button" disabled title="${l.t('Bring the start of the previous decoded frame to the left edge. Needs a decoding on a channel.')}">⏮</button>
   <button id="gauche" type="button" title="${l.t('Move back in time by half a window. The Left arrow key does the same.')}">◀</button>
   <button id="droite" type="button" title="${l.t('Move forward in time by half a window. The Right arrow key does the same.')}">▶</button>
+  <button id="trame-suiv" type="button" disabled title="${l.t('Bring the start of the next decoded frame to the left edge. Needs a decoding on a channel.')}">⏭</button>
   <!-- Deux boutons nommés en clair : « Fit » et « Follow » ne disaient pas ce
        qu'ils font une fois dans un analyseur (retour Frank, .91). -->
   <button id="tout" type="button" title="${l.t('Zoom out until the whole capture, from the start to the last edge, fits the window.')}">${l.t('Whole capture')}</button>

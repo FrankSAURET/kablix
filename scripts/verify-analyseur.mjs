@@ -72,7 +72,7 @@ const { AnalyseurCapture, VOIES_MAX, FRONTS_MAX_PAR_VOIE, RESERVE_AVANT } = awai
 // Le décodeur parle la langue de la webview (`t()`, v2026.9.4.133) : son paquet
 // embarque SON i18n, qu'il faut régler dans CE paquet. Le banc lit en français,
 // puis refait un tour en anglais (langue de base) plus bas.
-const { decoder, decoderTous, reglageComplet, rolesDe, reculNecessaireMs, lignesSousVoie, initLocale } = await buildTo(
+const { decoder, decoderTous, debutsDeTrame, reglageComplet, rolesDe, reculNecessaireMs, lignesSousVoie, initLocale } = await buildTo(
   {
     resolveDir: join(root, 'src/webview'),
     contents: [
@@ -806,11 +806,11 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   // déclenchement, et la fiche l'explique.
   const js = readFileSync(join(root, 'src', 'webview', 'analyseur.mts'), 'utf8');
   check('déclenchement DMX : entrée « START code 0x00 » réservée aux voies décodées en DMX',
-    /decodageDe\(z\.voie\)\?\.protocole === 'dmx' \|\| sur === 'dmxStart'/.test(js) &&
+    /proto === 'dmx' \|\| sur === 'dmxStart'/.test(js) &&
       /'START code 0x00'/.test(js) && /sens: 'dmxStart'/.test(js));
   check('déclenchement DMX : vitesse de voie répercutée au réglage et à la restauration',
     /majInversions\(\);\s*majVitesses\(\);\s*dessiner\(\);/.test(js) &&
-      /majInversions\(\);\s*majVitesses\(\);\s*capture\.reglerDeclenchement\(/.test(js));
+      /majInversions\(\);\s*majVitesses\(\);[\s\S]{0,1500}?majDecodagesCapture\(\);\s*capture\.reglerDeclenchement\(/.test(js));
   const vueSrc = readFileSync(join(root, 'src', 'webview', 'analyseur-vue.mts'), 'utf8');
   check('déclenchement DMX : le bouton « T » armé montre « SC »',
     /decl === 'dmxStart'/.test(vueSrc) && /fillText\('SC'/.test(vueSrc));
@@ -1753,6 +1753,233 @@ const dhtDe = (tempC, humidity, model) => {
     `${bits.length} creux, min ${Math.min(...bits)} max ${Math.max(...bits)}`);
   check('DHT lu en 1-Wire : aucune mesure n\'en sort (ce sont deux protocoles différents)',
     !enOneWire.some((x) => x.includes('%HR')), enOneWire.join(' | '));
+}
+
+// --- Début de trame : flèches ⏮ ⏭ et déclenchement (v2026.9.5.153) -----------------
+{
+  // Frank, 25/09 : « sauter d'une trame à l'autre en positionnant le début de
+  // la trame à gauche », et « pour tous les protocoles, un déclenchement sur
+  // début de trame comme pour le DMX ». Le décodeur marque l'ouverture de
+  // chaque trame (`trame`) ; flèches et déclenchement ne lisent que ce drapeau.
+  const ouvertures = (ann) => ann.filter((a) => a.trame).map((a) => a.t0);
+  const pres = (a, b) => Math.abs(a - b) < 1e-9;
+  const memes = (a, b) => a.length === b.length && a.every((x, i) => pres(x, b[i]));
+  const plat = (paires) => paires.flat();
+
+  /**
+   * Bus I²C fabriqué : 'start', 'stop' ou un octet (suivi d'un ACK). Un 'start'
+   * au milieu d'une transaction est un START répété. Rend aussi l'instant de
+   * chaque START (SDA descend, SCL haut).
+   */
+  const i2cDe = (seq) => {
+    const T = 0.01;
+    const scl = [];
+    const sda = [];
+    let t = 1.0;
+    let hScl = 1;
+    let hSda = 1;
+    const SCL = (n) => { if (n !== hScl) { scl.push([t, n]); hScl = n; } };
+    const SDA = (n) => { if (n !== hSda) { sda.push([t, n]); hSda = n; } };
+    const starts = [];
+    for (const e of seq) {
+      if (e === 'start') {
+        // START répété : SDA remonte horloge basse, puis SCL remonte.
+        if (hScl === 0 || hSda === 0) { SCL(0); t += T / 2; SDA(1); t += T / 2; SCL(1); t += T; }
+        starts.push(t);
+        SDA(0);
+        t += T;
+      } else if (e === 'stop') {
+        SCL(0); t += T / 2; SDA(0); t += T / 2; SCL(1); t += T; SDA(1); t += 5 * T;
+      } else {
+        for (let i = 8; i >= 0; i--) {
+          SCL(0); t += T / 2; SDA(i === 0 ? 0 : (e >> (i - 1)) & 1); t += T / 2; SCL(1); t += T;
+        }
+      }
+    }
+    return { scl, sda, starts };
+  };
+
+  // I²C : deux transactions, la première avec un START répété (lecture de
+  // registre). Deux trames, pas trois.
+  const bus = i2cDe(['start', 0x90, 0x00, 'start', 0x91, 0x12, 'stop', 'start', 0x90, 0x55, 'stop']);
+  const i2cVoies = [voieDe(0, 'SCL', bus.scl, 1), voieDe(1, 'SDA', bus.sda, 1)];
+  const i2cOuv = ouvertures(decoder(i2cVoies, { protocole: 'i2c', horloge: 0, donnees: 1 }));
+  check('trame I²C : chaque START ouvre une trame, pas le START répété',
+    memes(i2cOuv, [bus.starts[0], bus.starts[2]]), `${i2cOuv} / ${bus.starts}`);
+
+  // UART : trois caractères collés, un silence, deux collés. Seul le premier
+  // caractère de chaque groupe ouvre une trame.
+  const serie = serieDe([0x41, 0x42, 0x43, 0x44, 0x45], 9600, 8, 'none', 1, [0, 0, 60, 0, 0]);
+  const uartAnn = decoder([voieDe(0, 'TX', serie, 1)], { protocole: 'uart', donnees: 0, bauds: 9600 });
+  const uartStarts = uartAnn.filter((a) => a.nature === 'start').map((a) => a.t0);
+  const uartOuv = ouvertures(uartAnn);
+  check('trame UART : le premier caractère après un silence, pas ses suivants',
+    uartStarts.length === 5 && memes(uartOuv, [uartStarts[0], uartStarts[3]]),
+    `${uartOuv} / ${uartStarts}`);
+
+  // SPI sans CS : une trame par SALVE d'horloge, pas par octet.
+  const s1 = spiMode0([{ out: 0xa5, in: 0 }, { out: 0x3c, in: 0 }], false);
+  const decale = (paires, dt) => paires.map(([t, n]) => [t + dt, n]);
+  const s2 = spiMode0([{ out: 0x0f, in: 0 }], false);
+  const DT = 1.0;
+  const sck = [...s1.sck, ...decale(s2.sck, DT)];
+  // 0x3C finit à 0, là d'où repart la seconde salve : aucun front en double.
+  const mosi = [...s1.mosi, ...decale(s2.mosi, DT)];
+  const spiAnn = decoder([voieDe(0, 'SCK', sck, 0), voieDe(1, 'MOSI', mosi, 0)],
+    { protocole: 'spi', horloge: 0, donnees: 1 });
+  const spiOctets = spiAnn.filter((a) => a.nature === 'donnee').map((a) => a.t0);
+  const spiOuv = ouvertures(spiAnn);
+  check('trame SPI sans CS : une par salve d\'horloge, pas une par octet',
+    spiOctets.length === 3 && memes(spiOuv, [spiOctets[0], spiOctets[2]]), `${spiOuv} / ${spiOctets}`);
+  // SPI avec CS : la sélection ouvre la trame.
+  const sc = spiMode0([{ out: 0xa5, in: 0 }, { out: 0x3c, in: 0 }], true);
+  const csOuv = ouvertures(decoder(
+    [voieDe(0, 'SCK', sc.sck, 0), voieDe(1, 'MOSI', sc.mosi, 0), voieDe(3, 'CS', sc.cs, 1)],
+    { protocole: 'spi', horloge: 0, donnees: 1, selection: 3 }));
+  check('trame SPI avec CS : CS ↓ ouvre la trame, les octets non',
+    memes(csOuv, [sc.cs[0][0]]), String(csOuv));
+
+  // 1-Wire : chaque RESET ; DHT : la demande du maître.
+  const ow = oneWireDe(['reset', 0xcc, 0x44, 'reset', 0xcc, 0xbe]);
+  const owOuv = ouvertures(decoder([voieDe(0, 'DQ', ow, 1)], { protocole: 'onewire', donnees: 0 }));
+  const owResets = ow.filter(([, n], i) => n === 0 && ow[i + 1] && ow[i + 1][0] - ow[i][0] > 0.4).map(([t]) => t);
+  check('trame 1-Wire : chaque RESET ouvre une trame',
+    owResets.length === 2 && memes(owOuv, owResets), `${owOuv} / ${owResets}`);
+  const dht = dhtDe(23.4, 56.7, 'dht22');
+  const dhtOuv = ouvertures(decoder([voieDe(0, 'DATA', dht, 1)], { protocole: 'dht', donnees: 0 }));
+  check('trame DHT : la demande du maître ouvre la trame', memes(dhtOuv, [dht[0][0]]), String(dhtOuv));
+
+  // Deux décodages : les débuts de trame des deux, dans l'ordre du temps.
+  const deux = debutsDeTrame(
+    [voieDe(0, 'TX', serie, 1), voieDe(1, 'DQ', ow, 1)],
+    [{ protocole: 'uart', donnees: 0, bauds: 9600 }, { protocole: 'onewire', donnees: 1 }, { protocole: 'spi' }]);
+  const attendu = [...uartOuv, ...owOuv].sort((a, b) => a - b);
+  check('⏮ ⏭ : les débuts de trame de tous les décodages, triés, un décodage incomplet ignoré',
+    memes(deux, attendu), `${deux} / ${attendu}`);
+
+  // --- Déclenchement « début de trame » dans la capture ---
+  // UART sur trois groupes séparés par des silences de 5 ms : A (3 car.), B
+  // (3 car.), C (2 car.).
+  const B96 = 1000 / 9600;
+  const SIL = Math.round(5 / B96);
+  const groupes = serieDe([0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48], 9600, 8, 'none', 1,
+    [0, 0, SIL, 0, 0, SIL, 0, 0]);
+  const debutsCar = decoder([voieDe(0, 'TX', groupes, 1)], { protocole: 'uart', donnees: 0, bauds: 9600 })
+    .filter((a) => a.nature === 'start').map((a) => a.t0);
+  const [tA, , , tB, tB2, , tC] = debutsCar;
+  const REGLAGE_UART = { protocole: 'uart', donnees: 0, bauds: 9600, id: 'd1' };
+  const uart = () => {
+    const c = new AnalyseurCapture();
+    c.declarerVoies([{ voie: 0, pin: 'TX', nom: 'TX' }]);
+    c.reglerDecodages([REGLAGE_UART]);
+    return c;
+  };
+  const platUart = plat(groupes);
+  const aucun = uart();
+  aucun.reglerDeclenchement({ voie: 0, sens: 'trame' });
+  aucun.reglerDecodages([]);
+  aucun.verser({ TX: platUart });
+  check('déclenchement trame : sans décodage sur la voie, rien ne déclenche', aucun.tTrigger === null,
+    String(aucun.tTrigger));
+
+  const arrete = uart();
+  arrete.reglerDeclenchement({ voie: 0, sens: 'trame' });
+  arrete.verser({ TX: platUart });
+  check('déclenchement trame : armé avant le run, la première trame (UART)',
+    arrete.tTrigger !== null && pres(arrete.tTrigger, tA), `${arrete.tTrigger} / ${tA}`);
+
+  // Posé sur une capture ARRÊTÉE, puis le décodage réglé après coup : la
+  // recherche se refait.
+  const apres = uart();
+  apres.reglerDecodages([]);
+  apres.verser({ TX: platUart });
+  apres.reglerDeclenchement({ voie: 0, sens: 'trame' });
+  const rien = apres.chercherDeclenchement();
+  apres.reglerDecodages([REGLAGE_UART]);
+  check('déclenchement trame : le décodage posé après coup relance la recherche',
+    rien === null && apres.tTrigger !== null && pres(apres.tTrigger, tA), `${rien} → ${apres.tTrigger}`);
+
+  // En plein run, par salves : armé dans le silence entre A et B → B ; armé au
+  // milieu de B → C, jamais un caractère de B (il suit ses voisins sans silence).
+  const coupe = (limite) => platUart.findIndex((x, i) => i % 2 === 0 && x > limite);
+  for (const pas of [2, 6, 14, 40]) {
+    for (const [nom, arme, voulu] of [['entre A et B', tB - 2, tB], ['au milieu de B', tB2 + B96, tC]]) {
+      const s = uart();
+      const k = coupe(arme);
+      for (let i = 0; i < k; i += pas) s.verser({ TX: platUart.slice(i, Math.min(i + pas, k)) });
+      s.reglerDeclenchement({ voie: 0, sens: 'trame' });
+      for (let i = k; i < platUart.length; i += pas) s.verser({ TX: platUart.slice(i, i + pas) });
+      check(`déclenchement trame UART en salves de ${pas / 2} front(s), armé ${nom}`,
+        s.tTrigger !== null && pres(s.tTrigger, voulu), `${s.tTrigger} / ${voulu}`);
+    }
+  }
+
+  // Flot continu plus long que le recul (260 ms de 0x55 collés), puis un
+  // silence et « Z ». Chaque recherche relit 100 ms en arrière et tombe au
+  // milieu du flot : le premier caractère lu y semble suivre un silence. La
+  // garde l'écarte ; sans elle, le déclenchement tombait dans le flot.
+  const flot = serieDe([...Array(250).fill(0x55), 0x5a], 9600, 8, 'none', 1, [...Array(249).fill(0), SIL]);
+  const platFlot = plat(flot);
+  const tZ = decoder([voieDe(0, 'TX', flot, 1)], { protocole: 'uart', donnees: 0, bauds: 9600 })
+    .filter((a) => a.nature === 'start').at(-1).t0;
+  for (const pas of [20, 200]) {
+    const s = uart();
+    const k = platFlot.findIndex((x, i) => i % 2 === 0 && x > 3); // armé à 3 ms
+    s.verser({ TX: platFlot.slice(0, k) });
+    s.reglerDeclenchement({ voie: 0, sens: 'trame' });
+    for (let i = k; i < platFlot.length; i += pas) s.verser({ TX: platFlot.slice(i, i + pas) });
+    check(`déclenchement trame UART : flot continu de 260 ms lu par salves de ${pas / 2} fronts, rien avant « Z »`,
+      s.tTrigger !== null && pres(s.tTrigger, tZ), `${s.tTrigger} / ${tZ}`);
+  }
+
+  // I²C : deux voies. Le START répété de la première transaction ne déclenche
+  // pas ; armé pendant elle, c'est le START de la seconde.
+  const i2c = () => {
+    const c = new AnalyseurCapture();
+    c.declarerVoies([{ voie: 0, pin: 'SCL', nom: 'SCL' }, { voie: 1, pin: 'SDA', nom: 'SDA' }]);
+    c.reglerDecodages([{ protocole: 'i2c', horloge: 0, donnees: 1, id: 'd1' }]);
+    return c;
+  };
+  const platScl = plat(bus.scl);
+  const platSda = plat(bus.sda);
+  const tranche = (liste, a, b) => liste.filter((_, i) => i % 2 === 0).flatMap((t, j) =>
+    (t > a && t <= b ? [t, liste[2 * j + 1]] : []));
+  const i1 = i2c();
+  i1.reglerDeclenchement({ voie: 1, sens: 'trame' });
+  i1.verser({ SCL: platScl, SDA: platSda });
+  check('déclenchement trame I²C : sur le premier START',
+    i1.tTrigger !== null && pres(i1.tTrigger, bus.starts[0]), `${i1.tTrigger} / ${bus.starts}`);
+  for (const pas of [0.005, 0.02, 0.07]) {
+    const s = i2c();
+    const arme = bus.starts[0] + 0.05;
+    const fin = platScl.at(-2) + 1;
+    let t = 0;
+    for (; t < arme; t += pas) s.verser({ SCL: tranche(platScl, t, Math.min(t + pas, arme)), SDA: tranche(platSda, t, Math.min(t + pas, arme)) });
+    s.reglerDeclenchement({ voie: 1, sens: 'trame' });
+    for (t = arme; t < fin; t += pas) s.verser({ SDA: tranche(platSda, t, t + pas), SCL: tranche(platScl, t, t + pas) });
+    check(`déclenchement trame I²C en tranches de ${pas * 1000} µs, armé dans la 1re transaction : START de la 2de`,
+      s.tTrigger !== null && pres(s.tTrigger, bus.starts[2]), `${s.tTrigger} / ${bus.starts}`);
+  }
+
+  // L'interface : l'entrée « Frame start » sur toute voie décodée hors DMX, les
+  // flèches dans la barre, et la capture tenue au courant des décodages.
+  const js = readFileSync(join(root, 'src', 'webview', 'analyseur.mts'), 'utf8');
+  const panneau = readFileSync(join(root, 'src', 'analyseur-panel.ts'), 'utf8');
+  check('début de trame : entrée « Frame start » du menu T, hors DMX',
+    /proto !== undefined && proto !== 'dmx'\) \|\| sur === 'trame'/.test(js) &&
+      /t\('Frame start'\)/.test(js) && /sens: 'trame'/.test(js));
+  check('début de trame : ⏮ ⏭ dans la barre, autour de ◀ ▶, reliés à sauterTrame',
+    /id="trame-prec"[\s\S]*id="gauche"[\s\S]*id="droite"[\s\S]*id="trame-suiv"/.test(panneau) &&
+      /'trame-prec'\)\?\.addEventListener\('click', \(\) => sauterTrame\(-1\)\)/.test(js) &&
+      /'trame-suiv'\)\?\.addEventListener\('click', \(\) => sauterTrame\(1\)\)/.test(js));
+  check('début de trame : la capture reçoit les décodages à chaque réglage et avant le déclenchement restauré',
+    /function envoyerReglages\(\): void \{\s*majDecodagesCapture\(\);/.test(js) &&
+      /majDecodagesCapture\(\);\s*capture\.reglerDeclenchement\(etat\.declenchement/.test(js));
+  const vueTrame = readFileSync(join(root, 'src', 'webview', 'analyseur-vue.mts'), 'utf8');
+  check('début de trame : le bouton « T » armé a son dessin', /decl === 'trame'/.test(vueTrame));
+  const ficheTrame = readFileSync(join(root, 'docs', 'fr', 'composants', 'sonde-logique.md'), 'utf8');
+  check('début de trame : la fiche d\'aide explique flèches et déclenchement',
+    /⏮/.test(ficheTrame) && /⏭/.test(ficheTrame) && /[Dd]ébut de trame/.test(ficheTrame));
 }
 
 // --- Rendu : géométrie et graduations -------------------------------------------

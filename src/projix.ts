@@ -43,10 +43,11 @@ export interface ProjixAnalyseur {
     niveauInitial: 0 | 1 | null;
   }>;
   /**
-   * Voie et sens du déclenchement (front, ou `dmxStart` : START code 0x00
-   * DMX512), ou absent si aucun n'est réglé.
+   * Voie et sens du déclenchement (front, `dmxStart` : START code 0x00
+   * DMX512, ou `trame` : début de trame du décodage de la voie), ou absent si
+   * aucun n'est réglé.
    */
-  declenchement?: { voie: number; sens: 'rising' | 'falling' | 'dmxStart' } | null;
+  declenchement?: { voie: number; sens: 'rising' | 'falling' | 'dmxStart' | 'trame' } | null;
   /**
    * Ancien champ : UN seul décodage. Écrit par les versions antérieures à
    * v2026.9.4.94 ; encore relu pour qu'un projet d'alors rouvre avec le sien.

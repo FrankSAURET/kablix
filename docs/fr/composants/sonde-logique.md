@@ -45,6 +45,7 @@ Plusieurs pinces peuvent écouter le **même signal** : sur une carte DMX, une p
 - **Molette** : zoom, autour du point sous la souris.
 - **Glisser** : se promener dans l'enregistrement.
 - **Flèches ◀ ▶** de la barre, ou touches **←** **→** : recule ou avance d'une demi-fenêtre, sans changer le zoom.
+- **Flèches ⏮ ⏭** de la barre : amènent le **début de la trame** décodée précédente ou suivante au bord gauche, sans changer le zoom. Elles demandent au moins un décodage ; avec plusieurs, elles passent d'un bus à l'autre dans l'ordre du temps.
 - **Survol** : un réticule donne l'instant, et le niveau (0 ou 1) de chaque voie à cet instant.
 - **Toute la capture** : ramène toute la capture dans l'écran.
 - **Suivre en direct** : recolle la vue à la fin de la capture, ce qu'elle fait d'elle-même pendant un run tant qu'on n'a pas zoomé.
@@ -64,6 +65,16 @@ Le menu **T** sous le nom d'une voie : choisissez le **sens** — front *montant
 Changer de réglage **réarme** l'attente.
 
 Sur une voie décodée en **DMX512**, le menu propose aussi **`START code 0x00`** : la capture se fige sur le **start bit du premier créneau** d'une trame d'éclairage, celui qui suit le `BREAK` et le `MAB`. Un canal qui vaut `0x00` ne déclenche pas, une trame à start code non nul (RDM, texte) non plus. Le bouton affiche alors `SC`. La durée d'un bit suit la **vitesse de la voie** (250 kbauds si rien n'est saisi) : une trame émise à une autre vitesse ne déclenche qu'une fois celle-ci réglée.
+
+Sur une voie qui porte les données d'un autre décodage, le menu propose **Début de trame** : la capture se fige sur l'**ouverture de la première trame** qui suit l'armement. Ce qui ouvre une trame dépend du protocole :
+
+- **I²C** : le `START` (un `START rep.` ne fait que continuer la trame en cours) ;
+- **SPI** : `CS ↓` ; sans voie CS, le premier octet d'une salve d'horloge ;
+- **UART** : le premier caractère qui suit un silence d'au moins un caractère ;
+- **1-Wire** : le `RESET` ;
+- **DHT11 / DHT22** : la demande du maître.
+
+Le déclenchement lit le décodage tel qu'il est réglé : changer ses voies ou sa vitesse relance la recherche. Le bouton montre alors un trait suivi d'un créneau.
 
 ## Le décodage
 
