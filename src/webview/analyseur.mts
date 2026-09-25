@@ -20,6 +20,7 @@
 import { AnalyseurCapture, type Declenchement, type SensDeclenchement } from './analyseur-capture.mjs';
 import {
   AnalyseurVue,
+  DISPOSITION,
   type BoutonVoie,
   type Fenetre,
   type TextesVue,
@@ -134,6 +135,14 @@ let reglagesVoies: ReglagesVoies = {};
 let idDecodage = 0;
 /** Vrai pendant un run : la vue se redessine en continu. */
 let enCours = false;
+/**
+ * Instants de M1 et M2, en ms simulées ; null = garé à gauche de la barre de
+ * temps, où les deux attendent à l'ouverture. Ce sont des outils de lecture,
+ * comme le réticule : ils ne s'enregistrent pas dans le projet.
+ */
+const marqueurs: Array<number | null> = [null, null];
+/** Marqueur tenu à la souris, ou null. */
+let marqueurPris: number | null = null;
 
 const canvas = document.getElementById('trace') as HTMLCanvasElement;
 const vue = new AnalyseurVue(canvas);
@@ -361,6 +370,8 @@ function rendu(): void {
     souris,
     textes: textes(),
     lang: locale(),
+    marqueurs,
+    marqueurPris,
   });
   majEtat();
   majMasquees();
@@ -1069,6 +1080,18 @@ canvas.addEventListener(
   'pointerdown',
   (ev) => {
     const r = canvas.getBoundingClientRect();
+    // Un marqueur sous la souris : on le prend, et la vue ne défile pas.
+    const m = ev.button === 0 ? vue.marqueurA(ev.clientX - r.left, ev.clientY - r.top) : null;
+    if (m !== null) {
+      ev.stopPropagation();
+      ev.preventDefault();
+      fermerPanneau();
+      marqueurPris = m;
+      canvas.setPointerCapture(ev.pointerId);
+      canvas.style.cursor = 'ew-resize';
+      dessiner();
+      return;
+    }
     const z = vue.boutonA(ev.clientX - r.left, ev.clientY - r.top);
     if (!z) return;
     ev.stopPropagation();
@@ -1237,6 +1260,12 @@ function restaurer(etat: EtatSerialise): void {
   for (const d of diagnostics) if (d.pin) parPin.set(d.pin, d.voie);
   const voieDe = (v: { voie: number; pin: string }): number => parPin.get(v.pin) ?? v.voie;
   capture.declarerVoies(etat.voies.map((v) => ({ voie: voieDe(v), pin: v.pin, nom: v.nom })));
+  // Une capture enregistrée est COMPLÈTE : elle remplace ce qui est affiché,
+  // elle ne s'y ajoute pas. `declarerVoies` garde les fronts d'une voie à broche
+  // inchangée — voulu pendant un run, faux ici : rouvrir le même projet, onglet
+  // ouvert, versait une seconde fois les mêmes fronts derrière les premiers, le
+  // temps repartait en arrière et chaque piste se barrait d'un trait parasite.
+  capture.reinitialiser();
   const salves: Record<string, number[]> = {};
   for (const v of etat.voies) salves[v.pin] = v.fronts;
   capture.verser(salves);
@@ -1309,12 +1338,70 @@ function restaurer(etat: EtatSerialise): void {
 canvas.addEventListener('pointermove', (ev) => {
   const r = canvas.getBoundingClientRect();
   souris = { x: ev.clientX - r.left, y: ev.clientY - r.top };
+  if (marqueurPris !== null) deplacerMarqueur(marqueurPris, souris.x);
+  // Un marqueur se prend à la souris : le curseur le dit en le survolant.
+  canvas.style.cursor =
+    marqueurPris !== null || vue.marqueurA(souris.x, souris.y) !== null ? 'ew-resize' : '';
   dessiner();
 });
 canvas.addEventListener('pointerleave', () => {
   souris = null;
   dessiner();
 });
+
+/**
+ * Rayon d'aimantation d'un marqueur, en pixels : un front plus proche que cela
+ * l'attire (Frank : « ils doivent avoir tendance à coller sur les fronts »).
+ * Assez petit pour poser un marqueur entre deux fronts en zoomant un peu.
+ */
+const AIMANT_PX = 8;
+
+/**
+ * L'instant `t`, ou le front le plus proche s'il en tombe un à moins de
+ * AIMANT_PX pixels, toutes voies affichées confondues. Les fronts sont ceux que
+ * la vue dessine (échantillonnage et inversion compris) : le marqueur colle au
+ * trait qu'on voit.
+ */
+function aimanter(t: number): number {
+  const w = canvas.clientWidth;
+  const rayon = Math.abs(vue.tDe(AIMANT_PX, fenetre, w) - vue.tDe(0, fenetre, w));
+  let meilleur = t;
+  let ecart = rayon;
+  for (const vv of voiesVisibles()) {
+    if (vv.probleme) continue;
+    for (const f of capture.fenetre(vv.voie, t - rayon, t + rayon).fronts) {
+      const d = Math.abs(f.t - t);
+      if (d <= ecart) {
+        ecart = d;
+        meilleur = f.t;
+      }
+    }
+  }
+  return meilleur;
+}
+
+/**
+ * Amène un marqueur sous la souris. Ramené dans la colonne des noms, il
+ * retourne au garage : c'est ainsi qu'on l'ôte.
+ */
+function deplacerMarqueur(m: number, x: number): void {
+  const w = canvas.clientWidth;
+  if (x < DISPOSITION.MARGE_G) {
+    marqueurs[m] = null;
+    return;
+  }
+  marqueurs[m] = aimanter(vue.tDe(Math.min(x, w - DISPOSITION.MARGE_D), fenetre, w));
+}
+
+/** Fin de la prise d'un marqueur : il reste là où on l'a lâché. */
+function lacherMarqueur(ev: PointerEvent): void {
+  if (marqueurPris === null) return;
+  marqueurPris = null;
+  if (canvas.hasPointerCapture(ev.pointerId)) canvas.releasePointerCapture(ev.pointerId);
+  dessiner();
+}
+canvas.addEventListener('pointerup', lacherMarqueur);
+canvas.addEventListener('lostpointercapture', lacherMarqueur);
 canvas.addEventListener(
   'wheel',
   (ev) => {

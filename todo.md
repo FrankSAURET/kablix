@@ -1,7 +1,5 @@
 # À faire
 1. Analyseur logique :
-    1. Ajoute la possibilité de poser des marqueurs, ils  doivent avoir tendance à coller sur les fronts. 2 marqueurs succesifs affichent entre eux une fleche qui donne la durée entre eux.
-    Tu les appelles M1 et M2 ils apparaissent dés l'ouverture complètement à gauche dans la barre de temps M1 bleu et M2 orangé. Quand on les déplacent et qu'on les posent, ils affichent un trait vertical de leur couleur
     1. Si je déplace l'onglet vscode (sur un autre écran par exemple) les courbes disparaissent
         1. Rajoute un affichage binaire. S'il est sélectionné, les bit s'affichent en dessous du signal en  étant synchronisé avec et un marqueur sépare chaque bit
     1. Fait moi un fichier de test pour l'uart arduino et pico 
@@ -16,6 +14,13 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.148
+1. ✅ **Marqueurs M1 et M2** (Frank : « poser des marqueurs, ils doivent avoir tendance à coller sur les fronts. 2 marqueurs successifs affichent entre eux une flèche qui donne la durée entre eux. M1 et M2 (…) complètement à gauche dans la barre de temps, M1 bleu et M2 orangé. Quand on les déplace et qu'on les pose, ils affichent un trait vertical de leur couleur »). [analyseur-vue.mts](src/webview/analyseur-vue.mts) : barre de temps passée de 22 à 42 px (`GRAD_H` 22 de graduations + `BANDE_M` 20 de bande des marqueurs, `REGLE_H` = somme) ; au garage, drapeaux « M1 » (#0969da / #4493f8) et « M2 » (#d4731a / #f0883e) dans la colonne des noms ; posé, trait vertical de 1,5 px de sa couleur sur toutes les pistes, drapeau au-dessus ; hors fenêtre, pointe de sa couleur au bord ; les deux posés, flèche à double pointe entre les drapeaux et l'écart (`formatTemps`, valeur absolue) en gras sur plaque au fond de l'éditeur, au milieu s'il y a la place, sinon à côté. `marqueurA(x, y)` : zones du drapeau et du trait (±4 px). [analyseur.mts](src/webview/analyseur.mts) : prise en phase de capture avant le glissé de vue (drapeau OU trait), curseur ↔ au survol, aimantation au front le plus proche à 8 px (fronts LUS : échantillonnage et inversion compris, toutes voies visibles), ramené dans la colonne des noms = regaré. Instants en ms simulées : les marqueurs suivent le défilement et le zoom. Non enregistrés dans le projet, non remis à zéro au départ d'un run.
+2. ✅ **Correction : restaurer deux fois la même capture la doublait** (vu en mesurant le rendu). `restaurer()` déclarait les voies (qui gardent leurs fronts à broche inchangée) puis versait : rouvrir le même projet, onglet ouvert, ajoutait les fronts derrière les premiers, le temps repartait en arrière et chaque piste se barrait d'un trait parasite du dernier front au premier. `capture.reinitialiser()` avant le versement : une capture enregistrée remplace, elle ne s'ajoute pas.
+3. ✅ **Bancs** : [verify-analyseur-marqueurs.mjs](scripts/verify-analyseur-marqueurs.mjs) étendu, VRAIE souris en CDP — garés au chargement dans les deux thèmes (couleurs lues), survol ↔, M1 lâché près de 5 ms collé à 5 ms, M2 collé à 8 ms, « 3 ms » + flèche + plaque, M2 pris par son trait et lâché loin de tout front (pas d'aimantation, la vue ne défile pas), glissé de vue (M1 suit son instant), M1 ramené à gauche (garé, plus de trait ni d'écart), option `--image=`. Tout vert ; **contre-épreuve** `--ancien=analyseur,analyseur-vue` : 21 échecs. [verify-analyseur-rendu.mjs](scripts/verify-analyseur-rendu.mjs) : comptage PAR PISTE aux bornes exactes (la coupe en deux moitiés mettait la barre de temps dans la première), seuils pris sur un TÉMOIN (même piste sans un front, 1 510 px ; l'ancien « > 2 000 » acceptait une piste nue), nouveau contrôle « restaurée deux fois = dessinée une fois » ; contre-épreuve (`analyseur.mts` de HEAD) : 4 échecs. Hauteurs mises à jour dans `verify-analyseur-dht-vue.mjs` et `_diag-analyseur-gestes.mjs`. Tous les `verify:analyseur-*`, `verify:souris`, `typecheck` et construction verts.
 
 ---
 

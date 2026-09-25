@@ -46,8 +46,33 @@ const NIVEAU_COULEUR = {
 const MARGE_G = 104;
 /** Marge droite (respiration + place pour la dernière graduation). */
 const MARGE_D = 12;
-/** Hauteur de la règle de temps, en haut. */
-const REGLE_H = 22;
+/** Hauteur des graduations, tout en haut. */
+const GRAD_H = 22;
+/**
+ * Bande des marqueurs M1/M2, sous les graduations. Les drapeaux y vivent, garés
+ * à gauche ou posés sur leur instant, et la flèche qui mesure leur écart aussi :
+ * écrits sur les graduations, ils les auraient masquées.
+ */
+const BANDE_M = 20;
+/** Hauteur de la barre de temps entière : graduations et marqueurs. */
+const REGLE_H = GRAD_H + BANDE_M;
+
+/**
+ * Couleurs des marqueurs : M1 bleu, M2 orangé (Frank, 25/09). Une variante par
+ * thème, pour que le trait se lise aussi bien sur fond clair que sombre.
+ */
+const MARQUEUR_COULEUR = {
+  clair: ['#0969da', '#d4731a'],
+  sombre: ['#4493f8', '#f0883e'],
+} as const;
+/** Noms des marqueurs, jamais traduits (ce sont des repères, comme sur un oscilloscope). */
+const NOMS_MARQUEUR = ['M1', 'M2'] as const;
+/** Largeur d'un drapeau de marqueur. */
+const DRAPEAU_W = 24;
+/** Hauteur d'un drapeau de marqueur. */
+const DRAPEAU_H = 14;
+/** Abscisse du centre d'un marqueur garé, dans la colonne de gauche. */
+const xGare = (m: number): number => COL_X + DRAPEAU_W / 2 + m * (DRAPEAU_W + 6);
 
 /**
  * Corps du nom de voie, en pixels. Deux fois et demie la graduation : le nom
@@ -215,6 +240,15 @@ interface BoiteInstant {
   d: number;
 }
 
+/** Zone de prise d'un marqueur : son drapeau, ou son trait une fois posé. */
+interface ZoneMarqueur {
+  m: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 /** Ce que l'appelant fournit à chaque rendu. */
 export interface EtatRendu {
   capture: AnalyseurCapture;
@@ -227,6 +261,13 @@ export interface EtatRendu {
   souris: { x: number; y: number } | null;
   textes: TextesVue;
   lang: string;
+  /**
+   * Instants de M1 et M2, en ms simulées ; null = garé à gauche de la barre de
+   * temps. Absent = les deux garés.
+   */
+  marqueurs?: ReadonlyArray<number | null>;
+  /** Marqueur tenu à la souris : dessiné par-dessus l'autre. */
+  marqueurPris?: number | null;
 }
 
 export class AnalyseurVue {
@@ -237,8 +278,23 @@ export class AnalyseurVue {
    * dès qu'on masque une voie), pas posés en HTML par-dessus.
    */
   private zones: ZoneBouton[] = [];
+  /** Zones de prise des marqueurs, dans l'ordre du dessin (le dernier est dessus). */
+  private zonesMarqueurs: ZoneMarqueur[] = [];
 
   constructor(private readonly canvas: HTMLCanvasElement) {}
+
+  /**
+   * Marqueur sous un point (0 = M1, 1 = M2), ou null. Le drapeau se prend
+   * partout ; un marqueur posé se prend aussi par son trait, à quelques pixels
+   * près — viser un trait d'un pixel à la souris serait une punition.
+   */
+  marqueurA(x: number, y: number): number | null {
+    for (let k = this.zonesMarqueurs.length - 1; k >= 0; k--) {
+      const z = this.zonesMarqueurs[k]!;
+      if (x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h) return z.m;
+    }
+    return null;
+  }
 
   /** Bouton de la colonne de gauche sous un point, ou null. */
   boutonA(x: number, y: number): ZoneBouton | null {
@@ -304,6 +360,7 @@ export class AnalyseurVue {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
     this.zones = [];
+    this.zonesMarqueurs = [];
 
     const sombre = themeSombre();
     const style = getComputedStyle(document.body);
@@ -339,6 +396,7 @@ export class AnalyseurVue {
 
     this.annotations(ctx, e, w, fg, sombre);
     this.declenchement(ctx, e, w, h);
+    this.marqueurs(ctx, e, w, h, fg, sombre, police);
     if (e.souris) this.reticule(ctx, e, w, h, fg, sombre, instant);
   }
 
@@ -412,19 +470,21 @@ export class AnalyseurVue {
       const x = this.xDe(t, e.fenetre, w);
       if (x < MARGE_G - 1) continue;
       ctx.beginPath();
-      ctx.moveTo(Math.round(x) + 0.5, REGLE_H - 5);
-      ctx.lineTo(Math.round(x) + 0.5, REGLE_H);
+      ctx.moveTo(Math.round(x) + 0.5, GRAD_H - 5);
+      ctx.lineTo(Math.round(x) + 0.5, GRAD_H);
       ctx.stroke();
       // Graduation sous l'instant du réticule : on la tait. La plaque seule en
       // laissait dépasser un bout (« 16,194 mss »).
       const libelle = formatTemps(t - origine, e.lang);
       const demi = ctx.measureText(libelle).width / 2;
       if (instant && x - demi < instant.d && x + demi > instant.g) continue;
-      ctx.fillText(libelle, x, REGLE_H / 2 - 2);
+      ctx.fillText(libelle, x, GRAD_H / 2 - 2);
     }
-    // Trait de base de la règle.
+    // Trait de base des graduations, puis bas de la bande des marqueurs.
     ctx.globalAlpha = 1;
     ctx.beginPath();
+    ctx.moveTo(MARGE_G, GRAD_H - 0.5);
+    ctx.lineTo(w - MARGE_D, GRAD_H - 0.5);
     ctx.moveTo(MARGE_G, REGLE_H - 0.5);
     ctx.lineTo(w - MARGE_D, REGLE_H - 0.5);
     ctx.stroke();
@@ -916,6 +976,156 @@ export class AnalyseurVue {
   }
 
   /**
+   * Marqueurs M1 et M2 (Frank, 25/09). Garés, ils attendent à gauche de la
+   * barre de temps ; posés, leur drapeau suit leur instant et un trait de leur
+   * couleur descend sur toutes les pistes. Posés tous les deux, une flèche les
+   * relie et dit l'écart qui les sépare.
+   *
+   * Un marqueur posé hors de la fenêtre n'a ni drapeau ni trait : une pointe de
+   * sa couleur, au bord, dit de quel côté le chercher.
+   */
+  private marqueurs(
+    ctx: CanvasRenderingContext2D,
+    e: EtatRendu,
+    w: number,
+    h: number,
+    fg: string,
+    sombre: boolean,
+    police: string
+  ): void {
+    const teintes = sombre ? MARQUEUR_COULEUR.sombre : MARQUEUR_COULEUR.clair;
+    const xMin = MARGE_G;
+    const xMax = w - MARGE_D;
+    const yD = GRAD_H + (BANDE_M - DRAPEAU_H) / 2;
+    const yMilieu = yD + DRAPEAU_H / 2;
+    const ts = [0, 1].map((m) => e.marqueurs?.[m] ?? null);
+    const xs = ts.map((t) => (t === null ? null : this.xDe(t, e.fenetre, w)));
+    ctx.save();
+    ctx.textBaseline = 'middle';
+    ctx.font = `bold 10px ${police}`;
+
+    if (xs[0] != null && xs[1] != null) {
+      this.ecart(ctx, e, Math.abs(ts[1]! - ts[0]!), xs[0], xs[1], xMin, xMax, yMilieu, fg, sombre);
+    }
+
+    // Le marqueur tenu se dessine en dernier : c'est lui qu'on regarde, et il
+    // doit passer devant l'autre quand on l'amène dessus.
+    const ordre = e.marqueurPris === 0 ? [1, 0] : [0, 1];
+    for (const m of ordre) {
+      const couleur = teintes[m]!;
+      const x = xs[m] ?? null;
+      if (x === null) {
+        this.drapeau(ctx, m, xGare(m), yD, couleur);
+        this.zonesMarqueurs.push({ m, x: xGare(m) - DRAPEAU_W / 2, y: GRAD_H, w: DRAPEAU_W, h: BANDE_M });
+        continue;
+      }
+      if (x < xMin || x > xMax) {
+        const bord = x < xMin ? xMin + 1 : xMax - 1;
+        const s = x < xMin ? 1 : -1;
+        ctx.fillStyle = couleur;
+        ctx.beginPath();
+        ctx.moveTo(bord, yMilieu);
+        ctx.lineTo(bord + s * 7, yMilieu - 5);
+        ctx.lineTo(bord + s * 7, yMilieu + 5);
+        ctx.closePath();
+        ctx.fill();
+        continue;
+      }
+      ctx.strokeStyle = couleur;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(Math.round(x) + 0.5, yD + DRAPEAU_H);
+      ctx.lineTo(Math.round(x) + 0.5, h);
+      ctx.stroke();
+      this.drapeau(ctx, m, x, yD, couleur);
+      this.zonesMarqueurs.push(
+        { m, x: x - 4, y: REGLE_H, w: 8, h: h - REGLE_H },
+        { m, x: x - DRAPEAU_W / 2, y: GRAD_H, w: DRAPEAU_W, h: BANDE_M }
+      );
+    }
+    ctx.restore();
+  }
+
+  /** Drapeau d'un marqueur, centré sur `x` : plaque de sa couleur, nom en blanc. */
+  private drapeau(ctx: CanvasRenderingContext2D, m: number, x: number, y: number, couleur: string): void {
+    ctx.fillStyle = couleur;
+    ctx.beginPath();
+    ctx.roundRect(x - DRAPEAU_W / 2, y, DRAPEAU_W, DRAPEAU_H, 3);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.fillText(NOMS_MARQUEUR[m]!, x, y + DRAPEAU_H / 2 + 0.5);
+  }
+
+  /**
+   * Flèche double entre M1 et M2, avec leur écart en clair. L'écart s'écrit
+   * entre les drapeaux quand il y tient, sinon à côté : un écart qu'on ne lit
+   * pas ne mesure rien.
+   */
+  private ecart(
+    ctx: CanvasRenderingContext2D,
+    e: EtatRendu,
+    dt: number,
+    x0: number,
+    x1: number,
+    xMin: number,
+    xMax: number,
+    y: number,
+    fg: string,
+    sombre: boolean
+  ): void {
+    const xa = Math.min(x0, x1);
+    const xb = Math.max(x0, x1);
+    // Les deux du même côté, hors de la fenêtre : rien à relier à l'écran.
+    if (xb < xMin || xa > xMax) return;
+    const pointeA = xa >= xMin;
+    const pointeB = xb <= xMax;
+    const ga = pointeA ? xa + DRAPEAU_W / 2 + 1 : xMin;
+    const gb = pointeB ? xb - DRAPEAU_W / 2 - 1 : xMax;
+    const texte = formatTemps(dt, e.lang);
+    const tw = ctx.measureText(texte).width;
+    const place = gb - ga;
+
+    ctx.save();
+    ctx.strokeStyle = fg;
+    ctx.fillStyle = fg;
+    ctx.globalAlpha = 0.8;
+    ctx.lineWidth = 1;
+    if (place > 12) {
+      ctx.beginPath();
+      ctx.moveTo(ga, Math.round(y) + 0.5);
+      ctx.lineTo(gb, Math.round(y) + 0.5);
+      ctx.stroke();
+      const pointe = (x: number, s: 1 | -1): void => {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + s * 5, y - 3.5);
+        ctx.lineTo(x + s * 5, y + 3.5);
+        ctx.closePath();
+        ctx.fill();
+      };
+      if (pointeA) pointe(ga, 1);
+      if (pointeB) pointe(gb, -1);
+    }
+    ctx.globalAlpha = 1;
+    let xt: number;
+    if (place >= tw + 22) {
+      xt = (ga + gb) / 2 - tw / 2;
+    } else if (xb + DRAPEAU_W / 2 + 4 + tw <= xMax) {
+      xt = xb + DRAPEAU_W / 2 + 4;
+    } else {
+      xt = Math.max(xMin, xa - DRAPEAU_W / 2 - 4 - tw);
+    }
+    // Plaque opaque : la flèche passe DERRIÈRE le texte.
+    ctx.fillStyle = fondPage(sombre);
+    ctx.fillRect(xt - 3, y - 7, tw + 6, 14);
+    ctx.fillStyle = fg;
+    ctx.textAlign = 'left';
+    ctx.fillText(texte, xt, y + 0.5);
+    ctx.restore();
+  }
+
+  /**
    * Réticule : trait vertical suivant la souris, l'instant en haut, et le
    * niveau de chaque voie à cet instant à côté de son nom.
    */
@@ -942,19 +1152,16 @@ export class AnalyseurVue {
     // L'instant sur une PLAQUE opaque : écrit à nu, il se mêlait aux
     // graduations qu'il survolait et ne se lisait plus (Frank, 25/09).
     ctx.globalAlpha = 1;
-    const fond =
-      getComputedStyle(document.body).getPropertyValue('--vscode-editor-background').trim() ||
-      (sombre ? '#1e1e1e' : '#ffffff');
     const largeur = instant.d - instant.g;
-    ctx.fillStyle = fond;
-    ctx.fillRect(instant.g, 1, largeur, REGLE_H - 5);
+    ctx.fillStyle = fondPage(sombre);
+    ctx.fillRect(instant.g, 1, largeur, GRAD_H - 5);
     ctx.strokeStyle = fg;
     ctx.globalAlpha = 0.45;
-    ctx.strokeRect(Math.round(instant.g) + 0.5, 1.5, Math.round(largeur) - 1, REGLE_H - 6);
+    ctx.strokeRect(Math.round(instant.g) + 0.5, 1.5, Math.round(largeur) - 1, GRAD_H - 6);
     ctx.globalAlpha = 1;
     ctx.fillStyle = fg;
     ctx.textAlign = instant.droite ? 'right' : 'left';
-    ctx.fillText(instant.texte, instant.x, REGLE_H / 2 - 2);
+    ctx.fillText(instant.texte, instant.x, GRAD_H / 2 - 2);
 
     // Niveau de chaque voie sous le curseur, à droite de son nom : en gras,
     // 0 rouge et 1 vert, pour le lire sans chercher (Frank, 24/09).
@@ -980,6 +1187,14 @@ export class AnalyseurVue {
     while (t.length > 1 && ctx.measureText(`${t}…`).width > largeur) t = t.slice(0, -1);
     return `${t}…`;
   }
+}
+
+/** Fond de la page, pour les plaques opaques posées sous un texte. */
+function fondPage(sombre: boolean): string {
+  return (
+    getComputedStyle(document.body).getPropertyValue('--vscode-editor-background').trim() ||
+    (sombre ? '#1e1e1e' : '#ffffff')
+  );
 }
 
 /**
@@ -1011,6 +1226,9 @@ export const DISPOSITION = {
   MARGE_G,
   MARGE_D,
   REGLE_H,
+  GRAD_H,
+  BANDE_M,
+  DRAPEAU_W,
   CRENEAU_H,
   NOM_PX,
   BOUTON,

@@ -121,6 +121,23 @@ const page = `<!doctype html><meta charset=utf8>
     return n;
    } catch (e) { return -1; }
   };
+  // Pixels peints PISTE PAR PISTE, aux bornes exactes de chaque piste (barre de
+  // temps 42, puis 64 par piste). Couper le canvas en deux moitiés mettait la
+  // barre de temps dans la première : dès qu'elle a grandi (v2026.9.5.148), la
+  // première « piste » a gonflé d'un trait de base et le ratio a basculé.
+  const parPiste = (n) => {
+   const g = cv.getContext('2d');
+   const k = cv.height / Math.max(1, cv.clientHeight);
+   const out = [];
+   for (let i = 0; i < n; i++) {
+    const y0 = Math.round((42 + i * 64) * k);
+    const d = g.getImageData(110, y0, cv.width - 130, Math.round(64 * k)).data;
+    let c = 0;
+    for (let j = 3; j < d.length; j += 4) if (d[j] > 0) c++;
+    out.push(c);
+   }
+   return out;
+  };
   const mesures = {};
   // PAS de ResizeObserver de diagnostic sur le canvas ici : en poser un
   // deuxième change ce que le moteur de rendu calcule et peut faire passer le
@@ -195,18 +212,7 @@ const page = `<!doctype html><meta charset=utf8>
   await wait(250);
   post({ type: 'repeindre' });
   await wait(200);
-  mesures.pistesDesaccordees = (() => {
-   const g = cv.getContext('2d');
-   const h = Math.floor(cv.height / 2);
-   const out = [];
-   for (let i = 0; i < 2; i++) {
-    const d = g.getImageData(110, i * h, cv.width - 130, h).data;
-    let n = 0;
-    for (let j = 3; j < d.length; j += 4) if (d[j] > 0) n++;
-    out.push(n);
-   }
-   return out;
-  })();
+  mesures.pistesDesaccordees = parPiste(2);
   // UN SECOND PROJET OUVERT DANS LE MÊME ATELIER. L'hôte n'envoie alors que
   // le message restaure (chargerAnalyseur dans panel.ts) : jamais de voies.
   // Les pistes du PREMIER projet restent donc en place, et la capture du second
@@ -225,18 +231,26 @@ const page = `<!doctype html><meta charset=utf8>
   post({ type: 'repeindre' });
   await wait(200);
   mesures.hauteurProjet2 = cv.clientHeight;
-  mesures.pistesProjet2 = (() => {
-   const g = cv.getContext('2d');
-   const h = Math.floor(cv.height / 2);
-   const out = [];
-   for (let i = 0; i < 2; i++) {
-    const d = g.getImageData(110, i * h, cv.width - 130, h).data;
-    let n = 0;
-    for (let j = 3; j < d.length; j += 4) if (d[j] > 0) n++;
-    out.push(n);
-   }
-   return out;
-  })();
+  mesures.pistesProjet2 = parPiste(2);
+  // TÉMOIN : la même capture, seconde voie SANS un front. Sa piste garde son
+  // trait de repos et son étiquette : c'est le poids d'une piste qui ne trace
+  // rien, la référence des seuils ci-dessous (jamais un nombre écrit en dur).
+  post({ type: 'restaure', etat: { voies: [ETAT.voies[0], { ...ETAT.voies[1], fronts: [] }] } });
+  await wait(250);
+  post({ type: 'repeindre' });
+  await wait(200);
+  mesures.pisteNue = parPiste(2)[1];
+  // LA MÊME CAPTURE RESTAURÉE DEUX FOIS (rouvrir le projet, onglet ouvert). Le
+  // second « restaure » versait ses fronts DERRIÈRE ceux du premier : le temps
+  // repartait en arrière et chaque piste se barrait d'un trait parasite, du
+  // dernier front jusqu'au premier. Le dessin doit être celui d'un seul restaure.
+  post({ type: 'restaure', etat: ETAT });
+  await wait(150);
+  post({ type: 'restaure', etat: ETAT });
+  await wait(250);
+  post({ type: 'repeindre' });
+  await wait(200);
+  mesures.pistesDeuxFois = parPiste(2);
   mesures.erreurs = erreurs.join(' | ').slice(0, 300);
   const out = document.createElement('pre');
   out.id = 'measures';
@@ -276,7 +290,8 @@ console.log(` (mesuré : caché ${r.cacheLargeur}x${r.cacheHauteur} style=${r.ca
 	+ ` · de retour ${r.viveLargeur}px, ${r.roPeints} px par le ResizeObserver seul`
 	+ ` puis ${r.vivePeints} après « repeindre » · canvas ${r.attrW}x${r.attrH}`
 	+ ` · numéros désaccordés : pistes ${JSON.stringify(r.pistesDesaccordees)}`
-	+ ` · second projet : ${r.hauteurProjet1}px → ${r.hauteurProjet2}px, pistes ${JSON.stringify(r.pistesProjet2)})`);
+	+ ` · second projet : ${r.hauteurProjet1}px → ${r.hauteurProjet2}px, pistes ${JSON.stringify(r.pistesProjet2)} · piste nue ${r.pisteNue} px`
+	+ ` · restaurée deux fois : pistes ${JSON.stringify(r.pistesDeuxFois)})`);
 check('la page ne lève aucune erreur', r.erreurs === '', r.erreurs);
 check('caché, le canvas est bien de largeur nulle (la condition du défaut est reproduite)',
 	r.cacheLargeur === 0, `largeur ${r.cacheLargeur}`);
@@ -291,13 +306,14 @@ check('le message « repeindre » de l\'hôte peint le canvas, sans dépendre d\
 // vert avant comme après la correction, donc un contrôle qui ne prouve rien.
 check('le canvas est redimensionné à la largeur retrouvée, pas laissé à ses 300 px par défaut',
 	r.attrW === r.viveLargeur, `attribut width ${r.attrW} pour ${r.viveLargeur} px de large`);
-// Hauteur du canvas pour n pistes : règle 22 + n × (piste 46 + annotations 18)
-// + 8 de marge — `hauteurPour` de analyseur-vue.mts (pas de 64 px depuis
-// v2026.9.5.139, texte sous les courbes agrandi).
-const hauteurDe = (n) => 22 + n * 64 + 8;
+// Hauteur du canvas pour n pistes : barre de temps 42 + n × (piste 46 +
+// annotations 18) + 8 de marge — `hauteurPour` de analyseur-vue.mts (pas de
+// 64 px depuis v2026.9.5.139, texte sous les courbes agrandi ; barre de 42 px
+// depuis v2026.9.5.148, graduations 22 + bande des marqueurs 20).
+const hauteurDe = (n) => 42 + n * 64 + 8;
 // Ce contrôle-ci reste vert SANS la correction, et c'est volontaire : il dit
-// que les données sont bien arrivées (deux pistes = 158 px, une seule en
-// donnerait 94). C'est la moitié du diagnostic — les données sont là, la
+// que les données sont bien arrivées (deux pistes = 178 px, une seule en
+// donnerait 114). C'est la moitié du diagnostic — les données sont là, la
 // peinture manque — et l'écrire sépare les deux causes possibles du gris.
 check('la hauteur porte les DEUX voies reçues pendant que l\'onglet était caché',
 	r.viveHauteur === hauteurDe(2), `hauteur ${r.viveHauteur}`);
@@ -319,15 +335,19 @@ check('la liste vide ne rabat pas non plus la hauteur sur une piste unique',
 // aller se dessiner dans la piste de la voie 2, celle de la pince posée dessus.
 // Mesuré sur le cas réel avant correction : la piste qui tombait juste peignait
 // 31 348 px, les autres 2 508 — leur seul trait de repos, sans une courbe.
-// Le seuil se prend sur la PREMIÈRE piste, jamais en valeur absolue : les deux
-// voies du banc portent un nombre de fronts comparable, donc une piste qui
-// trace ressemble à l'autre (3 542 contre 4 025 ici), tandis qu'une piste
-// réduite à son trait de repos et à son étiquette décroche nettement (2 264).
-// Un seuil lâche passerait avant COMME après la correction — mesuré, et c'est
-// ce qui a failli faire livrer ce lot sur un contrôle qui ne prouvait rien.
+// Le seuil se prend sur le TÉMOIN, jamais en valeur absolue : la même piste
+// sans un front, mesurée dans le même banc (trait de repos et étiquette, 1 510
+// px, contre 2 416 pour la piste qui trace). Un seuil lâche passerait avant
+// COMME après la correction — mesuré, et c'est ce qui a failli faire livrer ce
+// lot sur un contrôle qui ne prouvait rien : l'ancien « > 2 000 » acceptait
+// une piste nue.
+const trace = (n) => n > r.pisteNue * 1.3;
+check('le témoin est bien une piste NUE (moins peinte qu\'une piste qui trace)',
+	r.pisteNue > 200 && r.pisteNue < r.pistesProjet2[1] * 0.8,
+	`${r.pisteNue} px, contre ${r.pistesProjet2[1]} pour la même piste avec ses fronts`);
 check('la piste dont le NUMÉRO diffère de la capture trace quand même sa courbe',
-	r.pistesDesaccordees[1] > r.pistesDesaccordees[0] * 0.75,
-	`pistes ${JSON.stringify(r.pistesDesaccordees)} — la seconde n'a que son trait de repos`);
+	trace(r.pistesDesaccordees[1]),
+	`pistes ${JSON.stringify(r.pistesDesaccordees)}, piste nue ${r.pisteNue} — la seconde n'a que son trait de repos`);
 check('et la piste accordée n\'a rien perdu au passage',
 	r.pistesDesaccordees[0] > 500, `${r.pistesDesaccordees[0]} px sur la première piste`);
 // UN SECOND PROJET DANS LE MÊME ATELIER (22/09). L'hôte n'envoie que `restaure`,
@@ -343,8 +363,15 @@ check('la hauteur du premier projet est bien celle d\'une piste unique (la condi
 check('ouvrir un SECOND projet dresse les pistes de SA capture, pas celles du premier',
 	r.hauteurProjet2 === hauteurDe(2), `hauteur ${r.hauteurProjet2} — les pistes du projet précédent tiennent encore`);
 check('et les deux voies du second projet tracent pour de bon',
-	r.pistesProjet2[0] > 2000 && r.pistesProjet2[1] > 2000,
-	`pistes ${JSON.stringify(r.pistesProjet2)} — du trait de repos, pas des courbes`);
+	trace(r.pistesProjet2[0]) && trace(r.pistesProjet2[1]),
+	`pistes ${JSON.stringify(r.pistesProjet2)}, piste nue ${r.pisteNue} — du trait de repos, pas des courbes`);
+// LA MÊME CAPTURE RESTAURÉE DEUX FOIS (v2026.9.5.148). Mesuré avant correction :
+// pistes de 3 226 et 2 788 px au lieu de 2 482 et 2 416 — les fronts versés une
+// seconde fois derrière les premiers, un trait parasite du dernier au premier.
+// Même disposition que le second projet : le dessin doit être IDENTIQUE.
+check('restaurer deux fois la même capture la dessine UNE fois (pas de fronts ajoutés derrière)',
+	JSON.stringify(r.pistesDeuxFois) === JSON.stringify(r.pistesProjet2),
+	`pistes ${JSON.stringify(r.pistesDeuxFois)} contre ${JSON.stringify(r.pistesProjet2)} pour un seul restaure`);
 
 console.log(failures === 0 ? '\nTout est vert.' : `\n${failures} échec(s).`);
 process.exit(failures === 0 ? 0 : 1);

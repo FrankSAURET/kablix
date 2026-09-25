@@ -11,6 +11,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **L'analyseur peut déclencher sur le START code DMX** : sur une voie décodée en DMX512, le menu T propose `START code 0x00`. La capture se fige au début de la trame d'éclairage suivante.
 - **Le décodage DMX512 détaille chaque trame** : `BREAK`, `MAB`, `START code`, puis pour chaque canal son `Start`, sa valeur en hexadécimal (`c1=0xC8`) et son `STOP`, avec les `PAUSE` et le `MBB` entre les créneaux.
 - **Le projecteur DMX PAR 38 lit son quatrième canal, les effets** : intensité de 0 à 189, clignotement de 190 à 250, couleur inchangée au-delà. À 0, le projecteur reste éteint.
+- **Marqueurs M1 et M2 dans l'analyseur logique** : ils attendent à gauche de la barre de temps. Glissés sur les courbes, ils se collent au front le plus proche et tracent un trait de leur couleur. Posés tous les deux, une flèche donne la durée qui les sépare.
 
 ### Modification
 
@@ -26,6 +27,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 ### Correction
 
 - **L'instant lu au curseur de l'analyseur reste lisible sur la barre de temps** : il s'écrit sur une plaque, et la graduation qu'il recouvre s'efface.
+- **Rouvrir un projet avec l'analyseur ouvert ne double plus sa capture.** Chaque courbe se barrait d'un trait parasite.
 - **Les variables Arduino sont de nouveau visibles en pause de débogage.** Un panneau Variables replié restait fermé à la pause ; il se déplie désormais, et se replie à la reprise.
 - **Les propriétés d'une sonde logique ne s'affichent plus en plusieurs exemplaires** quand on la pose sur une patte. Même correction pour l'interrupteur 3V3/5V du Grove Shield et les bascules dessinées sur les composants.
 - **Changer le déclenchement de l'analyseur ne fait plus disparaître la courbe** au premier lancement de la simulation.

@@ -201,10 +201,11 @@ try {
 
 		/**
 		 * Textes écrits sous la piste 0 au prochain rendu forcé, avec leur ligne :
-		 * 0 = octets (et départ, accusé), 1 = valeurs. Règle 22, piste 46, une
-		 * ligne d'annotations = 18 (`ANNOT_H` de analyseur-vue.mts).
+		 * 0 = octets (et départ, accusé), 1 = valeurs. Barre de temps 42
+		 * (graduations et marqueurs), piste 46, une ligne d'annotations = 18
+		 * (`REGLE_H` et `ANNOT_H` de analyseur-vue.mts).
 		 */
-		const Y_LIGNE = [0, 1].map((l) => 22 + 46 + 1 + l * 18);
+		const Y_LIGNE = [0, 1].map((l) => 42 + 46 + 1 + l * 18);
 		const releve = async () => {
 			await ev(`window.__textes = []; window.__cases = []; window.__traits = []`);
 			await ev(`window.postMessage({ type: 'repeindre' }, '*')`);
@@ -250,9 +251,9 @@ try {
 		console.log(`Onglet de l'analyseur en « ${langue} », trame DHT11 (${HR}, ${TEMP}), zoom à la molette`);
 		check('témoin : la molette zoome vraiment (les textes du dernier cran diffèrent du premier)',
 			dire(parCran[0]) !== dire(parCran[CRANS]), `${dire(parCran[0])} / ${dire(parCran[CRANS])}`);
-		// Une piste, deux lignes de décodage : règle 22 + piste 46 + 2 × 18 + 8.
-		check('la piste décodée en DHT réserve deux lignes sous sa courbe (canvas de 112 px)',
-			Math.round(r.h) === 22 + 46 + 2 * 18 + 8, `hauteur ${r.h}`);
+		// Une piste, deux lignes de décodage : barre 42 + piste 46 + 2 × 18 + 8.
+		check('la piste décodée en DHT réserve deux lignes sous sa courbe (canvas de 132 px)',
+			Math.round(r.h) === 42 + 46 + 2 * 18 + 8, `hauteur ${r.h}`);
 		const large = parCran[0];
 		check(`toute la capture : le départ est écrit sur la première ligne (« ${DEPART} »)`,
 			surLigne(large, 0).some((x) => x.t === DEPART), dire(large));
