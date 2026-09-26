@@ -94,8 +94,10 @@ export const FRONTS_MAX_PAR_VOIE = 60_000;
  * (Frank, 26/09 : une capture déclenchée pleine à 8,3 s en DMX). Comme la
  * mémoire d'un analyseur du commerce : plus profond = plus long, mais plus
  * lourd — 1 M de fronts pèse de l'ordre de 40 Mo par voie dans la page.
+ * 5 k et 15 k (Frank, 26/09) : captures courtes, vite pleines, pour isoler un
+ * passage sans charrier des secondes de signal.
  */
-export const PROFONDEURS = [FRONTS_MAX_PAR_VOIE, 250_000, 1_000_000] as const;
+export const PROFONDEURS = [5_000, 15_000, FRONTS_MAX_PAR_VOIE, 250_000, 1_000_000] as const;
 
 /**
  * Fronts gardés AVANT le déclenchement, par voie, une fois qu'il est survenu,
@@ -384,6 +386,19 @@ export class AnalyseurCapture {
       if (f !== undefined && f.t < min) min = f.t;
     }
     return min === Infinity ? 0 : min;
+  }
+
+  /**
+   * Début de la plage où TOUTES les voies sont connues : la plus tardive des
+   * pertes (relance, rabotage), sinon le lancement du run. `tFin` moins cet
+   * instant = la durée de signal que la capture garde vraiment. `tFin` seul est
+   * l'heure de la simulation : après une relance à 14 s, une capture de 8,3 s
+   * se disait « pleine à 22 300 ms » (Frank, 26/09 : « c'est variable »).
+   */
+  get tDebutComplet(): number {
+    let t = 0;
+    for (const v of this.voies.values()) if (v.perte !== undefined && v.perte > t) t = v.perte;
+    return t;
   }
 
   /** Instant du déclenchement, ou null s'il n'a pas (encore) eu lieu. */

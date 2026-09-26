@@ -188,7 +188,7 @@ if (!chrome) {
 		check(!!b0 && b0.large && /Restart capture/.test(b0.texte), 'le bouton « Restart capture » est dans la barre', JSON.stringify(b0));
 		check(b0?.grise === true, 'hors simulation, le bouton est grisé');
 		const l0 = await liste2();
-		check(l0?.valeur === '60000' && l0.textes.join('|') === '60 k|250 k|1 M',
+		check(l0?.valeur === '60000' && l0.textes.join('|') === '5 k|15 k|60 k|250 k|1 M',
 			'la liste des profondeurs : 60 k choisi, sans durée tant que rien n’a bougé', JSON.stringify(l0));
 
 		// 2. Run sans déclenchement : 2 s d'horloge, la durée s'estime.
@@ -196,16 +196,16 @@ if (!chrome) {
 		for (let t = 0; t < 2000; t += 100) await envoyer({ type: 'fronts', salves: { D8: clk(t, t + 100) } });
 		check((await bouton('relancer'))?.grise === false, 'en simulation, le bouton s’allume');
 		const l1 = await liste2();
-		check(l1?.textes.join('|') === '60 k (≈ 6 s)|250 k (≈ 25 s)|1 M (≈ 1.7 min)',
+		check(l1?.textes.join('|') === '5 k (≈ 500 ms)|15 k (≈ 1.5 s)|60 k (≈ 6 s)|250 k (≈ 25 s)|1 M (≈ 1.7 min)',
 			'chaque profondeur dit la durée qu’elle tiendrait (10 fronts par ms)', JSON.stringify(l1?.textes));
 
 		// 3. Vrai clic sur « Relancer » : la capture est vidée, le débit oublié.
 		await relancer();
 		const l2 = await liste2();
-		check(l2?.textes.join('|') === '60 k|250 k|1 M', 'relancer vide la capture : plus aucune durée estimée', JSON.stringify(l2?.textes));
+		check(l2?.textes.join('|') === '5 k|15 k|60 k|250 k|1 M', 'relancer vide la capture : plus aucune durée estimée', JSON.stringify(l2?.textes));
 		await envoyer({ type: 'fronts', salves: { D8: clk(2000, 2100) } });
 		const l3 = await liste2();
-		check(l3?.textes[0] === '60 k (≈ 6 s)', 'la salve suivante remplit la nouvelle acquisition', JSON.stringify(l3?.textes));
+		check(l3?.textes[2] === '60 k (≈ 6 s)', 'la salve suivante remplit la nouvelle acquisition', JSON.stringify(l3?.textes));
 		check(/^Capturing… 2100\.0$/.test(await etat()), 'et la capture continue, sans attente', await etat());
 
 		// 4. Déclenchement réglé : il tombe, puis « Relancer » le remet en attente.
@@ -228,18 +228,31 @@ if (!chrome) {
 		//    la capture repart.
 		for (let t = 300; t < 6500; t += 100) await envoyer({ type: 'fronts', salves: { D8: clk(t, t + 100) } });
 		const e3 = await etat();
-		check(/^Capture full at 6100\.0 ms\. Click Restart capture to capture anew\.$/.test(e3), 'pleine à 60 000 fronts, l’état dit comment relancer', e3);
+		// La DURÉE gardée (6 s depuis la relance à 100 ms), pas l'heure de la
+		// simulation (6 100 ms) : Frank lisait 8,3 puis 22,3, 44,4, 99,7 s.
+		check(/^Capture full: 6 s kept \(60 k edges per channel\)\. Click Restart capture to capture anew\.$/.test(e3),
+			'pleine à 60 000 fronts : l’état dit la durée gardée, la profondeur et comment relancer', e3);
+
+		// 5 bis. Le cas de Frank : on relance une capture pleine plus tard (6 500 ms).
+		//        Pleine de nouveau à 12 500 ms, elle tient les mêmes 6 s.
+		await relancer();
+		check(/waiting for the trigger edge/.test(await etat()), 'vrai clic sur « Relancer » d’une capture pleine : elle repart', await etat());
+		await envoyer({ type: 'fronts', salves: { D8: clk(6500, 6600), D9: [6540.05, 0, 6550.05, 1] } });
+		for (let t = 6600; t < 12_600; t += 100) await envoyer({ type: 'fronts', salves: { D8: clk(t, t + 100) } });
+		const e3b = await etat();
+		check(e3b === e3, 'relancée plus tard, la capture pleine annonce la même durée, pas une heure qui grandit', `${e3} → ${e3b}`);
+
 		await touche('bas');
 		const r1 = await derniersReglages();
 		check(r1?.profondeur === 250_000, 'flèche sur la liste : 250 k, envoyé à VS Code avec les réglages', JSON.stringify(r1));
 		check((await liste2())?.valeur === '250000', 'la liste montre 250 k');
-		await envoyer({ type: 'fronts', salves: { D8: clk(6500, 6600) } });
+		await envoyer({ type: 'fronts', salves: { D8: clk(12_600, 12_700) } });
 		const e4 = await etat();
 		check(/waiting for the trigger edge/.test(e4), 'profondeur changée sur une capture pleine : nouvelle acquisition, déclenchement réarmé', e4);
-		// 61 000 fronts de CLK depuis 6 500 ms : à 60 k, pleine à 12 500 ms.
-		await envoyer({ type: 'fronts', salves: { D8: clk(6600, 6700), D9: [6640.05, 0, 6650.05, 1] } });
-		for (let t = 6700; t < 12_600; t += 100) await envoyer({ type: 'fronts', salves: { D8: clk(t, t + 100) } });
-		check(/^Capturing… 12600\.0$/.test(await etat()), 'à 250 k, 61 000 fronts ne remplissent plus la capture', await etat());
+		// 61 000 fronts de CLK depuis 12 600 ms : à 60 k, pleine à 18 600 ms.
+		await envoyer({ type: 'fronts', salves: { D8: clk(12_700, 12_800), D9: [12_740.05, 0, 12_750.05, 1] } });
+		for (let t = 12_800; t < 18_700; t += 100) await envoyer({ type: 'fronts', salves: { D8: clk(t, t + 100) } });
+		check(/^Capturing… 18700\.0$/.test(await etat()), 'à 250 k, 61 000 fronts ne remplissent plus la capture', await etat());
 
 		// 6. Simulation arrêtée : le bouton se grise, un clic ne vide rien.
 		await envoyer({ type: 'arret' });
@@ -247,8 +260,20 @@ if (!chrome) {
 		check(b1?.grise === true, 'simulation arrêtée : le bouton se grise');
 		await relancer();
 		const e5 = await etat();
-		check(/^Last capture: 12600\.0 ms$/.test(e5), 'un clic sur le bouton grisé ne vide pas la dernière capture', e5);
-		check((await liste2())?.textes[0]?.startsWith('60 k (≈'), 'la dernière capture garde son débit estimé');
+		check(/^Last capture: 18700\.0 ms$/.test(e5),'un clic sur le bouton grisé ne vide pas la dernière capture', e5);
+		check((await liste2())?.textes[2]?.startsWith('60 k (≈'), 'la dernière capture garde son débit estimé');
+
+		// 6 bis. 5 k (Frank, 26/09) : trois VRAIES flèches vers le haut depuis 250 k,
+		//        puis un run déclenché à 50 ms. 5 000 fronts de CLK = pleine à 500 ms.
+		for (let k = 0; k < 3; k++) await touche('haut');
+		check((await liste2())?.valeur === '5000', 'trois flèches vers le haut : 5 k', JSON.stringify(await liste2()));
+		check((await derniersReglages())?.profondeur === 5000, '5 k envoyé à VS Code avec les réglages');
+		await envoyer({ type: 'depart' });
+		await envoyer({ type: 'fronts', salves: { D8: clk(0, 100), D9: [50.05, 1] } });
+		for (let t = 100; t < 1000; t += 100) await envoyer({ type: 'fronts', salves: { D8: clk(t, t + 100) } });
+		const e6 = await etat();
+		check(/^Capture full: 500 ms kept \(5 k edges per channel\)/.test(e6), 'à 5 k, la capture est pleine après 500 ms de signal', e6);
+		await envoyer({ type: 'arret' });
 
 		// 7. Projet rouvert : la profondeur enregistrée revient dans la liste.
 		await envoyer({ type: 'restaure', etat: { voies: [], declenchement: null, decodages: [], voiesReglages: {}, echantillonnage: 0, profondeur: 1_000_000 } });

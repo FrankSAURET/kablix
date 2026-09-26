@@ -511,9 +511,12 @@ function majEtat(): void {
   const fin = capture.tFin.toLocaleString(locale(), {
     minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false,
   });
+  // Capture pleine : la DURÉE gardée, pas l'heure de la simulation. Après une
+  // relance, l'heure grandit à chaque essai alors que la capture tient autant.
   etatTexte.textContent = enCours
     ? capture.pleine
-      ? t('Capture full at {0} ms. Click Restart capture to capture anew.', fin)
+      ? t('Capture full: {0} kept ({1} edges per channel). Click Restart capture to capture anew.',
+          duree(capture.tFin - capture.tDebutComplet), nomProfondeur(capture.profondeur))
       : capture.enAttente
         ? t('Capturing… {0} (waiting for the trigger edge)', fin)
         : t('Capturing… {0}', fin)
@@ -536,20 +539,24 @@ function majProfondeurs(): void {
   if (!selProfondeur) return;
   const debit = capture.debit;
   for (const o of selProfondeur.options) {
-    const n = Number(o.value);
-    const nom = n >= 1e6 ? `${n / 1e6} M` : `${n / 1000} k`;
-    const texte = debit > 0 ? `${nom} (${dureeEstimee(n / debit)})` : nom;
+    const nom = nomProfondeur(Number(o.value));
+    const texte = debit > 0 ? `${nom} (≈ ${duree(Number(o.value) / debit)})` : nom;
     // Réécrit seulement s'il change : la liste peut être ouverte, et le rendu
     // passe à chaque image.
     if (o.textContent !== texte) o.textContent = texte;
   }
 }
 
-/** Durée estimée, deux chiffres significatifs, dans l'unité qui lui va. */
-function dureeEstimee(ms: number): string {
+/** Profondeur écrite court : « 60 k », « 1 M ». */
+function nomProfondeur(n: number): string {
+  return n >= 1e6 ? `${n / 1e6} M` : `${n / 1000} k`;
+}
+
+/** Durée, deux chiffres significatifs, dans l'unité qui lui va. */
+function duree(ms: number): string {
   const [val, unite] =
     ms < 1000 ? [ms, 'ms'] : ms < 60_000 ? [ms / 1000, 's'] : ms < 3_600_000 ? [ms / 60_000, 'min'] : [ms / 3_600_000, 'h'];
-  return `≈ ${val.toLocaleString(locale(), { maximumSignificantDigits: 2, useGrouping: false })} ${unite}`;
+  return `${val.toLocaleString(locale(), { maximumSignificantDigits: 2, useGrouping: false })} ${unite}`;
 }
 
 /**

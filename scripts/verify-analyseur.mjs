@@ -726,7 +726,7 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
 // --- Profondeur de capture et « Relancer la capture » (v2026.9.5.161) -----------
 {
   // Frank, 26/09 : « illimité, 1 MHz, je m'arrête les 2 fois à 8,3 s ». La
-  // profondeur (fronts gardés par voie) se règle : 60 k, 250 k ou 1 M. Même
+  // profondeur (fronts gardés par voie) se règle : 5 k à 1 M. Même
   // montage que le plafond : horloge sur D8 (un front par ms), une seule montée
   // sur D9 pour le déclenchement. Méthodes absentes de l'ancien code : `sans`
   // en fait des faux, pas une exception qui tuerait le banc (contre-épreuve).
@@ -752,12 +752,21 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   };
   const v0 = (c) => c.listeVoies[0];
 
-  check('profondeur : trois choix, 60 k par défaut',
-    Array.isArray(PROFONDEURS) && PROFONDEURS.join(',') === '60000,250000,1000000'
+  check('profondeur : cinq choix (5 k et 15 k ajoutés le 26/09), 60 k par défaut',
+    Array.isArray(PROFONDEURS) && PROFONDEURS.join(',') === '5000,15000,60000,250000,1000000'
       && new AnalyseurCapture().profondeur === FRONTS_MAX_PAR_VOIE,
     `${PROFONDEURS} / ${new AnalyseurCapture().profondeur}`);
   check('profondeur : une valeur absurde retombe sur le défaut',
     nouvelle(Number.NaN).profondeur === FRONTS_MAX_PAR_VOIE && nouvelle(12).profondeur === FRONTS_MAX_PAR_VOIE);
+  // 5 k déclenchée à 1 000,5 ms : réserve d'un dixième (500 fronts, perte à
+  // 500 ms), pleine au 5 000e front, à 5 500 ms. 5 000 ms de signal gardées.
+  const c5 = nouvelle(5_000);
+  c5.reglerDeclenchement({ voie: 1, sens: 'rising' });
+  jusqua(c5, 8_000, 1, 1_000.5);
+  check('profondeur 5 k : réserve de 500 fronts, pleine au 5 000e, 5 s gardées',
+    c5.profondeur === 5_000 && c5.pleine && v0(c5).fronts.length === 5_000 && v0(c5).fronts[0]?.t === 501
+      && c5.tFin === 5_500 && sans(() => c5.tFin - c5.tDebutComplet) === 5_000,
+    `${c5.profondeur} ${c5.pleine} ${v0(c5).fronts.length} dès ${v0(c5).fronts[0]?.t}, fin ${c5.tFin}, début ${sans(() => c5.tDebutComplet)}`);
 
   // Sans déclenchement : la fenêtre glissante garde la profondeur réglée.
   const a = nouvelle(250_000);
@@ -861,6 +870,31 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   sans(() => g.relancer());
   check('relancer : sans déclenchement, rien n\'attend',
     !g.enAttente && v0(g).fronts.length === 0 && g.niveauA(0, 2_000.5) === 0);
+
+  // Frank, 26/09 : « il s'arrête pareil mais annonce 22,3 s, je relance 44,4,
+  // 99,7 bref c'est variable ». tFin est l'heure de la simulation ; la durée
+  // gardée, tFin − tDebutComplet, ne bouge pas d'une relance à l'autre.
+  const k = nouvelle();
+  k.reglerDeclenchement({ voie: 1, sens: 'rising' });
+  jusqua(k, 70_000, 1, 100.5);
+  const fin1 = k.tFin;
+  const duree1 = sans(() => k.tFin - k.tDebutComplet, NaN);
+  sans(() => k.relancer());
+  k.verser({ 9: [70_000.5, 0] });
+  jusqua(k, 140_000, 70_001, 70_100.5);
+  const duree2 = sans(() => k.tFin - k.tDebutComplet, NaN);
+  check('relancer : la capture pleine garde la même durée, pas la même heure',
+    k.pleine && fin1 === 60_000 && k.tFin === 130_000 && duree1 === 60_000 && duree2 === 60_000,
+    `fin ${fin1} → ${k.tFin} / durée ${duree1} → ${duree2}`);
+  // Réserve rabotée avant le déclenchement : la durée part de ce qui reste.
+  // Déclenchement à 50 000,5 : 6 000 fronts gardés avant (perte à 44 000),
+  // pleine à 104 000 — 60 s de signal, pas 104.
+  const m = nouvelle();
+  m.reglerDeclenchement({ voie: 1, sens: 'rising' });
+  jusqua(m, 120_000, 1, 50_000.5);
+  check('durée gardée : depuis la réserve d\'avant le déclenchement, pas depuis le run',
+    m.pleine && m.tFin === 104_000 && sans(() => m.tDebutComplet, NaN) === 44_000,
+    `${m.pleine} / ${m.tFin} / ${sans(() => m.tDebutComplet)}`);
 
   // Débit : c'est la voie la PLUS active qui compte, mesurée depuis le début de
   // la capture — une impulsion isolée de 10 µs n'est pas un signal à 100 kHz.

@@ -15,7 +15,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Bulles d'aide dans la marge de l'analyseur logique** : la pastille, les boutons T et P et les marqueurs disent ce qu'ils font au survol. T et P disent aussi leur réglage.
 - **Courbes de l'analyseur en image SVG** : le menu ☰ de l'onglet les copie au presse-papier en image, à coller dans Word comme dans Inkscape (« Copie SVG »), ou les enregistre dans un fichier (« Exporter SVG »), au zoom affiché. M1 et M2 posés, l'image va de l'un à l'autre.
 - **Flèches ⏮ ⏭ dans l'analyseur logique** : elles amènent le début de la trame décodée précédente ou suivante au bord gauche, sans changer le zoom. Les trames répétées à l'identique sont sautées.
-- **Profondeur de capture réglable dans l'analyseur logique** : 60 k, 250 k ou 1 M fronts par voie, avec la durée couverte estimée à côté de chaque choix. Le projet garde le réglage.
+- **Profondeur de capture réglable dans l'analyseur logique** : 5 k, 15 k, 60 k, 250 k ou 1 M fronts par voie, avec la durée couverte estimée à côté de chaque choix. Le projet garde le réglage.
 - **Bouton ↻ Relancer la capture dans l'analyseur logique** : il efface la mesure et repart à zéro sans arrêter la simulation, déclenchement réarmé.
 - **Déclenchement sur début de trame pour tous les protocoles** : sur une voie décodée, le menu T propose `Frame start`.
 - **Octets en hexadécimal ou en décimal** : le panneau de décodage de l'analyseur propose le choix, pour tous les protocoles. L'hexadécimal reste le défaut.
@@ -30,6 +30,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **L'export CSV donne une colonne par voie**, toutes les pinces comprises, lues comme à l'écran. Chaque front tient sur deux lignes au même instant : un tableur trace des créneaux droits.
 - **Le panneau Variables se replie au lancement quand un analyseur logique s'ouvre**, se déplie à chaque pause du débogage, et se rouvre à l'arrêt.
 - **« Repos haut » devient « Inverser »** dans le menu d'une voie de l'analyseur.
+- **Capture pleine : l'analyseur dit la durée gardée**, avec la profondeur, et non plus l'heure de la simulation. Une capture relancée plus tard annonce la même durée.
+- **L'infobulle « Échantillonnage » précise** qu'il ne change pas la durée de la capture.
 - **Les niveaux 0 et 1 à gauche des courbes de l'analyseur logique sont en gras**, 0 en rouge et 1 en vert (le vert des départs de décodage).
 - **Le message gris sur les courbes passe à la ligne** quand l'onglet est étroit.
 - **Le texte sous les courbes de l'analyseur est plus grand et en gras.**

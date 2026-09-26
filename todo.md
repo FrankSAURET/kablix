@@ -1,5 +1,5 @@
 # À faire
-1. Rajoute 15k pour la profondeur de capture
+
 ## fait
 
 
@@ -8,6 +8,22 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.162
+1. ✅ **Capture pleine : la durée gardée, pas l'heure** (« je mets sur 1GHz et 60k ech il s'arrête à 8,3 secondes. je fais relancer la capture, il s'arrête pareil mais annonce 22,3s je relance 44,4, 99,7 bref c'est variable »).
+    1. Cause : le message affichait `tFin`, l'heure de la SIMULATION au dernier front gardé. Après une relance à 14 s, une capture de 8,3 s se disait pleine à 22,3 s. La capture, elle, tenait bien la même durée à chaque fois.
+    2. [analyseur-capture.mts](src/webview/analyseur-capture.mts) `tDebutComplet` : la plus tardive des pertes (relance, rabotage), sinon 0. Durée gardée = `tFin − tDebutComplet`.
+    3. [analyseur.mts](src/webview/analyseur.mts) : message `Capture full: {0} kept ({1} edges per channel). Click Restart capture to capture anew.` (`6 s kept (60 k edges per channel)`) ; `duree()` (deux chiffres, ms / s / min / h) et `nomProfondeur()` communs à la liste et au message.
+2. ✅ **Échantillonnage expliqué** (« du coup à quoi sert échantillonnage ») : infobulle de la liste dans [analyseur-panel.ts](src/analyseur-panel.ts) — il fusionne les fronts plus proches qu'un échantillon, comme un vrai instrument, et ne change PAS la durée de la capture (la capture garde des fronts exacts, la profondeur dit combien). Paragraphe dans l'aide FR [sonde-logique.md](docs/fr/composants/sonde-logique.md).
+3. ✅ **Profondeurs 5 k et 15 k** (« Rajoute 5k et 15k pour la profondeur de capture ») : `PROFONDEURS` = 5 k, 15 k, 60 k (défaut), 250 k, 1 M ; options de la liste, 60 k `selected` pour qu'une page neuve ne montre pas 5 k avant la restauration. Réserve d'avant le déclenchement : 500 et 1 500 fronts. Aide FR et CHANGELOG.
+4. ✅ **Bancs** :
+    1. [verify-analyseur.mjs](scripts/verify-analyseur.mjs) : cinq profondeurs ; capture 5 k déclenchée (réserve 500, pleine au 5 000e front, 5 s gardées) ; relance d'une capture pleine (même durée, heure différente) ; durée gardée depuis la réserve. `--ancien=analyseur-capture` : 4 échecs.
+    2. [verify-analyseur-profondeur.mjs](scripts/verify-analyseur-profondeur.mjs) : message `6 s kept`, relance à 6 500 ms au VRAI clic → même message (l'ancien code disait `6100.0` puis `12500.0 ms`, le cas de Frank) ; cinq choix avec leurs durées ; 6 bis : trois VRAIES flèches vers le haut → 5 k, run déclenché, pleine à `500 ms kept`. 30 contrôles, `--ancien` : 10 échecs.
+    3. [verify-analyseur-recharge.mjs](scripts/verify-analyseur-recharge.mjs) A5 : `600 ms kept`.
+    4. Typecheck et construction propres. `verify:all` : 144/146 ; `verify:i18n` et `verify:help-bars` rouges attendus (traductions, cf. 5). `verify:realtime` de nouveau vert (cf. v161, 4.5 : le renderer orphelin arrêté était bien la cause).
+5. ⏳ Traductions avant publication : [i18n.mts](src/webview/i18n.mts) — `Capture full: {0} kept ({1} edges per channel). Click Restart capture to capture anew.` (remplace `Capture full at {0} ms…` de v161) ; `l10n/bundle.l10n.fr.json` — nouvelle infobulle de `Sampling` (l'ancienne clé ne sert plus). Aide EN.
 
 ---
 

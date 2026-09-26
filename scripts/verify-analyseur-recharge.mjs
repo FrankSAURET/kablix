@@ -581,8 +581,8 @@ console.log('C. page');
 			const nue = (p) => p[2];
 			const trace = (p, i) => p[i] > nue(p) * 1.3;
 			check(m.erreurs === '', 'C : la page ne lève aucune erreur', m.erreurs);
-			check(/^Capture full at 600\.0 ms/.test(m.etatDirect),
-				'C : en direct, réglages reçus seuls — la capture déclenchée se remplit et s’arrête à 600 ms', m.etatDirect);
+			check(/^Capture full: 600 ms kept \(60 k edges per channel\)/.test(m.etatDirect),
+				'C : en direct, réglages reçus seuls — la capture déclenchée se remplit : 600 ms gardées', m.etatDirect);
 			check(trace(m.pistesDirect, 0) && trace(m.pistesDirect, 1), 'C : en direct, les deux voies tracent', JSON.stringify(m.pistesDirect));
 			check(m.etatRecharge === m.etatDirect, 'C : rechargée, la page retrouve la MÊME capture qu’en direct', `« ${m.etatRecharge} »`);
 			check(trace(m.pistesRecharge, 0) && trace(m.pistesRecharge, 1), 'C : rechargée, les courbes sont là', JSON.stringify(m.pistesRecharge));

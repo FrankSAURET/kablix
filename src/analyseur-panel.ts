@@ -471,7 +471,7 @@ export class AnalyseurPanel {
   <!-- Nouvelle acquisition tout de suite (Frank, 26/09) : capture vidée,
        déclenchement réarmé. Grisé hors simulation : plus rien à capturer. -->
   <button id="relancer" type="button" disabled title="${l.t('Start a new acquisition now: the capture is cleared and the trigger waits again for its edge. Available while the simulation runs.')}">↻ ${l.t('Restart capture')}</button>
-  <label title="${l.t('Sampling rate of the analyzer: edges closer together than one sample are merged, exactly as on a real instrument. Unlimited shows every edge the simulation produced.')}">${l.t('Sampling')}
+  <label title="${l.t('Sampling rate of the analyzer: edges closer together than one sample are merged, exactly as on a real instrument. Unlimited shows every edge the simulation produced. It does not change how long the capture lasts: the capture keeps exact edges, and Depth sets how many.')}">${l.t('Sampling')}
     <select id="horloge">
       <option value="0">${l.t('Unlimited')}</option>
       <option value="1000000000">1 GHz</option>
@@ -489,7 +489,9 @@ export class AnalyseurPanel {
        chaque choix la durée qu'il tiendrait au débit mesuré. -->
   <label title="${l.t('Capture depth: edges kept per channel. The duration in brackets is estimated from the busiest channel. Deeper captures last longer but use more memory. Changing it on a full capture starts a new one; a stopped capture keeps its depth until the next run.')}">${l.t('Depth')}
     <select id="profondeur">
-      <option value="60000">60 k</option>
+      <option value="5000">5 k</option>
+      <option value="15000">15 k</option>
+      <option value="60000" selected>60 k</option>
       <option value="250000">250 k</option>
       <option value="1000000">1 M</option>
     </select>
