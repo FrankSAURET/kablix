@@ -16,7 +16,7 @@ import {
 } from './compiler';
 import { pistesArduinoIde } from './arduinoCliPistes';
 import { AnalyseurPanel, type AnalyseurVersHote, type EtatAnalyseur } from './analyseur-panel';
-import { AnalyseurJournal, extraitCsv } from './analyseur-journal';
+import { AnalyseurJournal, csvExport, type VoieExport } from './analyseur-journal';
 import {
   packProject,
   unpackProject,
@@ -1663,31 +1663,34 @@ export class SimulatorPanel {
         };
       });
     } else if (m.type === 'analyseurExport') {
-      void this.exporterMesureAnalyseur(m.plage);
+      void this.exporterMesureAnalyseur(m.plage, m.voies);
     } else if (m.type === 'analyseurSvg') {
       void this.exporterSvgAnalyseur(m);
     }
   }
 
   /**
-   * Export de la mesure de l'analyseur en CSV. Le journal de session est DÉJÀ
-   * ce CSV, écrit au fil de l'eau : on le recopie tel quel, sans conversion.
-   * C'est aussi pourquoi l'export ne dépend ni de l'onglet (qui ne garde qu'une
-   * capture rabotée) ni de l'arrêt de la simulation — il marche en plein run.
+   * Export de la mesure de l'analyseur en CSV, tiré du journal de session écrit
+   * au fil de l'eau (`csvExport` : une colonne par voie, deux lignes par
+   * front). L'export ne dépend donc ni de l'onglet (qui ne garde qu'une capture
+   * rabotée) ni de l'arrêt de la simulation — il marche en plein run.
    *
-   * `plage` (M1 et M2 posés) : seulement l'intervalle entre les deux marqueurs,
-   * précédé du niveau de chaque voie au premier (`extraitCsv`).
+   * `plage` (M1 et M2 posés) : seulement l'intervalle entre les deux marqueurs.
+   * `voies` : les colonnes telles que l'onglet les montre ; à défaut, celles
+   * que l'atelier a déclarées au journal.
    */
-  private async exporterMesureAnalyseur(plage?: { t1: number; t2: number }): Promise<void> {
-    const journal = AnalyseurJournal.existant(this.analyseurCle())?.lire();
-    if (journal === undefined) {
+  private async exporterMesureAnalyseur(plage?: { t1: number; t2: number }, voies?: VoieExport[]): Promise<void> {
+    const j = AnalyseurJournal.existant(this.analyseurCle());
+    const journal = j?.lire();
+    if (!j || journal === undefined) {
       vscode.window.showInformationMessage(
         l10n.t('Kablix: no measurement to export yet. Clip probes onto the circuit and run the simulation first.')
       );
       return;
     }
     const bornes = plage && Number.isFinite(plage.t1) && Number.isFinite(plage.t2) ? plage : undefined;
-    const csv = bornes ? extraitCsv(journal, bornes.t1, bornes.t2) : journal;
+    const colonnes = Array.isArray(voies) && voies.length > 0 ? voies : j.voiesDeclarees();
+    const csv = csvExport(journal, colonnes, bornes);
     const target = await this.demanderCibleAnalyseur(
       'csv',
       l10n.t('CSV measurements'),
@@ -1699,16 +1702,18 @@ export class SimulatorPanel {
 
   /**
    * Courbes de l'analyseur en SVG, dessinées par la page au zoom affiché :
-   * copiées dans le presse-papier (en texte : c'est ce que VS Code sait y
-   * mettre — Inkscape, un navigateur ou un éditeur de code le relisent), ou
-   * enregistrées dans un fichier. Un refus de la page (rien de mesuré, plage
-   * illisible à ce zoom) se dit ici, avec la façon d'y remédier.
+   * copiées dans le presse-papier, ou enregistrées dans un fichier. La copie en
+   * IMAGE (SVG et PNG) est faite par la page, seule à pouvoir écrire autre chose
+   * que du texte ; elle ne fait que nous prévenir (`copie: 'image'`). Si elle a
+   * échoué, on copie le SVG en texte, comme avant. Un refus de la page (rien de
+   * mesuré, plage illisible à ce zoom) se dit ici, avec la façon d'y remédier.
    */
   private async exporterSvgAnalyseur(m: {
     action: 'copier' | 'enregistrer';
     svg: string;
     refus?: 'vide' | 'etroit' | 'large';
     largeur?: number;
+    copie?: 'image';
   }): Promise<void> {
     const { action, svg, refus } = m;
     const largeur = String(Math.round(Number(m.largeur) || 0));
@@ -1728,6 +1733,10 @@ export class SimulatorPanel {
       vscode.window.showWarningMessage(
         l10n.t('Kablix: at this zoom the picture would be {0} pixels wide, too wide to be of use. Zoom out, or bring M1 and M2 closer.', largeur)
       );
+      return;
+    }
+    if (action === 'copier' && m.copie === 'image') {
+      vscode.window.showInformationMessage(l10n.t('Kablix: curves copied to the clipboard as a picture.'));
       return;
     }
     if (typeof svg !== 'string' || !svg.startsWith('<svg')) return;

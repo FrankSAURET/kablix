@@ -51,7 +51,9 @@ Plusieurs pinces peuvent écouter le **même signal** : sur une carte DMX, une p
 - **Toute la capture** : ramène toute la capture dans l'écran.
 - **Suivre en direct** : recolle la vue à la fin de la capture, ce qu'elle fait d'elle-même pendant un run tant qu'on n'a pas zoomé.
 
-Sous le nom de chaque voie, la **pastille de couleur** ouvre ses réglages : nom, vitesse, tolérance, et **masquer**. Une voie masquée quitte l'écran mais garde sa capture ; tant qu'il y en a une, la barre montre un bouton qui les **réaffiche** toutes, avec leur nombre.
+Sous le nom de chaque voie, la **pastille de couleur** ouvre ses réglages : nom, inversion, vitesse, tolérance, et **masquer**. Une voie masquée quitte l'écran mais garde sa capture ; tant qu'il y en a une, la barre montre un bouton qui les **réaffiche** toutes, avec leur nombre.
+
+Chaque bouton de la marge — pastille, **T**, **P**, marqueurs garés, flèche de rappel — dit ce qu'il fait dans une **bulle**, au survol. Celles de **T** et de **P** disent aussi leur état : le déclenchement armé sur la voie, le bus décodé.
 
 Hors simulation, l'onglet montre la **dernière capture** de la session.
 
@@ -63,11 +65,11 @@ Le projet, lui, garde les **réglages** de l'instrument (déclenchement, décoda
 
 Le bouton **☰** de la barre ouvre le menu des exports :
 
-- **Exporter CSV** : enregistre les fronts dans un fichier `.csv`, une ligne par changement de niveau (`temps_ms,voie,broche,nom,niveau`), la description des voies en tête. Une mesure en cours s'exporte sans arrêter la simulation.
-- **Copie SVG** : met les courbes au presse-papier, en image SVG prête à coller dans un document.
+- **Exporter CSV** : enregistre la mesure dans un fichier `.csv`, **une colonne par voie** (`temps_ms,Sig,DMX-,DMX+`), la description des voies en tête. Chaque front tient sur **deux lignes au même instant** : le niveau d'avant, puis celui d'après. Tracées dans un tableur en « nuage de points reliés », les courbes sont donc des créneaux à fronts verticaux, comme à l'écran. Une voie lue à l'envers (patte `-` d'une paire DMX, réglage *Invert*) l'est aussi dans le fichier. Une case vide veut dire que la voie n'a pas encore bougé. Une mesure en cours s'exporte sans arrêter la simulation.
+- **Copie SVG** : met les courbes au presse-papier **en image**, sous deux formes à la fois : un dessin vectoriel (SVG) que colle Inkscape, et une image ordinaire, deux fois plus fine que l'écran, que colle Word. Chaque logiciel prend celle qu'il sait lire.
 - **Exporter SVG** : la même image, enregistrée dans un fichier `.svg`.
 
-Pour n'exporter qu'un morceau, posez **M1** au début de ce qui vous intéresse et **M2** à la fin. Le CSV ne garde alors que les fronts compris entre les deux, précédés du niveau de chaque voie à M1. Le SVG dessine cette plage **au zoom affiché** : un pixel de l'écran vaut un pixel de l'image, donc zoomer avant d'exporter l'allonge et dézoomer la resserre. Sans M1 ni M2, le CSV emporte toute la mesure et le SVG ce que montre l'écran.
+Pour n'exporter qu'un morceau, posez **M1** au début de ce qui vous intéresse et **M2** à la fin. Le CSV ne garde alors que les fronts compris entre les deux, encadrés par le niveau de chaque voie à M1 et à M2. Le SVG dessine cette plage **au zoom affiché** : un pixel de l'écran vaut un pixel de l'image, donc zoomer avant d'exporter l'allonge et dézoomer la resserre. Sans M1 ni M2, le CSV emporte toute la mesure et le SVG ce que montre l'écran.
 
 L'image garde les couleurs du thème et son fond, les noms des voies, les décodages et les marqueurs, sans les boutons de l'onglet. Une plage qui ferait moins de 40 pixels de courbe à ce zoom, ou une image de plus de 50 000 pixels de large, est refusée par un message qui dit s'il faut zoomer ou dézoomer.
 

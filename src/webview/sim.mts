@@ -1808,7 +1808,9 @@ function verserFrontsAnalyseur(edges: Record<string, number[]>): void {
     if (garde.fronts.length === 0 && garde.niveauInitial === null && log.length >= 2) {
       garde.niveauInitial = log[1] === 1 ? 0 : 1;
     }
-    garde.fronts.push(...log);
+    // Un par un : un `push(...log)` fait de chaque nombre un argument, et une
+    // salve dense (DMX, SPI rapide) peut dépasser ce que tient la pile.
+    for (const x of log) garde.fronts.push(x);
     if (garde.fronts.length > LOGIC_SAUVE_MAX * 2) {
       const trop = garde.fronts.length - LOGIC_SAUVE_MAX * 2;
       // On coupe sur un nombre PAIR : chaque front occupe deux nombres, couper

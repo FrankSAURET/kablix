@@ -10,6 +10,36 @@
 
 ---
 
+# v2026.9.5.160
+1. ✅ **Gel de l'analyseur** (« De temps en temps tout se fige (les menus s'ouvrent mais pour le reste rien ne bouge, les curseurs, le déclenchement, le zoom, le déplacement), je suis obligé de le fermer et le relancer »).
+    1. Cause : [analyseur-decodage.mts](src/webview/analyseur-decodage.mts) `decoderTous` versait chaque décodage par `out.push(...decoder())` — une annotation par argument. Vue dézoomée sur une longue capture DmxSimple, bits affichés : plus de 150 000 annotations, la pile débordait. Le rendu levait à CHAQUE image : plus rien ne peignait, seuls les menus HTML répondaient.
+    2. Versement un par un ; même motif corrigé dans [sim.mts](src/webview/sim.mts) (`garde.fronts.push(...log)`).
+    3. Filet dans [analyseur.mts](src/webview/analyseur.mts) `rendu()` : un décodage qui lève est abandonné (console), la vue continue de peindre.
+    4. Vitesse de la même vue : formateur de dixièmes gardé (`Intl.NumberFormat` neuf à chaque BREAK court), annotations retouchées sur place, largeurs de texte mesurées une fois, index par piste et par rangée dans [analyseur-vue.mts](src/webview/analyseur-vue.mts) (dichotomies au lieu d'un parcours complet par trame).
+    5. Banc [verify-analyseur.mjs](scripts/verify-analyseur.mjs) : 5 s de DmxSimple, bits affichés, deux décodages — `decoderTous` ne déborde pas et rend l'ordre du temps. `--ancien=analyseur-decodage` : 2 échecs.
+2. ✅ **Copie SVG en image** (« Copy SVG → dans Word j'ai le fichier texte, dans Inkscape rien du tout »).
+    1. Cause : `env.clipboard` de VS Code n'écrit que du texte. Word collait le code SVG, Inkscape ne voyait pas d'image.
+    2. [analyseur.mts](src/webview/analyseur.mts) `copierEnImage` : la page écrit elle-même le presse-papier (`navigator.clipboard.write`) en deux formes — `image/svg+xml` pour Inkscape, `image/png` deux fois plus fin que l'écran pour Word (`vue.png()`, même `peindre()` que l'écran). Au-delà de 32 000 px de large, SVG seul. Écriture refusée → l'hôte copie le texte, comme avant.
+    3. [panel.ts](src/panel.ts) : message `Kablix: curves copied to the clipboard as a picture.` quand l'image est passée ; infobulle de « Copie SVG » mise à jour.
+3. ✅ **Export CSV : toutes les voies, fronts droits** (« il manque 2 signaux sur 3 (test sur dmx-uno), seul Sig est exporté. Il faut rajouter des temps de montée et de descente, sinon le tracé fait des droites entre les débuts et fins d'un signal »).
+    1. Cause : le journal de session s'écrit par BROCHE. Sig, DMX− et DMX+ remontent toutes à la broche 3 : une seule ligne par front, sous la première voie.
+    2. [analyseur-journal.ts](src/analyseur-journal.ts) `csvExport` (remplace `extraitCsv`) : format LARGE — `temps_ms` puis une colonne par voie. Chaque front = deux lignes au même instant, niveau d'avant puis niveau d'après : un tableur trace des créneaux verticaux. Case vide = niveau encore inconnu. Temps arrondis à la picoseconde (bruit flottant).
+    3. La page envoie les colonnes : chaque voie posée, sous son nom affiché, lue comme à l'écran (`capture.estInversee` : câblage sur `−` et case « Inverser »). Sans elles (ancienne page), les voies déclarées du journal.
+    4. M1 et M2 posés : lignes au niveau de chaque voie à M1 et à M2 encadrant la plage. En-tête : voies, broches, inversions, plage, mode de lecture.
+    5. Tenue : 2 M de fronts → 2,9 s et 53 Mo en entier, 1,3 s pour 1 ms de plage.
+    6. Banc [verify-analyseur-export.mjs](scripts/verify-analyseur-export.mjs) : 97 contrôles (colonnes, fronts doublés, plages, trois voies sur une broche dont une inversée, repli sans colonnes, copie image côté hôte). `--ancien` couvre aussi `src/*.ts` et la construction de panel.ts ; `--ancien=panel,analyseur-journal,analyseur` : 19 échecs, dont « seul Sig ».
+4. ✅ **Bulles de la marge** (« Dans la marge il faudrait des bulles explicatives au survol de chaque bouton »).
+    1. Les boutons sont peints dans le canvas : le `title` du canvas prend la bulle du bouton survolé ([analyseur.mts](src/webview/analyseur.mts) `bulleBouton`, `bulleMarqueur`). Curseur main sur les boutons.
+    2. Pastille : réglages de la voie. T : à quoi sert le déclenchement ; armé sur la voie, lequel (`Rising edge`, `Falling edge`, `Frame start`, `START code 0x00`). P : à quoi sert le décodage et quels bus ; décodé, lequel. M1 et M2 : garés, à quoi ils servent ; posés, comment les ranger. Flèche de rappel inchangée.
+    3. Banc [verify-analyseur-marqueurs.mjs](scripts/verify-analyseur-marqueurs.mjs) section 6, VRAIE souris : 12 contrôles. `--ancien=analyseur` : 10 échecs.
+    4. Aide FR [sonde-logique.md](docs/fr/composants/sonde-logique.md) : bulles, inversion dans les réglages de la pastille, Copie SVG en image, colonnes du CSV.
+5. ✅ **Icône de l'analyseur retouchée par Frank** ([analyseur.svg](media/analyseur.svg), [icones.svg](media/icones.svg)) : enregistrée telle quelle. Rendu vérifié en Chrome à 16 et 128 px, fonds clair et sombre : rien de rogné.
+6. ⏳ Traductions avant publication (`l10n/bundle.l10n.fr.json`) : `Kablix: curves copied to the clipboard as a picture.`, nouvelles infobulles de « Copie SVG » et « Exporter CSV », les sept bulles de la marge (`Channel settings…`, `Trigger: wait…`, `Trigger on this channel: {0}…`, `Decoding: read…`, `Decoding: {0}…`, les deux `Marker {0}…`). Aide EN ([sonde-logique.md](docs/en/composants/sonde-logique.md)).
+7. ℹ️ [_diag-analyseur-gel.mjs](scripts/_diag-analyseur-gel.mjs) (script de mesure du gel) laissé hors enregistrement : à garder ou non, à toi de voir.
+8. ✅ **Tests** : typecheck et construction propres. `verify:all` : 141/145. `verify:i18n` et `verify:help-bars` rouges attendus (traductions, cf. 6). `verify:transistor` (défilement d'une liste mesuré trop tôt) et `verify:servo` (angle relevé à 0,3 s) rouges sous charge, verts seuls : 185 et 18 contrôles.
+
+---
+
 # v2026.9.5.159
 1. ✅ **Menu ☰ des exports de l'analyseur** (« Le bouton Exporter en CSV disparait au profit d'un bouton hamburger qui ouvre un menu dans lequel on retrouve : Exporter SVG, Copie SVG, Exporter SVG »). Lu : Exporter CSV, Copie SVG, Exporter SVG.
     1. [analyseur-panel.ts](src/analyseur-panel.ts) : bouton `#menu-export` (☰, `aria-haspopup`, `aria-expanded`) à la place de `#exporter` ; menu `#menu-export-liste` écrit caché dans la page, trois entrées `data-export` avec leurs infobulles.

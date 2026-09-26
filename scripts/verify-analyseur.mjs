@@ -1237,6 +1237,55 @@ check('SPI : quatre rôles proposés (SCK, MOSI, MISO, CS)',
       !textes.some((x) => x.startsWith('c5=')) && !ann.some((a) => a.nature === 'erreur'),
     textes.join(' | '));
 }
+{
+  // Le GEL de l'analyseur (Frank, 26/09 : « les menus s'ouvrent mais rien ne
+  // bouge »). Vue dézoomée sur une longue capture DmxSimple, bits affichés :
+  // `decoderTous` versait chaque décodage par `out.push(...decoder())`, une
+  // annotation par argument, et la pile débordait au-delà de ~120 000. Le rendu
+  // levait à CHAQUE image : zoom, curseurs, déclenchement, plus rien ne peignait.
+  const BIT = 0.004;
+  const fronts = [];
+  let t = 1.0;
+  let niveau = 1;
+  const palier = (n, ms) => {
+    if (n !== niveau) {
+      fronts.push([t, n]);
+      niveau = n;
+    }
+    t += ms;
+  };
+  const octet = (o) => {
+    palier(0, BIT);
+    for (let i = 0; i < 8; i++) palier((o >> i) & 1, BIT);
+    palier(1, 2 * BIT);
+  };
+  palier(1, 0.1);
+  // 3 000 trames DmxSimple de quatre canaux (~5 s de capture) : plus de
+  // 150 000 annotations pour UN décodage, au-delà du seuil de la pile.
+  for (let k = 0; k < 3000; k++) {
+    palier(0, 0.0766);
+    palier(1, 0.0128);
+    octet(0x00);
+    for (const v of [k & 255, 0x55, 0xaa, 189]) octet(v);
+    palier(1, 1.7);
+  }
+  const voie = voieDe(0, 'DMX', fronts, 1);
+  const reglages = [
+    { protocole: 'dmx', donnees: 0, bits: true },
+    { protocole: 'dmx', donnees: 0, bits: true },
+  ];
+  let tous = null;
+  let erreur = '';
+  try {
+    tous = decoderTous([voie], reglages);
+  } catch (e) {
+    erreur = String(e);
+  }
+  check('gel : 5 s de DmxSimple, bits affichés, deux décodages — decoderTous ne déborde pas la pile',
+    tous !== null && tous.length > 300_000, erreur || `${tous?.length} annotations`);
+  check('gel : les annotations en masse sortent toujours triées par le temps',
+    tous !== null && tous.every((a, i) => i === 0 || tous[i - 1].t0 <= a.t0));
+}
 
 // --- UART ------------------------------------------------------------------------
 /**

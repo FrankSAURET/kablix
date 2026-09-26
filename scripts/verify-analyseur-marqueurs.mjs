@@ -15,6 +15,8 @@
 // - Bouton de rappel tout à gauche de la bande (Frank, 26/09) : après un zoom
 //   qui a fait sortir M1 et M2 de la vue, un clic les ramène tous deux au
 //   garage. Pâle et sans effet tant qu'aucun marqueur n'est posé.
+// - Bulles de la marge (Frank, 26/09) : pastille, T, P et marqueurs garés
+//   disent ce qu'ils font au survol ; T et P disent aussi leur état.
 //
 // Vrai HTML de l'onglet, vrai analyseur.mts, Chrome headless piloté en CDP brut
 // (`Input.dispatchMouseEvent`) : le réticule suit un vrai `pointermove`, pas un
@@ -413,6 +415,58 @@ try {
 	check('le clic ne fait ni défiler ni zoomer la vue',
 		vu.filter((p) => p.quoi === 'texte' && p.align === 'center' && p.y < 22).map((p) => p.t).join('|') === graduationsAvant);
 	check('rien à ramener : le bouton redevient pâle', boutonRappel(vu)?.alpha < 0.5, String(boutonRappel(vu)?.alpha));
+
+	// --- 6. Bulles de la marge, à la vraie souris --------------------------------
+	// Frank, 26/09 : « Dans la marge il faudrait des bulles explicatives au survol
+	// de chaque bouton ». Les boutons sont peints : c'est le `title` du canvas qui
+	// porte la bulle du bouton survolé, et elle dit l'état (déclenchement armé,
+	// bus décodé).
+	console.log('Bulles de la marge');
+	const titre = () => ev(`document.getElementById('trace').title`);
+	const curseur = () => ev(`document.getElementById('trace').style.cursor`);
+	/** Centres des boutons T et P de chaque voie, relus sur leur lettre peinte. */
+	const lettres = (vu, l) => vu.filter((p) => p.quoi === 'texte' && p.t === l && p.x < 104 && p.y > 42).sort((a, b) => a.y - b.y);
+	vu = await releve();
+	const T = lettres(vu, 'T');
+	const P = lettres(vu, 'P');
+	check('témoin : chaque voie porte ses boutons T et P', T.length === 2 && P.length === 2, `T ${T.length}, P ${P.length}`);
+	const pas = (P[0]?.x ?? 0) - (T[0]?.x ?? 0);
+	const survol = async (p, dx = 0) => {
+		await bouger(Math.round(p.x + dx), Math.round(p.y));
+		await attendre(80);
+		return titre();
+	};
+	if (T.length === 2 && P.length === 2) {
+		// La pastille de teinte est à gauche du T, au même pas que P l'est du T.
+		const bTeinte = await survol(T[0], -pas);
+		check('pastille : la bulle dit les réglages de la voie', /name.*invert.*hide.*baud.*tolerance/i.test(bTeinte), bTeinte);
+		check('pastille : le curseur annonce un bouton', (await curseur()) === 'pointer', await curseur());
+		const bT = await survol(T[0]);
+		check('T au repos : la bulle dit à quoi sert le déclenchement', /^Trigger: .*edge/.test(bT), bT);
+		check('T : le curseur annonce un bouton', (await curseur()) === 'pointer', await curseur());
+		const bP = await survol(P[0]);
+		check('P au repos : la bulle dit à quoi sert le décodage et quels bus', /^Decoding: .*I²C.*DMX512/.test(bP), bP);
+		// Un marqueur garé, dans la marge lui aussi.
+		const bM1 = await survol({ x: xG1, y: Y_BANDE });
+		check('M1 garé : la bulle dit de le glisser et ce qu\'il borne', /^Marker M1: drag.*export/i.test(bM1), bM1);
+		// Hors de tout bouton : plus de bulle.
+		const bVide = await survol({ x: boite.w / 2, y: boite.h - 40 });
+		check('sur les courbes, pas de bulle', bVide === '', bVide);
+
+		// Déclenchement armé sur la voie 0, UART décodé sur la voie 1 : les bulles
+		// le disent. Mêmes voies, mêmes pistes : les boutons n'ont pas bougé.
+		await ev(`window.postMessage(${JSON.stringify({ type: 'restaure', etat: { ...ETAT, declenchement: { voie: 0, sens: 'rising' }, decodages: [{ protocole: 'uart', id: 'd1', donnees: 1 }] } })}, '*')`);
+		await attendre(250);
+		const bT0 = await survol(T[0]);
+		// Page en français : « Rising edge » y est déjà traduit, la phrase neuve pas encore.
+		check('T armé : la bulle dit le déclenchement de la voie', /^Trigger on this channel: (Rising edge|Front montant)\./.test(bT0), bT0);
+		const bT1 = await survol(T[1]);
+		check('T d\'une autre voie : la bulle reste celle du repos', /^Trigger: /.test(bT1), bT1);
+		const bP1 = await survol(P[1]);
+		check('P décodé : la bulle nomme le bus', /^Decoding: UART\./.test(bP1), bP1);
+		const bP0 = await survol(P[0]);
+		check('P d\'une voie non décodée : la bulle reste celle du repos', /^Decoding: read/.test(bP0), bP0);
+	}
 	if (dossierImage) {
 		await glisser(xG1, Y_BANDE, Math.round(xDe(5)) + 100, Y_BANDE);
 		await bouger(boite.w - 200, 120);

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { randomBytes } from 'node:crypto';
+import type { VoieExport } from './analyseur-journal';
 
 // Onglet « Analyseur logique » : la VUE de l'instrument, dans un onglet à part.
 //
@@ -64,16 +65,19 @@ export type AnalyseurVersHote =
   /**
    * L'utilisateur demande l'export de la mesure en CSV.
    *
-   * Le message ne PORTE PAS de données : la mesure n'est pas dans la page, elle
+   * Le message ne PORTE PAS les fronts : la mesure n'est pas dans la page, elle
    * est dans le journal de session écrit au fil de l'eau côté hôte
-   * (`analyseur-journal.ts`), déjà au format CSV. La page, elle, rabote sa
-   * capture (FRONTS_MAX_PAR_VOIE) pour rester fluide : elle exporterait une
-   * mesure amputée de son début.
+   * (`analyseur-journal.ts`). La page, elle, rabote sa capture
+   * (FRONTS_MAX_PAR_VOIE) pour rester fluide : elle exporterait une mesure
+   * amputée de son début.
    *
    * `plage` : M1 et M2 posés tous deux, l'export se limite à l'intervalle qui
    * les sépare (ms simulées, dans l'ordre du temps). Absente : tout le journal.
+   *
+   * `voies` : les colonnes du CSV, telles que l'onglet les montre (nom affiché,
+   * lecture inversée ou non). Absentes : les voies déclarées par l'atelier.
    */
-  | { type: 'analyseurExport'; plage?: { t1: number; t2: number } }
+  | { type: 'analyseurExport'; plage?: { t1: number; t2: number }; voies?: VoieExport[] }
   /**
    * Les courbes entre M1 et M2, en SVG, à copier dans le presse-papier ou à
    * enregistrer. Celui-là PORTE son contenu : le dessin, c'est la page qui le
@@ -82,6 +86,10 @@ export type AnalyseurVersHote =
    * `refus` : la page n'a rien dessiné (`svg` vide) et l'hôte dit pourquoi —
    * rien de mesuré, ou une plage trop étroite ou trop large à ce zoom
    * (`largeur` = pixels qu'elle aurait pris).
+   *
+   * `copie: 'image'` : la page a DÉJÀ mis l'image dans le presse-papier (SVG et
+   * PNG) ; l'hôte n'a plus qu'à le dire. Sans lui, c'est à l'hôte de copier le
+   * SVG, en texte.
    */
   | {
       type: 'analyseurSvg';
@@ -89,6 +97,7 @@ export type AnalyseurVersHote =
       svg: string;
       refus?: 'vide' | 'etroit' | 'large';
       largeur?: number;
+      copie?: 'image';
     };
 
 /** Ce que l'atelier veut faire parvenir à l'onglet. */
@@ -497,8 +506,8 @@ export class AnalyseurPanel {
 </div>
 <!-- Hors de la barre : la page le pose sous le bouton ☰, en coordonnées de page. -->
 <div id="menu-export-liste" class="menu-flottant flottant--liste" role="menu" hidden>
-  <button type="button" role="menuitem" data-export="csv" title="${l.t('Save the edges to a CSV file: time in milliseconds, channel, pin, name and level. With M1 and M2 placed, only the span between them, starting with the level of each channel at the first marker; otherwise everything measured since the simulation started. Sampling does not apply: the file holds the raw edges.')}">${l.t('Export CSV')}</button>
-  <button type="button" role="menuitem" data-export="copier-svg" title="${l.t('Copy the curves between M1 and M2 to the clipboard as SVG code, at the current zoom. Without both markers, the visible window.')}">${l.t('Copy SVG')}</button>
+  <button type="button" role="menuitem" data-export="csv" title="${l.t('Save the measurement to a CSV file: time in milliseconds, then one column per channel. Each edge takes two lines at the same time, level before then level after, so a spreadsheet draws square waves. With M1 and M2 placed, only the span between them, framed by the level of each channel at both markers; otherwise everything measured since the simulation started. Sampling does not apply: the file holds the raw edges.')}">${l.t('Export CSV')}</button>
+  <button type="button" role="menuitem" data-export="copier-svg" title="${l.t('Copy the curves between M1 and M2 to the clipboard as a picture (SVG and PNG), at the current zoom: paste it into Inkscape, Word… Without both markers, the visible window.')}">${l.t('Copy SVG')}</button>
   <button type="button" role="menuitem" data-export="svg" title="${l.t('Save the curves between M1 and M2 to an SVG file, at the current zoom. Without both markers, the visible window.')}">${l.t('Export SVG')}</button>
 </div>
 <canvas id="trace"></canvas>

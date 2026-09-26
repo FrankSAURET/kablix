@@ -1306,12 +1306,25 @@ function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
   return out;
 }
 
+/**
+ * Formateur de `dixiemes`, gardé tant que la langue ne change pas.
+ * `toLocaleString(lang, options)` en construit un NEUF à chaque appel : sur le
+ * BREAK court de DmxSimple, écrit à chaque trame, c'était la moitié du temps
+ * de décodage d'une vue dézoomée (1,5 s sur 5 rendus mesurés).
+ */
+let formatDixiemes: { lang: string; nf: Intl.NumberFormat } | null = null;
+
 /** Une décimale, séparateur de la langue (« 56,7 » en français). */
 function dixiemes(x: number): string {
+  const lang = locale();
+  if (formatDixiemes?.lang !== lang) {
+    formatDixiemes = {
+      lang,
+      nf: new Intl.NumberFormat(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false }),
+    };
+  }
   // `+ 0` : un −0 (0x8000, signe seul) s'écrirait « -0,0 » ; toFixed disait « 0.0 ».
-  return (x + 0).toLocaleString(locale(), {
-    minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false,
-  });
+  return formatDixiemes.nf.format(x + 0);
 }
 
 /** Humidité lue dans les octets 0-1 d'une trame DHT. */
@@ -1363,11 +1376,16 @@ export function decoder(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
   })();
   // Affichage binaire : les bits prennent la ligne juste sous le créneau, au
   // plus près des fronts qu'ils lisent ; octets et repères descendent d'une.
-  const placees = r.bits ? sorties.map((a) => (a.bit ? a : { ...a, ligne: (a.ligne ?? 0) + 1 })) : sorties;
   // Chaque annotation part avec SA voie de données : c'est ce qui permet à la
   // vue de poser deux décodages simultanés sous deux pistes différentes.
+  // Retouchées SUR PLACE : elles sortent toutes neuves du décodeur, et deux
+  // copies par annotation pesaient sur une vue dézoomée (150 000 annotations).
   const ancre = ancreDe(r);
-  return ancre === undefined ? placees : placees.map((a) => ({ ...a, voie: ancre }));
+  for (const a of sorties) {
+    if (r.bits && !a.bit) a.ligne = (a.ligne ?? 0) + 1;
+    if (ancre !== undefined) a.voie = ancre;
+  }
+  return sorties;
 }
 
 /**
@@ -1420,7 +1438,11 @@ export function decoderTous(voies: VoieCapture[], reglages: ReglageDecodage[]): 
   const out: Annotation[] = [];
   for (const r of reglages) {
     if (!reglageComplet(r)) continue;
-    out.push(...decoder(voies, r));
+    // Une à une, JAMAIS `out.push(...decoder())` : chaque annotation devient un
+    // argument, et au-delà de ~120 000 la pile déborde. C'était le gel de
+    // l'analyseur (Frank, 26/09) : 20 s de DMX dézoomées, bits affichés, le
+    // rendu levait à chaque image et plus rien ne bougeait sur le canvas.
+    for (const a of decoder(voies, r)) out.push(a);
   }
   return out.sort((a, b) => a.t0 - b.t0);
 }

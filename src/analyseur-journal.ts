@@ -251,6 +251,11 @@ export class AnalyseurJournal {
     this.voies = voies.slice();
   }
 
+  /** Voies déclarées par l'atelier : colonnes d'un export dont l'onglet ne dit rien. */
+  public voiesDeclarees(): VoieJournal[] {
+    return this.voies.slice();
+  }
+
   /**
    * Verse une salve de fronts. `salves` est ce que l'atelier envoie déjà :
    * par broche, une suite plate `[t0, niveau0, t1, niveau1, …]` où le temps est
@@ -338,54 +343,133 @@ export class AnalyseurJournal {
   }
 }
 
+/** Voie telle que l'onglet la montre, pour l'export. */
+export interface VoieExport extends VoieJournal {
+  /**
+   * Lue à l'envers — pince sur la patte `-` d'une paire DMX, ou réglage
+   * « Invert » : la colonne suit l'écran, pas la broche.
+   */
+  inverse?: boolean;
+}
+
 /**
- * Le journal réduit à la plage [t1, t2] (ms simulées), pour l'export entre M1
- * et M2 (Frank, 26/09).
+ * Le CSV que l'utilisateur exporte, tiré du journal (Frank, 26/09).
  *
- * En tête des données, le niveau de chaque voie À t1 : une ligne datée de t1
- * par voie, recopiée de son dernier front d'avant. Sans elle, un tableur ne
- * saurait pas d'où part une voie qui ne bouge qu'après t1 — ou plus du tout.
- * Une voie sans front avant t1 n'a pas de niveau connu : pas de ligne.
+ * UNE COLONNE PAR VOIE. Le journal range les fronts par BROCHE : trois pinces
+ * sur la même broche (Sig, DMX-, DMX+ d'un Grove DMX512) n'y sont écrites
+ * qu'une fois, sous la première voie — recopier le journal n'en rendait qu'une
+ * sur trois. Ici chaque voie a sa colonne, inversée comme à l'écran.
  *
- * Les lignes sont triées par temps : le journal, lui, les range par salve et
- * par broche. Commentaires et ligne de colonnes sont gardés, avec la plage.
+ * DEUX LIGNES PAR FRONT, au même instant : le niveau d'avant, puis celui
+ * d'après. Un tableur qui relie les points trace alors des créneaux à fronts
+ * verticaux ; avec une ligne par front, il tirait une oblique de l'un à l'autre.
+ *
+ * `plage` (M1 et M2 posés) : une ligne à M1 donne le niveau de départ de chaque
+ * voie, une ligne à M2 son niveau d'arrivée, et entre les deux les fronts de la
+ * plage, bornes comprises. L'ordre des marqueurs ne compte pas.
+ *
+ * Case vide = niveau encore inconnu : la voie n'a pas bougé depuis le départ.
  */
-export function extraitCsv(texte: string, t1: number, t2: number): string {
-  const a = Math.min(t1, t2);
-  const b = Math.max(t1, t2);
-  const tete: string[] = [];
-  const dedans: Array<{ t: number; ligne: string }> = [];
-  /** Dernier front d'avant la plage, par voie et broche : `,voie,broche,nom,niveau`. */
-  const avant = new Map<string, { t: number; suite: string }>();
-  for (const ligne of texte.split('\n')) {
-    if (ligne === '') continue;
-    if (ligne.startsWith('#') || ligne === ENTETE) {
-      tete.push(ligne);
+export function csvExport(texte: string, voies: VoieExport[], plage?: { t1: number; t2: number }): string {
+  const a = plage ? Math.min(plage.t1, plage.t2) : Number.NEGATIVE_INFINITY;
+  const b = plage ? Math.max(plage.t1, plage.t2) : Number.POSITIVE_INFINITY;
+
+  // Broches écoutées, une seule fois même sous plusieurs pinces.
+  const brochesIdx = new Map<string, number>();
+  for (const v of voies) if (!brochesIdx.has(v.pin)) brochesIdx.set(v.pin, brochesIdx.size);
+  const colonnes = voies.map((v) => ({ p: brochesIdx.get(v.pin) as number, inv: v.inverse === true }));
+
+  // Lecture du journal : `t,voie,broche,nom,niveau`. La broche est entre la
+  // 2e et la 3e virgule, avant le nom (qui peut être cité et porter des
+  // virgules) ; le niveau suit la dernière.
+  let date = '';
+  const ts: number[] = [];
+  const ps: number[] = [];
+  const ns: number[] = [];
+  for (let debut = 0; debut < texte.length; ) {
+    let fin = texte.indexOf('\n', debut);
+    if (fin < 0) fin = texte.length;
+    const ligne = texte.slice(debut, fin);
+    debut = fin + 1;
+    if (ligne.startsWith('#')) {
+      if (!date && /^# \d{4}-\d\d-\d\dT/.test(ligne)) date = ligne;
       continue;
     }
     const v1 = ligne.indexOf(',');
+    const v2 = v1 < 0 ? -1 : ligne.indexOf(',', v1 + 1);
+    const v3 = v2 < 0 ? -1 : ligne.indexOf(',', v2 + 1);
+    if (v3 < 0) continue; // ligne de colonnes, ligne vide
     const t = Number(ligne.slice(0, v1));
-    if (v1 < 0 || !Number.isFinite(t)) continue;
-    if (t < a) {
-      // La clé s'arrête avant le nom : il peut être cité et porter des virgules.
-      const v3 = ligne.indexOf(',', ligne.indexOf(',', v1 + 1) + 1);
-      const cle = ligne.slice(v1 + 1, v3);
-      const deja = avant.get(cle);
-      if (!deja || t >= deja.t) avant.set(cle, { t, suite: ligne.slice(v1) });
-    } else if (t <= b) {
-      dedans.push({ t, ligne });
+    const p = brochesIdx.get(ligne.slice(v2 + 1, v3));
+    const niveau = Number(ligne.slice(ligne.lastIndexOf(',') + 1));
+    if (p === undefined || !Number.isFinite(t) || !Number.isFinite(niveau)) continue;
+    ts.push(t);
+    ps.push(p);
+    ns.push(niveau);
+  }
+
+  // Le journal range par salve et par broche : on remet dans l'ordre du temps,
+  // à égalité dans l'ordre d'écriture. Une broche seule est déjà triée.
+  let ordre: Uint32Array | null = null;
+  for (let i = 1; i < ts.length; i++) {
+    if (ts[i] < ts[i - 1]) {
+      ordre = new Uint32Array(ts.length);
+      for (let k = 0; k < ordre.length; k++) ordre[k] = k;
+      ordre.sort((x, y) => ts[x] - ts[y] || x - y);
+      break;
     }
   }
-  dedans.sort((x, y) => x.t - y.t);
-  // La plage se dit juste avant la ligne de colonnes, avec les autres commentaires.
-  const colonnes = tete.indexOf(ENTETE);
-  const plage = `# plage exportée : de ${a} à ${b} ms (M1 → M2), niveau de chaque voie à ${a} ms en tête`;
-  if (colonnes >= 0) tete.splice(colonnes, 0, plage);
-  else tete.push(plage, ENTETE);
-  const depart = [...avant.entries()]
-    .sort(([x], [y]) => parseInt(x, 10) - parseInt(y, 10))
-    .map(([, x]) => `${a}${x.suite}`);
-  return [...tete, ...depart, ...dedans.map((x) => x.ligne), ''].join('\n');
+
+  const niveaux: Array<number | null> = [...brochesIdx.keys()].map(() => null);
+  let connus = 0;
+  const appliquer = (i: number): void => {
+    if (niveaux[ps[i]] === null) connus++;
+    niveaux[ps[i]] = ns[i];
+  };
+  const donnees: string[] = [];
+  let derniere = '';
+  /** Ligne des niveaux à l'instant t ; ni doublon, ni ligne tout inconnue. */
+  const noter = (t: number): void => {
+    if (connus === 0) return;
+    let s = temps(t);
+    for (const c of colonnes) {
+      const n = niveaux[c.p];
+      s += n === null ? ',' : `,${c.inv && (n === 0 || n === 1) ? 1 - n : n}`;
+    }
+    if (s !== derniere) donnees.push((derniere = s));
+  };
+
+  const n = ts.length;
+  const idx = (k: number): number => (ordre ? ordre[k] : k);
+  let k = 0;
+  while (k < n && ts[idx(k)] < a) appliquer(idx(k++));
+  if (plage) noter(a);
+  while (k < n && ts[idx(k)] <= b) {
+    const t0 = ts[idx(k)];
+    noter(t0); // niveau d'avant le front…
+    while (k < n && ts[idx(k)] === t0) appliquer(idx(k++));
+    noter(t0); // …et d'après, au même instant : le front est vertical
+  }
+  if (plage) noter(b);
+
+  const tete = [
+    '# Kablix — analyseur logique, mesure exportée',
+    ...(date ? [date] : []),
+    ...voies.map((v) => `# voie ${v.voie} = ${v.pin} (${v.nom})${v.inverse ? ', lue inversée' : ''}`),
+    ...(plage ? [`# plage exportée : de ${temps(a)} à ${temps(b)} ms (M1 → M2)`] : []),
+    "# un front = deux lignes au même instant, niveau d'avant puis niveau d'après ; case vide = niveau encore inconnu",
+    ['temps_ms', ...voies.map((v) => csv(v.nom))].join(','),
+  ];
+  return [...tete, ...donnees, ''].join('\n');
+}
+
+/**
+ * Instant en ms, arrondi à la picoseconde : les temps simulés traînent un
+ * bruit de flottant (`20473.748125000002`) qu'aucune horloge ne justifie — un
+ * cycle vaut 62,5 ns sur un Uno, 8 ns sur un Pico.
+ */
+function temps(t: number): string {
+  return String(Math.round(t * 1e6) / 1e6);
 }
 
 /** Échappe un champ CSV : guillemets doublés, champ cité s'il contient un séparateur. */

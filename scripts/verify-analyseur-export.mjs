@@ -21,7 +21,8 @@
 //      simulation — et que le SVG aille tel quel au presse-papier ou au fichier.
 //
 // Contre-épreuve sans toucher aux sources : `--ancien=<fichiers>` compile les
-// fichiers de src/webview nommés dans leur version HEAD (ex. `--ancien=analyseur`).
+// fichiers de src/webview ou de src/ nommés dans leur version HEAD
+// (ex. `--ancien=analyseur,panel`).
 //
 // Usage : node scripts/verify-analyseur-export.mjs [--ancien=a,b]
 import esbuild from 'esbuild';
@@ -141,10 +142,11 @@ const ETAT = {
 const versionHead = {
 	name: 'version-head',
 	setup(b) {
-		b.onLoad({ filter: /src[\\/]webview[\\/][^\\/]+\.mts$/ }, (args) => {
-			const nom = args.path.replace(/\\/g, '/').split('/').pop().replace(/\.mts$/, '');
+		b.onLoad({ filter: /src[\\/](webview[\\/])?[^\\/]+\.m?ts$/ }, (args) => {
+			const rel = args.path.replace(/\\/g, '/').replace(/^.*\/src\//, 'src/');
+			const nom = rel.split('/').pop().replace(/\.m?ts$/, '');
 			if (!ancien.includes(nom)) return undefined;
-			const contents = execFileSync('git', ['show', `HEAD:src/webview/${nom}.mts`], { cwd: ROOT, encoding: 'utf8' });
+			const contents = execFileSync('git', ['show', `HEAD:${rel}`], { cwd: ROOT, encoding: 'utf8' });
 			return { contents, loader: 'ts', resolveDir: dirname(args.path) };
 		});
 	},
@@ -233,6 +235,10 @@ CanvasRenderingContext2D.prototype.fillText = function (t, x, y, ...r) {
 			const prete = () => ev(`(window.__msgs || []).some((m) => m.type === 'analyseurPret')`);
 			for (let i = 0; i < 120 && !(await prete()); i++) await attendre(250);
 			check(await prete(), 'page : l’onglet se monte et se déclare prêt');
+			// Presse-papier : permis comme VS Code le permet à ses webviews
+			// (clipboard-sanitized-write), page tenue pour active (focus).
+			await cdp('Browser.grantPermissions', { permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'] });
+			await cdp('Emulation.setFocusEmulationEnabled', { enabled: true });
 
 			// Thème sombre posé comme VS Code le fait : le SVG doit en garder le fond.
 			await ev(`(() => {
@@ -269,8 +275,30 @@ CanvasRenderingContext2D.prototype.fillText = function (t, x, y, ...r) {
 				if (!e || e.w === 0) throw new Error(`entrée ${entree} invisible`);
 				const avant = await ev('window.__msgs.length');
 				await clic(e.x, e.y);
+				// La copie en image répond APRÈS l'écriture du presse-papier (PNG encodé) : on l'attend.
+				for (let k = 0; k < 60 && !(await ev(`window.__msgs.slice(${avant}).some((m) => m.type === 'analyseurSvg' || m.type === 'analyseurExport')`)); k++) await attendre(50);
 				return messagesApres(avant);
 			};
+			/** Ce que le presse-papier de ce Chrome contient (le sien : sans fenêtre, il n'est pas celui du système). */
+			const pressePapier = async () => JSON.parse(await ev(`(async () => {
+				try {
+					const items = await navigator.clipboard.read();
+					const out = [];
+					for (const it of items) {
+						for (const type of it.types) {
+							const b = await it.getType(type);
+							let info = { type, taille: b.size };
+							if (type === 'image/svg+xml' || type === 'text/plain') info.texte = await b.text();
+							if (type === 'image/png') {
+								const img = await createImageBitmap(b);
+								info.l = img.width; info.h = img.height;
+							}
+							out.push(info);
+						}
+					}
+					return JSON.stringify(out);
+				} catch (e) { return JSON.stringify([{ erreur: String(e) }]); }
+			})()`));
 
 			// --- Le bouton ☰ remplace « Export CSV » -----------------------------
 			const bouton = await rectDe('#menu-export');
@@ -314,8 +342,11 @@ CanvasRenderingContext2D.prototype.fillText = function (t, x, y, ...r) {
 			let msgs = await choisir('csv');
 			check(!(await menuOuvert()), 'CSV : choisir une entrée referme le menu');
 			let exports = msgs.filter((m) => m.type === 'analyseurExport');
-			check(exports.length === 1 && Object.keys(exports[0]).length === 1,
+			check(exports.length === 1 && !('plage' in exports[0]),
 				'CSV : sans M1 ni M2, la demande ne porte aucune plage — toute la mesure', JSON.stringify(msgs));
+			// Les colonnes : chaque voie, sous son nom (Frank, 26/09 : « seul Sig est exporté »).
+			check(JSON.stringify(exports[0]?.voies) === JSON.stringify([{ voie: 0, pin: 'GP2', nom: 'CLK' }, { voie: 1, pin: 'GP3', nom: 'NCLK' }]),
+				'CSV : la demande porte les voies de l’onglet, une colonne chacune', JSON.stringify(exports[0]?.voies));
 			check(!msgs.some((m) => m.type === 'analyseurReglages'),
 				'CSV : exporter ne touche pas aux réglages (le projet ne passe pas « à enregistrer »)', JSON.stringify(msgs));
 
@@ -328,6 +359,28 @@ CanvasRenderingContext2D.prototype.fillText = function (t, x, y, ...r) {
 			const largeurSvg = (s) => Number(/<svg [^>]*width="([\d.]+)"/.exec(s ?? '')?.[1]);
 			check(Math.abs(largeurSvg(svgs[0]?.svg) - toile.w) < 0.5,
 				'SVG : sans M1 ni M2, l’image fait la largeur de la vue', `${largeurSvg(svgs[0]?.svg)} contre ${toile.w}`);
+
+			// --- Copie en IMAGE (Frank, 26/09 : « dans Word le texte, dans Inkscape rien ») ---
+			check(svgs[0]?.copie === 'image',
+				'copie : la page a écrit elle-même l’image et le dit à l’hôte (copie: image)', JSON.stringify(svgs.map((m) => m.copie)));
+			const pp = await pressePapier();
+			const types = pp.map((x) => x.type);
+			check(types.includes('image/svg+xml'), 'copie : le presse-papier porte image/svg+xml (ce qu’Inkscape colle)', JSON.stringify(pp).slice(0, 300));
+			check(types.includes('image/png'), 'copie : et image/png (Chrome le dépose aussi en bitmap : ce que Word colle)', JSON.stringify(types));
+			check(!types.includes('text/plain'), 'copie : pas de texte — Word collait le code SVG', JSON.stringify(types));
+			const ppSvg = pp.find((x) => x.type === 'image/svg+xml');
+			check(ppSvg && /^<svg[\s>]/.test(ppSvg.texte ?? '') && (ppSvg.texte ?? '').includes('CLK'),
+				'copie : le SVG du presse-papier est le dessin des courbes', (ppSvg?.texte ?? '').slice(0, 120));
+			const ppPng = pp.find((x) => x.type === 'image/png');
+			check(ppPng && Math.abs(ppPng.l - 2 * toile.w) <= 1 && ppPng.h > 40,
+				'copie : le PNG est le même dessin, deux fois plus fin que l’écran', JSON.stringify(ppPng));
+			// Écriture refusée par le navigateur : l'hôte reprend la main, en texte.
+			await ev(`navigator.clipboard.write = () => Promise.reject(new DOMException('refus', 'NotAllowedError'))`);
+			msgs = await choisir('copier-svg');
+			await ev('delete navigator.clipboard.write');
+			const repli = msgs.filter((m) => m.type === 'analyseurSvg');
+			check(repli.length === 1 && !repli[0].copie && /^<svg /.test(repli[0].svg ?? ''),
+				'copie : écriture refusée, le SVG part à l’hôte pour la copie en texte (repli)', JSON.stringify(repli.map((m) => [m.copie, m.svg?.length])));
 
 			// --- M1 et M2 glissés à la vraie souris -------------------------------
 			const glisser = async (x0, y0, x1, y1) => {
@@ -439,6 +492,20 @@ CanvasRenderingContext2D.prototype.fillText = function (t, x, y, ...r) {
 					'SVG : 4,5 ms à fort zoom dépasseraient 50 000 px, l’hôte est prévenu (refus « large »)', JSON.stringify(svgs));
 			}
 
+			// Pince NCLK passée sur la patte `-` d'une paire DMX : la colonne est
+			// lue inversée, comme la piste — la demande le dit à l'hôte.
+			const voiesMsg = [
+				{ voie: 0, nom: 'CLK', pin: 'GP2', probleme: null, analogique: false },
+				{ voie: 1, nom: 'NCLK', pin: 'GP3', probleme: null, analogique: false, inverse: true },
+				{ voie: 2, nom: 'X', pin: '', probleme: 'nowhere', analogique: false },
+			];
+			await ev(`window.postMessage(${JSON.stringify({ type: 'voies', voies: voiesMsg })}, '*')`);
+			await attendre(150);
+			msgs = await choisir('csv');
+			exports = msgs.filter((m) => m.type === 'analyseurExport');
+			check(JSON.stringify(exports[0]?.voies) === JSON.stringify([{ voie: 0, pin: 'GP2', nom: 'CLK' }, { voie: 1, pin: 'GP3', nom: 'NCLK', inverse: true }]),
+				'CSV : une voie inversée par son câblage part inversée ; une pince posée nulle part, pas de colonne', JSON.stringify(exports[0]?.voies));
+
 			// Le SVG décodé comme IMAGE, et peint. Pas dans l'onglet : sa CSP (sans
 			// img-src) y refuse toute image ; une page vierge n'en a pas.
 			await cdp('Page.navigate', { url: 'about:blank' });
@@ -492,7 +559,7 @@ await esbuild.build({
 		setup(b) {
 			b.onResolve({ filter: /analyseur-panel$/ }, () => ({ path: join(tmp, 'analyseur-panel-stub.mjs') }));
 		},
-	}],
+	}, versionHead],
 });
 const { SimulatorPanel } = await import(pathToFileURL(sortie).href);
 const vs = globalThis.__vs;
@@ -588,14 +655,15 @@ const VOIES = [
 	check(vs.ecrits.length === 1 && vs.ecrits[0].chemin === 'W:/sortie/banc-mesure.csv',
 		'mesure : le fichier est écrit là où l’utilisateur l’a choisi', JSON.stringify(vs.ecrits.map((e) => e.chemin)));
 	const texte = vs.ecrits[0]?.texte ?? '';
-	check(texte === journal, 'mesure : le CSV exporté EST le journal, octet pour octet',
-		`${texte.length} contre ${journal.length} caractères`);
+	check(journal && journal.includes('temps_ms,voie,broche,nom,niveau'), 'mesure : le journal de session garde son format, une ligne par front');
 	const lignes = texte.split('\n');
-	check(lignes.includes('temps_ms,voie,broche,nom,niveau'), 'mesure : la ligne de colonnes est là');
+	check(lignes.includes('temps_ms,SDA,"SCL, horloge"'), 'mesure : une colonne par voie, le nom à virgule cité', lignes.find((l) => l.startsWith('temps_ms')));
 	check(lignes.includes('# voie 1 = GP15 (SCL, horloge)'), 'mesure : l’en-tête décrit les voies, le fichier se lit seul');
 	const donnees = lignes.filter((l) => /^\d/.test(l));
-	check(donnees.length === 4, 'mesure : 4 fronts, aucun compté deux fois malgré le recouvrement', donnees.join(' | '));
-	check(donnees.includes('0.75,1,GP15,"SCL, horloge",1'), 'mesure : un nom à virgule est cité, les colonnes restent justes', donnees.join(' | '));
+	// Fronts du journal : GP14 0,5→1 1,25→0 2→1 ; GP15 0,75→1. Deux lignes par
+	// front (avant, après) au même instant ; case vide tant qu'une voie n'a pas bougé.
+	check(JSON.stringify(donnees) === JSON.stringify(['0.5,1,', '0.75,1,', '0.75,1,1', '1.25,1,1', '1.25,0,1', '2,0,1', '2,1,1']),
+		'mesure : fronts en créneaux (deux lignes au même instant), triés, aucun compté deux fois malgré le recouvrement', donnees.join(' | '));
 	check(vs.infos.some((m) => m.includes('W:/sortie/banc-mesure.csv')), 'mesure : l’utilisateur est prévenu du chemin écrit', JSON.stringify(vs.infos));
 	check(p.projectDirty === false, 'mesure : exporter ne met pas le projet « à enregistrer »');
 
@@ -605,7 +673,7 @@ const VOIES = [
 	vs.cible = { fsPath: 'W:/sortie/banc-2.csv' };
 	await exporter(p);
 	const second = (vs.ecrits[0]?.texte ?? '').split('\n').filter((l) => /^\d/.test(l));
-	check(second.length === 5 && second.includes('3,1,GP15,"SCL, horloge",0'),
+	check(second.length === 9 && second.slice(-2).join('|') === '3,1,1|3,1,0',
 		'mesure : un second export, plus tard dans le run, porte les fronts arrivés entre-temps', second.join(' | '));
 
 	// Plage M1 → M2, donnée à l'envers : l'ordre des marqueurs ne compte pas.
@@ -615,11 +683,11 @@ const VOIES = [
 	await exporter(p, { type: 'analyseurExport', plage: { t1: 2.5, t2: 1 } });
 	const plageL = (vs.ecrits[0]?.texte ?? '').split('\n');
 	const plageD = plageL.filter((l) => /^\d/.test(l));
-	check(JSON.stringify(plageD) === JSON.stringify(['1,0,GP14,SDA,1', '1,1,GP15,"SCL, horloge",1', '1.25,0,GP14,SDA,0', '2,0,GP14,SDA,1']),
-		'plage : niveau de chaque voie à M1, puis les seuls fronts entre M1 et M2, par temps', plageD.join(' | '));
-	const iCol = plageL.indexOf('temps_ms,voie,broche,nom,niveau');
-	check(iCol > 0 && /^# plage exportée : de 1 à 2\.5 ms/.test(plageL[iCol - 1]),
-		'plage : l’en-tête dit la plage exportée, juste avant la ligne de colonnes', plageL[iCol - 1]);
+	check(JSON.stringify(plageD) === JSON.stringify(['1,1,1', '1.25,1,1', '1.25,0,1', '2,0,1', '2,1,1', '2.5,1,1']),
+		'plage : niveaux à M1, les seuls fronts entre M1 et M2, niveaux à M2', plageD.join(' | '));
+	const iCol = plageL.findIndex((l) => l.startsWith('temps_ms,'));
+	check(iCol > 0 && plageL.slice(0, iCol).some((l) => /^# plage exportée : de 1 à 2\.5 ms/.test(l)),
+		'plage : l’en-tête dit la plage exportée, avant la ligne de colonnes', plageL.slice(0, iCol + 1).join(' | '));
 	check(plageL.includes('# voie 1 = GP15 (SCL, horloge)'), 'plage : la description des voies est gardée');
 	check(vs.dialogues[0]?.defaultUri?.fsPath === 'W:/projet/banc-analyzer.csv', 'plage : même fichier proposé qu’un export complet');
 
@@ -628,8 +696,8 @@ const VOIES = [
 	vs.cible = { fsPath: 'W:/sortie/banc-calme.csv' };
 	await exporter(p, { type: 'analyseurExport', plage: { t1: 3.5, t2: 4 } });
 	const calme = (vs.ecrits[0]?.texte ?? '').split('\n').filter((l) => /^\d/.test(l));
-	check(JSON.stringify(calme) === JSON.stringify(['3.5,0,GP14,SDA,1', '3.5,1,GP15,"SCL, horloge",0']),
-		'plage : entre deux fronts, seul le niveau de départ de chaque voie', calme.join(' | '));
+	check(JSON.stringify(calme) === JSON.stringify(['3.5,1,0', '4,1,0']),
+		'plage : entre deux fronts, le niveau de chaque voie à M1 et à M2', calme.join(' | '));
 
 	// Plage avant tout front : aucune ligne de données, pas de niveau inventé.
 	remettre();
@@ -674,8 +742,39 @@ const VOIES = [
 	vs.cible = { fsPath: 'W:/sortie/banc-4.csv' };
 	await exporter(p);
 	const relance = (vs.ecrits[0]?.texte ?? '').split('\n').filter((l) => /^\d/.test(l));
-	check(relance.length === 1 && relance[0] === '0.1,0,GP14,SDA,1',
+	check(relance.length === 1 && relance[0] === '0.1,1,',
 		'relance : l’export ne porte que la mesure du lancement en cours', relance.join(' | '));
+}
+
+// 2b bis) TROIS PINCES SUR UNE BROCHE (Frank, 26/09, dmx-uno : « il manque 2
+// signaux sur 3, seul Sig est exporté »). Sig, DMX- et DMX+ écoutent la
+// broche 3 ; le journal ne l'écrit qu'une fois. DMX- est lue inversée.
+{
+	remettre();
+	const p = atelier('W:/projet/dmx.projix');
+	const TROIS = [
+		{ voie: 0, pin: '3', nom: 'Sig' },
+		{ voie: 2, pin: '3', nom: 'DMX-' },
+		{ voie: 3, pin: '3', nom: 'DMX+' },
+	];
+	p.onMessage({ type: 'analyseurVoies', voies: TROIS });
+	p.onMessage({ type: 'analyseurDepart' });
+	p.onMessage({ type: 'analyseurFronts', salves: { 3: [1, 1, 2, 0, 2.5, 1] } });
+	vs.cible = { fsPath: 'W:/sortie/dmx.csv' };
+	await exporter(p, { type: 'analyseurExport', voies: [TROIS[0], { ...TROIS[1], inverse: true }, TROIS[2]] });
+	const l = (vs.ecrits[0]?.texte ?? '').split('\n');
+	check(l.includes('temps_ms,Sig,DMX-,DMX+'), 'broche partagée : trois colonnes, une par pince', l.find((x) => x.startsWith('temps_ms')));
+	check(JSON.stringify(l.filter((x) => /^\d/.test(x))) === JSON.stringify(['1,1,0,1', '2,1,0,1', '2,0,1,0', '2.5,0,1,0', '2.5,1,0,1']),
+		'broche partagée : les trois voies suivent la broche, DMX- à l’envers', l.filter((x) => /^\d/.test(x)).join(' | '));
+	check(l.includes('# voie 2 = 3 (DMX-), lue inversée'), 'broche partagée : l’en-tête dit que DMX- est lue inversée');
+
+	// Sans colonnes données par l'onglet : celles que l'atelier a déclarées.
+	remettre();
+	vs.cible = { fsPath: 'W:/sortie/dmx-2.csv' };
+	await exporter(p);
+	const l2 = (vs.ecrits[0]?.texte ?? '').split('\n');
+	check(l2.includes('temps_ms,Sig,DMX-,DMX+') && l2.includes('2,0,0,0'),
+		'broche partagée : sans l’onglet, les voies du journal donnent les colonnes', l2.filter((x) => /^[t\d]/.test(x)).join(' | '));
 }
 
 // 2c) Projet jamais enregistré : pas de dossier, on se rabat sur l'espace de travail.
@@ -702,6 +801,13 @@ const VOIES = [
 	check(vs.presse.length === 1 && vs.presse[0] === svg, 'svg : « Copy SVG » met le dessin tel quel au presse-papier', JSON.stringify(vs.presse).slice(0, 120));
 	check(vs.infos.length === 1 && /clipboard/i.test(vs.infos[0]), 'svg : l’utilisateur est prévenu de la copie', JSON.stringify(vs.infos));
 	check(vs.dialogues.length === 0 && vs.ecrits.length === 0, 'svg : copier n’ouvre aucun dialogue et n’écrit rien');
+
+	// Copie en image déjà faite par l'onglet : l'hôte ne réécrit PAS le presse-papier en texte.
+	remettre();
+	await exporter(p, { type: 'analyseurSvg', action: 'copier', svg, copie: 'image' });
+	check(vs.presse.length === 0, 'svg : image copiée par l’onglet, l’hôte n’écrase pas le presse-papier avec du texte', JSON.stringify(vs.presse).slice(0, 120));
+	check(vs.infos.length === 1 && /picture/i.test(vs.infos[0]), 'svg : l’utilisateur est prévenu que c’est une image', JSON.stringify(vs.infos));
+	check(vs.dialogues.length === 0 && vs.ecrits.length === 0, 'svg : ni dialogue ni fichier pour une copie en image');
 
 	remettre();
 	vs.cible = { fsPath: 'W:/sortie/courbes.svg' };
@@ -744,7 +850,7 @@ function readdirPremier(dossier, prefixe) {
 // ne les laisserait pas verts.
 {
 	const panneauSrc = readFileSync(join(ROOT, 'src/analyseur-panel.ts'), 'utf8');
-	check(/^\s*\| \{ type: 'analyseurExport'; plage\?: \{ t1: number; t2: number \} \}$/m.test(panneauSrc), 'source : le message d’export CSV (plage facultative) est déclaré dans AnalyseurVersHote');
+	check(/^\s*\| \{ type: 'analyseurExport'; plage\?: \{ t1: number; t2: number \}; voies\?: VoieExport\[\] \}$/m.test(panneauSrc), 'source : le message d’export CSV (plage et voies facultatives) est déclaré dans AnalyseurVersHote');
 	check(/^\s*type: 'analyseurSvg';$/m.test(panneauSrc), 'source : le message d’export SVG est déclaré dans AnalyseurVersHote');
 }
 

@@ -180,6 +180,47 @@ const lignesDe = (vv: VoieVue): number => Math.max(1, vv.lignesDecodage ?? 1);
 /** Hauteur d'une piste, bande de décodage comprise. */
 const hauteurPiste = (vv: VoieVue): number => PISTE_H + ANNOT_H * lignesDe(vv);
 
+/** Ajoute `x` à la liste rangée sous `cle`, créée au besoin. */
+function ajouterA<K, T>(m: Map<K, T[]>, cle: K, x: T): void {
+  const l = m.get(cle);
+  if (l) l.push(x);
+  else m.set(cle, [x]);
+}
+
+/** Range par début, SEULEMENT si besoin : le décodeur rend déjà l'ordre du temps. */
+function trierParT0(l: Array<{ t0: number }>): void {
+  for (let i = 1; i < l.length; i++) {
+    if (l[i]!.t0 < l[i - 1]!.t0) {
+      l.sort((a, b) => a.t0 - b.t0);
+      return;
+    }
+  }
+}
+
+/** Premier indice de `l` (rangée par début) dont le début est ≥ t. */
+function premierT0(l: Array<{ t0: number }>, t: number): number {
+  let lo = 0;
+  let hi = l.length;
+  while (lo < hi) {
+    const m = (lo + hi) >> 1;
+    if (l[m]!.t0 < t) lo = m + 1;
+    else hi = m;
+  }
+  return lo;
+}
+
+/** Premier indice de `l` (rangée par début) dont le début est > t. */
+function premierApresT0(l: Array<{ t0: number }>, t: number): number {
+  let lo = 0;
+  let hi = l.length;
+  while (lo < hi) {
+    const m = (lo + hi) >> 1;
+    if (l[m]!.t0 <= t) lo = m + 1;
+    else hi = m;
+  }
+  return lo;
+}
+
 /**
  * Haut de chaque piste, dans l'ordre d'affichage. Les pistes n'ont plus toutes
  * la même hauteur depuis qu'un décodage peut écrire sur deux lignes : tout ce
@@ -230,7 +271,7 @@ export function teinteVoie(vv: VoieVue, sombre: boolean): string {
 }
 
 /** Nom effectif d'une voie : celui qu'on lui a donné, sinon l'automatique. */
-export function nomVoie(vv: VoieVue): string {
+export function nomVoie(vv: Pick<VoieVue, 'nom' | 'nomChoisi'>): string {
   const n = (vv.nomChoisi ?? '').trim();
   return n === '' ? vv.nom : n;
 }
@@ -431,6 +472,26 @@ export class AnalyseurVue {
     // Le contexte SVG couvre tout ce dont la vue se sert, pas l'interface entière.
     this.peindre(ctx as unknown as CanvasRenderingContext2D, { ...e, souris: null, export: true }, largeur, h);
     return ctx.texte();
+  }
+
+  /**
+   * Le même dessin que `svg()`, en image matricielle : c'est ce que Word colle
+   * (il ne lit pas le SVG du presse-papier). `echelle` = pixels de l'image par
+   * pixel d'écran, 2 pour un rendu net à l'impression. Null si le navigateur
+   * refuse une toile de cette taille.
+   */
+  png(e: EtatRendu, largeur: number, echelle: number): HTMLCanvasElement | null {
+    const h = this.hauteurPour(e.voies);
+    const toile = document.createElement('canvas');
+    toile.width = Math.round(largeur * echelle);
+    toile.height = Math.round(h * echelle);
+    const ctx = toile.getContext('2d');
+    if (!ctx) return null;
+    ctx.setTransform(echelle, 0, 0, echelle, 0, 0);
+    ctx.fillStyle = fondPage(themeSombre());
+    ctx.fillRect(0, 0, largeur, h);
+    this.peindre(ctx, { ...e, souris: null, export: true }, largeur, h);
+    return toile;
   }
 
   /** Tout le dessin, dans un contexte déjà prêt (canvas de l'écran ou SVG d'export). */
@@ -957,35 +1018,79 @@ export class AnalyseurVue {
       const x1 = this.xDe(Math.max(a.t1, a.t0), e.fenetre, w);
       return { x0, x1, g: Math.max(xMin, x0), d: Math.min(xMax, Math.max(x1, x0 + 1)) };
     };
+    // Largeur de chaque texte, mesurée UNE fois : les mêmes reviennent sans
+    // cesse (octets, « START », bits 0 et 1), et `measureText` sur chacune des
+    // 150 000 annotations d'une vue dézoomée coûtait près d'une seconde.
+    const largeurs = new Map<string, number>();
+    const largeurTexte = (s: string): number => {
+      let l = largeurs.get(s);
+      if (l === undefined) largeurs.set(s, (l = ctx.measureText(s).width));
+      return l;
+    };
     /** Le texte qui tient dans `place` pixels : le long, sinon le court, sinon aucun. */
     const texteQuiTient = (a: Annotation, place: number): string | null => {
-      if (ctx.measureText(a.texte).width + 4 <= place) return a.texte;
-      if (a.court !== undefined && ctx.measureText(a.court).width + 4 <= place) return a.court;
+      if (largeurTexte(a.texte) + 4 <= place) return a.texte;
+      if (a.court !== undefined && largeurTexte(a.court) + 4 <= place) return a.court;
       return null;
     };
     const baseTexte = (piste: number, ligne: number): number => yDe(piste, ligne) + (ANNOT_H - 3) / 2;
+
+    // INDEX. Une vue dézoomée sur une capture pleine porte 150 000 annotations
+    // (DMX, bits affichés) : chercher « les champs de ce résumé » ou « la
+    // prochaine annotation de la piste » en les parcourant TOUTES, pour chaque
+    // trame, rendait le dessin quadratique — plus d'une demi-seconde par image.
+    // On range donc une fois par piste et par rangée, dans l'ordre du temps, et
+    // chaque recherche devient une dichotomie.
+    const parPiste = new Map<number, Annotation[]>();
+    const champsParRangee = new Map<number, Annotation[]>();
+    for (const a of e.annotations) {
+      const piste = pisteDe(a);
+      ajouterA(parPiste, piste, a);
+      if (!a.resume) ajouterA(champsParRangee, rangee(piste, ligneDe(a, piste)), a);
+    }
+    for (const l of parPiste.values()) trierParT0(l);
+    for (const l of champsParRangee.values()) trierParT0(l);
 
     // Résumés À ÉCRIRE : ceux dont l'un des champs détaillés de LEUR ligne ne
     // peut pas écrire le sien. De près on lit les champs, de loin le résumé —
     // jamais un mélange des deux : un « ✓ » de somme qui tient seul bloquerait
     // le résumé et cacherait les valeurs qu'on est venu chercher.
     const resumes: Annotation[] = [];
-    const couverts: Array<{ rangee: number; t0: number; t1: number }> = [];
+    const couverts = new Map<number, Array<{ t0: number; t1: number }>>();
     for (const r of e.annotations) {
       if (!r.resume) continue;
       const piste = pisteDe(r);
       const ligne = ligneDe(r, piste);
-      const champs = e.annotations.filter(
-        (a) => !a.resume && pisteDe(a) === piste && ligneDe(a, piste) === ligne && a.t0 >= r.t0 && a.t1 <= r.t1
-      );
-      const lisibles = champs.every((a) => {
+      const cle = rangee(piste, ligne);
+      // Les champs de la trame : ceux de sa rangée compris dans [t0, t1].
+      const l = champsParRangee.get(cle) ?? [];
+      let champs = 0;
+      let lisibles = true;
+      for (let k = premierT0(l, r.t0); lisibles && k < l.length && l[k]!.t0 <= r.t1; k++) {
+        const a = l[k]!;
+        if (a.t1 > r.t1) continue;
+        champs += 1;
         const b = boite(a);
-        return texteQuiTient(a, b.d - b.g) !== null;
-      });
-      if (lisibles && champs.length > 0) continue;
+        lisibles = texteQuiTient(a, b.d - b.g) !== null;
+      }
+      if (lisibles && champs > 0) continue;
       resumes.push(r);
-      couverts.push({ rangee: rangee(piste, ligne), t0: r.t0, t1: r.t1 });
+      ajouterA(couverts, cle, { t0: r.t0, t1: r.t1 });
     }
+    for (const l of couverts.values()) trierParT0(l);
+    /** Vrai si un résumé à écrire couvre ce champ : c'est lui qui parle. */
+    const couvert = (cle: number, a: Annotation): boolean => {
+      const l = couverts.get(cle);
+      if (!l) return false;
+      // Dernier résumé ouvert avant le champ, et quelques-uns avant lui : deux
+      // trames d'une même rangée ne se chevauchent pas en pratique.
+      const k = premierApresT0(l, a.t0) - 1;
+      for (let j = k; j >= 0 && j > k - 4; j--) {
+        const m = l[j]!;
+        if (a.t0 >= m.t0 && a.t1 <= m.t1) return true;
+      }
+      return false;
+    };
 
     // Affichage binaire : un trait pointillé à chaque bord de bit, du haut du
     // créneau jusqu'au bas de la ligne des bits — l'œil suit le bit du front
@@ -1026,13 +1131,28 @@ export class AnalyseurVue {
     // compteur global laissait un bus muet parce que l'autre avait écrit au
     // même instant sous une AUTRE piste), et par ligne depuis le DHT.
     const occupe = new Map<number, number>();
-    /** Intervalles où un texte est écrit, par rangée : un résumé ne les recouvre pas. */
+    /**
+     * Intervalles où un texte est écrit, par rangée : un résumé ne les recouvre
+     * pas. Triés et disjoints (un texte ne s'écrit qu'après la fin du
+     * précédent), d'où une dichotomie pour savoir si une place est libre.
+     */
     const ecrits = new Map<number, Array<[number, number]>>();
-    const noterEcrit = (cle: number, g: number, d: number): void => {
-      const l = ecrits.get(cle);
-      if (l) l.push([g, d]);
-      else ecrits.set(cle, [[g, d]]);
+    /** Premier intervalle de la liste qui finit après `x`. */
+    const premierEcritApres = (l: Array<[number, number]>, x: number): number => {
+      let lo = 0;
+      let hi = l.length;
+      while (lo < hi) {
+        const m = (lo + hi) >> 1;
+        if (l[m]![1] <= x) lo = m + 1;
+        else hi = m;
+      }
+      return lo;
     };
+    // Le trait gauche de chaque annotation, rangé par couleur et tracé d'un
+    // seul `stroke` : un par annotation en coûtait plus d'une seconde et demie.
+    const traits = new Map<string, number[]>();
+    /** Colonne de pixel où chaque rangée a peint en dernier. */
+    const colonnePeinte = new Map<number, number>();
     for (const a of e.annotations) {
       if (a.resume) continue;
       const piste = pisteDe(a);
@@ -1043,25 +1163,37 @@ export class AnalyseurVue {
       const { x0, x1, g, d } = boite(a);
       if (x1 < xMin || x0 > xMax) continue;
       if (a.bit && x1 - x0 < BIT_MIN_PX) continue;
+      // Plus étroite qu'un pixel, dans la colonne que sa rangée vient de
+      // peindre : rien de visible à ajouter, et aucun texte n'y tiendrait.
+      const col = Math.round(g);
+      if (d - g <= 1 && colonnePeinte.get(cle) === col) continue;
+      colonnePeinte.set(cle, col);
       const c = couleurs[a.nature];
       ctx.fillStyle = c;
       ctx.globalAlpha = 0.22;
       ctx.fillRect(g, y, Math.max(1, d - g), ANNOT_H - 3);
       ctx.globalAlpha = 1;
-      ctx.strokeStyle = c;
-      ctx.beginPath();
-      ctx.moveTo(Math.round(g) + 0.5, y);
-      ctx.lineTo(Math.round(g) + 0.5, y + ANNOT_H - 3);
-      ctx.stroke();
+      let trait = traits.get(c);
+      if (!trait) traits.set(c, (trait = []));
+      trait.push(col + 0.5, y);
       // Champ doublé par un résumé à écrire : c'est le résumé qui parle.
-      if (couverts.some((m) => m.rangee === cle && a.t0 >= m.t0 && a.t1 <= m.t1)) continue;
+      if (couvert(cle, a)) continue;
       const texte = texteQuiTient(a, d - g);
       if (texte !== null && g >= (occupe.get(cle) ?? -Infinity)) {
         ctx.fillStyle = fg;
         ctx.fillText(texte, (g + d) / 2, baseTexte(piste, ligne));
         occupe.set(cle, d);
-        noterEcrit(cle, g, d);
+        ajouterA(ecrits, cle, [g, d] as [number, number]);
       }
+    }
+    for (const [c, trait] of traits) {
+      ctx.strokeStyle = c;
+      ctx.beginPath();
+      for (let k = 0; k < trait.length; k += 2) {
+        ctx.moveTo(trait[k]!, trait[k + 1]!);
+        ctx.lineTo(trait[k]!, trait[k + 1]! + ANNOT_H - 3);
+      }
+      ctx.stroke();
     }
 
     // Les résumés s'écrivent à partir du début de leur trame et débordent à
@@ -1076,18 +1208,25 @@ export class AnalyseurVue {
       const cle = rangee(piste, ligne);
       const { x0, x1, g } = boite(r);
       if (x1 < xMin || x0 > xMax) continue;
+      // Première annotation de la piste qui commence à la fin de la trame ou
+      // après : rangées par instant, c'est aussi la plus à gauche.
       let limite = xMax;
-      for (const a of e.annotations) {
-        if (a === r || a.t0 < r.t1 || pisteDe(a) !== piste) continue;
-        limite = Math.min(limite, this.xDe(a.t0, e.fenetre, w));
+      const lp = parPiste.get(piste) ?? [];
+      for (let k = premierT0(lp, r.t1); k < lp.length; k++) {
+        if (lp[k] === r) continue;
+        limite = Math.min(limite, this.xDe(lp[k]!.t0, e.fenetre, w));
+        break;
       }
       const texte = texteQuiTient(r, limite - g);
       if (texte === null) continue;
-      const fin = g + ctx.measureText(texte).width + 4;
-      if ((ecrits.get(cle) ?? []).some(([a0, a1]) => a0 < fin && a1 > g)) continue;
+      const fin = g + largeurTexte(texte) + 4;
+      const l = ecrits.get(cle) ?? [];
+      const k = premierEcritApres(l, g);
+      if (k < l.length && l[k]![0] < fin) continue;
       ctx.fillStyle = fg;
       ctx.fillText(texte, g + 2, baseTexte(piste, ligne));
-      noterEcrit(cle, g, fin);
+      l.splice(k, 0, [g, fin]);
+      ecrits.set(cle, l);
     }
     ctx.restore();
   }

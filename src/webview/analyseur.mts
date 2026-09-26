@@ -26,6 +26,7 @@ import {
 import {
   AnalyseurVue,
   DISPOSITION,
+  nomVoie,
   type BoutonVoie,
   type Fenetre,
   type TextesVue,
@@ -451,7 +452,15 @@ function rendu(): void {
   const voies = voiesVisibles();
   const hauteur = vue.hauteurPour(voies);
   if (canvas.style.height !== `${hauteur}px`) canvas.style.height = `${hauteur}px`;
-  annotations = calculerAnnotations();
+  // Un décodage qui lève ne doit pas emporter le rendu : sans ce filet, la même
+  // exception revenait à CHAQUE image et l'onglet ne peignait plus rien — zoom,
+  // curseurs, déclenchement figés (le gel du 26/09, pile débordée au décodage).
+  try {
+    annotations = calculerAnnotations();
+  } catch (e) {
+    console.error('Kablix analyseur : décodage abandonné', e);
+    annotations = [];
+  }
   vue.dessiner({
     capture,
     voies,
@@ -1607,15 +1616,62 @@ function restaurer(etat: EtatSerialise): void {
 
 // --- Souris ------------------------------------------------------------------
 
+/**
+ * Bulle d'un bouton de la marge (Frank, 26/09 : « Dans la marge il faudrait des
+ * bulles explicatives au survol de chaque bouton »). Les boutons sont peints
+ * dans le canvas : pas d'élément à qui donner un `title`, c'est le canvas qui
+ * prend celui du bouton survolé. Elle dit aussi l'état : quel déclenchement est
+ * armé, quel bus est décodé.
+ */
+function bulleBouton(z: ZoneBouton): string {
+  if (z.quoi === 'teinte') return t('Channel settings: name, invert, hide, baud rate, tolerance');
+  if (z.quoi === 'declenchement') {
+    const decl = capture.reglageDeclenchement;
+    if (!decl || decl.voie !== z.voie) {
+      return t('Trigger: wait for an edge on this channel, then freeze the capture on it');
+    }
+    const sens =
+      decl.sens === 'rising'
+        ? t('Rising edge')
+        : decl.sens === 'falling'
+          ? t('Falling edge')
+          : decl.sens === 'trame'
+            ? t('Frame start')
+            : 'START code 0x00';
+    return t('Trigger on this channel: {0}. Click to change or remove it.', sens);
+  }
+  const p = decodageDe(z.voie)?.protocole;
+  if (!p) return t('Decoding: read a bus on this channel (I²C, SPI, UART, 1-Wire, DHT, DMX512)');
+  const nom = PROTOCOLES.find(([cle]) => cle === p)?.[1] ?? NOMS_PROTOCOLE[p];
+  return t('Decoding: {0}. Click for its settings or to remove it.', nom);
+}
+
+/** Bulle d'un marqueur : garé, il dit à quoi il sert ; posé, comment le ranger. */
+function bulleMarqueur(m: number): string {
+  const nom = m === 0 ? 'M1' : 'M2';
+  return marqueurs[m] === null
+    ? t('Marker {0}: drag it onto the curves. With M1 and M2 placed, the time between them is shown and the exports keep only that span.', nom)
+    : t('Marker {0}: drag it along the curves; drop it back in the names column to park it.', nom);
+}
+
 canvas.addEventListener('pointermove', (ev) => {
   const r = canvas.getBoundingClientRect();
   souris = { x: ev.clientX - r.left, y: ev.clientY - r.top };
   if (marqueurPris !== null) deplacerMarqueur(marqueurPris, souris.x);
   // Un marqueur se prend à la souris : le curseur le dit en le survolant.
   const surRappel = marqueurPris === null && vue.rappelA(souris.x, souris.y);
+  const surMarqueur = marqueurPris === null ? vue.marqueurA(souris.x, souris.y) : null;
+  const bouton = marqueurPris === null && !surRappel && surMarqueur === null ? vue.boutonA(souris.x, souris.y) : null;
   canvas.style.cursor =
-    marqueurPris !== null || vue.marqueurA(souris.x, souris.y) !== null ? 'ew-resize' : surRappel ? 'pointer' : '';
-  canvas.title = surRappel ? t('Bring M1 and M2 back to their starting place') : '';
+    marqueurPris !== null || surMarqueur !== null ? 'ew-resize' : surRappel || bouton ? 'pointer' : '';
+  // Aucune bulle pendant un glissé : elle suivrait le marqueur sans rien dire.
+  canvas.title = surRappel
+    ? t('Bring M1 and M2 back to their starting place')
+    : surMarqueur !== null
+      ? bulleMarqueur(surMarqueur)
+      : bouton
+        ? bulleBouton(bouton)
+        : '';
   dessiner();
 });
 canvas.addEventListener('pointerleave', () => {
@@ -1727,6 +1783,11 @@ canvas.addEventListener('pointerup', (ev) => {
 const SVG_LARGEUR_MAX = 50000;
 /** Tracé en deçà duquel un SVG ne montrerait plus rien de lisible. */
 const SVG_TRACE_MIN = 40;
+/**
+ * Largeur de toile qu'on s'autorise pour le PNG de la copie : Chrome refuse
+ * au-delà de 32 767 px de côté. Au-delà, la copie ne porte que le SVG.
+ */
+const PNG_LARGEUR_MAX = 32000;
 
 function ouvrirMenuExport(): void {
   if (!menuExport || !btnMenuExport) return;
@@ -1755,12 +1816,22 @@ function plageMarqueurs(): { t1: number; t2: number } | null {
 }
 
 /**
- * CSV : la page n'emporte rien, c'est l'hôte qui détient la mesure entière dans
- * son journal de session (voir AnalyseurVersHote). Elle ne donne que la plage.
+ * CSV : la page n'emporte aucun front, c'est l'hôte qui détient la mesure
+ * entière dans son journal de session (voir AnalyseurVersHote). Elle donne la
+ * plage et les colonnes : chaque voie posée, sous le nom affiché et lue comme
+ * à l'écran (inversée ou non) — le journal, lui, ne connaît que les broches.
  */
 function exporterCsv(): void {
   const plage = plageMarqueurs();
-  vscode?.postMessage(plage ? { type: 'analyseurExport', plage } : { type: 'analyseurExport' });
+  const voies = diagnostics
+    .filter((d) => d.probleme === null)
+    .map((d) => ({
+      voie: d.voie,
+      pin: d.pin,
+      nom: nomVoie({ nom: d.nom, nomChoisi: reglagesVoies[d.voie]?.nom }),
+      ...(capture.estInversee(d.voie) ? { inverse: true } : {}),
+    }));
+  vscode?.postMessage({ type: 'analyseurExport', ...(plage ? { plage } : {}), voies });
 }
 
 /**
@@ -1785,21 +1856,60 @@ function exporterSvg(action: 'copier' | 'enregistrer'): void {
     vscode?.postMessage({ type: 'analyseurSvg', action, svg: '', refus, largeur: Math.round(refus === 'large' ? largeur : trace) });
     return;
   }
-  const svg = vue.svg(
-    {
-      capture,
-      voies,
-      fenetre: f,
-      annotations: annotationsEntre(f),
-      souris: null,
-      textes: textes(),
-      lang: locale(),
-      marqueurs,
-      marqueurPris: null,
-    },
-    largeur
-  );
+  const etat = {
+    capture,
+    voies,
+    fenetre: f,
+    annotations: annotationsEntre(f),
+    souris: null,
+    textes: textes(),
+    lang: locale(),
+    marqueurs,
+    marqueurPris: null,
+  };
+  const svg = vue.svg(etat, largeur);
+  if (action === 'copier' && copierEnImage(svg, pngDe(etat, largeur))) return;
   vscode?.postMessage({ type: 'analyseurSvg', action, svg });
+}
+
+/**
+ * Le PNG de la copie, deux fois plus fin que l'écran quand la toile le permet ;
+ * null si elle ne le permet pas (la copie ne portera que le SVG).
+ */
+function pngDe(etat: Parameters<AnalyseurVue['png']>[0], largeur: number): HTMLCanvasElement | null {
+  if (largeur > PNG_LARGEUR_MAX) return null;
+  return vue.png(etat, largeur, largeur * 2 <= PNG_LARGEUR_MAX ? 2 : 1);
+}
+
+/**
+ * Copie en IMAGE, écrite par la page elle-même (Frank, 26/09 : « Copy SVG ->
+ * dans Word j'ai le texte, dans Inkscape rien du tout »). `env.clipboard` de
+ * VS Code ne sait écrire que du texte : Word collait le code, Inkscape ne
+ * trouvait pas d'image. Le presse-papier du navigateur, lui, reçoit
+ * `image/svg+xml` (format que lit Inkscape) et `image/png` (que Chrome dépose
+ * aussi en bitmap, pour Word). Mesuré sous Windows : formats « image/svg+xml »,
+ * « PNG », CF_DIB, CF_DIBV5 et CF_BITMAP.
+ *
+ * `write()` part DANS le clic, le PNG suivant en promesse : le navigateur
+ * n'écrit que pendant un geste de l'utilisateur. Écriture refusée → l'hôte
+ * copie le SVG en texte, comme avant. Faux si l'API manque (même repli).
+ */
+function copierEnImage(svg: string, toile: HTMLCanvasElement | null): boolean {
+  const pp = navigator.clipboard as Clipboard | undefined;
+  if (typeof ClipboardItem === 'undefined' || typeof pp?.write !== 'function') return false;
+  const types: Record<string, Blob | Promise<Blob>> = {
+    'image/svg+xml': new Blob([svg], { type: 'image/svg+xml' }),
+  };
+  if (toile) {
+    types['image/png'] = new Promise<Blob>((ok, ko) =>
+      toile.toBlob((b) => (b ? ok(b) : ko(new Error('PNG refusé'))), 'image/png')
+    );
+  }
+  pp.write([new ClipboardItem(types)]).then(
+    () => vscode?.postMessage({ type: 'analyseurSvg', action: 'copier', svg, copie: 'image' }),
+    () => vscode?.postMessage({ type: 'analyseurSvg', action: 'copier', svg })
+  );
+  return true;
 }
 
 // --- Câblage de la barre -----------------------------------------------------
