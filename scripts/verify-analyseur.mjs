@@ -1654,6 +1654,23 @@ const oneWireDe = (sequence) => {
     textes.some((x) => x.startsWith('0x44')), textes.join(' | '));
   check('1-Wire : LSB en premier (0xCC relu à l\'envers donnerait 0x33)',
     !textes.some((x) => x.startsWith('0x33')), textes.join(' | '));
+  // La commande de FONCTION se nomme aussi, une fois la phase ROM passée : juste
+  // après SKIP ROM, après les huit octets d'adresse pour MATCH ROM. Seul l'octet
+  // qui suit le RESET l'était : 0xBE restait muet derrière MATCH ROM (Frank,
+  // 26/09, capture DS18B20). Les octets d'adresse et les données ne se nomment
+  // jamais, même quand ils valent un code de commande (0x44, 0xBE, 0xCC ici).
+  {
+    const tx = decoder([voieDe(0, 'DQ', oneWireDe(['reset', 0xcc, 0x44, 0xcc]), 1)], { protocole: 'onewire', donnees: 0 }).map((a) => a.texte);
+    check('1-Wire : SKIP ROM puis CONVERT T nommés, l\'octet suivant reste une donnée',
+      tx.join(' | ') === 'RESET | 0xCC SKIP ROM | 0x44 CONVERT T | 0xCC', tx.join(' | '));
+    const adresse = [0x28, 0x44, 0xbe, 0xcc, 0x55, 0x33, 0xf0, 0x99];
+    const ty = decoder([voieDe(0, 'DQ', oneWireDe(['reset', 0x55, ...adresse, 0xbe, 0x30, 0x02]), 1)], { protocole: 'onewire', donnees: 0 }).map((a) => a.texte);
+    check('1-Wire : MATCH ROM, huit octets d\'adresse muets, puis READ SCRATCHPAD nommé',
+      ty.join(' | ') === 'RESET | 0x55 MATCH ROM | 0x28 | 0x44 | 0xBE | 0xCC | 0x55 | 0x33 | 0xF0 | 0x99 | 0xBE READ SCRATCHPAD | 0x30 | 0x02', ty.join(' | '));
+    const tz = decoder([voieDe(0, 'DQ', oneWireDe(['reset', 0xf0, 0x44, 0xbe]), 1)], { protocole: 'onewire', donnees: 0 }).map((a) => a.texte);
+    check('1-Wire : après SEARCH ROM, rien n\'est nommé jusqu\'au RESET suivant',
+      tz.join(' | ') === 'RESET | 0xF0 SEARCH ROM | 0x44 | 0xBE', tz.join(' | '));
+  }
   // Le VRAI capteur répond au RESET : 30 µs après la relâche, il tient la ligne
   // basse 110 µs (ds18b20.mjs). Lue comme un bit, cette présence sortait en
   // erreur « 1 bits » juste après le RESET et décalait l'octet suivant (Frank,
@@ -1667,7 +1684,7 @@ const oneWireDe = (sequence) => {
     creux(480, 30); creux(110, 340); octet(0xcc); octet(0xbe);
     const tx = decoder([voieDe(0, 'DQ', f, 1)], { protocole: 'onewire', donnees: 0 }).map((a) => a.texte);
     check('1-Wire : la réponse du capteur au RESET est nommée (« PRÉSENT »), pas lue comme un bit',
-      /^RESET \| (PRESENCE|PRÉSENT) \| 0xCC SKIP ROM \| 0xBE$/.test(tx.join(' | ')), tx.join(' | '));
+      /^RESET \| (PRESENCE|PRÉSENT) \| 0xCC SKIP ROM \| 0xBE READ SCRATCHPAD$/.test(tx.join(' | ')), tx.join(' | '));
     // Un creux long bien après le RESET n'est PAS une présence : c'est un bit 0.
     const g = [];
     t = 1;
@@ -1731,8 +1748,8 @@ const oneWireDe = (sequence) => {
   const enDec = decoder(voies, { protocole: 'onewire', donnees: 0, base: 'dec' }).map((a) => a.texte);
   check('Base : l\'hexadécimal reste le défaut (réglage absent = « hex »)',
     enHex.join('|') === enHexExplicite.join('|') && enHex.includes('0xCC SKIP ROM'), enHex.join(' | '));
-  check('Base : en décimal, 1-Wire écrit 204 SKIP ROM puis 68, sans « 0x »',
-    enDec.includes('204 SKIP ROM') && enDec.includes('68') && !enDec.some((x) => x.includes('0x')),
+  check('Base : en décimal, 1-Wire écrit 204 SKIP ROM puis 68 CONVERT T, sans « 0x »',
+    enDec.includes('204 SKIP ROM') && enDec.includes('68 CONVERT T') && !enDec.some((x) => x.includes('0x')),
     enDec.join(' | '));
   check('Base : le repère RESET ne change pas avec la base',
     enDec.includes('RESET'), enDec.join(' | '));

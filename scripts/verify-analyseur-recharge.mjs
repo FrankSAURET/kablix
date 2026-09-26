@@ -489,6 +489,24 @@ console.log('C. page');
   return out;
  };
  const etat = () => document.getElementById('etat').textContent;
+ // Pixels du repère de déclenchement (tireté #e34948) : il n'est peint que s'il
+ // tombe dans la fenêtre.
+ const rouges = () => {
+  const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+  let c = 0;
+  for (let j = 0; j < d.length; j += 4) {
+   if (d[j + 3] > 200 && Math.abs(d[j] - 227) < 16 && Math.abs(d[j + 1] - 73) < 16 && Math.abs(d[j + 2] - 72) < 16) c++;
+  }
+  return c;
+ };
+ // Empreinte de la barre de temps : ses graduations bougent avec la fenêtre.
+ const regle = () => {
+  const k = cv.height / Math.max(1, cv.clientHeight);
+  const d = cv.getContext('2d').getImageData(0, 0, cv.width, Math.round(62 * k)).data;
+  let h = 0;
+  for (let j = 0; j < d.length; j++) h = (Math.imul(h, 31) + d[j]) >>> 0;
+  return h;
+ };
  // GP2 : une pince posée qui ne voit passer aucun front — piste TÉMOIN, le poids
  // d'une piste qui ne trace rien (jamais un seuil écrit en dur).
  const VOIES = ['GP0', 'GP1', 'GP2'].map((pin, voie) => ({ voie, pin, nom: pin, probleme: null, analogique: false, suivi: false }));
@@ -552,6 +570,31 @@ console.log('C. page');
   await wait(300);
   m.etatSuite = etat();
   m.pistesSuite = parPiste(3);
+  // 4. RECHARGÉE À MI-RUN, DÉCLENCHEMENT DÉJÀ TOMBÉ, et le run continue : c'est
+  //    l'onglet ouvert au lancement (Frank, 26/09, ds18b20-pico : « la courbe
+  //    clignote »). La vue se pose sur le déclenchement et n'en bouge plus.
+  post({ type: 'voies', voies: VOIES });
+  post({ type: 'depart' });
+  post({ type: 'restaure', etat: { voies: [
+   { voie: 0, pin: 'GP0', nom: 'GP0', fronts: moitie(s.GP0, 300) },
+   { voie: 1, pin: 'GP1', nom: 'GP1', fronts: moitie(s.GP1, 300) },
+  ], ...REGLAGES } });
+  const suite = (de, a) => {
+   for (let t = de; t <= a; t++) {
+    post({ type: 'fronts', salves: { GP0: s.GP0.slice(2 * (t - 1) * 100, 2 * t * 100), GP1: s.GP1.slice(4 * (t - 1), 4 * t) } });
+   }
+  };
+  suite(301, 400);
+  post({ type: 'repeindre' });
+  await wait(300);
+  m.rougeA = rouges();
+  m.regleA = regle();
+  m.pistesDeclenche = parPiste(3);
+  suite(401, 500);
+  post({ type: 'repeindre' });
+  await wait(300);
+  m.rougeB = rouges();
+  m.regleB = regle();
   m.erreurs = erreurs.join(' | ').slice(0, 300);
   const out = document.createElement('pre');
   out.id = 'measures';
@@ -588,6 +631,11 @@ console.log('C. page');
 			check(trace(m.pistesRecharge, 0) && trace(m.pistesRecharge, 1), 'C : rechargée, les courbes sont là', JSON.stringify(m.pistesRecharge));
 			check(/^Capturing… 1500\.0$/.test(m.etatSuite), 'C : rechargée à mi-run, la suite du run s’ajoute derrière', m.etatSuite);
 			check(trace(m.pistesSuite, 0) && trace(m.pistesSuite, 1), 'C : et les courbes tracent toujours', JSON.stringify(m.pistesSuite));
+			console.log(`  (mesuré, déclenchement déjà tombé : repère ${m.rougeA} → ${m.rougeB} px, barre de temps ${m.regleA} → ${m.regleB})`);
+			check(m.rougeA > 20, 'C : rechargée à mi-run après le déclenchement, la vue se pose dessus', `${m.rougeA} px du repère`);
+			check(trace(m.pistesDeclenche, 0) && trace(m.pistesDeclenche, 1), 'C : les courbes autour du déclenchement tracent', JSON.stringify(m.pistesDeclenche));
+			check(m.regleA === m.regleB && m.rougeA === m.rougeB, 'C : la suite du run arrive, la vue ne bouge plus (plus de clignotement)',
+				`barre ${m.regleA} → ${m.regleB}, repère ${m.rougeA} → ${m.rougeB}`);
 		}
 	}
 }
@@ -596,7 +644,7 @@ try { rmSync(tmp, { recursive: true, force: true }); } catch { /* Chrome relâch
 
 // Un banc qui n'a rien mesuré n'est pas un banc vert.
 const total = ok + echecs.length;
-if (total < 28) {
+if (total < 31) {
 	echecs.push('le banc a joué tous ses contrôles');
 	console.log(`  ✗ le banc a joué tous ses contrôles — seulement ${total} contrôle(s)`);
 }

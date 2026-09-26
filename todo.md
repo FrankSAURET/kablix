@@ -1,8 +1,4 @@
 # À faire
-1. Bug ds18b20 : 
-    1. Je suis incapable de lire cette capture (image capture ds18b20.png). Réglé à 35°C et affichage correcte dans le moniteur série. Fichier de test ds18b20-pico
-    2. Pendant la capture, la courbe clignote (ou se déplace rapidemment à gauche et à droite)
-1. Tu commit et push tout ce que j'ai modifié
 ## fait
 
 
@@ -11,6 +7,23 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.165
+1. ✅ **Fichiers de Frank enregistrés et envoyés** (« Tu commit et push tout ce que j'ai modifié ») : 9581c41 — `Todo temp.md`, dmx-uno-lib (croquis, projix, exports CSV et SVG de l'analyseur), `ds18b20-pico.projix`, `capture ds18b20.png`. Parti avec : [_diag-analyseur-gel.mjs](scripts/_diag-analyseur-gel.mjs), mon outil de diagnostic du lot 160 resté hors dépôt.
+2. ✅ **Capture 1-Wire du DS18B20 lisible** (« Je suis incapable de lire cette capture (image capture ds18b20.png). Réglé à 35°C et affichage correcte dans le moniteur série. Fichier de test ds18b20-pico »).
+    1. Cause : seuil bit 0 / bit 1 du décodeur à 30 µs, pile la durée du 0 tiré par le capteur (30,0 µs). Toute la réponse du DS18B20 se lisait en 1 : scratchpad faux, CRC en erreur. [analyseur-decodage.mts](src/webview/analyseur-decodage.mts) : `seuilBit` 15 µs (un 1 dure 1 à 15 µs, un 0 au moins 15 µs).
+    2. Commandes de fonction jamais nommées : `OW_ROM` / `OW_ROM_ADRESSE` / `OW_FONCTIONS` séparés, nommage en deux temps (`attendu` : commande ROM puis commande de fonction, `adresseRestante` saute les 8 octets d'un `MATCH ROM`). `0xCC SKIP ROM`, `0x44 CONVERT T`, `0xBE READ SCRATCHPAD`.
+    3. Recherche du bit suivant en avant, sans `slice` (coût quadratique sur une longue capture).
+    4. Aide FR [sonde-logique.md](docs/fr/composants/sonde-logique.md) : phrase sur le seuil de 15 µs.
+    5. Bancs : [verify-analyseur.mjs](scripts/verify-analyseur.mjs) réaccordé (`0xCC SKIP ROM | 0xBE READ SCRATCHPAD`, `0x44 CONVERT T`) + 3 contrôles de nommage. Nouveau [verify-analyseur-onewire-e2e.mjs](scripts/verify-analyseur-onewire-e2e.mjs) (`npm run verify:analyseur-onewire-e2e`, dans `verify:all`) : VRAI firmware Pico, `ds18b20-pico.py` à 35 °C, pince sur GP14 → scratchpad `0x30 0x02` (35,0 °C), CRC-8 juste, `MATCH ROM` famille `0x28`, commandes nommées. `--ancien` : 4 échecs.
+3. ✅ **La courbe ne clignote plus pendant la capture** (« Pendant la capture, la courbe clignote (ou se déplace rapidemment à gauche et à droite) »).
+    1. Cause : l'onglet de l'analyseur s'ouvre AU LANCEMENT (ou se recharge quand on le déplace) : il naît en plein run et reçoit `restaure` avec le journal, déclenchement déjà dedans. `restaurer()` suivait alors la fin (`suivi = true`) : la fenêtre sautait à chaque salve de fronts (une par image, trafic 1-Wire incessant) jusqu'à la capture pleine (~14 s). Rejoué dans la vraie page avec les salves enregistrées de ds18b20-pico : fenêtre qui avance à chaque image, puis figée sur le déclenchement une fois pleine.
+    2. [analyseur.mts](src/webview/analyseur.mts) : en plein run, déclenchement trouvé → `allerAuDeclenchement()`, comme en direct ; sinon suivi de la fin comme avant. Même chose dans `reprendreFenetre()` quand le passage regardé est perdu. Rejeu : 42 rendus, fenêtre fixe à 31,3 ms.
+    3. Banc [verify-analyseur-recharge.mjs](scripts/verify-analyseur-recharge.mjs) volet C, étape 4 : rechargée à 300 ms déclenchement tombé, suite jusqu'à 500 ms → repère rouge du déclenchement à l'écran (116 px), barre de temps identique entre 400 et 500 ms. 42 contrôles, `--ancien=src/webview/analyseur.mts` : 2 échecs (repère 0 px, barre qui change).
+    4. Typecheck et construction propres. `verify:all` : 147/149 ; `verify:i18n` et `verify:help-bars` rouges attendus (traductions en attente de publication).
+4. ⏳ **Pico 2 (RP2350) : l'émulateur étire les créneaux d'écriture du maître 1-Wire** — hors décodeur, la capture Pico 1 est juste. À reprendre côté moteur si Frank le demande.
 
 ---
 

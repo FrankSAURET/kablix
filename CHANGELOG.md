@@ -54,7 +54,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Le DMX de la bibliothèque DmxSimple se décode trame par trame.** Son `BREAK`, plus court que la norme, n'était pas reconnu et toutes les trames se fondaient en une seule. Il est lu et l'étiquette donne sa durée (`BREAK 76,6 µs < 88 µs`).
 - **Le DMX d'un Pico programmé sans bibliothèque se décode canal par canal.** L'analyseur n'y voyait que des pauses et des erreurs de cadrage.
 - **Le décodage 1-Wire nomme la réponse du capteur au `RESET` (`PRÉSENT`).** Elle s'affichait en erreur « 1 bits » juste après le `RESET`.
+- **Le décodage 1-Wire lit juste la réponse du DS18B20.** Ses bits à 0 passaient pour des 1 : la température lue était fausse et le CRC en erreur.
+- **Le décodage 1-Wire nomme les commandes après `SKIP ROM` ou `MATCH ROM`** : `CONVERT T`, `READ SCRATCHPAD`…
 - **Changer le déclenchement de l'analyseur ne fait plus disparaître la courbe**.
+- **La vue de l'analyseur ne saute plus pendant la capture** quand son onglet s'ouvre avec la simulation : elle se pose sur le déclenchement et y reste.
 - **Le déclenchement tombe sur un front affiché** quand l'analyseur échantillonne. Il était posé sur le front réel, parfois plusieurs millisecondes avant le front dessiné, et « montant » ou « descendant » semblait sans effet.
 - **Déplacer l'onglet de l'analyseur vers une autre fenêtre (un second écran) ne fait plus disparaître les courbes.** 
 - **L'analyseur garde son zoom** quand on déplace son onglet ou qu'on change un réglage (déclenchement, protocole…).

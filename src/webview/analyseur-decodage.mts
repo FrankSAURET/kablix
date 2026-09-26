@@ -991,8 +991,15 @@ function decoderUart(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
 const OW = {
   /** Impulsion de RESET : le maître tire la ligne bas au moins 480 µs. */
   reset: 400,
-  /** Au-delà de ce creux, le bit vaut 0 ; en deçà, il vaut 1. */
-  seuilBit: 30,
+  /**
+   * Au-delà de ce creux, le bit vaut 0 ; en deçà, il vaut 1. C'est l'instant où
+   * le maître lit la ligne selon la norme (et où sigrok la lit) : 15 µs après
+   * sa descente. Un « 1 » la relâche avant (1 à 15 µs), un « 0 » la tient
+   * au-delà. Le seuil était à 30 µs, soit EXACTEMENT la durée du « 0 » que
+   * répond le capteur simulé : l'arrondi des dates décidait du bit, et la
+   * lecture du DS18B20 sortait en octets faux (Frank, 26/09, capture à 35 °C).
+   */
+  seuilBit: 15,
   /** Un creux plus court que cela n'est pas un slot : c'est du parasite. */
   miniSlot: 1,
   /** Durée d'un slot de bit (norme : 60 à 120 µs) : la cellule de l'affichage binaire. */
@@ -1017,20 +1024,30 @@ const OW = {
  *
  *  - creux ≥ 480 µs  → RESET, la transaction recommence ;
  *  - creux court dans le slot qui suit → le maître écrit (ou l'esclave répond) ;
- *    un creux de moins de ~30 µs est un 1, un creux long est un 0.
+ *    un creux de moins de 15 µs est un 1, un creux plus long est un 0.
  *
  * On ne distingue PAS qui parle, et c'est normal : sur le fil, une réponse
  * d'esclave et une écriture du maître sont le même creux. Un vrai analyseur ne
  * fait pas mieux avec une seule pince. Ce qui se lit, en revanche, ce sont les
  * octets — LSB d'abord — et les commandes courantes sont nommées, parce que
  * « 0x44 » ne dit rien à un élève alors que « CONVERT T » dit tout.
+ *
+ * Deux temps, comme dans la norme : l'octet qui suit le RESET est une commande
+ * ROM (qui écoute ?), puis vient la commande de FONCTION (quoi faire ?). Celle-ci
+ * suit SKIP ROM tout de suite, et MATCH ROM / READ ROM après les huit octets de
+ * l'adresse. Seul le premier temps était nommé : `0xBE` restait muet derrière
+ * MATCH ROM, `0x44` derrière SKIP ROM (Frank, 26/09).
  */
-const OW_COMMANDES: Record<number, string> = {
+const OW_ROM: Record<number, string> = {
   0x33: 'READ ROM',
   0x55: 'MATCH ROM',
   0xcc: 'SKIP ROM',
   0xf0: 'SEARCH ROM',
   0xec: 'ALARM SEARCH',
+};
+/** Octets d'adresse entre la commande ROM et la commande de fonction. */
+const OW_ROM_ADRESSE: Record<number, number> = { 0x33: 8, 0x55: 8, 0xcc: 0 };
+const OW_FONCTIONS: Record<number, string> = {
   0x44: 'CONVERT T',
   0x4e: 'WRITE SCRATCHPAD',
   0xbe: 'READ SCRATCHPAD',
@@ -1050,8 +1067,13 @@ function decoderOneWire(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
   let acc = 0;
   let bits = 0;
   let tOctet = 0;
-  /** Vrai quand le prochain octet complet suit un RESET : c'est une commande. */
-  let attendCommande = false;
+  /**
+   * Ce que sera le prochain octet complet : la commande ROM juste après un
+   * RESET, la commande de fonction une fois l'adresse passée (`adresseRestante`
+   * octets), rien de nommé sinon (données, SEARCH ROM).
+   */
+  let attendu: 'rom' | 'fonction' | null = null;
+  let adresseRestante = 0;
   /** Instant du dernier front montant : sert à mesurer le silence qui suit. */
   let tHaut = -Infinity;
   /**
@@ -1077,8 +1099,11 @@ function decoderOneWire(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
       tHaut = f.t;
       continue;
     }
-    // Un creux : sa longueur est tout ce qui compte.
-    const suivant = v.fronts.slice(i + 1).find((x) => x.niveau === 1);
+    // Un creux : sa longueur est tout ce qui compte. (Pas de `slice(i + 1)` : il
+    // recopiait toute la fin de la capture à chaque creux.)
+    let k = i + 1;
+    while (k < v.fronts.length && v.fronts[k]!.niveau !== 1) k++;
+    const suivant = v.fronts[k];
     if (!suivant) break; // creux jamais refermé : la capture s'arrête dedans
     const creuxUs = (suivant.t - f.t) / usMs;
     // Un long silence HAUT avant ce creux referme la transaction précédente : un
@@ -1089,7 +1114,8 @@ function decoderOneWire(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
       clore(f.t);
       // Le RESET ouvre la transaction : c'est le « start » du 1-Wire.
       out.push({ t0: f.t, t1: suivant.t, texte: 'RESET', nature: 'start', trame: true });
-      attendCommande = true;
+      attendu = 'rom';
+      adresseRestante = 0;
       finReset = suivant.t;
       continue;
     }
@@ -1117,14 +1143,25 @@ function decoderOneWire(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
     if (bit === 1) acc |= 1 << bits; // 1-Wire : LSB en premier
     bits += 1;
     if (bits === 8) {
-      const nom = attendCommande ? OW_COMMANDES[acc] : undefined;
+      let nom: string | undefined;
+      if (attendu === 'rom') {
+        nom = OW_ROM[acc];
+        const adresse = OW_ROM_ADRESSE[acc];
+        attendu = adresse === undefined ? null : 'fonction';
+        adresseRestante = adresse ?? 0;
+      } else if (attendu === 'fonction') {
+        if (adresseRestante > 0) adresseRestante -= 1;
+        else {
+          nom = OW_FONCTIONS[acc];
+          attendu = null;
+        }
+      }
       out.push({
         t0: tOctet,
         t1: suivant.t,
         texte: nom ? `${octet(acc, r.base)} ${nom}` : octet(acc, r.base),
         nature: 'donnee',
       });
-      attendCommande = false;
       bits = 0;
       acc = 0;
     }

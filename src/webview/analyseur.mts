@@ -285,7 +285,9 @@ function reprendreFenetre(): boolean {
     const dedans = capture.aDesDonnees && reprise.fenetre.t0 < capture.tFin;
     fenetre = dedans ? reprise.fenetre : { t0: fenetre.t0, duree: reprise.fenetre.duree };
     suivi = dedans ? reprise.suivi : true;
-    suivreFin();
+    // Passage perdu mais déclenchement tombé : la vue s'y pose au lieu de suivre la fin.
+    if (!dedans && capture.tTrigger !== null) allerAuDeclenchement();
+    else suivreFin();
     return true;
   }
   const f = reprise.fenetre;
@@ -1706,8 +1708,16 @@ function restaurer(etat: EtatSerialise): void {
   if (reprendreFenetre()) {
     dessiner();
   } else if (enCours) {
-    suivi = true;
-    suivreFin();
+    // Déclenchement déjà dans le journal rendu (onglet ouvert au lancement ou
+    // rechargé en plein run) : la vue se pose dessus, comme en direct. Suivre la
+    // fin la faisait sauter à chaque salve jusqu'à la capture pleine (Frank,
+    // 26/09, ds18b20-pico : « la courbe clignote »).
+    if (capture.tTrigger !== null) {
+      allerAuDeclenchement();
+    } else {
+      suivi = true;
+      suivreFin();
+    }
     dessiner();
   } else {
     ajuster();
