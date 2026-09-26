@@ -521,7 +521,7 @@ CanvasRenderingContext2D.prototype.fillText = function (t, x, y, ...r) {
 				const g = c.getContext('2d');
 				g.drawImage(img, 0, 0);
 				// Pixels « d'encre » dans la zone du tracé : ce qui n'est pas le fond.
-				const px = g.getImageData(104, 42, Math.max(1, c.width - 116), Math.max(1, c.height - 50)).data;
+				const px = g.getImageData(104, 62, Math.max(1, c.width - 116), Math.max(1, c.height - 70)).data;
 				let encre = 0;
 				for (let i = 0; i < px.length; i += 4) if (Math.abs(px[i] - 0x1f) + Math.abs(px[i + 1] - 0x1f) + Math.abs(px[i + 2] - 0x1f) > 60) encre++;
 				return JSON.stringify({ decode, w: img.naturalWidth, h: img.naturalHeight, encre });

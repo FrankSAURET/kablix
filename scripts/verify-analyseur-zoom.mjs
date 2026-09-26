@@ -248,7 +248,7 @@ if (!chrome) {
 			await attendre(80);
 			return ev(`(() => {
 				const c = document.getElementById('trace');
-				const d = c.getContext('2d').getImageData(106, 42 + 23, c.width - 106 - 14, 1).data;
+				const d = c.getContext('2d').getImageData(106, 62 + 23, c.width - 106 - 14, 1).data;
 				const xs = [];
 				for (let x = 0; x < d.length / 4; x++) {
 					if (d[x * 4 + 3] <= 60) continue;
@@ -274,7 +274,7 @@ if (!chrome) {
 		const zone = (voie, quoi) => ev(`(() => {
 			const r = document.getElementById('trace').getBoundingClientRect();
 			const x = 8 + (${JSON.stringify({ teinte: 0, declenchement: 1, protocole: 2 })})[${JSON.stringify(quoi)}] * 22;
-			return { x: r.left + x + 9, y: r.top + 42 + ${voie} * 64 + 15 + 8 + 9 };
+			return { x: r.left + x + 9, y: r.top + 62 + ${voie} * 64 + 15 + 8 + 9 };
 		})()`);
 		/** Ouvre un bouton de voie et clique l'entrée du menu dont le texte contient `libelle`. */
 		const menu = async (voie, quoi, libelle) => {

@@ -182,13 +182,40 @@ let idDecodage = 0;
 /** Vrai pendant un run : la vue se redessine en continu. */
 let enCours = false;
 /**
- * Instants de M1 et M2, en ms simulées ; null = garé à gauche de la barre de
- * temps, où les deux attendent à l'ouverture. Ce sont des outils de lecture,
- * comme le réticule : ils ne s'enregistrent pas dans le projet.
+ * Instants de M1, M2, F1 et F2, en ms simulées ; null = garé à gauche de la
+ * barre de temps, où tous attendent à l'ouverture. Ce sont des outils de
+ * lecture, comme le réticule : ils ne s'enregistrent pas dans le projet.
  */
-const marqueurs: Array<number | null> = [null, null];
+const marqueurs: Array<number | null> = [null, null, null, null];
+/** Indices de la fenêtre F1/F2 dans `marqueurs`. */
+const FENETRE = [2, 3] as const;
 /** Marqueur tenu à la souris, ou null. */
 let marqueurPris: number | null = null;
+/**
+ * Instant de déclenchement vu au dernier rendu. F1 et F2 sont posés PAR RAPPORT
+ * au déclenchement (Frank, 26/09) : quand il tombe ailleurs (capture relancée,
+ * nouveau run, autre réglage), la fenêtre le suit d'autant et encadre le même
+ * morceau de la nouvelle mesure. Un déclenchement effacé (null) ne compte pas :
+ * la fenêtre attend le suivant là où elle est.
+ */
+let declenchementVu: number | null = null;
+
+/** Décale la fenêtre F1/F2 de `dt` ms, marqueurs garés exceptés. */
+function decalerFenetreF(dt: number): void {
+  if (dt === 0) return;
+  for (const m of FENETRE) {
+    const t = marqueurs[m];
+    if (t != null) marqueurs[m] = t + dt;
+  }
+}
+
+/** Fait suivre le déclenchement à F1/F2, s'il a bougé depuis le dernier rendu. */
+function suivreDeclenchementF(): void {
+  const tt = capture.tTrigger;
+  if (tt === null) return;
+  if (declenchementVu !== null) decalerFenetreF(tt - declenchementVu);
+  declenchementVu = tt;
+}
 
 const canvas = document.getElementById('trace') as HTMLCanvasElement;
 const vue = new AnalyseurVue(canvas);
@@ -465,6 +492,7 @@ function rendu(): void {
     console.error('Kablix analyseur : décodage abandonné', e);
     annotations = [];
   }
+  suivreDeclenchementF();
   vue.dessiner({
     capture,
     voies,
@@ -667,6 +695,9 @@ const MARGE_TRAME = 0.02;
  * seconde). Décoder toute la capture coûte, mais seulement au clic. Tous les
  * décodages comptent : un montage à deux bus passe de l'un à l'autre dans
  * l'ordre du temps.
+ *
+ * F1 et F2 suivent le saut (Frank, 26/09) : ils ne bougent pas à l'écran, donc
+ * encadrent dans la nouvelle trame ce qu'ils encadraient dans l'ancienne.
  */
 function sauterTrame(sens: -1 | 1): void {
   if (decodages.length === 0 || !capture.aDesDonnees) return;
@@ -679,7 +710,9 @@ function sauterTrame(sens: -1 | 1): void {
     ? debuts.find((t) => t > bord + eps)
     : [...debuts].reverse().find((t) => t < bord - eps);
   if (cible === undefined) return;
-  fenetre = { t0: cible - fenetre.duree * MARGE_TRAME, duree: fenetre.duree };
+  const t0 = cible - fenetre.duree * MARGE_TRAME;
+  decalerFenetreF(t0 - fenetre.t0);
+  fenetre = { t0, duree: fenetre.duree };
   suivi = false;
   dessiner();
 }
@@ -1359,14 +1392,17 @@ canvas.addEventListener(
   'pointerdown',
   (ev) => {
     const r = canvas.getBoundingClientRect();
-    // Bouton de rappel : M1 et M2 retournent au garage (Frank, 26/09 — en
-    // zoomant, un marqueur posé sort de la vue et on ne le retrouve plus).
-    if (ev.button === 0 && vue.rappelA(ev.clientX - r.left, ev.clientY - r.top)) {
+    // Bouton de rappel : M1 et M2, ou F1 et F2, retournent au garage (Frank,
+    // 26/09 — en zoomant, un marqueur posé sort de la vue et on ne le retrouve
+    // plus). Chaque bande a le sien.
+    const groupe = ev.button === 0 ? vue.rappelA(ev.clientX - r.left, ev.clientY - r.top) : null;
+    if (groupe !== null) {
       ev.stopPropagation();
       ev.preventDefault();
       fermerPanneau();
-      marqueurs[0] = null;
-      marqueurs[1] = null;
+      const premier = groupe === 'M' ? 0 : FENETRE[0];
+      marqueurs[premier] = null;
+      marqueurs[premier + 1] = null;
       canvas.style.cursor = '';
       canvas.title = '';
       dessiner();
@@ -1712,10 +1748,13 @@ function bulleBouton(z: ZoneBouton): string {
 
 /** Bulle d'un marqueur : garé, il dit à quoi il sert ; posé, comment le ranger. */
 function bulleMarqueur(m: number): string {
-  const nom = m === 0 ? 'M1' : 'M2';
-  return marqueurs[m] === null
+  const nom = ['M1', 'M2', 'F1', 'F2'][m] ?? '';
+  if (marqueurs[m] !== null) {
+    return t('Marker {0}: drag it along the curves; drop it back in the names column to park it.', nom);
+  }
+  return m < FENETRE[0]
     ? t('Marker {0}: drag it onto the curves. With M1 and M2 placed, the time between them is shown and the exports keep only that span.', nom)
-    : t('Marker {0}: drag it along the curves; drop it back in the names column to park it.', nom);
+    : t('Window marker {0}: drag it onto the curves. F1 and F2 frame a span that stays put on screen when ⏮ ⏭ jump to another frame, and follows the trigger: the same spot can be checked frame after frame.', nom);
 }
 
 canvas.addEventListener('pointermove', (ev) => {
@@ -1723,19 +1762,21 @@ canvas.addEventListener('pointermove', (ev) => {
   souris = { x: ev.clientX - r.left, y: ev.clientY - r.top };
   if (marqueurPris !== null) deplacerMarqueur(marqueurPris, souris.x);
   // Un marqueur se prend à la souris : le curseur le dit en le survolant.
-  const surRappel = marqueurPris === null && vue.rappelA(souris.x, souris.y);
+  const surRappel = marqueurPris === null ? vue.rappelA(souris.x, souris.y) : null;
   const surMarqueur = marqueurPris === null ? vue.marqueurA(souris.x, souris.y) : null;
   const bouton = marqueurPris === null && !surRappel && surMarqueur === null ? vue.boutonA(souris.x, souris.y) : null;
   canvas.style.cursor =
     marqueurPris !== null || surMarqueur !== null ? 'ew-resize' : surRappel || bouton ? 'pointer' : '';
   // Aucune bulle pendant un glissé : elle suivrait le marqueur sans rien dire.
-  canvas.title = surRappel
+  canvas.title = surRappel === 'M'
     ? t('Bring M1 and M2 back to their starting place')
-    : surMarqueur !== null
-      ? bulleMarqueur(surMarqueur)
-      : bouton
-        ? bulleBouton(bouton)
-        : '';
+    : surRappel === 'F'
+      ? t('Bring F1 and F2 back to their starting place')
+      : surMarqueur !== null
+        ? bulleMarqueur(surMarqueur)
+        : bouton
+          ? bulleBouton(bouton)
+          : '';
   dessiner();
 });
 canvas.addEventListener('pointerleave', () => {

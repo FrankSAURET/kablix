@@ -400,9 +400,9 @@ try {
 		await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', ...p, button: 'left', buttons: 0, clickCount: 1 });
 		await attendre(80);
 	};
-	// Géométrie de analyseur-vue.mts : barre de temps 42, piste 46, créneau 22,
+	// Géométrie de analyseur-vue.mts : barre de temps 62, piste 46, créneau 22,
 	// ligne de décodage 18, marges 104 / 12.
-	const REGLE_H = 42, PISTE_H = 46, CRENEAU_H = 22, ANNOT_H = 18, MARGE_G = 104, MARGE_D = 12;
+	const REGLE_H = 62, PISTE_H = 46, CRENEAU_H = 22, ANNOT_H = 18, MARGE_G = 104, MARGE_D = 12;
 	const yTexte = (ligne) => REGLE_H + PISTE_H + 1 + ligne * ANNOT_H + (ANNOT_H - 3) / 2;
 	const surLigne = (rel, ligne) => rel.textes.filter((x) => Math.abs(x.y - yTexte(ligne)) < 0.6).sort((a, b) => a.x - b.x);
 	const uart = (rel) => rel.textes.find((x) => x.t === 'UART');
@@ -437,7 +437,7 @@ try {
 	etape = 'relevé case cochée';
 	const apres = await releve();
 	const r1 = await trace();
-	check('la piste réserve une ligne de plus (canvas de 132 px)', () => Math.round(r1.h) === REGLE_H + PISTE_H + 2 * ANNOT_H + 8, () => `hauteur ${r1.h}`);
+	check('la piste réserve une ligne de plus (canvas de 152 px)', () => Math.round(r1.h) === REGLE_H + PISTE_H + 2 * ANNOT_H + 8, () => `hauteur ${r1.h}`);
 	// Cadrage « toute la capture » : 1 % de marge de chaque côté (`ajuster()`).
 	const etendue = T_FIN - T_DEBUT;
 	const f0 = { t0: T_DEBUT - etendue * 0.01, duree: etendue * 1.02 };

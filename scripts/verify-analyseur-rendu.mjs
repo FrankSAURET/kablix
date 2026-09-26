@@ -122,7 +122,7 @@ const page = `<!doctype html><meta charset=utf8>
    } catch (e) { return -1; }
   };
   // Pixels peints PISTE PAR PISTE, aux bornes exactes de chaque piste (barre de
-  // temps 42, puis 64 par piste). Couper le canvas en deux moitiés mettait la
+  // temps 62, puis 64 par piste). Couper le canvas en deux moitiés mettait la
   // barre de temps dans la première : dès qu'elle a grandi (v2026.9.5.148), la
   // première « piste » a gonflé d'un trait de base et le ratio a basculé.
   const parPiste = (n) => {
@@ -130,7 +130,7 @@ const page = `<!doctype html><meta charset=utf8>
    const k = cv.height / Math.max(1, cv.clientHeight);
    const out = [];
    for (let i = 0; i < n; i++) {
-    const y0 = Math.round((42 + i * 64) * k);
+    const y0 = Math.round((62 + i * 64) * k);
     const d = g.getImageData(110, y0, cv.width - 130, Math.round(64 * k)).data;
     let c = 0;
     for (let j = 3; j < d.length; j += 4) if (d[j] > 0) c++;
@@ -306,11 +306,11 @@ check('le message « repeindre » de l\'hôte peint le canvas, sans dépendre d\
 // vert avant comme après la correction, donc un contrôle qui ne prouve rien.
 check('le canvas est redimensionné à la largeur retrouvée, pas laissé à ses 300 px par défaut',
 	r.attrW === r.viveLargeur, `attribut width ${r.attrW} pour ${r.viveLargeur} px de large`);
-// Hauteur du canvas pour n pistes : barre de temps 42 + n × (piste 46 +
+// Hauteur du canvas pour n pistes : barre de temps 62 + n × (piste 46 +
 // annotations 18) + 8 de marge — `hauteurPour` de analyseur-vue.mts (pas de
-// 64 px depuis v2026.9.5.139, texte sous les courbes agrandi ; barre de 42 px
-// depuis v2026.9.5.148, graduations 22 + bande des marqueurs 20).
-const hauteurDe = (n) => 42 + n * 64 + 8;
+// 64 px depuis v2026.9.5.139, texte sous les courbes agrandi ; barre de 62 px
+// depuis v2026.9.5.163, graduations 22 + bandes des marqueurs M et F, 20 chacune).
+const hauteurDe = (n) => 62 + n * 64 + 8;
 // Ce contrôle-ci reste vert SANS la correction, et c'est volontaire : il dit
 // que les données sont bien arrivées (deux pistes = 178 px, une seule en
 // donnerait 114). C'est la moitié du diagnostic — les données sont là, la

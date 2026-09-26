@@ -253,9 +253,9 @@ writeFileSync(fichier, html
 	.replace('</head>', `<script nonce="${nonce}">${ESPION}</script></head>`)
 	.replace(/<script nonce="[^"]*" src="[^"]*"><\/script>/, () => `<script nonce="${nonce}">${bundle}</script>`));
 
-// Géométrie de analyseur-vue.mts : barre de temps 42, piste 46, créneau 22,
+// Géométrie de analyseur-vue.mts : barre de temps 62, piste 46, créneau 22,
 // une ligne de décodage de 18 sous chaque piste, marges 104 / 12.
-const REGLE_H = 42, PISTE_H = 46, CRENEAU_H = 22, ANNOT_H = 18, MARGE_G = 104, MARGE_D = 12;
+const REGLE_H = 62, PISTE_H = 46, CRENEAU_H = 22, ANNOT_H = 18, MARGE_G = 104, MARGE_D = 12;
 const hautPiste = (k) => REGLE_H + k * (PISTE_H + ANNOT_H);
 const yHaut = (k) => hautPiste(k) + (PISTE_H - CRENEAU_H) / 2;
 const yBas = (k) => hautPiste(k) + (PISTE_H + CRENEAU_H) / 2;

@@ -1,5 +1,7 @@
 # À faire
-
+1. bug de décodage. J'ai modifié dmx-uno-lib.ino. Quand je lance le déebogage il passe toute les ligne (en pas à pas mais saute systématiquement les lignes de 12 à 18) et pourtant le code est exécuté (rouge projeté)
+1. Bug ds18b20 : 
+    1. Pendant la capture, la courbe clignote 
 ## fait
 
 
@@ -8,6 +10,20 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.163
+1. ✅ **Marqueurs de fenêtre F1 et F2** (« Rajoute 2 marqueurs F1 et F2 (pour fenêtre). Par défaut ils apparaissent en dessous de M1 et M2, ils ont aussi leur flèche de rappel. Il sont positionnés par rapport au déclenchement et ne bouge pas quand on passe d'un frame start à l'autre. (…) Ils sont matérialisés par un rectangle coloré (mais vide) entre eux qui recouvre toutes les trames. Les bords du rectangle sont semi-transparent. »).
+    1. [analyseur-vue.mts](src/webview/analyseur-vue.mts) : nouvelle bande `BANDE_F` (20 px) sous celle de M ; la barre de temps passe de 42 à 62 px (`REGLE_H`). Groupes `GROUPES` M (indices 0-1) et F (2-3) : même garage (`xGare`, F1 sous M1, F2 sous M2), même drapeau, chacun son bouton de rappel (`rappelA()` rend le groupe). F en violet `#8250df` / `#a371f7` (sombre), une seule teinte.
+    2. `cadreFenetre()` : cadre VIDE entre F1 et F2, de la première piste à la dernière, bords de 3 px à 45 % d'opacité, un seul chemin tracé d'un coup (coins sans double couche). Un seul F posé : son bord seul. Un bord hors de vue : cadre ouvert, coupé à la main au bord des courbes (le contexte SVG des exports ne sait pas découper). Peint avant M : les traits de M1/M2 passent devant. Pas de trait pointillé ni d'écart pour F — la fenêtre encadre, elle ne mesure pas. L'export SVG garde le cadre.
+    3. [analyseur.mts](src/webview/analyseur.mts) : `marqueurs` à 4 cases. `sauterTrame` (⏮ ⏭) décale F du saut de la vue → même place à l'écran. `suivreDeclenchementF()` (à chaque rendu) : le déclenchement tombé ailleurs (relance, nouveau run, autre réglage) décale F d'autant ; un déclenchement effacé ne compte pas, F attend le suivant. Clic du rappel F : F1/F2 au garage, M intacts. Bulles : F garé, rappel F.
+    4. Bancs réaccordés à la barre de 62 px : bits, voies-partagees, dht-vue, export, recharge, rendu, trames, zoom, [_diag-analyseur-gestes.mjs](scripts/_diag-analyseur-gestes.mjs).
+2. ✅ **Aide FR** [sonde-logique.md](docs/fr/composants/sonde-logique.md) : paragraphe F1/F2. CHANGELOG (et le « - - » en trop du rappel M corrigé).
+3. ✅ **Banc** nouveau [verify-analyseur-fenetre.mjs](scripts/verify-analyseur-fenetre.mjs) (`npm run verify:analyseur-fenetre`, port 9434, dans `verify:all`) : VRAIE souris en CDP — F1/F2 garés sous M1/M2, violets, rappel pâle, bulle ; F1 posé = un bord vertical 63,5 → h − 5,5, sans pointillé, vue immobile ; F2 collé au front à 5 px ; rectangle unique de F1 à F2, toutes pistes, opacité entre 0,2 et 0,8, vide (seuls les drapeaux sont remplis), pas d'écart ; déclenchement déplacé de 10 à 20 ms par le VRAI menu T → F à la même place de l'écran, M1 témoin emporté ; ⏭ puis ⏮ au VRAI clic → idem ; rappel F au clic → F au garage, M1 reste posé. 46 contrôles, `--ancien` : 36 échecs.
+    1. Typecheck et construction propres. Tous les bancs de l'analyseur verts. `verify:all` : 145/147 ; `verify:i18n` et `verify:help-bars` rouges attendus (traductions, cf. 4).
+4. ⏳ Traductions avant publication : [i18n.mts](src/webview/i18n.mts) — `Window marker {0}: drag it onto the curves. F1 and F2 frame a span that stays put on screen when ⏮ ⏭ jump to another frame, and follows the trigger: the same spot can be checked frame after frame.` et `Bring F1 and F2 back to their starting place`. Aide EN.
+5. ℹ️ Les marqueurs (M comme F) ne sont pas gardés dans le .projix : comme avant.
 
 ---
 

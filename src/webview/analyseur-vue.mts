@@ -57,8 +57,13 @@ const GRAD_H = 22;
  * écrits sur les graduations, ils les auraient masquées.
  */
 const BANDE_M = 20;
-/** Hauteur de la barre de temps entière : graduations et marqueurs. */
-const REGLE_H = GRAD_H + BANDE_M;
+/**
+ * Bande des marqueurs de fenêtre F1/F2, sous celle de M1/M2 (Frank, 26/09) :
+ * mêmes drapeaux, même garage, même rappel, une rangée plus bas.
+ */
+const BANDE_F = 20;
+/** Hauteur de la barre de temps entière : graduations et les deux bandes de marqueurs. */
+const REGLE_H = GRAD_H + BANDE_M + BANDE_F;
 
 /**
  * Couleurs des marqueurs : M1 bleu, M2 orangé (Frank, 25/09). Une variante par
@@ -68,8 +73,20 @@ const MARQUEUR_COULEUR = {
   clair: ['#0969da', '#d4731a'],
   sombre: ['#4493f8', '#f0883e'],
 } as const;
-/** Noms des marqueurs, jamais traduits (ce sont des repères, comme sur un oscilloscope). */
-const NOMS_MARQUEUR = ['M1', 'M2'] as const;
+/**
+ * Couleur de la fenêtre F1/F2 : ses deux drapeaux et le cadre tendu entre eux.
+ * Une seule teinte, prise hors de la palette des voies et des marqueurs M.
+ */
+const FENETRE_COULEUR = { clair: '#8250df', sombre: '#a371f7' } as const;
+/** Opacité des bords du cadre de la fenêtre : on voit les courbes au travers. */
+const FENETRE_ALPHA = 0.45;
+/** Épaisseur des bords du cadre de la fenêtre. */
+const FENETRE_TRAIT = 3;
+/**
+ * Noms des marqueurs, jamais traduits (ce sont des repères, comme sur un
+ * oscilloscope). Indices 0-1 : M1/M2 ; 2-3 : la fenêtre F1/F2.
+ */
+const NOMS_MARQUEUR = ['M1', 'M2', 'F1', 'F2'] as const;
 /** Largeur d'un drapeau de marqueur. */
 const DRAPEAU_W = 24;
 /** Hauteur d'un drapeau de marqueur. */
@@ -80,8 +97,19 @@ const DRAPEAU_H = 14;
  * plus ; un clic ramène les deux au garage.
  */
 const RAPPEL_W = 18;
-/** Abscisse du centre d'un marqueur garé, dans la colonne de gauche, après le bouton de rappel. */
-const xGare = (m: number): number => COL_X + RAPPEL_W + 6 + DRAPEAU_W / 2 + m * (DRAPEAU_W + 6);
+/**
+ * Abscisse du centre d'un marqueur garé, dans la colonne de gauche, après le
+ * bouton de rappel. F1 et F2 se garent sous M1 et M2.
+ */
+const xGare = (m: number): number => COL_X + RAPPEL_W + 6 + DRAPEAU_W / 2 + (m % 2) * (DRAPEAU_W + 6);
+
+/** Groupe de marqueurs : M1/M2 (mesure) ou F1/F2 (fenêtre). */
+export type GroupeMarqueurs = 'M' | 'F';
+/** Premier indice et haut de bande de chaque groupe. */
+const GROUPES: Record<GroupeMarqueurs, { premier: number; haut: number; bande: number }> = {
+  M: { premier: 0, haut: GRAD_H, bande: BANDE_M },
+  F: { premier: 2, haut: GRAD_H + BANDE_M, bande: BANDE_F },
+};
 
 /**
  * Corps du nom de voie, en pixels. Deux fois et demie la graduation : le nom
@@ -340,8 +368,8 @@ export interface EtatRendu {
   textes: TextesVue;
   lang: string;
   /**
-   * Instants de M1 et M2, en ms simulées ; null = garé à gauche de la barre de
-   * temps. Absent = les deux garés.
+   * Instants de M1, M2, F1 et F2, en ms simulées ; null = garé à gauche de la
+   * barre de temps. Absent (ou plus court) = garés.
    */
   marqueurs?: ReadonlyArray<number | null>;
   /** Marqueur tenu à la souris : dessiné par-dessus l'autre. */
@@ -363,19 +391,19 @@ export class AnalyseurVue {
   private zones: ZoneBouton[] = [];
   /** Zones de prise des marqueurs, dans l'ordre du dessin (le dernier est dessus). */
   private zonesMarqueurs: ZoneMarqueur[] = [];
-  /** Bouton de rappel des marqueurs ; null quand les deux sont déjà garés. */
-  private zoneRappel: Omit<ZoneMarqueur, 'm'> | null = null;
+  /** Boutons de rappel qui servent (un groupe dont les deux sont garés n'en a pas). */
+  private zonesRappel: Array<Omit<ZoneMarqueur, 'm'> & { g: GroupeMarqueurs }> = [];
 
   constructor(private readonly canvas: HTMLCanvasElement) {}
 
-  /** Vrai si le point tombe sur le bouton de rappel des marqueurs, et qu'il sert. */
-  rappelA(x: number, y: number): boolean {
-    const z = this.zoneRappel;
-    return !!z && x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h;
+  /** Groupe dont le bouton de rappel est sous le point, s'il sert ; sinon null. */
+  rappelA(x: number, y: number): GroupeMarqueurs | null {
+    const z = this.zonesRappel.find((z) => x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h);
+    return z?.g ?? null;
   }
 
   /**
-   * Marqueur sous un point (0 = M1, 1 = M2), ou null. Le drapeau se prend
+   * Marqueur sous un point (0 = M1, 1 = M2, 2 = F1, 3 = F2), ou null. Le drapeau se prend
    * partout ; un marqueur posé se prend aussi par son trait, à quelques pixels
    * près — viser un trait d'un pixel à la souris serait une punition.
    */
@@ -452,7 +480,7 @@ export class AnalyseurVue {
     ctx.clearRect(0, 0, w, h);
     this.zones = [];
     this.zonesMarqueurs = [];
-    this.zoneRappel = null;
+    this.zonesRappel = [];
     this.peindre(ctx, e, w, h);
   }
 
@@ -1253,13 +1281,17 @@ export class AnalyseurVue {
   }
 
   /**
-   * Marqueurs M1 et M2 (Frank, 25/09). Garés, ils attendent à gauche de la
-   * barre de temps ; posés, leur drapeau suit leur instant et un trait de leur
-   * couleur descend sur toutes les pistes. Posés tous les deux, une flèche les
-   * relie et dit l'écart qui les sépare.
+   * Marqueurs, en deux groupes d'une bande chacun sous les graduations : M1/M2
+   * mesurent (Frank, 25/09), F1/F2 encadrent (Frank, 26/09). Garés, ils
+   * attendent à gauche de leur bande ; posés, leur drapeau suit leur instant.
+   *
+   * M1 et M2 posés tracent chacun un trait de leur couleur sur toutes les
+   * pistes, et tous les deux une flèche qui dit leur écart. F1 et F2 tendent
+   * entre eux un cadre vide qui couvre toutes les pistes : on y range ce qu'on
+   * veut retrouver d'une trame à l'autre.
    *
    * Un marqueur posé hors de la fenêtre n'a ni drapeau ni trait : une pointe de
-   * sa couleur, au bord, dit de quel côté le chercher.
+   * sa couleur, au bord de sa bande, dit de quel côté le chercher.
    */
   private marqueurs(
     ctx: CanvasRenderingContext2D,
@@ -1270,40 +1302,138 @@ export class AnalyseurVue {
     sombre: boolean,
     police: string
   ): void {
-    const teintes = sombre ? MARQUEUR_COULEUR.sombre : MARQUEUR_COULEUR.clair;
-    const xMin = MARGE_G;
-    const xMax = w - MARGE_D;
-    const yD = GRAD_H + (BANDE_M - DRAPEAU_H) / 2;
-    const yMilieu = yD + DRAPEAU_H / 2;
-    const ts = [0, 1].map((m) => e.marqueurs?.[m] ?? null);
+    const ts = [0, 1, 2, 3].map((m) => e.marqueurs?.[m] ?? null);
     const xs = ts.map((t) => (t === null ? null : this.xDe(t, e.fenetre, w)));
+    const tm = sombre ? MARQUEUR_COULEUR.sombre : MARQUEUR_COULEUR.clair;
+    const tf = sombre ? FENETRE_COULEUR.sombre : FENETRE_COULEUR.clair;
     ctx.save();
     ctx.textBaseline = 'middle';
     ctx.font = `bold 10px ${police}`;
+    // Le cadre d'abord : les traits de M1 et M2 passent devant.
+    this.cadreFenetre(ctx, xs[2] ?? null, xs[3] ?? null, w, h, tf, !!e.export);
+    this.groupe(ctx, e, 'M', ts, xs, [tm[0], tm[1]], w, h, fg, sombre);
+    this.groupe(ctx, e, 'F', ts, xs, [tf, tf], w, h, fg, sombre);
+    ctx.restore();
+  }
 
-    if (xs[0] != null && xs[1] != null) {
-      this.ecart(ctx, e, Math.abs(ts[1]! - ts[0]!), xs[0], xs[1], xMin, xMax, yMilieu, fg, sombre);
+  /**
+   * Cadre de la fenêtre F1/F2 (Frank, 26/09) : vide, à bords semi-transparents
+   * pour laisser voir les courbes, de la première piste à la dernière. Un seul
+   * F posé n'en trace que le bord. Coupé à la main aux bords de la zone des
+   * courbes : le contexte SVG des exports ne sait pas découper.
+   */
+  private cadreFenetre(
+    ctx: CanvasRenderingContext2D,
+    x1: number | null,
+    x2: number | null,
+    w: number,
+    h: number,
+    couleur: string,
+    exporte: boolean
+  ): void {
+    const bords = [x1, x2].filter((x): x is number => x !== null).map((x) => Math.round(x) + 0.5);
+    if (bords.length === 0) return;
+    const xMin = MARGE_G;
+    const xMax = w - MARGE_D;
+    // À l'export, un bord posé sur la fin du tracé y tombe au pixel près : la
+    // grâce des drapeaux, plus le demi-pixel du calage.
+    const tol = exporte ? 1 : 0;
+    const dedans = (x: number): boolean => x >= xMin - tol && x <= xMax + tol;
+    const yH = REGLE_H + FENETRE_TRAIT / 2;
+    const yB = h - 4 - FENETRE_TRAIT / 2;
+    ctx.save();
+    ctx.globalAlpha = FENETRE_ALPHA;
+    ctx.strokeStyle = couleur;
+    ctx.lineWidth = FENETRE_TRAIT;
+    ctx.lineJoin = 'miter';
+    ctx.setLineDash([]);
+    // Un seul chemin, tracé d'un coup : les coins ne foncent pas sous deux
+    // couches de transparence.
+    ctx.beginPath();
+    if (bords.length === 1) {
+      if (dedans(bords[0]!)) {
+        ctx.moveTo(bords[0]!, yH);
+        ctx.lineTo(bords[0]!, yB);
+      }
+    } else {
+      const a = Math.min(bords[0]!, bords[1]!);
+      const b = Math.max(bords[0]!, bords[1]!);
+      if (b >= xMin && a <= xMax) {
+        const ga = Math.max(a, xMin);
+        const gb = Math.min(b, xMax);
+        const gauche = dedans(a);
+        const droite = dedans(b);
+        if (gauche && droite) {
+          ctx.rect(a, yH, b - a, yB - yH);
+        } else if (gauche) {
+          ctx.moveTo(gb, yH);
+          ctx.lineTo(a, yH);
+          ctx.lineTo(a, yB);
+          ctx.lineTo(gb, yB);
+        } else if (droite) {
+          ctx.moveTo(ga, yH);
+          ctx.lineTo(b, yH);
+          ctx.lineTo(b, yB);
+          ctx.lineTo(ga, yB);
+        } else {
+          ctx.moveTo(ga, yH);
+          ctx.lineTo(gb, yH);
+          ctx.moveTo(ga, yB);
+          ctx.lineTo(gb, yB);
+        }
+      }
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /** Un groupe de marqueurs dans sa bande : rappel, drapeaux, traits (M) et écart (M). */
+  private groupe(
+    ctx: CanvasRenderingContext2D,
+    e: EtatRendu,
+    g: GroupeMarqueurs,
+    ts: Array<number | null>,
+    xs: Array<number | null>,
+    teintes: [string, string],
+    w: number,
+    h: number,
+    fg: string,
+    sombre: boolean
+  ): void {
+    const { premier, haut, bande } = GROUPES[g];
+    const xMin = MARGE_G;
+    const xMax = w - MARGE_D;
+    const yD = haut + (bande - DRAPEAU_H) / 2;
+    const yMilieu = yD + DRAPEAU_H / 2;
+    const a = premier;
+    const b = premier + 1;
+    const xa = xs[a] ?? null;
+    const xb = xs[b] ?? null;
+
+    // La fenêtre encadre, elle ne mesure pas : l'écart n'est écrit que pour M.
+    if (g === 'M' && xa !== null && xb !== null) {
+      this.ecart(ctx, e, Math.abs(ts[b]! - ts[a]!), xa, xb, xMin, xMax, yMilieu, fg, sombre);
     }
 
-    // Le rappel ne sert que si un marqueur est posé : sinon il reste pâle et
-    // ne se prend pas. L'export n'en a que faire, comme des marqueurs garés et
-    // des pointes de bord : ils servent à manier la vue, pas à la lire.
-    const unPose = ts.some((t) => t !== null);
+    // Le rappel ne sert que si un marqueur du groupe est posé : sinon il reste
+    // pâle et ne se prend pas. L'export n'en a que faire, comme des marqueurs
+    // garés et des pointes de bord : ils servent à manier la vue, pas à la lire.
+    const unPose = ts[a] !== null || ts[b] !== null;
     if (!e.export) {
       this.rappel(ctx, COL_X, yD, fg, unPose);
-      if (unPose) this.zoneRappel = { x: COL_X, y: GRAD_H, w: RAPPEL_W, h: BANDE_M };
+      if (unPose) this.zonesRappel.push({ g, x: COL_X, y: haut, w: RAPPEL_W, h: bande });
     }
 
     // Le marqueur tenu se dessine en dernier : c'est lui qu'on regarde, et il
     // doit passer devant l'autre quand on l'amène dessus.
-    const ordre = e.marqueurPris === 0 ? [1, 0] : [0, 1];
+    const ordre = e.marqueurPris === a ? [b, a] : [a, b];
     for (const m of ordre) {
-      const couleur = teintes[m]!;
+      const couleur = teintes[m - premier]!;
       const x = xs[m] ?? null;
       if (x === null) {
         if (e.export) continue;
         this.drapeau(ctx, m, xGare(m), yD, couleur);
-        this.zonesMarqueurs.push({ m, x: xGare(m) - DRAPEAU_W / 2, y: GRAD_H, w: DRAPEAU_W, h: BANDE_M });
+        this.zonesMarqueurs.push({ m, x: xGare(m) - DRAPEAU_W / 2, y: haut, w: DRAPEAU_W, h: bande });
         continue;
       }
       // Un marqueur exporté sur le bord droit tombe au pixel près sur la fin du
@@ -1322,23 +1452,25 @@ export class AnalyseurVue {
         continue;
       }
       // Trait en pointillés (Frank, 25/09) : il ne masque pas le front qu'il
-      // mesure, et ne se confond pas avec les tirets du déclenchement.
-      ctx.strokeStyle = couleur;
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([2, 3]);
-      ctx.beginPath();
-      ctx.moveTo(Math.round(x) + 0.5, yD + DRAPEAU_H);
-      ctx.lineTo(Math.round(x) + 0.5, h);
-      ctx.stroke();
-      ctx.setLineDash([]);
+      // mesure, et ne se confond pas avec les tirets du déclenchement. F1 et F2
+      // n'en ont pas : le bord du cadre en tient lieu.
+      if (g === 'M') {
+        ctx.strokeStyle = couleur;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([2, 3]);
+        ctx.beginPath();
+        ctx.moveTo(Math.round(x) + 0.5, yD + DRAPEAU_H);
+        ctx.lineTo(Math.round(x) + 0.5, h);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
       this.drapeau(ctx, m, x, yD, couleur);
       if (e.export) continue;
       this.zonesMarqueurs.push(
         { m, x: x - 4, y: REGLE_H, w: 8, h: h - REGLE_H },
-        { m, x: x - DRAPEAU_W / 2, y: GRAD_H, w: DRAPEAU_W, h: BANDE_M }
+        { m, x: x - DRAPEAU_W / 2, y: haut, w: DRAPEAU_W, h: bande }
       );
     }
-    ctx.restore();
   }
 
   /** Bouton de rappel : cadre arrondi, flèche vers la gauche, à la couleur du texte. */
@@ -1544,6 +1676,7 @@ export const DISPOSITION = {
   REGLE_H,
   GRAD_H,
   BANDE_M,
+  BANDE_F,
   DRAPEAU_W,
   CRENEAU_H,
   NOM_PX,

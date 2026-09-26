@@ -475,13 +475,13 @@ console.log('C. page');
  const post = (m) => window.dispatchEvent(new MessageEvent('message', { data: m }));
  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
  const cv = document.getElementById('trace');
- // Pixels peints piste par piste : barre de temps 42, puis 64 par piste.
+ // Pixels peints piste par piste : barre de temps 62, puis 64 par piste.
  const parPiste = (n) => {
   const g = cv.getContext('2d');
   const k = cv.height / Math.max(1, cv.clientHeight);
   const out = [];
   for (let i = 0; i < n; i++) {
-   const d = g.getImageData(110, Math.round((42 + i * 64) * k), cv.width - 130, Math.round(64 * k)).data;
+   const d = g.getImageData(110, Math.round((62 + i * 64) * k), cv.width - 130, Math.round(64 * k)).data;
    let c = 0;
    for (let j = 3; j < d.length; j += 4) if (d[j] > 0) c++;
    out.push(c);
