@@ -93,10 +93,9 @@ const ATTENDU = {
   repl: [/REPL/, /REPL/],
   'toggle-serial': [/moniteur série/i, /serial monitor/i],
   'toggle-plotter': [/traceur/i, /plotter/i],
-  // Plus de bouton `open-analyseur` depuis v2026.9.4.90 : c'est la SONDE qui
-  // déclenche l'analyseur (onglet ouvert au lancement dès qu'une pince est
-  // posée). Il n'y a donc plus de bouton de barre à documenter ici — l'aide de
-  // l'analyseur se lit dans docs/fr/USAGE.md, à la sonde.
+  // C'est toujours la SONDE qui ouvre l'analyseur (v2026.9.4.90) ; ce bouton,
+  // revenu le 26/09, ne fait que ROUVRIR un onglet fermé.
+  'open-analyseur': [/rouvrir l'analyseur logique/i, /reopen the logic analy[sz]er/i],
   'toggle-faults': [/explications de défaut/i, /fault explanations/i],
   // Barre de dessin
   'internal-toggle': [/schéma interne/i, /internal schematic/i],

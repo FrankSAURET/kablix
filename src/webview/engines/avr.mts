@@ -751,7 +751,10 @@ export class AvrEngine implements SimEngine {
     const TX = this.brochesTx();
     this.uartTxSondee = [];
     this.uartFinTrameUs.clear();
-    for (const name of names) {
+    // Une broche une seule fois, même sous plusieurs pinces : sinon chaque
+    // octet est versé autant de fois, bout à bout, dans le même journal (cf.
+    // pico.mts).
+    for (const name of new Set(names)) {
       const usart = TX[name];
       if (usart === undefined) continue;
       (this.uartTxSondee[usart] ??= []).push(name);

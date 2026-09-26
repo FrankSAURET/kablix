@@ -1,5 +1,5 @@
 # À faire
-1. 
+
 ## fait
 
 
@@ -8,6 +8,34 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.157
+1. ✅ **Ton icône Kablix** (« J'ai refait mon icone kablix. Tu ne la modifies plus. STP. Et c'est celle-ci qui est celle des fichier projix »). [media/kablix.ico](media/kablix.ico) enregistré tel que tu l'as livré (165 Ko), sans y toucher. Consigne gardée en mémoire : plus jamais modifié ni régénéré. Aucun script du projet ne le réécrit. `refreshProjixIcon` (lot .156) remplacera la copie de `%LOCALAPPDATA%\Kablix` au prochain lancement, puisqu'elle diffère du paquet.
+2. ✅ **dmx-pico : 17 canaux dans le désordre pour 4 envoyés.** Cause : ton schéma pose trois pinces (Sig, DMX+, DMX−) qui remontent toutes à GP0. Le moteur branchait le journal UART une fois PAR PINCE : chaque octet y était versé trois fois, bout à bout. Une trame de 6 octets se lisait START code + 17 canaux, valeurs en triple. [pico.mts](src/webview/engines/pico.mts) et [avr.mts](src/webview/engines/avr.mts) `setLogicProbes` : une broche une seule fois (`new Set(names)`).
+3. ✅ **Bouton de rappel de M1 et M2** (« Si on zoom on peut perdre les curseurs M1 et M2… un bouton flèche vers la gauche qui les ramène dans leur position initiale… tout à gauche de la marge »). [analyseur-vue.mts](src/webview/analyseur-vue.mts) : flèche ← dessinée tout à gauche de la bande des marqueurs (`RAPPEL_W` = 18 px, `zoneRappel`, `rappelA`), pâle tant qu'aucun marqueur n'est posé ; le garage de M1 et M2 décalé d'autant. [analyseur.mts](src/webview/analyseur.mts) : un clic les renvoie au garage ; curseur main et info-bulle au survol.
+4. ✅ **dmx-uno : chaque trame répétée « plein de fois » avant la suivante.** Deux choses mêlées :
+    1. **Défaut réel** : DmxSimple ne tient le BREAK que 76,6 µs avec ton binaire (onze `delayMicroseconds(8)`), sous les 88 µs de la norme. L'analyseur le lisait en octet mal cadré, et toute la suite en une trame géante où c1-c4 revenaient jusqu'à c512. [analyseur-decodage.mts](src/webview/analyseur-decodage.mts) `breakDmxMinMs` : seuil = min(88 µs, un créneau de 11 bits) − 1 ns, comme un vrai récepteur (un octet valable n'est jamais bas plus de 9 bits). Étiquette `BREAK 76,6 µs < 88 µs` quand il est court. Même seuil au déclenchement `START code` ([analyseur-capture.mts](src/webview/analyseur-capture.mts)).
+    2. **Comportement réel, pas un défaut** : DmxSimple renvoie tout l'univers en boucle, une trame toutes les ~2 ms, soit ~490 trames identiques par couleur tenue une seconde. C'est ce que montre un vrai analyseur.
+5. ✅ **Bouton Analyseur dans la barre de simulation** (« Dans media\icones.svg, j'ai rajouté une icone Analyseur… Il n'apparaîtra que si une simulation avec analyseur logique existe et a été fermée et permettra de la rouvrir »). Icône extraite de ta planche : [media/analyseur.svg](media/analyseur.svg) (`_extract-icon.mjs Analyseur`). Bouton `#open-analyseur` caché par défaut ([webview-html.ts](src/webview-html.ts)). Visible quand trois conditions tiennent :
+    1. une pince sur le schéma — seule la page le sait ([sim.mts](src/webview/sim.mts) `majBoutonAnalyseur`) ;
+    2. quelque chose à rouvrir : onglet déjà vu ouvert dans la session, mesure au journal, ou capture d'un ancien .projix — seul l'hôte le sait ;
+    3. l'onglet fermé.
+   Hôte : [analyseur-panel.ts](src/analyseur-panel.ts) prévient à chaque ouverture, fermeture ou changement de clé (`surChangement`, simple ensemble d'écouteurs : les faux `vscode` des bancs n'ont pas d'`EventEmitter`). [panel.ts](src/panel.ts) `signalerAnalyseur` envoie `analyseurOnglet {ouvert, rouvrable}` sans doublon, et le redit à une page rechargée. Un clic poste `openAnalyseur`. La sonde ouvre toujours l'analyseur d'elle-même au lancement.
+6. ✅ **Aide FR** : [USAGE.md](docs/fr/USAGE.md) (barre de simulation : « rouvrir l'analyseur logique ») et [sonde-logique.md](docs/fr/composants/sonde-logique.md) (onglet fermé par mégarde).
+7. ✅ **Bancs** :
+    1. Nouveau [verify-analyseur-bouton.mjs](scripts/verify-analyseur-bouton.mjs) (`verify:analyseur-bouton`, port 9431, dans `verify:all:serie`). Volet hôte : vrai constructeur (`createForHost`), parcours prêt → run → ouvert → fermé → page rechargée → rouvert, second atelier sans effet sur le premier, ancien .projix. Volet page : vrais HTML, CSS et `sim.mts` en Chrome, icône chargée, VRAI clic en CDP. **31 contrôles verts.** Contre-épreuve `--ancien` : 25 échecs ; `sim.mts` seul en HEAD : 3 échecs ; `analyseur-panel.ts` seul : échec nommé.
+    2. [verify-dmx.mjs](scripts/verify-dmx.mjs) : trois pinces sur GP0, canaux comptés par trame, trames DmxSimple séparées. **115 contrôles verts** ; `--ancien` rouge.
+    3. [verify-analyseur.mjs](scripts/verify-analyseur.mjs) : BREAK DmxSimple de 76,6 µs, seuil `breakDmxMinMs`, bouton de réouverture dans les sources ; `--ancien` rouge.
+    4. [verify-analyseur-marqueurs.mjs](scripts/verify-analyseur-marqueurs.mjs) : étape 5, rappel à la vraie souris après un zoom à la molette ; `--ancien` rouge.
+    5. [verify-help-bars.mjs](scripts/verify-help-bars.mjs) : `#open-analyseur` exigé dans l'aide.
+8. ✅ **Tests** : `typecheck` et construction verts. `verify:all` : 145 bancs en 678 s, 136 verts. Rouges :
+    1. 6 bancs Chrome de l'analyseur (trames, voies-partagees, zoom, bouton, dht-vue, bits), lancés ensemble au départ : « Chrome ne répond pas sur le port ». Rejoués seuls : tous verts (22, 22, 15, 31, vert, 43).
+    2. `verify:deleted-file` : vrai défaut de banc. `updateTitle` prévient désormais la page (`signalerAnalyseur`), et le squelette d'atelier du banc n'avait pas de `post`. [verify-deleted-file.mjs](scripts/verify-deleted-file.mjs) : `post` muet ajouté. **34 contrôles verts.**
+    3. `verify:i18n` et `verify:help-bars` : traductions EN attendues (point 10), rouges comme prévu.
+9. ℹ️ Le binaire compilé par les bancs, du même `dmx-uno-lib.ino`, tient le BREAK 95,7 µs : le cas court est prouvé sur une trame synthétique de 76,6 µs.
+10. ⏳ Traductions avant publication : `Bring M1 and M2 back to their starting place` ([i18n.mts](src/webview/i18n.mts)), `Reopen the logic analyzer` (`l10n/bundle.l10n.fr.json`), aide EN ([USAGE.md](docs/en/USAGE.md) : `verify:help-bars` l'attend, [sonde-logique.md](docs/en/composants/sonde-logique.md)).
 
 ---
 

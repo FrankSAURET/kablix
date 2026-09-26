@@ -264,6 +264,7 @@ const closeSerialBtn = document.getElementById('close-serial') as HTMLButtonElem
 const toggleSerialBtn = document.getElementById('toggle-serial') as HTMLButtonElement;
 const plotterSection = document.getElementById('plotter-section') as HTMLElement;
 const togglePlotterBtn = document.getElementById('toggle-plotter') as HTMLButtonElement;
+const openAnalyseurBtn = document.getElementById('open-analyseur') as HTMLButtonElement;
 const toggleFaultsBtn = document.getElementById('toggle-faults') as HTMLButtonElement;
 const closePlotterBtn = document.getElementById('close-plotter') as HTMLButtonElement;
 const canvas = document.getElementById('canvas') as HTMLDivElement;
@@ -730,13 +731,33 @@ closePlotterBtn.addEventListener('click', () => setPlotterVisible(false));
 /**
  * Ouvre l'onglet de l'analyseur logique et lui déclare les voies dans le même
  * geste — l'hôte lui répond avec l'état courant dès qu'il est prêt.
- * Appelée au lancement de la simulation quand au moins une pince est posée : il
- * n'y a PAS de bouton pour l'analyseur (Frank, v2026.9.4.90), la sonde suffit.
+ * Appelée au lancement de la simulation quand au moins une pince est posée (la
+ * sonde suffit, Frank v2026.9.4.90), et par le bouton qui ROUVRE un onglet
+ * fermé (Frank, 26/09).
  */
 function ouvrirAnalyseur(): void {
   vscode.postMessage({ type: 'openAnalyseur' });
   pousserVoiesLogiques();
 }
+
+/**
+ * Onglet de l'analyseur tel que l'hôte le voit (message `analyseurOnglet`) :
+ * ouvert ou non, et s'il y a de quoi le rouvrir — onglet déjà ouvert dans la
+ * session, mesure au journal, capture d'un ancien projet.
+ */
+let ongletAnalyseur = { ouvert: false, rouvrable: false };
+
+/**
+ * Bouton de réouverture de l'analyseur : visible seulement quand l'analyseur
+ * existe (au moins une pince sur le schéma), qu'il a déjà servi, et que son
+ * onglet est fermé. Ouvert, il n'a rien à rouvrir ; sans pince, rien à montrer.
+ */
+function majBoutonAnalyseur(): void {
+  openAnalyseurBtn.hidden = !(
+    logicProbes.length > 0 && ongletAnalyseur.rouvrable && !ongletAnalyseur.ouvert
+  );
+}
+openAnalyseurBtn.addEventListener('click', () => ouvrirAnalyseur());
 
 /** Titre du panneau série : « Console » pour un Pico, « Moniteur série » sinon. */
 function updateSerialTitle(): void {
@@ -1690,6 +1711,7 @@ function pousserVoiesLogiques(): void {
   logicProbes = logicProbeVoies(editor.diagram);
   engine?.setLogicProbes?.(logicProbes.filter((v) => v.pin).map((v) => v.pin!));
   colorerSondesReliees();
+  majBoutonAnalyseur(); // dernière pince retirée : plus rien à rouvrir
   vscode.postMessage({
     type: 'analyseurVoies',
     voies: logicProbes.map((v) => ({
@@ -5556,6 +5578,11 @@ window.addEventListener('message', (event: MessageEvent) => {
         Array.isArray(msg.hidden) ? (msg.hidden as string[]) : [],
         (msg.bases as Record<string, string>) ?? {},
       );
+      break;
+    case 'analyseurOnglet':
+      // L'onglet de l'analyseur s'est ouvert ou fermé (cf. signalerAnalyseur).
+      ongletAnalyseur = { ouvert: msg.ouvert === true, rouvrable: msg.rouvrable === true };
+      majBoutonAnalyseur();
       break;
     case 'projectName': {
       // Nom du projet courant (sans chemin), affiché à côté du bouton d'aide.

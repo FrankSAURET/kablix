@@ -12,6 +12,9 @@
 //   tracent un trait de leur couleur ; posés tous deux, une flèche dit leur
 //   écart ; ramenés dans la colonne des noms, ils retournent au garage. Un
 //   marqueur se prend aussi par son trait, sans faire défiler la vue.
+// - Bouton de rappel tout à gauche de la bande (Frank, 26/09) : après un zoom
+//   qui a fait sortir M1 et M2 de la vue, un clic les ramène tous deux au
+//   garage. Pâle et sans effet tant qu'aucun marqueur n'est posé.
 //
 // Vrai HTML de l'onglet, vrai analyseur.mts, Chrome headless piloté en CDP brut
 // (`Input.dispatchMouseEvent`) : le réticule suit un vrai `pointermove`, pas un
@@ -182,6 +185,8 @@ try {
 	};
 	const bordG = (p) => (p.align === 'center' ? p.x - p.w / 2 : p.align === 'right' ? p.x - p.w : p.x);
 	const seCouvrent = (a, b) => bordG(a) < bordG(b) + b.w && bordG(b) < bordG(a) + a.w;
+	/** Hampe de la flèche du bouton de rappel : petit rectangle plein dans la bande, colonne des noms. */
+	const boutonRappel = (vu) => vu.find((p) => p.quoi === 'rect' && p.y > 22 && p.y + p.h < 42 && p.h <= 3 && p.w <= 8 && p.x < 104) ?? null;
 
 	const THEMES = [
 		{ nom: 'sombre', classe: 'vscode-dark', fond: '#1f1f1f', texte: '#cccccc' },
@@ -257,6 +262,12 @@ try {
 		}
 		const traitsGares = gar.filter((p) => p.quoi === 'lineTo' && p.lw === 1.5 && p.y >= boite.h - 1);
 		check('garés, les marqueurs ne tracent aucun trait', traitsGares.length === 0, `${traitsGares.length} trait(s)`);
+		const m1Gare = gar.find((p) => p.quoi === 'texte' && p.t === 'M1');
+		const rappel = boutonRappel(gar);
+		check('le bouton de rappel est tout à gauche de la bande, avant M1',
+			!!rappel && !!m1Gare && rappel.x < bordG(m1Gare) - 12 && rappel.x < 30,
+			rappel ? `flèche à ${rappel.x.toFixed(1)}, M1 à ${m1Gare?.x.toFixed(1)}` : 'absent');
+		check('garés tous les deux, le bouton de rappel est pâle', rappel?.alpha < 0.5, String(rappel?.alpha));
 
 		if (dossierImage) {
 			await bouger(boite.w - 200, 120);
@@ -297,14 +308,17 @@ try {
 	let vu = await releve();
 	const xDe = echelle(vu);
 	const Y_BANDE = 32;
+	// Places du garage, relues sur le dessin : le bouton de rappel les a décalées.
+	const xG1 = Math.round(drapeauDe(vu, 'M1')?.x ?? 20);
+	const xG2 = Math.round(drapeauDe(vu, 'M2')?.x ?? 50);
 
 	// Sur M1 garé, le curseur annonce la prise.
-	await bouger(20, Y_BANDE);
+	await bouger(xG1, Y_BANDE);
 	await attendre(60);
 	check('le curseur annonce la prise en survolant M1', (await ev(`document.getElementById('trace').style.cursor`)) === 'ew-resize');
 
 	// M1 lâché à 5 px d'un front (t = 5 ms) : il s'y colle.
-	await glisser(20, Y_BANDE, xDe(5) + 5, Y_BANDE);
+	await glisser(xG1, Y_BANDE, xDe(5) + 5, Y_BANDE);
 	vu = await releve();
 	const m1 = drapeauDe(vu, 'M1');
 	check('M1 lâché à 5 px d\'un front s\'y colle', !!m1 && Math.abs(m1.x - xDe(5)) < 0.8,
@@ -315,7 +329,7 @@ try {
 		t1.map((p) => p.x.toFixed(1)).join(',') || 'aucun');
 
 	// M2 lâché à 4 px d'un front (t = 8 ms) : collé aussi, et la flèche dit 3 ms.
-	await glisser(50, Y_BANDE, xDe(8) - 4, Y_BANDE);
+	await glisser(xG2, Y_BANDE, xDe(8) - 4, Y_BANDE);
 	vu = await releve();
 	const m2 = drapeauDe(vu, 'M2');
 	check('M2 lâché à 4 px d\'un front s\'y colle', !!m2 && Math.abs(m2.x - xDe(8)) < 0.8,
@@ -356,12 +370,50 @@ try {
 	await glisser(Math.round(m1c.x), Y_BANDE, 60, Y_BANDE);
 	vu = await releve();
 	const m1d = drapeauDe(vu, 'M1');
-	check('M1 ramené dans la colonne des noms retourne au garage', !!m1d && Math.abs(m1d.x - 20) < 1, m1d ? `x ${m1d.x.toFixed(1)}` : 'absent');
+	check('M1 ramené dans la colonne des noms retourne au garage', !!m1d && Math.abs(m1d.x - xG1) < 1, m1d ? `x ${m1d.x.toFixed(1)}` : 'absent');
 	check('garé, M1 ne trace plus de trait', traitsDe(vu, bleu).length === 0);
 	check('un seul marqueur posé : plus d\'écart écrit',
 		!vu.some((p) => p.quoi === 'texte' && p.y > 22 && p.y < 42 && / (ms|µs)$/.test(p.t)));
+
+	// --- 5. Bouton de rappel, à la vraie souris ---------------------------------
+	// M1 reposé à côté de M2, puis un zoom à la molette, loin à droite : les deux
+	// sortent de la vue (Frank, 26/09 : « si on zoome on peut perdre les curseurs »).
+	console.log('Bouton de rappel');
+	await glisser(xG1, Y_BANDE, Math.round(boite.w / 2), Y_BANDE);
+	vu = await releve();
+	check('témoin : M1 et M2 posés, le bouton de rappel est vif', boutonRappel(vu)?.alpha === 1, String(boutonRappel(vu)?.alpha));
+	for (let k = 0; k < 12; k++) {
+		await cdp('Input.dispatchMouseEvent', { type: 'mouseWheel', x: Math.round(boite.left + boite.w - 30), y: Math.round(boite.top + 150), deltaX: 0, deltaY: -120 });
+		await attendre(20);
+	}
+	vu = await releve();
+	check('témoin : après le zoom, ni M1 ni M2 n\'est plus dans la vue',
+		!drapeauDe(vu, 'M1') && !drapeauDe(vu, 'M2'),
+		['M1', 'M2'].map((n) => `${n} ${drapeauDe(vu, n)?.x.toFixed(0) ?? 'hors vue'}`).join(', '));
+	const bouton = boutonRappel(vu);
+	const xBouton = Math.round(bouton?.x ?? 17);
+	await bouger(xBouton, Y_BANDE);
+	// Relevé souris sur le bouton : ailleurs, l'instant du réticule masquerait
+	// une graduation et la comparaison d'après le clic ne vaudrait rien.
+	const graduationsAvant = (await releve()).filter((p) => p.quoi === 'texte' && p.align === 'center' && p.y < 22).map((p) => p.t).join('|');
+	check('le curseur annonce un bouton en survolant le rappel',
+		(await ev(`document.getElementById('trace').style.cursor`)) === 'pointer');
+	check('une infobulle dit ce que fait le bouton',
+		/M1.*M2/.test(await ev(`document.getElementById('trace').title`)), await ev(`document.getElementById('trace').title`));
+	await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: Math.round(boite.left + xBouton), y: Math.round(boite.top + Y_BANDE), button: 'left', buttons: 1, clickCount: 1 });
+	await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: Math.round(boite.left + xBouton), y: Math.round(boite.top + Y_BANDE), button: 'left', buttons: 0, clickCount: 1 });
+	vu = await releve();
+	const m1r = drapeauDe(vu, 'M1');
+	const m2r = drapeauDe(vu, 'M2');
+	check('un clic sur le rappel ramène M1 au garage', !!m1r && Math.abs(m1r.x - xG1) < 1, m1r ? `x ${m1r.x.toFixed(1)}` : 'absent');
+	check('et M2 aussi', !!m2r && Math.abs(m2r.x - xG2) < 1, m2r ? `x ${m2r.x.toFixed(1)}` : 'absent');
+	check('ramenés, ils ne tracent plus de trait',
+		vu.filter((p) => p.quoi === 'lineTo' && p.lw === 1.5 && p.y >= boite.h - 1).length === 0);
+	check('le clic ne fait ni défiler ni zoomer la vue',
+		vu.filter((p) => p.quoi === 'texte' && p.align === 'center' && p.y < 22).map((p) => p.t).join('|') === graduationsAvant);
+	check('rien à ramener : le bouton redevient pâle', boutonRappel(vu)?.alpha < 0.5, String(boutonRappel(vu)?.alpha));
 	if (dossierImage) {
-		await glisser(20, Y_BANDE, Math.round(xDe(5)) + 100, Y_BANDE);
+		await glisser(xG1, Y_BANDE, Math.round(xDe(5)) + 100, Y_BANDE);
 		await bouger(boite.w - 200, 120);
 		await attendre(250);
 		const png = await cdp('Page.captureScreenshot', { format: 'png' });

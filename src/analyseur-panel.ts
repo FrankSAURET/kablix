@@ -109,6 +109,13 @@ export class AnalyseurPanel {
   public static readonly viewType = 'kablix.analyseur';
   /** Un onglet par atelier, indexé par sa clé. */
   private static readonly ouverts = new Map<string, AnalyseurPanel>();
+  /**
+   * Qui veut savoir qu'un onglet s'ouvre ou se ferme : l'atelier, qui montre
+   * alors (ou cache) son bouton de réouverture. Un simple ensemble et pas un
+   * `vscode.EventEmitter` : les bancs chargent ce module sur un `vscode` de
+   * carton, et un champ statique qui l'exige casserait leur import.
+   */
+  private static readonly auditeurs = new Set<(cle: string) => void>();
 
   private readonly panel: vscode.WebviewPanel;
   private readonly disposables: vscode.Disposable[] = [];
@@ -167,6 +174,7 @@ export class AnalyseurPanel {
   ): AnalyseurPanel {
     const vue = new AnalyseurPanel(panel, cle);
     AnalyseurPanel.ouverts.set(cle, vue);
+    AnalyseurPanel.signaler(cle);
     // La clé est écrite DANS la page, qui la confiera à VS Code (setState) :
     // c'est elle qu'il nous rendra au prochain démarrage, et sans elle on ne
     // saurait pas à quel projet rattacher le panneau qu'il nous tend.
@@ -238,6 +246,16 @@ export class AnalyseurPanel {
     return AnalyseurPanel.ouverts.get(cle);
   }
 
+  /** Abonne `f` aux ouvertures et fermetures d'onglet ; il reçoit la clé. */
+  public static surChangement(f: (cle: string) => void): vscode.Disposable {
+    AnalyseurPanel.auditeurs.add(f);
+    return { dispose: () => { AnalyseurPanel.auditeurs.delete(f); } };
+  }
+
+  private static signaler(cle: string): void {
+    for (const f of AnalyseurPanel.auditeurs) f(cle);
+  }
+
   private constructor(panel: vscode.WebviewPanel, private cle: string) {
     this.panel = panel;
     this.panel.onDidDispose(() => this.onDispose(), null, this.disposables);
@@ -282,6 +300,7 @@ export class AnalyseurPanel {
       vue.cle = nouvelleCle;
       AnalyseurPanel.ouverts.set(nouvelleCle, vue);
     }
+    AnalyseurPanel.signaler(nouvelleCle);
   }
 
   /**
@@ -324,6 +343,7 @@ export class AnalyseurPanel {
   private onDispose(): void {
     AnalyseurPanel.ouverts.delete(this.cle);
     while (this.disposables.length) this.disposables.pop()?.dispose();
+    AnalyseurPanel.signaler(this.cle);
   }
 
   /** Page de l'onglet : barre d'outils, légende, canvas. Rien d'autre. */

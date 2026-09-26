@@ -5,7 +5,7 @@ from machine import UART, Pin
 import time
 
 ADRESSE = 1
-CANAUX = 5
+CANAUX = 4
 
 # 250 kbauds, 8 bits, sans parité, 2 bits de stop : c'est la trame DMX512.
 uart = UART(0, baudrate=250000, bits=8, parity=None, stop=2, tx=Pin(0))

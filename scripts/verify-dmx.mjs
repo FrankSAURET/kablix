@@ -15,22 +15,41 @@
 //      compilé par arduino-cli — UART → décodeur → univers ; les trois couleurs
 //      doivent ressortir, et le moniteur série rester propre.
 //
-//   node scripts/verify-dmx.mjs [--quick]
+//   node scripts/verify-dmx.mjs [--quick] [--ancien]
 //   --quick : étapes 1 à 3 (saute les bouts en bout, ~1 min de firmware).
+//   --ancien : contre-épreuve, pico.mts, avr.mts et analyseur-decodage.mts
+//   compilés dans leur version HEAD, sans toucher aux sources.
 import esbuild, { build as esbuildBuild } from 'esbuild';
 import JSZip from 'jszip';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { lireKompix } from './_lire-kompix.mjs';
 import { CARTES_PICO, firmwareAbsent, firmwarePico } from './_firmware.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const QUICK = process.argv.includes('--quick');
+const ANCIEN = process.argv.includes('--ancien');
 const tmp = mkdtempSync(join(tmpdir(), 'kablix-dmx-'));
+
+/**
+ * Remplace à la compilation les moteurs Pico et AVR et le décodeur de
+ * l'analyseur par leur version HEAD (`--ancien`).
+ */
+const versionHead = {
+	name: 'version-head',
+	setup(b) {
+		b.onLoad({ filter: /webview[\\/](engines[\\/](pico|avr)|analyseur-decodage)\.mts$/ }, (args) => {
+			const rel = relative(ROOT, args.path).replace(/\\/g, '/');
+			const contents = execFileSync('git', ['show', `HEAD:${rel}`], { cwd: ROOT, encoding: 'utf8' });
+			return { contents, loader: 'ts', resolveDir: dirname(args.path) };
+		});
+	},
+};
+if (ANCIEN) console.log('(contre-épreuve : pico.mts, avr.mts et analyseur-decodage.mts en version HEAD)');
 
 let fail = 0;
 let total = 0;
@@ -45,6 +64,7 @@ async function bundle(contents, name) {
 	await esbuild.build({
 		stdin: { contents, resolveDir: ROOT, loader: 'ts' },
 		outfile: out, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent',
+		plugins: ANCIEN ? [versionHead] : [],
 	});
 	return import(pathToFileURL(out).href);
 }
@@ -488,7 +508,10 @@ async function boutEnBout(nom, engine, pin, limiteMs, canaux, attendues = ATTEND
 	// .95 : l'UART émulé ne bouge PAS sa broche, l'octet part droit au décodeur
 	// DMX. Le projecteur changeait donc de couleur pendant que la sonde montrait
 	// une ligne parfaitement plate. On draine ici les fronts pour de vrai.
-	engine.setLogicProbes?.([pin]);
+	// TROIS pinces sur la même broche, comme le schéma dmx-pico de Frank (Sig,
+	// DMX+ et DMX− remontent toutes à GP0) : chaque octet était versé une fois
+	// par pince, et l'analyseur lisait 17 canaux en triple (26/09/2026).
+	engine.setLogicProbes?.([pin, pin, pin]);
 	// Comme l'atelier (`pulseMonitorPins` y range les broches sondées) : sans
 	// cela, les bascules de port ne sont pas datées et le BREAK que l'Uno tient
 	// à la main (`digitalWrite`) n'entre pas dans le journal.
@@ -550,7 +573,7 @@ async function boutEnBout(nom, engine, pin, limiteMs, canaux, attendues = ATTEND
 	const pas = [];
 	for (let i = 0; i + 1 < journal.length; i += 2) pas.push({ t: journal[i], niveau: journal[i + 1] });
 	const ann = decoderAnalyseur([{ voie: 0, pin, nom: pin, niveauInitial: 1, fronts: pas }], { protocole: 'dmx', donnees: 0 });
-	const breaks = ann.filter((a) => a.texte === 'BREAK').length;
+	const breaks = ann.filter((a) => /^BREAK/.test(a.texte)).length;
 	const starts = ann.filter((a) => /^START code/.test(a.texte)).length;
 	const erreurs = ann.filter((a) => a.nature === 'erreur');
 	// Un BREAK peut rester sans START code : sur Pico, GP0 est tirée à la masse
@@ -560,6 +583,19 @@ async function boutEnBout(nom, engine, pin, limiteMs, canaux, attendues = ATTEND
 		starts >= attendues.length && breaks - starts <= 1, `${breaks} BREAK, ${starts} START code`);
 	check(`${nom} : aucun octet mal cadré dans le décodage de l'analyseur`,
 		erreurs.length === 0, `${erreurs.length} : ${erreurs.slice(0, 4).map((a) => a.texte).join(' | ')}`);
+	// Créneaux de données par trame : autant que le programme envoie de canaux,
+	// pas plus. On compte aussi ceux d'au-delà de c512, qui sortent sans
+	// étiquette : à 512 canaux (dmx-uno.ino), les octets en triple ne se voient
+	// que là. La dernière trame peut être coupée par l'arrêt du moteur.
+	const trames = [];
+	for (const a of ann) {
+		if (/^BREAK/.test(a.texte)) trames.push([]);
+		else if (trames.length && a.nature === 'donnee') trames[trames.length - 1].push(a.texte);
+	}
+	const lues = trames.filter((tr) => tr.length > 0);
+	check(`${nom} : chaque trame décodée porte ${canaux} canaux, pas plus (3 pinces sur ${pin})`,
+		lues.length >= attendues.length && lues.every((tr) => tr.length <= canaux) && lues.some((tr) => tr.length === canaux),
+		lues.slice(0, 2).map((tr) => `${tr.length} : ${tr.slice(0, 8).join(' ')}`).join(' | '));
 }
 
 // Les DEUX cartes : le projet dmx a sa version Pico 2, et il y restait muet.
@@ -699,8 +735,14 @@ if (QUICK) {
 			const { AvrEngine } = await bundle("export * from './src/webview/engines/avr.mts';\n", 'avrlib.mjs');
 			const engine = new AvrEngine(Uint16Array.from(mots), null, 'avr328');
 			engine.setDmx(['3']); // la broche par défaut de DmxSimple, pas TX
+			// La sonde de l'analyseur sur la broche 3, deux pinces comme le schéma.
+			engine.setLogicProbes?.(['3', '3']);
+			engine.setPulseMonitors?.(['3']);
+			const journal = [];
 			const vues = [];
 			const releve = () => {
+				const lots = engine.drainScopeEdges?.() ?? {};
+				if (lots['3']) for (const x of lots['3']) journal.push(x);
 				const u = engine.readDmx('3');
 				if (!u) return;
 				const v = Array.from(u.slice(1, 1 + nb)).join(',');
@@ -740,6 +782,33 @@ if (QUICK) {
 				const rampe = v1.every((v, i) => i === 0 || v === v1[i - 1] + 1 || (v1[i - 1] === 255 && v === 0));
 				check('uno/DmxSimple : le canal 1 suit la rampe du programme, pas à pas',
 					v1.length >= 3 && rampe, v1.slice(0, 20).join(',') + (v1.length > 20 ? ' …' : ''));
+			}
+			// Ce que Frank lisait dans l'analyseur (26/09/2026) : « plein de fois
+			// chaque trame ». Son binaire DmxSimple ne tient le BREAK que 76,6 µs,
+			// sous les 88 µs de la norme : l'analyseur le lisait en octet mal cadré,
+			// et tout se déroulait en une trame géante où c1-c4 revenaient jusqu'à
+			// c512. Le binaire compilé ici, du même source, tient 95,7 µs : le cas
+			// court est prouvé dans verify-analyseur (trame synthétique de 76,6 µs).
+			if (decoderAnalyseur) {
+				const pas = [];
+				for (let i = 0; i + 1 < journal.length; i += 2) pas.push({ t: journal[i], niveau: journal[i + 1] });
+				const ann = decoderAnalyseur([{ voie: 0, pin: '3', nom: '3', niveauInitial: 1, fronts: pas }], { protocole: 'dmx', donnees: 0 });
+				const trames = [];
+				for (const a of ann) {
+					if (/^BREAK/.test(a.texte)) trames.push([]);
+					else if (trames.length && a.nature === 'donnee') trames[trames.length - 1].push(a.court ?? a.texte);
+				}
+				// La dernière trame peut être coupée par l'arrêt du moteur.
+				const lues = trames.slice(0, -1);
+				const erreurs = ann.filter((a) => a.nature === 'erreur');
+				console.log(`  analyseur : ${trames.length} trames, ${erreurs.length} erreur(s)`);
+				check('uno/DmxSimple : l\'analyseur voit un BREAK par trame (≥ 1 trame par état)',
+					lues.length >= Math.max(3, etats.length), `${trames.length} BREAK`);
+				check(`uno/DmxSimple : chaque trame décodée porte ${nb} canaux`,
+					lues.length > 0 && lues.every((tr) => tr.length === nb),
+					lues.slice(0, 3).map((tr) => `${tr.length} : ${tr.slice(0, 8).join(' ')}`).join(' | '));
+				check('uno/DmxSimple : aucun octet mal cadré dans le décodage de l\'analyseur',
+					erreurs.length === 0, `${erreurs.length} : ${erreurs.slice(0, 4).map((a) => a.texte).join(' | ')}`);
 			}
 		}
 	}

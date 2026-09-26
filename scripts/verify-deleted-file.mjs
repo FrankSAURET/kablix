@@ -254,6 +254,7 @@ const veille = (nom) => globalThis.__fsw.find((w) => w.glob === nom);
     p.projectBaseName = 'demo';
     p.projectDirty = false;
     p.gone = new Set(gone ? ['project'] : []);
+    p.post = () => {}; // updateTitle prévient aussi la page (bouton de l'analyseur)
     const vu = {};
     p.panel = {
       setDirtyIndicator: (dirty, base) => { vu.base = base; vu.dirty = dirty; },

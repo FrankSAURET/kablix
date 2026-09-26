@@ -23,7 +23,7 @@ export interface Front {
   niveau: 0 | 1;
 }
 
-import { debutsDeTrame, reglageComplet, rolesDe, type ReglageDecodage } from './analyseur-decodage.mjs';
+import { breakDmxMinMs, debutsDeTrame, reglageComplet, rolesDe, type ReglageDecodage } from './analyseur-decodage.mjs';
 
 /**
  * Sens de déclenchement sur une voie : un front, `dmxStart` — le start bit du
@@ -52,14 +52,6 @@ const GARDE_TRAME_MS = RECUL_TRAME_MS / 2;
 
 /** Vitesse DMX512 de la norme, quand la voie n'en règle pas d'autre. */
 const BAUDS_DMX = 250_000;
-
-/**
- * Palier bas minimal d'un BREAK DMX, en ms (88 µs, norme — comme le décodeur),
- * moins une nanoseconde : à plusieurs secondes d'heure absolue, la différence
- * de deux dates flottantes perd assez de chiffres pour qu'un BREAK de 88 µs
- * pile mesure 87,999… µs.
- */
-const BREAK_DMX_MS = 0.088 - 1e-6;
 
 /** Réglage du déclenchement : la voie surveillée et le sens du front. */
 export interface Declenchement {
@@ -399,7 +391,9 @@ export class AnalyseurCapture {
   /**
    * Start bit du premier START code 0x00 qui SE TERMINE dans ]depuis, jusqua].
    *
-   * Le START code est le créneau qui suit le BREAK (bas ≥ 88 µs) et le MAB. Il
+   * Le START code est le créneau qui suit le BREAK et le MAB. Le BREAK se lit
+   * comme au décodeur (`breakDmxMinMs` : 88 µs, ou un créneau entier s'il est
+   * plus court — DmxSimple n'en tient que 76,6). Il
    * vaut 0x00 quand son start bit et ses huit bits de données forment un seul
    * palier bas de NEUF bits, fermé par le premier bit d'arrêt : cette montée
    * suffit à le prouver. Un canal à 0x00 (pas juste après un BREAK) ou un start
@@ -411,6 +405,7 @@ export class AnalyseurCapture {
    */
   private chercherStartDmx(v: VoieCapture, depuis: number, jusqua: number): number | null {
     const bit = 1000 / (this.bauds.get(v.voie) ?? BAUDS_DMX);
+    const breakMs = breakDmxMinMs(bit);
     const i = premierApres(v.fronts, depuis);
     const t0 = v.fronts[Math.max(0, i - 3)]!.t;
     const { entrant, fronts } = this.fenetre(v.voie, t0, jusqua);
@@ -432,7 +427,7 @@ export class AnalyseurCapture {
           // Armé en plein run : seuls les START codes à venir comptent.
           if (f.t > depuis && tStart > this.armeDepuis) return tStart;
         }
-        apresBreak = bas >= BREAK_DMX_MS;
+        apresBreak = bas >= breakMs;
         tStart = null;
       } else {
         apresBreak = false;

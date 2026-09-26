@@ -16,6 +16,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Marqueurs M1 et M2 dans l'analyseur logique** : ils attendent à gauche de la barre de temps. Glissés sur les courbes, ils se collent au front le plus proche et tracent un trait de leur couleur. Posés tous les deux, une flèche donne la durée qui les sépare.
 - **Flèches ⏮ ⏭ dans l'analyseur logique** : elles amènent le début de la trame décodée précédente ou suivante au bord gauche, sans changer le zoom.
 - **Déclenchement sur début de trame pour tous les protocoles** : sur une voie décodée, le menu T propose `Frame start`. La capture se fige au début de la trame suivante : `START` en I²C, `CS` qui descend en SPI, premier caractère après un silence en UART, `RESET` en 1-Wire, demande du maître en DHT.
+- **Bouton de rappel des marqueurs M1 et M2** : une flèche tout à gauche de leur marge les ramène à leur place de départ, quand un zoom les a fait sortir de la vue.
+- **Bouton Analyseur dans la barre de simulation** : il rouvre l'onglet de l'analyseur logique après une fermeture, avec sa dernière mesure. Il n'apparaît que si une pince est posée sur le schéma et que l'onglet est fermé.
 
 ### Modification
 
@@ -38,6 +40,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Pico : `machine.freq()` ne dérègle plus la PWM.** Un servomoteur réglé après un changement de fréquence prenait une mauvaise position.
 - **Plusieurs pinces sur un même signal tracent toutes.** Sur une carte DMX, les pinces posées sur `SIG`, `+` et `−` remontent à la même broche : seule la dernière montrait la trame, les autres restaient plates.
 - **Le décodage 1-Wire nomme la réponse du capteur au `RESET` (`PRÉSENT`).** Elle s'affichait en erreur « 1 bits » juste après le `RESET`.
+- **Pico : une trame DMX s'affiche avec ses vrais canaux.** Sous plusieurs pinces reliées à la même broche, chaque octet était compté plusieurs fois : 4 canaux devenaient 17, dans le désordre.
+- **Le DMX de la bibliothèque DmxSimple se décode trame par trame.** Son `BREAK`, plus court que la norme, n'était pas reconnu et toutes les trames se fondaient en une seule. Il est lu et l'étiquette donne sa durée (`BREAK 76,6 µs < 88 µs`).
 - **Déplacer l'onglet de l'analyseur vers une autre fenêtre (un second écran) ne fait plus disparaître les courbes.** Un onglet ouvert en pleine simulation, avec un déclenchement réglé, trace de nouveau.
 - **L'instant lu au curseur de l'analyseur reste lisible sur la barre de temps** : il s'écrit sur une plaque, et la graduation qu'il recouvre s'efface.
 - **Rouvrir un projet avec l'analyseur ouvert ne double plus sa capture.** Chaque courbe se barrait d'un trait parasite.

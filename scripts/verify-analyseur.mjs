@@ -19,10 +19,15 @@
 //    stop), SPI (les quatre modes, cadrage par CS), DMX512 (BREAK, start code,
 //    canaux, start code non nul ignoré) — un décodeur nourri de fronts
 //    FABRIQUÉS à la main, pour que le banc prouve le décodage et non le moteur.
+//
+// Contre-épreuve sans toucher aux sources : `--ancien=<fichiers>` compile les
+// fichiers de src/webview nommés dans leur version HEAD, par exemple
+// `--ancien=analyseur-decodage,analyseur-capture`.
 import esbuild from 'esbuild';
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync as lireBrut } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // Les motifs des contrôles de texte s'écrivent en `\n` : une copie de travail
@@ -35,8 +40,23 @@ const readFileSync = (chemin, codage) => {
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const tmp = mkdtempSync(join(tmpdir(), 'kablix-analyseur-'));
+const ancien = (process.argv.find((a) => a.startsWith('--ancien=')) ?? '').slice('--ancien='.length).split(',').filter(Boolean);
+/** Remplace à la compilation les fichiers de `--ancien` par leur version HEAD. */
+const versionHead = {
+  name: 'version-head',
+  setup(b) {
+    b.onLoad({ filter: /src[\\/]webview[\\/][^\\/]+\.mts$/ }, (args) => {
+      const nom = args.path.replace(/\\/g, '/').split('/').pop().replace(/\.mts$/, '');
+      if (!ancien.includes(nom)) return undefined;
+      const contents = execFileSync('git', ['show', `HEAD:src/webview/${nom}.mts`], { cwd: root, encoding: 'utf8' });
+      return { contents, loader: 'ts', resolveDir: dirname(args.path) };
+    });
+  },
+};
+if (ancien.length) console.log(`(contre-épreuve : ${ancien.join(', ')} en version HEAD)`);
 const buildTo = async (entry, outfile) => {
   await esbuild.build({
+    plugins: [versionHead],
     // `entry` est soit un chemin de source, soit un petit module écrit ici même
     // (`{ contents, resolveDir }`) qui réunit plusieurs sources en un paquet.
     ...(typeof entry === 'string'
@@ -709,7 +729,7 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   // la première ouverte par un start code NON nul (0xCC, RDM) dont un canal vaut
   // 0x00, la seconde par le START code 0x00 d'éclairage. Seul ce dernier doit
   // déclencher, sur son start bit.
-  const trameDmx = (bauds) => {
+  const trameDmx = (bauds, bitsBreak = 25) => {
     const BIT = 1000 / bauds;
     return (depart, codes) => {
       const plat = [];
@@ -720,7 +740,7 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
         t += nb * BIT;
       };
       const debuts = [];
-      palier(0, 25); // BREAK (100 µs à 250 kbauds)
+      palier(0, bitsBreak); // BREAK (100 µs à 250 kbauds, par défaut)
       palier(1, 3); // MAB
       for (const o of codes) {
         debuts.push(t);
@@ -802,6 +822,15 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   check('déclenchement DMX : échantillonné à 1 MHz, posé au tic du start bit',
     ech.tTrigger !== null && ech.tTrigger >= T_START - 1e-9 && ech.tTrigger <= T_START + 0.001 + 1e-9,
     `${ech.tTrigger} / ${T_START}`);
+
+  // DmxSimple (dmx-uno-lib de Frank, 26/09) : BREAK de 76,6 µs seulement, sous
+  // les 88 µs de la norme. Le projecteur l'accepte ; le déclenchement aussi.
+  const simple = trameDmx(250_000, 76.6 / 4)(1.0, [0x00, 0xff, 0x00]);
+  const ds = nouvelle();
+  ds.reglerDeclenchement({ voie: 0, sens: 'dmxStart' });
+  ds.verser({ 0: simple.plat });
+  check('déclenchement DMX : BREAK court de DmxSimple (76,6 µs) accepté',
+    ds.tTrigger !== null && Math.abs(ds.tTrigger - simple.debuts[0]) < 1e-9, `${ds.tTrigger} / ${simple.debuts[0]}`);
 
   // L'interface : l'entrée n'apparaît que sur une voie décodée en DMX, le
   // bouton dit « SC », la vitesse de voie descend dans la capture avant le
@@ -1165,6 +1194,48 @@ check('SPI : quatre rôles proposés (SCK, MOSI, MISO, CS)',
     .map((a) => a.texte));
   check('DMX en anglais : « START code 0xCC », BREAK inchangé',
     enEn.includes('START code 0xCC') && enEn.includes('BREAK'), enEn.join(' | '));
+}
+{
+  // DmxSimple (dmx-uno-lib de Frank, 26/09) : BREAK de 76,6 µs, MAB de 12,8 µs,
+  // quatre canaux, une trame toutes les 2 ms. Lu avec le seuil de 88 µs, chaque
+  // BREAK passait pour un octet mal cadré et tout se déroulait en une trame
+  // géante où c1-c4 revenaient jusqu'à c512.
+  const BIT = 0.004;
+  const fronts = [];
+  let t = 1.0;
+  let niveau = 1;
+  const palier = (n, ms) => {
+    if (n !== niveau) {
+      fronts.push([t, n]);
+      niveau = n;
+    }
+    t += ms;
+  };
+  const octet = (o) => {
+    palier(0, BIT);
+    for (let i = 0; i < 8; i++) palier((o >> i) & 1, BIT);
+    palier(1, 2 * BIT);
+  };
+  palier(1, 0.1);
+  for (const c of [[255, 0, 0, 189], [0, 255, 255, 189], [0, 0, 255, 200]]) {
+    palier(0, 0.0766); // BREAK
+    palier(1, 0.0128); // MAB
+    octet(0x00);
+    for (const v of c) octet(v);
+    palier(1, 1.7); // repos jusqu'à la trame suivante
+  }
+  const ann = decoder([voieDe(0, 'DMX', fronts, 1)], { protocole: 'dmx', donnees: 0 });
+  const textes = ann.map((a) => a.texte);
+  const breaks = ann.filter((a) => /^BREAK/.test(a.texte));
+  check('DMX : BREAK de 76,6 µs (DmxSimple) lu comme un BREAK, trois trames',
+    breaks.length === 3 && breaks.every((a) => a.nature === 'cadre' && a.trame === true), textes.join(' | '));
+  check('DMX : le BREAK court dit sa durée (« BREAK 76,6 µs < 88 µs ») et reste « BREAK » en court',
+    breaks.every((a) => /^BREAK 76[,.]6 µs < 88 µs$/.test(a.texte) && a.court === 'BREAK'),
+    breaks.map((a) => `${a.texte} / ${a.court}`).join(' | '));
+  check('DMX : quatre canaux par trame, rien au-delà de c4, aucune erreur',
+    textes.filter((x) => x === 'START code 0x00').length === 3 && textes.includes('c4=0xC8') &&
+      !textes.some((x) => x.startsWith('c5=')) && !ann.some((a) => a.nature === 'erreur'),
+    textes.join(' | '));
 }
 
 // --- UART ------------------------------------------------------------------------
@@ -2051,19 +2122,22 @@ const dhtDe = (tempC, humidity, model) => {
 }
 
 // --- Déclenchement : c'est la SONDE, pas un bouton (Frank, v2026.9.4.90) ------
-// L'analyseur n'a plus de bouton de barre. Poser au moins une pince et lancer la
-// simulation ouvre son onglet ; sans pince, rien ne s'ouvre — un onglet vide ne
-// dirait rien. On le contrôle sur les SOURCES : l'ancien bouton ne doit plus
-// exister nulle part, et `startRun` doit porter la condition « au moins une
-// pince ». Un contrôle de rendu ne verrait pas la disparition du bouton.
+// Poser au moins une pince et lancer la simulation ouvre l'onglet ; sans pince,
+// rien ne s'ouvre — un onglet vide ne dirait rien. Le bouton `open-analyseur`,
+// revenu le 26/09, ne fait que ROUVRIR un onglet fermé : caché d'office, il ne
+// s'affiche qu'onglet fermé, pince posée et mesure à revoir. On le contrôle sur
+// les SOURCES ; le geste lui-même est éprouvé par verify-analyseur-bouton.
 {
   const html = readFileSync(join(root, 'src', 'webview-html.ts'), 'utf8');
-  check('déclenchement : plus aucun bouton `open-analyseur` dans la barre',
-    !/open-analyseur/.test(html));
+  check('réouverture : le bouton `open-analyseur` est caché d\'office',
+    /<button id="open-analyseur"[^>]*\shidden[\s>]/.test(html));
 
   const sim = readFileSync(join(root, 'src', 'webview', 'sim.mts'), 'utf8');
-  check('déclenchement : plus aucun écouteur du bouton `open-analyseur`',
-    !/open-analyseur/.test(sim));
+  const maj = sim.slice(sim.indexOf('function majBoutonAnalyseur'), sim.indexOf('\n}', sim.indexOf('function majBoutonAnalyseur')));
+  check('réouverture : visible seulement pince posée, mesure à revoir et onglet fermé',
+    /logicProbes\.length > 0 && ongletAnalyseur\.rouvrable && !ongletAnalyseur\.ouvert/.test(maj));
+  check('réouverture : le clic rouvre l\'onglet par le même chemin que le lancement',
+    /openAnalyseurBtn\.addEventListener\('click', \(\) => ouvrirAnalyseur\(\)\)/.test(sim));
   // Broche Arduino nommée par son seul numéro : la voie s'appelle « Pin 9 »
   // (Frank, 23/09). Les broches nommées (A0, GP14) gardent leur nom.
   const nomVoieSim = sim.slice(sim.indexOf('function nomVoie('), sim.indexOf('\n}', sim.indexOf('function nomVoie(')));
@@ -2119,11 +2193,11 @@ const dhtDe = (tempC, humidity, model) => {
   // L'aide utilisateur doit dire ce nouveau geste, sinon l'élève cherche un
   // bouton qui n'existe plus.
   const usage = readFileSync(join(root, 'docs', 'fr', 'USAGE.md'), 'utf8');
-  check('aide : USAGE.md explique qu\'il n\'y a aucun bouton et que la sonde déclenche',
-    /aucun bouton pour l'analyseur logique/i.test(usage) && /sonde/i.test(usage));
+  check('aide : USAGE.md explique que la sonde ouvre et que le bouton ne fait que rouvrir',
+    /pas de bouton pour s'ouvrir/i.test(usage) && /sonde/i.test(usage) && /rouvrir l'analyseur logique/i.test(usage));
   const fiche = readFileSync(join(root, 'docs', 'fr', 'composants', 'sonde-logique.md'), 'utf8');
-  check('aide : la fiche de la sonde dit qu\'il n\'y a rien à cliquer',
-    /rien à cliquer/i.test(fiche) && /onglet/i.test(fiche));
+  check('aide : la fiche de la sonde dit qu\'il n\'y a rien à cliquer, sauf pour rouvrir',
+    /rien à cliquer/i.test(fiche) && /onglet/i.test(fiche) && /rouvre/i.test(fiche));
 }
 
 // --- Paramètres PAR COURBE (v2026.9.4.94) --------------------------------------

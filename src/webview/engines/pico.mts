@@ -1254,7 +1254,11 @@ export class PicoEngine implements SimEngine {
     // reste — une pince se déplace en cours de route.
     this.uartTxSondee = [];
     this.uartFinTrameUs.clear();
-    for (const name of names) {
+    // Une broche par UART, même sous plusieurs pinces : le schéma DMX de Frank
+    // en pose trois qui remontent toutes à GP0 (Sig, DMX+, DMX−). Chaque octet
+    // était alors versé trois fois, bout à bout, dans le MÊME journal : une
+    // trame de 6 octets se lisait START code + 17 canaux, valeurs en triple.
+    for (const name of new Set(names)) {
       const uart = PicoEngine.UART_TX[name];
       if (uart === undefined) continue;
       (this.uartTxSondee[uart] ??= []).push(name);

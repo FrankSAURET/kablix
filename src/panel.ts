@@ -524,6 +524,10 @@ export class SimulatorPanel {
    * pour pouvoir réétiqueter l'onglet déjà ouvert au lieu d'en perdre la trace.
    */
   private analyseurCleRangee: string | undefined;
+  /** Vrai dès que l'onglet d'analyseur de cet atelier a été vu ouvert. */
+  private analyseurDejaOuvert = false;
+  /** Dernier état d'onglet dit à la page (`ouvert/rouvrable`) : pas de message en double. */
+  private analyseurSignal = '';
   /** Dessins du créateur ouverts dans l'éditeur SVG du système (surveillés). */
   private svgWatches = new Map<
     'ext' | 'int',
@@ -1353,6 +1357,9 @@ export class SimulatorPanel {
     );
     // Gouttière VS Code → simulateur : tout changement de point d'arrêt est relayé.
     vscode.debug.onDidChangeBreakpoints(() => this.sendBreakpoints(), null, this.disposables);
+    // Un onglet d'analyseur s'ouvre ou se ferme : la page montre ou cache son
+    // bouton de réouverture (le sien seulement, filtré dans signalerAnalyseur).
+    this.disposables.push(AnalyseurPanel.surChangement(() => this.signalerAnalyseur()));
     // Réglages d'interface changés dans les options : les boutons optionnels
     // apparaissent/disparaissent tout de suite, sans recharger l'atelier.
     vscode.workspace.onDidChangeConfiguration(
@@ -1456,6 +1463,7 @@ export class SimulatorPanel {
     this.reprendreOngletRestaure();
     if (ancienne === undefined) {
       this.analyseurCleRangee = nouvelle;
+      this.signalerAnalyseur();
       return;
     }
     AnalyseurPanel.suivreProjet(ancienne, nouvelle, this.analyseurTitre());
@@ -1463,11 +1471,34 @@ export class SimulatorPanel {
     // URI et ne serait jamais fermé — un fichier temporaire orphelin.
     AnalyseurJournal.suivreProjet(ancienne, nouvelle);
     this.analyseurCleRangee = nouvelle;
+    this.signalerAnalyseur();
   }
 
   /** Onglet d'analyseur de cette session, s'il est ouvert. */
   private analyseur(): AnalyseurPanel | undefined {
     return AnalyseurPanel.pour(this.analyseurCleRangee ?? this.analyseurCle());
+  }
+
+  /**
+   * Dit à la page si son onglet d'analyseur est ouvert, et s'il y a de quoi le
+   * ROUVRIR : un onglet déjà vu ouvert dans la session, une mesure dans le
+   * journal, ou la capture d'un ancien .projix. La page en tire le bouton de la
+   * barre de simulation qui rouvre un analyseur fermé (Frank, 26/09) ; les
+   * sondes posées, elle seule les connaît.
+   *
+   * `force` : la page vient de (re)naître et a tout oublié.
+   */
+  private signalerAnalyseur(force = false): void {
+    const ouvert = this.analyseur() !== undefined;
+    if (ouvert) this.analyseurDejaOuvert = true;
+    const rouvrable =
+      this.analyseurDejaOuvert ||
+      AnalyseurJournal.existant(this.analyseurCle()) !== undefined ||
+      this.analyseurCapture !== null;
+    const signal = `${ouvert}/${rouvrable}`;
+    if (!force && signal === this.analyseurSignal) return;
+    this.analyseurSignal = signal;
+    this.post({ type: 'analyseurOnglet', ouvert, rouvrable });
   }
 
   /**
@@ -1555,6 +1586,7 @@ export class SimulatorPanel {
     if (!a) {
       this.analyseurCapture = null;
       this.analyseurReglages = null;
+      this.signalerAnalyseur(); // plus de capture : peut-être plus rien à rouvrir
       return;
     }
     this.analyseurCapture = a.voies && a.voies.length > 0 ? { voies: a.voies } : null;
@@ -1584,6 +1616,7 @@ export class SimulatorPanel {
         etat: { ...(this.analyseurCapture as object), ...(this.analyseurReglages as object) },
       });
     }
+    this.signalerAnalyseur();
   }
 
   /** Ouvre (ou révèle) l'onglet de l'analyseur logique de cette session. */
@@ -1786,6 +1819,7 @@ export class SimulatorPanel {
           state: this.context.globalState.get<unknown>(UI_STATE_KEY, {}),
         });
         this.postUiConfig();
+        this.signalerAnalyseur(true); // bouton de réouverture de l'analyseur
         // Rappelle le fichier de code courant (chip du canvas) après un
         // rechargement — y compris l'état « introuvable » d'un .projix ouvert.
         if (this.missingCodeFileRef) {
@@ -1992,6 +2026,7 @@ export class SimulatorPanel {
         this.journalAnalyseur().demarrer(this.voiesJournal());
         this.analyseurEnCours = true;
         this.analyseur()?.envoyer({ type: 'depart' });
+        this.signalerAnalyseur(); // il y a désormais une mesure à rouvrir
         break;
       case 'analyseurArret':
         this.analyseurEnCours = false;

@@ -640,6 +640,28 @@ function decoderSpi(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
 const DMX_BREAK_US = 88;
 
 /**
+ * Palier bas à partir duquel on lit un BREAK DMX, en ms, pour un bit de `bitMs`.
+ *
+ * La norme demande 88 µs, mais DmxSimple — la bibliothèque du test dmx-uno-lib
+ * — ne tient la ligne basse que 76,6 µs (onze `delayMicroseconds(8)` sur un
+ * Uno, mesuré dans le moteur). Les projecteurs l'acceptent : leur UART voit un
+ * BREAK dès que la ligne reste basse plus longtemps qu'un créneau entier. Avec
+ * 88 µs, l'analyseur lisait chaque BREAK en octet mal cadré, et toute la
+ * suite en une seule trame géante où c1-c4 revenaient jusqu'à c512 (Frank,
+ * 26/09/2026). On prend donc la durée d'un créneau 8N2 (11 bits, 44 µs à
+ * 250 kbauds), sans dépasser les 88 µs de la norme. Un octet valable n'est
+ * jamais bas plus de 9 bits (start bit et huit zéros) : il ne peut pas passer
+ * pour un BREAK.
+ *
+ * Moins une nanoseconde : à plusieurs secondes d'heure absolue, la différence
+ * de deux dates flottantes perd assez de chiffres pour qu'un BREAK de 88 µs
+ * pile mesure 87,999… µs et se lise en octet mal cadré.
+ */
+export function breakDmxMinMs(bitMs: number): number {
+  return Math.min(DMX_BREAK_US / 1000, bitMs * 11) - 1e-6;
+}
+
+/**
  * DMX512 depuis les fronts d'UNE seule ligne. Une trame s'ouvre sur un BREAK
  * (ligne basse ≥ 88 µs), suivi du MAB (haut ≥ 8 µs), puis de créneaux 8N2 à
  * 250 kbauds : start bit à 0, huit bits LSB d'abord, deux stop bits à 1. Le
@@ -671,10 +693,9 @@ function decoderDmx(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
    * réglage de vitesse qui est faux.
    */
   const tol = r.tolerance && r.tolerance > 0 ? r.tolerance : 0.25;
-  // Moins une nanoseconde : à plusieurs secondes d'heure absolue, la différence
-  // de deux dates flottantes perd assez de chiffres pour qu'un BREAK de 88 µs
-  // pile mesure 87,999… µs et se lise en octet mal cadré.
-  const breakMs = DMX_BREAK_US / 1000 - 1e-6;
+  const breakMs = breakDmxMinMs(b);
+  /** BREAK de la norme : en dessous, l'étiquette donne la durée mesurée. */
+  const normeMs = DMX_BREAK_US / 1000 - 1e-6;
   const fr = v.fronts;
   const lect = new Lecteur(fr, v.niveauInitial);
   const out: Annotation[] = [];
@@ -704,7 +725,17 @@ function decoderDmx(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
       if (finStop !== null && f.t > finStop) {
         out.push({ t0: finStop, t1: f.t, texte: 'MBB', nature: 'cadre' });
       }
-      out.push({ t0: f.t, t1: montant.t, texte: 'BREAK', nature: 'cadre', trame: true });
+      const bas = montant.t - f.t;
+      // Plus court que la norme (DmxSimple) : on le lit quand même, en le disant.
+      const court = bas < normeMs;
+      out.push({
+        t0: f.t,
+        t1: montant.t,
+        texte: court ? `BREAK ${dixiemes(bas * 1000)} µs < 88 µs` : 'BREAK',
+        ...(court ? { court: 'BREAK' } : {}),
+        nature: 'cadre',
+        trame: true,
+      });
       attendStart = true;
       canal = -1;
       finStop = null;

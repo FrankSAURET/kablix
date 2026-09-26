@@ -29,6 +29,7 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
   const fitViewUri = asset('recentrer.svg');
   const serialMonitorUri = asset('serialMonitor.svg');
   const plotterIconUri = asset('serialTracer.svg');
+  const analyseurIconUri = asset('analyseur.svg');
   const newIconUri = asset('nouveau.svg');
   const openIconUri = asset('ouvrir.svg');
   const saveIconUri = asset('enregistrer.svg');
@@ -203,10 +204,12 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
           <button id="repl" class="canvas-controls__btn canvas-controls__btn--repl" hidden title="${l10n.t('Start an interactive MicroPython REPL (no script)')}">REPL</button>
           <button id="toggle-serial" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Show/hide the serial monitor')}"><img class="canvas-controls__icon" src="${serialMonitorUri}" alt="${l10n.t('Show/hide the serial monitor')}" /></button>
           <button id="toggle-plotter" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Show/hide the plotter (curves)')}"><img class="canvas-controls__icon" src="${plotterIconUri}" alt="${l10n.t('Show/hide the plotter (curves)')}" /></button>
-          <!-- Aucun bouton pour l'analyseur logique (Frank, v2026.9.4.90) : c'est
-               la SONDE qui le déclenche. Poser au moins une pince et lancer la
-               simulation ouvre son onglet tout seul. Un bouton de plus aurait
-               demandé un geste que la pince dit déjà. -->
+          <!-- Analyseur logique : c'est toujours la SONDE qui l'ouvre (une pince
+               posée + lancement, Frank v2026.9.4.90). Ce bouton ne sert qu'à
+               ROUVRIR un onglet fermé (Frank, 26/09) : caché tant que l'onglet
+               est ouvert, qu'aucune pince n'est posée ou qu'il n'y a rien à
+               revoir (cf. majBoutonAnalyseur). -->
+          <button id="open-analyseur" class="canvas-controls__btn canvas-controls__btn--icon" hidden title="${l10n.t('Reopen the logic analyzer')}"><img class="canvas-controls__icon" src="${analyseurIconUri}" alt="${l10n.t('Reopen the logic analyzer')}" /></button>
           <button id="toggle-faults" class="canvas-controls__btn canvas-controls__btn--faults canvas-controls__btn--icon is-on" title="${l10n.t('Show/hide the fault explanations')}"><img class="canvas-controls__icon" src="${erreurIconUri}" alt="${l10n.t('Show/hide the fault explanations')}" /></button>
         </div>
         <!-- Barre droite : recentrer/ajuster, réinitialiser, effacer (alignée et de

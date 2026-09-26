@@ -1282,6 +1282,19 @@ canvas.addEventListener(
   'pointerdown',
   (ev) => {
     const r = canvas.getBoundingClientRect();
+    // Bouton de rappel : M1 et M2 retournent au garage (Frank, 26/09 — en
+    // zoomant, un marqueur posé sort de la vue et on ne le retrouve plus).
+    if (ev.button === 0 && vue.rappelA(ev.clientX - r.left, ev.clientY - r.top)) {
+      ev.stopPropagation();
+      ev.preventDefault();
+      fermerPanneau();
+      marqueurs[0] = null;
+      marqueurs[1] = null;
+      canvas.style.cursor = '';
+      canvas.title = '';
+      dessiner();
+      return;
+    }
     // Un marqueur sous la souris : on le prend, et la vue ne défile pas.
     const m = ev.button === 0 ? vue.marqueurA(ev.clientX - r.left, ev.clientY - r.top) : null;
     if (m !== null) {
@@ -1582,8 +1595,10 @@ canvas.addEventListener('pointermove', (ev) => {
   souris = { x: ev.clientX - r.left, y: ev.clientY - r.top };
   if (marqueurPris !== null) deplacerMarqueur(marqueurPris, souris.x);
   // Un marqueur se prend à la souris : le curseur le dit en le survolant.
+  const surRappel = marqueurPris === null && vue.rappelA(souris.x, souris.y);
   canvas.style.cursor =
-    marqueurPris !== null || vue.marqueurA(souris.x, souris.y) !== null ? 'ew-resize' : '';
+    marqueurPris !== null || vue.marqueurA(souris.x, souris.y) !== null ? 'ew-resize' : surRappel ? 'pointer' : '';
+  canvas.title = surRappel ? t('Bring M1 and M2 back to their starting place') : '';
   dessiner();
 });
 canvas.addEventListener('pointerleave', () => {

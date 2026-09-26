@@ -36,7 +36,7 @@ Un montage rouvert retrouve ses pinces là où elles étaient, avec leurs couleu
 
 ## L'onglet « Analyseur logique »
 
-Il n'y a **rien à cliquer** : dès qu'au moins une pince est posée, le **lancement de la simulation** ouvre l'analyseur dans un **onglet séparé**, que l'on peut poser **à côté du schéma** — on lit les créneaux et le câblage en même temps. Pas de pince sur la planche, pas d'onglet.
+Il n'y a **rien à cliquer** : dès qu'au moins une pince est posée, le **lancement de la simulation** ouvre l'analyseur dans un **onglet séparé**, que l'on peut poser **à côté du schéma** — on lit les créneaux et le câblage en même temps. Pas de pince sur la planche, pas d'onglet. Onglet fermé par mégarde : un bouton **Analyseur** apparaît dans la barre de simulation et le rouvre, avec sa dernière mesure.
 
 L'onglet montre une **piste par voie**, dans la couleur de sa pince, avec une règle de temps en haut. Dans la marge, face aux deux niveaux du créneau, sont écrites leurs **tensions** : celle de la carte pour l'état haut (`5 V` sur Uno et Mega, `3,3 V` sur Pico), `0 V` pour l'état bas. Une pince posée derrière l'émetteur d'une carte d'interface prend les tensions de cet émetteur : `3,7 V` et `1,1 V` sur les lignes `+` et `−` de la carte **Grove DMX512**.
 

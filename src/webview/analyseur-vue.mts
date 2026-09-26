@@ -73,8 +73,14 @@ const NOMS_MARQUEUR = ['M1', 'M2'] as const;
 const DRAPEAU_W = 24;
 /** Hauteur d'un drapeau de marqueur. */
 const DRAPEAU_H = 14;
-/** Abscisse du centre d'un marqueur garé, dans la colonne de gauche. */
-const xGare = (m: number): number => COL_X + DRAPEAU_W / 2 + m * (DRAPEAU_W + 6);
+/**
+ * Largeur du bouton de rappel, tout à gauche de la bande des marqueurs (Frank,
+ * 26/09) : en zoomant, un marqueur posé sort de la vue et on ne le retrouve
+ * plus ; un clic ramène les deux au garage.
+ */
+const RAPPEL_W = 18;
+/** Abscisse du centre d'un marqueur garé, dans la colonne de gauche, après le bouton de rappel. */
+const xGare = (m: number): number => COL_X + RAPPEL_W + 6 + DRAPEAU_W / 2 + m * (DRAPEAU_W + 6);
 
 /**
  * Corps du nom de voie, en pixels. Deux fois et demie la graduation : le nom
@@ -310,8 +316,16 @@ export class AnalyseurVue {
   private zones: ZoneBouton[] = [];
   /** Zones de prise des marqueurs, dans l'ordre du dessin (le dernier est dessus). */
   private zonesMarqueurs: ZoneMarqueur[] = [];
+  /** Bouton de rappel des marqueurs ; null quand les deux sont déjà garés. */
+  private zoneRappel: Omit<ZoneMarqueur, 'm'> | null = null;
 
   constructor(private readonly canvas: HTMLCanvasElement) {}
+
+  /** Vrai si le point tombe sur le bouton de rappel des marqueurs, et qu'il sert. */
+  rappelA(x: number, y: number): boolean {
+    const z = this.zoneRappel;
+    return !!z && x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h;
+  }
 
   /**
    * Marqueur sous un point (0 = M1, 1 = M2), ou null. Le drapeau se prend
@@ -391,6 +405,7 @@ export class AnalyseurVue {
     ctx.clearRect(0, 0, w, h);
     this.zones = [];
     this.zonesMarqueurs = [];
+    this.zoneRappel = null;
 
     const sombre = themeSombre();
     const style = getComputedStyle(document.body);
@@ -1103,6 +1118,12 @@ export class AnalyseurVue {
       this.ecart(ctx, e, Math.abs(ts[1]! - ts[0]!), xs[0], xs[1], xMin, xMax, yMilieu, fg, sombre);
     }
 
+    // Le rappel ne sert que si un marqueur est posé : sinon il reste pâle et
+    // ne se prend pas.
+    const unPose = ts.some((t) => t !== null);
+    this.rappel(ctx, COL_X, yD, fg, unPose);
+    if (unPose) this.zoneRappel = { x: COL_X, y: GRAD_H, w: RAPPEL_W, h: BANDE_M };
+
     // Le marqueur tenu se dessine en dernier : c'est lui qu'on regarde, et il
     // doit passer devant l'autre quand on l'amène dessus.
     const ordre = e.marqueurPris === 0 ? [1, 0] : [0, 1];
@@ -1142,6 +1163,27 @@ export class AnalyseurVue {
         { m, x: x - DRAPEAU_W / 2, y: GRAD_H, w: DRAPEAU_W, h: BANDE_M }
       );
     }
+    ctx.restore();
+  }
+
+  /** Bouton de rappel : cadre arrondi, flèche vers la gauche, à la couleur du texte. */
+  private rappel(ctx: CanvasRenderingContext2D, x: number, y: number, fg: string, actif: boolean): void {
+    const ym = y + DRAPEAU_H / 2;
+    ctx.save();
+    ctx.globalAlpha = actif ? 1 : 0.35;
+    ctx.strokeStyle = fg;
+    ctx.fillStyle = fg;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(x + 0.5, y + 0.5, RAPPEL_W - 1, DRAPEAU_H - 1, 3);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + 4, ym);
+    ctx.lineTo(x + 9, ym - 4);
+    ctx.lineTo(x + 9, ym + 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillRect(x + 9, ym - 1, RAPPEL_W - 13, 2);
     ctx.restore();
   }
 
