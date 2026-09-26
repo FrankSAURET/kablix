@@ -16,7 +16,7 @@ import {
 } from './compiler';
 import { pistesArduinoIde } from './arduinoCliPistes';
 import { AnalyseurPanel, type AnalyseurVersHote, type EtatAnalyseur } from './analyseur-panel';
-import { AnalyseurJournal, csvExport, type VoieExport } from './analyseur-journal';
+import { AnalyseurJournal, csvExport, PROFONDEUR_DEFAUT, type VoieExport } from './analyseur-journal';
 import {
   packProject,
   unpackProject,
@@ -1507,10 +1507,20 @@ export class SimulatorPanel {
    * fait pendant la simulation, on la regarde après.
    */
   private journalAnalyseur(): AnalyseurJournal {
-    return AnalyseurJournal.pour(
+    const j = AnalyseurJournal.pour(
       this.analyseurCle(),
       this.projectBaseName ?? 'projet'
     );
+    // Sa mémoire suit la profondeur de l'onglet : c'est elle qu'une page
+    // rechargée rejoue.
+    j.reglerProfondeur(this.profondeurAnalyseur());
+    return j;
+  }
+
+  /** Profondeur de capture réglée dans l'onglet, en fronts par voie. */
+  private profondeurAnalyseur(): number {
+    const p = (this.analyseurReglages as { profondeur?: number } | null)?.profondeur;
+    return typeof p === 'number' && p > 0 ? p : PROFONDEUR_DEFAUT;
   }
 
   /** Les voies déclarées par l'atelier, réduites à ce que le journal inscrit. */
@@ -1535,18 +1545,26 @@ export class SimulatorPanel {
     const aDesReglagesVoies = Object.keys(reg?.voiesReglages ?? {}).length > 0;
     // 0 = illimitée, le réglage d'origine : inutile de l'écrire dans le projet.
     const echantillonnage = reg?.echantillonnage ?? 0;
+    // Profondeur d'origine (60 000) : pas plus écrite que l'échantillonnage.
+    const profondeur = this.profondeurAnalyseur();
+    const profondeurReglee = profondeur !== PROFONDEUR_DEFAUT;
     // La CAPTURE n'est plus gravée ici : c'est une mesure de session, elle vit
     // dans le journal CSV (voir analyseur-journal.ts). Seuls les RÉGLAGES de
     // l'instrument restent dans le projet — personne ne rerègle son
     // déclenchement à chaque ouverture, et ils pèsent quelques octets.
     const aQuelqueChose =
-      reg?.declenchement != null || aDesDecodages || aDesReglagesVoies || echantillonnage > 0;
+      reg?.declenchement != null ||
+      aDesDecodages ||
+      aDesReglagesVoies ||
+      echantillonnage > 0 ||
+      profondeurReglee;
     if (!aQuelqueChose) return undefined;
     return {
       ...(reg?.declenchement != null ? { declenchement: reg.declenchement } : {}),
       ...(aDesDecodages ? { decodages } : {}),
       ...(aDesReglagesVoies ? { voiesReglages: reg?.voiesReglages } : {}),
       ...(echantillonnage > 0 ? { echantillonnage } : {}),
+      ...(profondeurReglee ? { profondeur } : {}),
     };
   }
 
@@ -1600,12 +1618,14 @@ export class SimulatorPanel {
         : [];
     const voiesReglages = (a.voiesReglages ?? {}) as Record<string, unknown>;
     const echantillonnage = a.echantillonnage ?? 0;
+    const profondeur = typeof a.profondeur === 'number' && a.profondeur > 0 ? a.profondeur : PROFONDEUR_DEFAUT;
     this.analyseurReglages =
       a.declenchement != null ||
       decodages.length > 0 ||
       Object.keys(voiesReglages).length > 0 ||
-      echantillonnage > 0
-        ? { declenchement: a.declenchement ?? null, decodages, voiesReglages, echantillonnage }
+      echantillonnage > 0 ||
+      profondeur !== PROFONDEUR_DEFAUT
+        ? { declenchement: a.declenchement ?? null, decodages, voiesReglages, echantillonnage, profondeur }
         : null;
     // Un onglet déjà ouvert (projet rechargé dans la même session) reçoit
     // directement la capture : sinon il garderait celle du projet précédent.
@@ -1660,6 +1680,7 @@ export class SimulatorPanel {
           decodages: m.decodages,
           voiesReglages: m.voiesReglages,
           echantillonnage: m.echantillonnage,
+          profondeur: m.profondeur,
         };
       });
     } else if (m.type === 'analyseurExport') {

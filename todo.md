@@ -1,4 +1,5 @@
 # À faire
+1. Rajoute 15k pour la profondeur de capture
 ## fait
 
 
@@ -7,6 +8,28 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.161
+1. ✅ **Profondeur de capture réglable** (« Qu'est ce qui définit que la capture est pleine. Je viens de lancer en illimit et à 1MHz et je m'arrête les 2 fois à 8,3 s » → « Option B »).
+    1. Cause du 8,3 s : plafond fixe de 60 000 fronts par voie côté page ; déclenchement survenu, 6 000 gardés avant et 54 000 après, puis la capture s'arrête. En DMX, la voie la plus active les remplit en 8,3 s.
+    2. [analyseur-capture.mts](src/webview/analyseur-capture.mts) : `PROFONDEURS` = 60 k (défaut), 250 k, 1 M ; `reglerProfondeur()` (valeur absurde → défaut ; capture pleine → nouvelle acquisition ; sinon rabotage immédiat de chaque voie) ; réserve d'avant = profondeur / 10 ; `debit` (fronts/ms de la voie la plus active, mesuré depuis la perte ou le début).
+    3. [analyseur-panel.ts](src/analyseur-panel.ts) : liste `Depth` après l'échantillonnage. [analyseur.mts](src/webview/analyseur.mts) `majProfondeurs` : chaque choix affiche sa durée estimée (`60 k (≈ 6 s)`, ms / s / min / h, deux chiffres) ; changement appliqué tout de suite pendant un run, gardé pour le suivant à l'arrêt ; profondeur reprise au rechargement de l'onglet.
+    4. Hôte : [analyseur-journal.ts](src/analyseur-journal.ts) `reglerProfondeur` — la mémoire du journal suit la profondeur (tête = 7/6 de la profondeur, file bornée) ; [panel.ts](src/panel.ts) `profondeurAnalyseur` ; [projix.ts](src/projix.ts) `profondeur` écrit dans le .projix seulement hors défaut.
+2. ✅ **Bouton ↻ Relancer la capture** (« Ajoute un bouton relancer la capture dans la barre de menu en haut de l'analyseur logique »).
+    1. En tête de la barre, actif seulement pendant la simulation. `capture.relancer()` : mesure effacée, niveaux gardés, déclenchement réarmé — un TRIG resté haut ne redéclenche pas, il faut un nouveau front.
+    2. Message de capture pleine : `Capture full at {0} ms. Click Restart capture to capture anew.`
+3. ✅ **Aide FR** [sonde-logique.md](docs/fr/composants/sonde-logique.md) : section « Profondeur et relance », réarmement du déclenchement.
+4. ✅ **Bancs** :
+    1. [verify-analyseur.mjs](scripts/verify-analyseur.mjs) : bloc profondeur et relance (fenêtre glissante à 250 k, réserve, profondeur réduite ou allongée en cours et sur capture pleine, relance avec et sans déclenchement, débit). `--ancien` : 17 échecs.
+    2. [verify-analyseur-recharge.mjs](scripts/verify-analyseur-recharge.mjs) A5 : profondeur gardée dans le .projix, journal de 700 000 fronts à 250 k sans trou en tête, reprise au rechargement. `--ancien` : 5 échecs.
+    3. Nouveau [verify-analyseur-profondeur.mjs](scripts/verify-analyseur-profondeur.mjs) (`npm run verify:analyseur-profondeur`, port 9433) : vrai onglet en Chrome, VRAIE souris et VRAI clavier en CDP — bouton, durées affichées, relance au clic, déclenchement réarmé, capture pleine puis profondeur changée à la flèche du clavier, arrêt, reprise du réglage. `--ancien` : 20 échecs.
+    4. Typecheck et construction propres. `verify:all` : 143/146. `verify:i18n` et `verify:help-bars` rouges attendus (traductions, cf. 5).
+    5. ⏳ `verify:realtime` rouge, aussi seul : « reprise après pause » à 0,77 puis 0,79× (seuil 0,8). Hors lot : ce banc teste [avr.mts](src/webview/engines/avr.mts), non modifié. Cause probable : un renderer Chrome orphelin d'un banc (port 9421, profil `kablix-bits`) occupait un cœur depuis le 25/09, 12 h 41 ; arrêté. Mesure à refaire.
+5. ⏳ Traductions avant publication : `l10n/bundle.l10n.fr.json` — `Restart capture`, `Depth` et leurs infobulles ; [i18n.mts](src/webview/i18n.mts) — `Capture full at {0} ms. Click Restart capture to capture anew.` (l'ancienne clé `…Set the trigger again to capture anew.` ne sert plus). Aide EN.
+6. ℹ️ Limite connue : recharger l'onglet après une relance rejoue tout le journal de la session — la mesure d'avant la relance revient.
+7. ℹ️ [_diag-analyseur-gel.mjs](scripts/_diag-analyseur-gel.mjs) toujours hors enregistrement (cf. v160, 7).
 
 ---
 

@@ -19,6 +19,8 @@
 
 import {
   AnalyseurCapture,
+  FRONTS_MAX_PAR_VOIE,
+  PROFONDEURS,
   type Declenchement,
   type SensDeclenchement,
   type VoieCapture,
@@ -117,6 +119,8 @@ export interface EtatSerialise {
   voiesReglages?: ReglagesVoies;
   /** Fréquence d'échantillonnage simulée, en hertz ; 0 = illimitée. */
   echantillonnage?: number;
+  /** Profondeur de capture, en fronts par voie ; absente = 60 000. */
+  profondeur?: number;
 }
 
 const vscode = window.acquireVsCodeApi?.();
@@ -509,13 +513,43 @@ function majEtat(): void {
   });
   etatTexte.textContent = enCours
     ? capture.pleine
-      ? t('Capture full at {0} ms. Set the trigger again to capture anew.', fin)
+      ? t('Capture full at {0} ms. Click Restart capture to capture anew.', fin)
       : capture.enAttente
         ? t('Capturing… {0} (waiting for the trigger edge)', fin)
         : t('Capturing… {0}', fin)
     : capture.aDesDonnees
       ? t('Last capture: {0} ms', fin)
       : '';
+  // Hors simulation, plus rien à capturer : relancer viderait la mesure pour
+  // n'y remettre rien.
+  if (btnRelancer) btnRelancer.disabled = !enCours;
+  majProfondeurs();
+}
+
+/**
+ * Durée que tiendrait chaque profondeur au débit mesuré, écrite dans les choix
+ * de la liste : « 60 k (≈ 8,3 s) ». Comme sur un analyseur du commerce, on
+ * choisit sa mémoire en voyant ce qu'elle couvre. Le débit est celui de la
+ * voie la plus active : c'est elle qui remplit la capture la première.
+ */
+function majProfondeurs(): void {
+  if (!selProfondeur) return;
+  const debit = capture.debit;
+  for (const o of selProfondeur.options) {
+    const n = Number(o.value);
+    const nom = n >= 1e6 ? `${n / 1e6} M` : `${n / 1000} k`;
+    const texte = debit > 0 ? `${nom} (${dureeEstimee(n / debit)})` : nom;
+    // Réécrit seulement s'il change : la liste peut être ouverte, et le rendu
+    // passe à chaque image.
+    if (o.textContent !== texte) o.textContent = texte;
+  }
+}
+
+/** Durée estimée, deux chiffres significatifs, dans l'unité qui lui va. */
+function dureeEstimee(ms: number): string {
+  const [val, unite] =
+    ms < 1000 ? [ms, 'ms'] : ms < 60_000 ? [ms / 1000, 's'] : ms < 3_600_000 ? [ms / 60_000, 'min'] : [ms / 3_600_000, 'h'];
+  return `≈ ${val.toLocaleString(locale(), { maximumSignificantDigits: 2, useGrouping: false })} ${unite}`;
 }
 
 /**
@@ -646,6 +680,9 @@ function sauterTrame(sens: -1 | 1): void {
 // --- Barre d'outils ----------------------------------------------------------
 
 const selHorloge = document.getElementById('horloge') as HTMLSelectElement;
+/** Profondeur et bouton « Relancer la capture » : absents d'une page d'avant v2026.9.5.161. */
+const selProfondeur = document.getElementById('profondeur') as HTMLSelectElement | null;
+const btnRelancer = document.getElementById('relancer') as HTMLButtonElement | null;
 const etatTexte = document.getElementById('etat') as HTMLSpanElement;
 const btnReafficher = document.getElementById('reafficher') as HTMLButtonElement | null;
 /** Bouton ☰ des exports, et son menu (posé hors de la barre, voir analyseur-panel.ts). */
@@ -1153,6 +1190,7 @@ function envoyerReglages(): void {
     decodages,
     voiesReglages: reglagesVoies,
     echantillonnage,
+    profondeur,
   });
 }
 
@@ -1176,6 +1214,18 @@ let echantillonnage = 0;
 /** Répercute la fréquence choisie sur la capture. */
 function majEchantillonnage(): void {
   capture.reglerEchantillonnage(echantillonnage);
+}
+
+/**
+ * Profondeur de capture, en fronts par voie (liste « Profondeur » de la barre,
+ * Frank 26/09). Elle vaut pour l'acquisition en cours pendant un run, et pour
+ * le run suivant sinon : une capture arrêtée reste celle qui a été mesurée.
+ */
+let profondeur: number = FRONTS_MAX_PAR_VOIE;
+
+/** Profondeur lue d'un réglage enregistré : une des valeurs de la liste, sinon le défaut. */
+function profondeurValide(p: unknown): number {
+  return (PROFONDEURS as readonly number[]).includes(p as number) ? (p as number) : FRONTS_MAX_PAR_VOIE;
 }
 
 // --- Boutons dessinés sur les pistes -----------------------------------------
@@ -1463,6 +1513,8 @@ window.addEventListener('message', (ev) => {
     case 'depart':
       enCours = true;
       capture.reinitialiser();
+      // Choisie à l'arrêt, elle attendait ce run.
+      capture.reglerProfondeur(profondeur);
       suivi = true;
       dessiner();
       return;
@@ -1569,6 +1621,11 @@ function restaurer(etat: EtatSerialise): void {
   echantillonnage = etat.echantillonnage ?? 0;
   selHorloge.value = String(echantillonnage);
   majEchantillonnage();
+  // La profondeur AVANT les fronts rejoués : la capture rechargée garde ce
+  // qu'elle aurait gardé en direct.
+  profondeur = profondeurValide(etat.profondeur);
+  if (selProfondeur) selProfondeur.value = String(profondeur);
+  capture.reglerProfondeur(profondeur);
   majInversions();
   majVitesses();
   // Les décodages AVANT le déclenchement : « début de trame » décode pour
@@ -1919,6 +1976,24 @@ selHorloge.addEventListener('change', () => {
   majEchantillonnage();
   dessiner();
   envoyerReglages();
+});
+selProfondeur?.addEventListener('change', () => {
+  profondeur = profondeurValide(Number(selProfondeur.value));
+  if (enCours) {
+    // Pleine, la capture repart : la vue suit la nouvelle acquisition.
+    if (capture.pleine) suivi = true;
+    capture.reglerProfondeur(profondeur);
+  }
+  dessiner();
+  envoyerReglages();
+});
+btnRelancer?.addEventListener('click', () => {
+  if (!enCours) return;
+  capture.relancer();
+  // La vue suit la fin jusqu'au front de déclenchement, qui la posera sur lui.
+  suivi = true;
+  suivreFin();
+  dessiner();
 });
 document.getElementById('trame-prec')?.addEventListener('click', () => sauterTrame(-1));
 document.getElementById('gauche')?.addEventListener('click', () => defiler(-1));

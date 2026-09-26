@@ -81,17 +81,27 @@ export interface VoieCapture {
 }
 
 /**
- * Plafond de fronts gardés PAR VOIE côté page. Le moteur borne déjà son propre
- * journal (LOGIC_LOG_MAX) ; ce second plafond protège la page, qui accumule sur
- * toute la durée du run alors que le moteur ne garde que ce qui n'a pas encore
- * été lu.
+ * Profondeur PAR DÉFAUT : plafond de fronts gardés PAR VOIE côté page. Le
+ * moteur borne déjà son propre journal (LOGIC_LOG_MAX) ; ce second plafond
+ * protège la page, qui accumule sur toute la durée du run alors que le moteur
+ * ne garde que ce qui n'a pas encore été lu. Réglable depuis v2026.9.5.161
+ * (`reglerProfondeur`, liste `PROFONDEURS`).
  */
 export const FRONTS_MAX_PAR_VOIE = 60_000;
 
 /**
- * Fronts gardés AVANT le déclenchement, par voie, une fois qu'il est survenu.
- * Un dixième de la profondeur : de quoi voir ce qui a précédé l'événement, le
- * reste va à ce qui le suit — c'est le partage d'un analyseur du commerce.
+ * Profondeurs proposées dans la barre de l'analyseur, en fronts par voie
+ * (Frank, 26/09 : une capture déclenchée pleine à 8,3 s en DMX). Comme la
+ * mémoire d'un analyseur du commerce : plus profond = plus long, mais plus
+ * lourd — 1 M de fronts pèse de l'ordre de 40 Mo par voie dans la page.
+ */
+export const PROFONDEURS = [FRONTS_MAX_PAR_VOIE, 250_000, 1_000_000] as const;
+
+/**
+ * Fronts gardés AVANT le déclenchement, par voie, une fois qu'il est survenu,
+ * à la profondeur par défaut. Un dixième de la profondeur : de quoi voir ce qui
+ * a précédé l'événement, le reste va à ce qui le suit — c'est le partage d'un
+ * analyseur du commerce.
  */
 export const RESERVE_AVANT = FRONTS_MAX_PAR_VOIE / 10;
 
@@ -179,6 +189,78 @@ export class AnalyseurCapture {
   private niveauxHors = new Map<string, 0 | 1>();
   /** Instant du dernier front vu, gardé ou non. */
   private tVu = 0;
+
+  /** Profondeur de l'acquisition : fronts gardés au plus par voie. */
+  private profondeurMax: number = FRONTS_MAX_PAR_VOIE;
+
+  /** Fronts gardés avant le déclenchement : un dixième de la profondeur. */
+  private get reserveAvant(): number {
+    return Math.floor(this.profondeurMax / 10);
+  }
+
+  /** Profondeur réglée, en fronts par voie. */
+  get profondeur(): number {
+    return this.profondeurMax;
+  }
+
+  /**
+   * Règle la profondeur, en fronts par voie. Elle vaut pour l'acquisition EN
+   * COURS : plus grande, la capture continue de se remplir ; plus petite, elle
+   * est rabotée tout de suite, comme elle l'aurait été en direct.
+   *
+   * Sur une capture PLEINE, ce qui a suivi n'a pas été gardé : il n'y a rien à
+   * rallonger ni à retailler honnêtement. Le réglage réarme alors, comme un
+   * nouveau déclenchement — la prochaine salve ouvre une nouvelle acquisition.
+   * Une capture arrêtée n'en reçoit plus : elle reste telle qu'elle a été
+   * mesurée, et la profondeur servira au prochain run.
+   */
+  reglerProfondeur(n: number): void {
+    const p = Number.isFinite(n) && n >= 1000 ? Math.round(n) : FRONTS_MAX_PAR_VOIE;
+    if (p === this.profondeurMax) return;
+    this.profondeurMax = p;
+    if (this.plein) {
+      this.reglerDeclenchement(this.declenchement);
+      return;
+    }
+    // Toutes les voies, même une fois la capture pleine en cours de route :
+    // une voie pas encore rabotée peut garder, avant le déclenchement, plus que
+    // la nouvelle réserve. `remplir` ne peut alors que reculer la fin.
+    for (const v of this.voies.values()) this.raboter(v);
+  }
+
+  /**
+   * Nouvelle acquisition, TOUT DE SUITE (bouton « Relancer la capture », Frank
+   * 26/09) : ce qui a été capturé est oublié et le déclenchement réarmé attend
+   * un front À VENIR. Chaque voie garde le niveau où elle se trouve : il vaut à
+   * partir de maintenant, la vue n'a pas à le redessiner inconnu.
+   */
+  relancer(): void {
+    this.tDeclenche = null;
+    this.armee = this.declenchement !== null;
+    this.armeDepuis = this.luJusqua = this.tVu > 0 ? this.tVu : -Infinity;
+    this.repartir();
+  }
+
+  /**
+   * Débit de la voie la plus active, en fronts par milliseconde simulée ; 0 tant
+   * qu'aucune n'a assez bougé. Sert à estimer la durée que tient une profondeur.
+   *
+   * Chaque voie est mesurée depuis le début de ce que la capture sait d'elle —
+   * sa perte si elle a été rabotée, sinon le début de la capture —, pas depuis
+   * son premier front : une impulsion isolée (deux fronts à 10 µs d'écart)
+   * aurait sinon passé pour un signal à 100 kHz.
+   */
+  get debit(): number {
+    const debut = this.tDebut;
+    let max = 0;
+    for (const v of this.voies.values()) {
+      const n = v.fronts.length;
+      if (n < 2) continue;
+      const duree = this.tDernier - (v.perte ?? debut);
+      if (duree > 0) max = Math.max(max, n / duree);
+    }
+    return max;
+  }
 
   /**
    * Déclare les voies de la capture. Appelé au départ de la simulation, et à
@@ -638,7 +720,7 @@ export class AnalyseurCapture {
       // salve même où une broche versée plus tôt a rempli la capture, et le
       // jeter laissait cette voie plate juste avant la fin (sur toute une
       // tranche quand une page rechargée rejoue sa mesure).
-      if (this.plein && (t > this.tDernier || v.fronts.length >= FRONTS_MAX_PAR_VOIE)) {
+      if (this.plein && (t > this.tDernier || v.fronts.length >= this.profondeurMax)) {
         this.niveauxHors.set(pin, niveau);
         continue;
       }
@@ -712,12 +794,13 @@ export class AnalyseurCapture {
    * bas, haut à chaque image (sonde-logique-uno, Frank 23/09).
    */
   private raboter(v: VoieCapture): void {
-    const trop = v.fronts.length - FRONTS_MAX_PAR_VOIE;
+    const max = this.profondeurMax;
+    const trop = v.fronts.length - max;
     if (trop <= 0) return;
     let jetables = trop;
     if (this.tDeclenche !== null) {
       const avant = premierDes(v.fronts, this.tDeclenche);
-      jetables = Math.min(trop, Math.max(0, avant - RESERVE_AVANT));
+      jetables = Math.min(trop, Math.max(0, avant - this.reserveAvant));
     }
     if (jetables > 0) {
       const dernierJete = v.fronts[jetables - 1]!;
@@ -725,7 +808,7 @@ export class AnalyseurCapture {
       v.niveauInitial = dernierJete.niveau;
       v.fronts.splice(0, jetables);
     }
-    if (v.fronts.length > FRONTS_MAX_PAR_VOIE) this.remplir(v.fronts[FRONTS_MAX_PAR_VOIE - 1]!.t);
+    if (v.fronts.length > max) this.remplir(v.fronts[max - 1]!.t);
   }
 
   /**
@@ -737,7 +820,9 @@ export class AnalyseurCapture {
     for (const v of this.voies.values()) {
       const garde = premierApres(v.fronts, t);
       if (garde < v.fronts.length) {
-        this.niveauxHors.set(v.pin, v.fronts.at(-1)!.niveau);
+        // Déjà retenu : une profondeur réduite recoupe une capture déjà pleine,
+        // et son dernier front n'est plus le niveau actuel de la broche.
+        if (!this.niveauxHors.has(v.pin)) this.niveauxHors.set(v.pin, v.fronts.at(-1)!.niveau);
         v.fronts.length = garde;
       }
     }

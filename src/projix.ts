@@ -59,6 +59,8 @@ export interface ProjixAnalyseur {
   voiesReglages?: unknown;
   /** Fréquence d'échantillonnage simulée, en hertz ; 0 = illimitée. */
   echantillonnage?: number;
+  /** Profondeur de capture, en fronts par voie ; absente = 60 000, le défaut. */
+  profondeur?: number;
 }
 
 /** Manifeste écrit dans `kablix.json` à la racine de l'archive. */

@@ -15,6 +15,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Bulles d'aide dans la marge de l'analyseur logique** : la pastille, les boutons T et P et les marqueurs disent ce qu'ils font au survol. T et P disent aussi leur réglage.
 - **Courbes de l'analyseur en image SVG** : le menu ☰ de l'onglet les copie au presse-papier en image, à coller dans Word comme dans Inkscape (« Copie SVG »), ou les enregistre dans un fichier (« Exporter SVG »), au zoom affiché. M1 et M2 posés, l'image va de l'un à l'autre.
 - **Flèches ⏮ ⏭ dans l'analyseur logique** : elles amènent le début de la trame décodée précédente ou suivante au bord gauche, sans changer le zoom. Les trames répétées à l'identique sont sautées.
+- **Profondeur de capture réglable dans l'analyseur logique** : 60 k, 250 k ou 1 M fronts par voie, avec la durée couverte estimée à côté de chaque choix. Le projet garde le réglage.
+- **Bouton ↻ Relancer la capture dans l'analyseur logique** : il efface la mesure et repart à zéro sans arrêter la simulation, déclenchement réarmé.
 - **Déclenchement sur début de trame pour tous les protocoles** : sur une voie décodée, le menu T propose `Frame start`.
 - **Octets en hexadécimal ou en décimal** : le panneau de décodage de l'analyseur propose le choix, pour tous les protocoles. L'hexadécimal reste le défaut.
 - **Affichage binaire dans l'analyseur logique** : la case `Bits` du panneau de décodage écrit chaque bit (`0` ou `1`) sous le créneau qui le porte, séparé du suivant par un trait pointillé posé sur les fronts. Elle vaut pour tous les protocoles.

@@ -34,9 +34,15 @@ export interface VoieJournal {
 const ENTETE = 'temps_ms,voie,broche,nom,niveau';
 
 /**
+ * Profondeur de la page par défaut, en fronts par voie : `FRONTS_MAX_PAR_VOIE`
+ * d'analyseur-capture.mts, que l'hôte n'importe pas (module de la page).
+ */
+export const PROFONDEUR_DEFAUT = 60_000;
+
+/**
  * Fronts gardés EN MÉMOIRE par broche, pour rendre sa capture à une page
- * d'analyseur rechargée. Deux morceaux, tous deux au-delà des 60 000 fronts que
- * la page garde (FRONTS_MAX_PAR_VOIE) :
+ * d'analyseur rechargée : sept sixièmes de la profondeur de la page (70 000
+ * pour 60 000), dans chacun de deux morceaux :
  *  - la TÊTE, les premiers fronts du run : une capture déclenchée tôt s'y fige
  *    (réserve d'avant + profondeur d'après), la page ne garde rien d'autre ;
  *  - la QUEUE, les derniers : sans déclenchement, la page suit la fin du run.
@@ -44,8 +50,9 @@ const ENTETE = 'temps_ms,voie,broche,nom,niveau';
  * des millions de fronts (une trame DMX en compte des milliers) pour qu'elle en
  * jette presque tout.
  */
-const TETE_MAX = 70_000;
-const QUEUE_MAX = 70_000;
+function gardeMemoire(profondeur: number): number {
+  return Math.ceil((profondeur * 7) / 6);
+}
 
 /** Voie d'une capture rendue à la page : ses fronts à plat `[t, niveau, …]`. */
 export interface VoieCaptureJournal extends VoieJournal {
@@ -111,9 +118,22 @@ export class AnalyseurJournal {
   private ecrits = new Map<string, number>();
   /** Vrai dès qu'au moins un front est passé dans le fichier. */
   private garni = false;
-  /** Tête et queue du run, par broche, à plat (cf. TETE_MAX). */
+  /** Tête et queue du run, par broche, à plat (cf. gardeMemoire). */
   private tetes = new Map<string, number[]>();
   private queues = new Map<string, number[]>();
+  /** Fronts gardés au plus dans la tête, et dans la queue, par broche. */
+  private garde = gardeMemoire(PROFONDEUR_DEFAUT);
+
+  /**
+   * La page change de profondeur : la tête et la queue la suivent, sinon une
+   * page rechargée ne retrouverait que 70 000 fronts d'une capture qui en
+   * tenait un million. Une tête déjà dépassée par la queue ne regrandit pas :
+   * ce qui l'aurait prolongée est passé, et la queue le suit.
+   */
+  public reglerProfondeur(profondeur: number): void {
+    const p = Number.isFinite(profondeur) && profondeur > 0 ? profondeur : PROFONDEUR_DEFAUT;
+    this.garde = gardeMemoire(p);
+  }
 
   private constructor(
     public readonly cle: string,
@@ -298,15 +318,17 @@ export class AnalyseurJournal {
   private retenir(pin: string, t: number, niveau: number): void {
     let tete = this.tetes.get(pin);
     if (!tete) this.tetes.set(pin, (tete = []));
-    if (tete.length < 2 * TETE_MAX) {
+    let queue = this.queues.get(pin);
+    // La tête ne reprend jamais après la queue : les fronts seraient rendus
+    // dans le désordre (profondeur agrandie en cours de run).
+    if (tete.length < 2 * this.garde && !queue?.length) {
       tete.push(t, niveau);
       return;
     }
-    let queue = this.queues.get(pin);
     if (!queue) this.queues.set(pin, (queue = []));
     queue.push(t, niveau);
     // Rabot par paquets : un `splice` à chaque front coûterait la queue entière.
-    if (queue.length > 2 * QUEUE_MAX * 1.25) queue.splice(0, queue.length - 2 * QUEUE_MAX);
+    if (queue.length > 2 * this.garde * 1.25) queue.splice(0, queue.length - 2 * this.garde);
   }
 
   /**

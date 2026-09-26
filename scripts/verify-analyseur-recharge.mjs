@@ -308,6 +308,47 @@ writeFileSync(join(tmp, 'vscode-stub.mjs'), STUB);
 		check(ordonne, 'A4 : fronts rendus dans l’ordre du temps');
 		pan.dispose();
 	}
+
+	// A5. Profondeur réglée dans l'onglet (v2026.9.5.161) : la mémoire du journal
+	// la suit. À 250 000 fronts par voie, une tête de 70 000 ne rendrait à la page
+	// rechargée qu'un bout de sa capture déclenchée tôt.
+	{
+		const p = atelier('W:/projet/profond.projix');
+		p.onMessage({ type: 'analyseurVoies', voies: VOIES });
+		p.onMessage({ type: 'openAnalyseur' });
+		const pan = vs.panneaux.at(-1);
+		pret(pan);
+		const reglages = (profondeur) => ({ type: 'analyseurReglages', declenchement: null, decodages: [], voiesReglages: {}, echantillonnage: 0, profondeur });
+		pan._onMsg(reglages(250_000));
+		check(() => p.analyseurPourProjix()?.profondeur === 250_000, 'A5 : la profondeur réglée est gravée dans le .projix',
+			JSON.stringify(p.analyseurPourProjix()));
+		p.onMessage({ type: 'analyseurDepart' });
+		const N = 700_000;
+		for (let k = 0; k < N; k += 1000) {
+			const plat = [];
+			for (let i = k; i < k + 1000; i++) plat.push(i / 100, i % 2);
+			p.onMessage({ type: 'analyseurFronts', salves: { GP14: plat } });
+		}
+		const r = pret(pan).at(-1);
+		const f = frontsDe(r, 'GP14');
+		const n = f.length / 2;
+		const tete = Math.ceil((250_000 * 7) / 6);
+		let sansTrou = f[0] === 0;
+		for (let i = 1; sansTrou && i < tete; i++) if (f[2 * i] !== i / 100) sansTrou = false;
+		check(sansTrou, 'A5 : la tête suit la profondeur — 291 667 fronts du début, sans trou', `${n} fronts, ${f[2 * (tete - 1)]} au rang ${tete - 1}`);
+		check(n >= 2 * tete && n <= 2.25 * tete, 'A5 : tête + queue restent bornées', `${n} fronts`);
+		check(f.at(-2) === (N - 1) / 100, 'A5 : la queue finit au DERNIER front du run', `${f.at(-2)}`);
+		check(r?.etat?.profondeur === 250_000, 'A5 : la mesure rendue porte la profondeur réglée', JSON.stringify(r?.etat?.profondeur));
+		// Retour au défaut : plus rien à graver, le projet redevient sans réglage.
+		pan._onMsg(reglages(60_000));
+		check(() => p.analyseurPourProjix() === undefined, 'A5 : la profondeur par défaut n’est pas écrite', JSON.stringify(p.analyseurPourProjix()));
+		pan.dispose();
+		// Un .projix qui porte une profondeur la rend à l'onglet, même sans autre réglage.
+		const q = atelier('W:/projet/profond-relu.projix');
+		q.chargerAnalyseur({ profondeur: 1_000_000 });
+		check(() => q.etatAnalyseur().capture?.profondeur === 1_000_000, 'A5 : la profondeur d’un .projix ouvert est rendue à l’onglet',
+			JSON.stringify(q.etatAnalyseur().capture));
+	}
 }
 
 // ============================================================================

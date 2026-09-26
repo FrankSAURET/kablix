@@ -88,7 +88,7 @@ const { logicProbeVoies, pulseMonitorPins, partDef, partCategory, registerCustom
     },
     'model.mjs',
   );
-const { AnalyseurCapture, VOIES_MAX, FRONTS_MAX_PAR_VOIE, RESERVE_AVANT } = await buildTo('src/webview/analyseur-capture.mts', 'capture.mjs');
+const { AnalyseurCapture, VOIES_MAX, FRONTS_MAX_PAR_VOIE, RESERVE_AVANT, PROFONDEURS } = await buildTo('src/webview/analyseur-capture.mts', 'capture.mjs');
 // Le décodeur parle la langue de la webview (`t()`, v2026.9.4.133) : son paquet
 // embarque SON i18n, qu'il faut régler dans CE paquet. Le banc lit en français,
 // puis refait un tour en anglais (langue de base) plus bas.
@@ -721,6 +721,155 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   check('pleine : la nouvelle acquisition connaît le niveau de départ, pas l\'histoire',
     c.niveauA(0, 150_000.5) === 0 && c.niveauA(0, 149_000) === null,
     `${c.niveauA(0, 150_000.5)} / ${c.niveauA(0, 149_000)}`);
+}
+
+// --- Profondeur de capture et « Relancer la capture » (v2026.9.5.161) -----------
+{
+  // Frank, 26/09 : « illimité, 1 MHz, je m'arrête les 2 fois à 8,3 s ». La
+  // profondeur (fronts gardés par voie) se règle : 60 k, 250 k ou 1 M. Même
+  // montage que le plafond : horloge sur D8 (un front par ms), une seule montée
+  // sur D9 pour le déclenchement. Méthodes absentes de l'ancien code : `sans`
+  // en fait des faux, pas une exception qui tuerait le banc (contre-épreuve).
+  const sans = (f, defaut = null) => { try { return f(); } catch { return defaut; } };
+  const horloge = (a, b) => {
+    const s = [];
+    for (let t = a; t <= b; t++) s.push(t, t % 2);
+    return s;
+  };
+  const nouvelle = (profondeur) => {
+    const c = new AnalyseurCapture();
+    c.declarerVoies([{ voie: 0, pin: '8', nom: 'CLK' }, { voie: 1, pin: '9', nom: 'TRIG' }]);
+    if (profondeur !== undefined) sans(() => c.reglerProfondeur(profondeur));
+    return c;
+  };
+  const jusqua = (c, fin, depuis, tDecl = null) => {
+    for (let a = depuis; a <= fin; a += 1000) {
+      const b = Math.min(fin, a + 999);
+      const s = { 8: horloge(a, b) };
+      if (tDecl !== null && tDecl >= a && tDecl < b + 1) s[9] = [tDecl, 1];
+      c.verser(s);
+    }
+  };
+  const v0 = (c) => c.listeVoies[0];
+
+  check('profondeur : trois choix, 60 k par défaut',
+    Array.isArray(PROFONDEURS) && PROFONDEURS.join(',') === '60000,250000,1000000'
+      && new AnalyseurCapture().profondeur === FRONTS_MAX_PAR_VOIE,
+    `${PROFONDEURS} / ${new AnalyseurCapture().profondeur}`);
+  check('profondeur : une valeur absurde retombe sur le défaut',
+    nouvelle(Number.NaN).profondeur === FRONTS_MAX_PAR_VOIE && nouvelle(12).profondeur === FRONTS_MAX_PAR_VOIE);
+
+  // Sans déclenchement : la fenêtre glissante garde la profondeur réglée.
+  const a = nouvelle(250_000);
+  jusqua(a, 260_000, 1);
+  check('profondeur 250 k : la fenêtre glissante garde 250 000 fronts, pas 60 000',
+    v0(a).fronts.length === 250_000 && v0(a).fronts[0].t === 10_001 && v0(a).perte === 10_000 && !a.pleine,
+    `${v0(a).fronts.length} dès ${v0(a).fronts[0]?.t}, perte ${v0(a).perte}`);
+  check('débit : l\'horloge d\'un front par ms se mesure depuis la perte',
+    Math.abs(sans(() => a.debit, 0) - 1) < 1e-3, String(sans(() => a.debit)));
+
+  // Avec déclenchement : réserve d'un dixième, pleine à la profondeur.
+  const T = 270_000.5;
+  const b = nouvelle(250_000);
+  b.reglerDeclenchement({ voie: 1, sens: 'rising' });
+  jusqua(b, 600_000, 1, T);
+  const avantB = v0(b).fronts.filter((x) => x.t < T).length;
+  check('profondeur 250 k : réserve de 25 000 fronts avant le déclenchement',
+    b.tTrigger === T && avantB === 25_000, `${b.tTrigger} / ${avantB}`);
+  check('profondeur 250 k : pleine à 250 000 fronts, soit 250 s d\'horloge',
+    b.pleine && v0(b).fronts.length === 250_000 && b.tFin === T - 0.5 + 225_000,
+    `${b.pleine} / ${v0(b).fronts.length} / ${b.tFin}`);
+
+  // Changer la profondeur d'une capture PLEINE réarme : rien n'a été gardé
+  // après sa fin, il n'y a rien à rallonger honnêtement.
+  sans(() => b.reglerProfondeur(60_000));
+  jusqua(b, 601_000, 600_001);
+  check('profondeur changée sur une capture pleine : nouvelle acquisition, déclenchement réarmé',
+    b.profondeur === 60_000 && !b.pleine && b.enAttente && b.tTrigger === null
+      && v0(b).fronts[0]?.t === 600_001 && v0(b).fronts.length === 1000,
+    `${b.profondeur} / ${b.pleine} / ${b.enAttente} / ${v0(b).fronts[0]?.t} / ${v0(b).fronts.length}`);
+  check('profondeur changée sur une capture pleine : le niveau de départ est connu',
+    b.niveauA(0, 600_000.5) === 0 && b.niveauA(0, 599_000) === null && b.niveauA(1, 600_000.5) === 1,
+    `${b.niveauA(0, 600_000.5)} / ${b.niveauA(0, 599_000)} / ${b.niveauA(1, 600_000.5)}`);
+
+  // Réduire en plein run, sans déclenchement : rabotée tout de suite.
+  const c = nouvelle(250_000);
+  jusqua(c, 100_000, 1);
+  sans(() => c.reglerProfondeur(60_000));
+  check('profondeur réduite en cours de run : la capture est rabotée au nouveau plafond',
+    v0(c).fronts.length === 60_000 && v0(c).fronts[0].t === 40_001 && v0(c).perte === 40_000 && !c.pleine,
+    `${v0(c).fronts.length} dès ${v0(c).fronts[0]?.t}, perte ${v0(c).perte}`);
+  jusqua(c, 101_000, 100_001);
+  check('profondeur réduite : les salves suivantes restent au nouveau plafond',
+    v0(c).fronts.length === 60_000 && v0(c).fronts[0].t === 41_001, `${v0(c).fronts.length} dès ${v0(c).fronts[0]?.t}`);
+
+  // Réduire APRÈS le déclenchement : réserve et fin recalculées ensemble.
+  // 120 000 fronts, déclenchement à 50 000,5 : on garde 6 000 fronts avant lui,
+  // puis 54 000 après — la capture est pleine au 104 000e ms.
+  const d = nouvelle(250_000);
+  d.reglerDeclenchement({ voie: 1, sens: 'rising' });
+  jusqua(d, 120_000, 1, 50_000.5);
+  sans(() => d.reglerProfondeur(60_000));
+  const avantD = v0(d).fronts.filter((x) => x.t < 50_000.5).length;
+  check('profondeur réduite après le déclenchement : réserve de 6 000 et pleine à 60 000',
+    avantD === 6_000 && v0(d).fronts.length === 60_000 && d.pleine && d.tFin === 104_000,
+    `${avantD} / ${v0(d).fronts.length} / ${d.pleine} / ${d.tFin}`);
+  check('profondeur réduite après le déclenchement : la voie du déclenchement le garde',
+    d.listeVoies[1].fronts.length === 1 && d.tTrigger === 50_000.5);
+  // Rallonger ensuite la même capture pleine : nouvelle acquisition, pas un trou.
+  sans(() => d.reglerProfondeur(250_000));
+  jusqua(d, 121_000, 120_001);
+  check('profondeur rallongée sur la capture pleine : elle repart, niveau connu',
+    !d.pleine && v0(d).fronts[0]?.t === 120_001 && d.niveauA(0, 120_000.5) === 0,
+    `${d.pleine} / ${v0(d).fronts[0]?.t} / ${d.niveauA(0, 120_000.5)}`);
+
+  // « Relancer la capture » (todo de Frank, 26/09) : en plein run, tout de suite.
+  const e = nouvelle();
+  e.reglerDeclenchement({ voie: 1, sens: 'rising' });
+  jusqua(e, 10_000, 1, 5_000.5);
+  const declAvant = e.tTrigger;
+  sans(() => e.relancer());
+  check('relancer : la capture est vidée et le déclenchement attend de nouveau',
+    declAvant === 5_000.5 && e.tTrigger === null && e.enAttente && !e.pleine
+      && v0(e).fronts.length === 0 && e.listeVoies[1].fronts.length === 0,
+    `${declAvant} → ${e.tTrigger} / ${e.enAttente} / ${v0(e).fronts.length}`);
+  check('relancer : chaque voie garde son niveau, l\'histoire est oubliée',
+    e.niveauA(0, 10_000.5) === 0 && e.niveauA(1, 10_000.5) === 1 && e.niveauA(0, 9_000) === null && v0(e).perte === 10_000,
+    `${e.niveauA(0, 10_000.5)} / ${e.niveauA(1, 10_000.5)} / ${e.niveauA(0, 9_000)} / ${v0(e).perte}`);
+  jusqua(e, 11_000, 10_001);
+  // TRIG est resté haut : un niveau n'est pas un front, rien ne déclenche.
+  check('relancer : la salve suivante remplit la nouvelle acquisition, sans déclencher',
+    v0(e).fronts[0]?.t === 10_001 && v0(e).fronts.length === 1000 && e.tDebut === 10_001
+      && e.tTrigger === null && e.enAttente,
+    `${v0(e).fronts[0]?.t} / ${v0(e).fronts.length} / ${e.tDebut} / ${e.tTrigger}`);
+  e.verser({ 9: [11_500.5, 0, 11_600.5, 1] });
+  check('relancer : le premier front montant d\'après la relance déclenche', e.tTrigger === 11_600.5, String(e.tTrigger));
+
+  // Relancer une capture PLEINE : même geste, plus besoin de retoucher le déclenchement.
+  const f = nouvelle();
+  f.reglerDeclenchement({ voie: 1, sens: 'rising' });
+  jusqua(f, 150_000, 1, 70_000.5);
+  const pleineAvant = f.pleine;
+  sans(() => f.relancer());
+  jusqua(f, 151_000, 150_001);
+  check('relancer : une capture pleine repart aussi',
+    pleineAvant && !f.pleine && f.enAttente && v0(f).fronts[0]?.t === 150_001 && f.niveauA(0, 150_000.5) === 0,
+    `${pleineAvant} / ${f.pleine} / ${v0(f).fronts[0]?.t} / ${f.niveauA(0, 150_000.5)}`);
+  // Sans déclenchement réglé : relancer vide, mais rien n'attend.
+  const g = nouvelle();
+  jusqua(g, 2_000, 1);
+  sans(() => g.relancer());
+  check('relancer : sans déclenchement, rien n\'attend',
+    !g.enAttente && v0(g).fronts.length === 0 && g.niveauA(0, 2_000.5) === 0);
+
+  // Débit : c'est la voie la PLUS active qui compte, mesurée depuis le début de
+  // la capture — une impulsion isolée de 10 µs n'est pas un signal à 100 kHz.
+  const h = nouvelle();
+  h.verser({ 8: horloge(1, 10_000), 9: [5_000, 1, 5_000.01, 0] });
+  const debitH = sans(() => h.debit, -1);
+  check('débit : une impulsion isolée ne passe pas pour la voie la plus rapide',
+    Math.abs(debitH - 10_000 / 9_999) < 1e-9, String(debitH));
+  check('débit : nul tant que rien n\'a bougé', sans(() => nouvelle().debit, -1) === 0);
 }
 
 // --- Déclenchement sur START code DMX (v2026.9.5.141) ----------------------------

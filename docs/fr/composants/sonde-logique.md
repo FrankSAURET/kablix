@@ -59,7 +59,17 @@ Hors simulation, l'onglet montre la **dernière capture** de la session.
 
 Cette capture s'écrit **au fur et à mesure** dans un fichier à part, pendant que la simulation tourne, et une simulation interrompue laisse quand même ce qu'elle a mesuré. Ce fichier est **supprimé à la fermeture du projet** — pour garder une mesure, exportez-la (menu **☰**, **Exporter CSV**).
 
-Le projet, lui, garde les **réglages** de l'instrument (déclenchement, décodages, réglages de voie).
+Le projet, lui, garde les **réglages** de l'instrument (déclenchement, décodages, réglages de voie, profondeur).
+
+## Profondeur et relance
+
+Comme un analyseur du commerce, l'instrument a une **mémoire bornée** : la liste **Profondeur** de la barre fixe le nombre de fronts gardés **par voie** — `60 k` (par défaut), `250 k` ou `1 M`. Pendant la mesure, chaque choix affiche entre parenthèses la **durée qu'il couvre** (`60 k (≈ 6 s)`), estimée sur la voie la plus active : un bus DMX ou une horloge rapide remplit la mémoire bien plus vite qu'une LED qui clignote. Plus profond veut dire plus long, mais aussi plus lourd pour l'onglet.
+
+Sans déclenchement, la capture garde les **derniers** fronts : les plus anciens sortent au fur et à mesure, l'écran suit la fin. Avec un déclenchement, elle garde un dixième de la profondeur **avant** le front de déclenchement et remplit le reste **après** lui ; une fois pleine, elle s'arrête, et la barre donne l'instant où elle s'est remplie.
+
+Changer la profondeur pendant la simulation s'applique aussitôt : sur une capture pleine, une nouvelle acquisition démarre. Simulation arrêtée, le choix attend le prochain lancement.
+
+Le bouton **↻ Relancer la capture**, en tête de la barre, efface la mesure en cours et repart à zéro sans arrêter la simulation ; un déclenchement réglé se réarme et attend son prochain front. Il n'est actif que pendant la simulation.
 
 ## Exporter
 
@@ -77,7 +87,7 @@ L'image garde les couleurs du thème et son fond, les noms des voies, les décod
 
 Le menu **T** sous le nom d'une voie : choisissez le **sens** — front *montant* ou *descendant*. La capture reste alors **en attente** jusqu'au premier front de ce type, puis se **fige sur lui** : l'instant 0 de la règle devient ce front, et tout se lit en avance ou en retard par rapport à lui. Sans déclenchement, la règle part de l'instant du lancement de la simulation.
 
-Changer de réglage **réarme** l'attente.
+Changer de réglage **réarme** l'attente, tout comme le bouton **↻ Relancer la capture** : une capture pleine repart alors pour une nouvelle acquisition.
 
 Sur une voie décodée en **DMX512**, le menu propose aussi **`START code 0x00`** : la capture se fige sur le **start bit du premier créneau** d'une trame d'éclairage, celui qui suit le `BREAK` et le `MAB`. Un canal qui vaut `0x00` ne déclenche pas, une trame à start code non nul (RDM, texte) non plus. Le bouton affiche alors `SC`. La durée d'un bit suit la **vitesse de la voie** (250 kbauds si rien n'est saisi) : une trame émise à une autre vitesse ne déclenche qu'une fois celle-ci réglée.
 

@@ -61,6 +61,8 @@ export type AnalyseurVersHote =
       voiesReglages: Record<string, unknown>;
       /** Fréquence d'échantillonnage simulée, en hertz ; 0 = illimitée. */
       echantillonnage: number;
+      /** Profondeur de capture, en fronts par voie (absente d'une ancienne page). */
+      profondeur?: number;
     }
   /**
    * L'utilisateur demande l'export de la mesure en CSV.
@@ -68,7 +70,7 @@ export type AnalyseurVersHote =
    * Le message ne PORTE PAS les fronts : la mesure n'est pas dans la page, elle
    * est dans le journal de session écrit au fil de l'eau côté hôte
    * (`analyseur-journal.ts`). La page, elle, rabote sa capture
-   * (FRONTS_MAX_PAR_VOIE) pour rester fluide : elle exporterait une mesure
+   * (sa profondeur, 60 000 fronts par voie par défaut) pour rester fluide : elle exporterait une mesure
    * amputée de son début.
    *
    * `plage` : M1 et M2 posés tous deux, l'export se limite à l'intervalle qui
@@ -466,6 +468,9 @@ export class AnalyseurPanel {
        « T » et « P » sous son nom (demande de Frank, 19/09). Une barre unique
        obligeait à désigner la voie avant de pouvoir régler quoi que ce soit, et
        ne montrait jamais d'un coup d'œil laquelle déclenchait. -->
+  <!-- Nouvelle acquisition tout de suite (Frank, 26/09) : capture vidée,
+       déclenchement réarmé. Grisé hors simulation : plus rien à capturer. -->
+  <button id="relancer" type="button" disabled title="${l.t('Start a new acquisition now: the capture is cleared and the trigger waits again for its edge. Available while the simulation runs.')}">↻ ${l.t('Restart capture')}</button>
   <label title="${l.t('Sampling rate of the analyzer: edges closer together than one sample are merged, exactly as on a real instrument. Unlimited shows every edge the simulation produced.')}">${l.t('Sampling')}
     <select id="horloge">
       <option value="0">${l.t('Unlimited')}</option>
@@ -477,6 +482,16 @@ export class AnalyseurPanel {
       <option value="100000">100 kHz</option>
       <option value="10000">10 kHz</option>
       <option value="1000">1 kHz</option>
+    </select>
+  </label>
+  <!-- Profondeur (Frank, 26/09 : capture DMX pleine à 8,3 s) : fronts gardés
+       par voie, comme la mémoire d'un analyseur du commerce. La page ajoute à
+       chaque choix la durée qu'il tiendrait au débit mesuré. -->
+  <label title="${l.t('Capture depth: edges kept per channel. The duration in brackets is estimated from the busiest channel. Deeper captures last longer but use more memory. Changing it on a full capture starts a new one; a stopped capture keeps its depth until the next run.')}">${l.t('Depth')}
+    <select id="profondeur">
+      <option value="60000">60 k</option>
+      <option value="250000">250 k</option>
+      <option value="1000000">1 M</option>
     </select>
   </label>
   <!-- Flèches : reculer ou avancer d'une demi-fenêtre sans toucher au zoom
