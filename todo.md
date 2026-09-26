@@ -1,7 +1,8 @@
 # À faire
-1. bug de décodage. J'ai modifié dmx-uno-lib.ino. Quand je lance le déebogage il passe toute les ligne (en pas à pas mais saute systématiquement les lignes de 12 à 18) et pourtant le code est exécuté (rouge projeté)
 1. Bug ds18b20 : 
-    1. Pendant la capture, la courbe clignote 
+    1. Je suis incapable de lire cette capture (image capture ds18b20.png). Réglé à 35°C et affichage correcte dans le moniteur série. Fichier de test ds18b20-pico
+    2. Pendant la capture, la courbe clignote (ou se déplace rapidemment à gauche et à droite)
+1. Tu commit et push tout ce que j'ai modifié
 ## fait
 
 
@@ -10,6 +11,19 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.164
+1. ✅ **Pas à pas Arduino : plus de lignes sautées** (« bug de décodage. J'ai modifié dmx-uno-lib.ino. Quand je lance le déebogage il passe toute les ligne (en pas à pas mais saute systématiquement les lignes de 12 à 18) et pourtant le code est exécuté »).
+    1. Cause : le main() du cœur Arduino n'a aucune ligne dans la table DWARF. `lineForPc` lui prêtait la dernière ligne du croquis qui le précède en mémoire (ligne 45 de dmx-uno-lib.ino) : le pas s'arrêtait là, dans main(), puis refusait toute ligne de loop() — pile plus profonde que main(), jugée « dans un appel ». Même chose depuis le `{` d'ouverture de loop(), dont le prologue creuse la pile. Tout le corps de loop() filait d'un coup.
+    2. [compiler.ts](src/compiler.ts) : `parseDwarfVariables` relève l'étendue (`DW_AT_low_pc` / `DW_AT_high_pc`) des fonctions du fichier de l'élève → `AvrDebugInfo.functions`. Les copies hors ligne des fonctions d'en-tête rangées dans l'unité du croquis (`Serial.begin(9600)` de HardwareSerial.h) sont écartées : sans ligne de l'élève, elles ne sont pas « dans le croquis ». `CACHE_FORMAT` 1 → 2 (les compilations en cache n'ont pas ces bornes).
+    3. [avr.mts](src/webview/engines/avr.mts) : nouveau pas quand les bornes existent. Arrêt seulement sur un DÉBUT de ligne exact, jamais sur l'entrée d'une fonction (prologue). Un CALL / RCALL / ICALL / EICALL depuis le croquis, ou une interruption (pile qui descend sans appel), est franchi d'un bloc jusqu'au retour ; un RET / RETI autorise l'arrêt sur la même ligne (récursion, retour dans loop() au tour suivant). Pause hors du croquis (dans delay(), dans le cœur) : `ligneAppelante()` remonte la pile jusqu'à la première adresse de retour dans le croquis précédée d'un appel — la ligne montrée est celle qui a appelé delay().
+    4. Sans bornes (croquis compilé en -Os avec LTO à cause d'une bibliothèque chronométrée comme SoftwareSerial : loop() est fondue dans main()), l'ancien pas s'applique, inchangé.
+    5. Plafond de durée de frame testé APRÈS les arrêts, une fois sur 8192 instructions.
+2. ✅ **Banc** nouveau [verify-debug-avr-pas.mjs](scripts/verify-debug-avr-pas.mjs) (`npm run verify:debugavr-pas`, dans `verify:all`) : VRAI croquis compilé par arduino-cli (cœur Arduino lié ; sauté si arduino-cli manque). Point d'arrêt ligne 4 puis 19 pas : `5 6 9 10 … 16 9 10 … 16 9`, deux tours complets de loop(), `etape` juste à chaque arrêt ; pause pendant `delay(300)` → ligne 13, pas suivant → 14 ; croquis SoftwareSerial en -Os : repli, le pas avance. 14 contrôles, `--ancien` : 8 échecs (`5 6 16 perdu`, le défaut de Frank). Vérifié aussi sur une copie de dmx-uno-lib.ino : 12 → 45 puis 12 → 18 au tour suivant, aucune ligne sautée.
+    1. Typecheck et construction propres. `verify:debugavr` vert. `verify:all` : 146/148 verts, seuls `verify:i18n` et `verify:help-bars` rouges (traductions en attente de publication).
+3. ℹ️ [_repro-dmx-pas.mjs](scripts/_repro-dmx-pas.mjs) : outil de diagnostic du pas à pas sur un croquis (copie, jamais l'original) — `node scripts/_repro-dmx-pas.mjs <ligne d'arrêt> <nombre de pas> [croquis.ino]`.
 
 ---
 

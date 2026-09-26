@@ -291,6 +291,21 @@ export class AvrEngine implements SimEngine {
   private stepping = false;
   private stepStartLine: number | undefined = undefined;
   private stepStartSp = 0;
+  /**
+   * Pas « suivi » : l'étendue des fonctions du croquis est connue (DWARF), on
+   * suit alors les appels et les retours au lieu de comparer SP. Faux sur un
+   * croquis optimisé au lien (-Os, bibliothèque chronométrée) : loop() y est
+   * fondue dans main(), il n'y a plus de fonction à borner — ancien pas à pas.
+   */
+  private pasSuivi = false;
+  /** Adresse (octets) → ligne, pour les seuls DÉBUTS de ligne du croquis. */
+  private debutsDeLigne = new Map<number, number>();
+  /** Première adresse de chaque fonction du croquis : son prologue, pas une ligne. */
+  private entreesDeFonction = new Set<number>();
+  /** Appel ou interruption franchi d'un bloc : on attend que SP remonte ici. */
+  private pasRetourSp: number | null = null;
+  /** Un retour de fonction a eu lieu au niveau du pas : la même ligne compte. */
+  private pasSorti = false;
   // Décodage UTF-8 incrémental de la liaison série : un caractère accentué
   // (ex. « é » = 2 octets) est émis octet par octet par l'USART ; le décodeur
   // en flux tampon les séquences incomplètes pour restituer le bon caractère.
@@ -408,6 +423,13 @@ export class AvrEngine implements SimEngine {
   ) {
     this.family = family;
     this.debugInfo = debugInfo ?? null;
+    if (debugInfo?.functions?.length) {
+      this.pasSuivi = true;
+      // Table triée par adresse puis ligne : la dernière entrée d'une adresse
+      // l'emporte, comme dans lineForPc.
+      for (const e of debugInfo.lines) this.debutsDeLigne.set(e.addr, e.line);
+      for (const f of debugInfo.functions) this.entreesDeFonction.add(f.lo);
+    }
     const isMega = family === 'avr2560';
     // Le Mega a 8 Ko de SRAM (pile en haut, RAMEND 0x21FF) : l'espace données par
     // défaut (328P) serait trop petit et la pile déborderait.
@@ -1422,12 +1444,17 @@ export class AvrEngine implements SimEngine {
 
   /**
    * Avance jusqu'à la prochaine ligne source du sketch (ou un point d'arrêt).
-   * Pas « par-dessus » (step over) : on ne s'arrête qu'une fois revenu au niveau
-   * de pile de départ, donc un appel (delay(), Serial.print(), une fonction de
-   * l'élève…) est exécuté d'un bloc au lieu d'être parcouru instruction par
-   * instruction. La table DWARF ne contient que les lignes du sketch : pendant
-   * un appel au cœur Arduino, lineForPc renvoie une ligne périmée — la garde sur
-   * SP évite de s'arrêter dessus.
+   * Pas « par-dessus » (step over) : un appel (delay(), Serial.print(), une
+   * fonction de l'élève…) est exécuté d'un bloc au lieu d'être parcouru
+   * instruction par instruction.
+   *
+   * Pas suivi (étendue des fonctions connue, cf. pasAvantInstruction) : arrêt au
+   * DÉBUT d'une ligne du croquis seulement ; un appel parti du croquis et une
+   * interruption sont franchis jusqu'à leur retour. Jusqu'à la v2026.9.5.163,
+   * le seul critère était « SP revenu au niveau de départ » avec la ligne la plus
+   * proche du PC : un pas parti de main() (ligne fictive, la dernière du croquis
+   * en mémoire) ou de l'accolade de loop() (avant ses `push`) trouvait tout le
+   * corps de loop() plus profond et le sautait (Frank, 26/09 : lignes 12 à 18).
    *
    * Exécution déléguée à la boucle RAF (cf. loop()) au lieu d'une boucle
    * synchrone : un delay() de plusieurs secondes se franchit en UN clic sans
@@ -1440,8 +1467,86 @@ export class AvrEngine implements SimEngine {
     if (this.stepping) return; // un pas déjà en cours
     this.stepStartLine = this.currentLine();
     this.stepStartSp = this.cpu.SP;
+    this.pasRetourSp = null;
+    this.pasSorti = false;
     this.stepping = true;
     this.isPaused = false;
+  }
+
+  /**
+   * Pas suivi, AVANT l'exécution de l'instruction : un appel parti du croquis
+   * sera franchi d'un bloc (on note SP avant l'empilement de l'adresse de
+   * retour) ; un retour au niveau du pas signale qu'on quitte la fonction de
+   * départ. Un appel parti du cœur n'est PAS franchi : c'est ainsi que main()
+   * ramène le pas dans loop() à la fin d'un tour.
+   */
+  private pasAvantInstruction(): void {
+    if (this.pasRetourSp !== null) return; // dans un appel franchi d'un bloc
+    const cpu = this.cpu;
+    const op = cpu.progMem[cpu.pc];
+    if ((op & 0xfe0e) === 0x940e || (op & 0xf000) === 0xd000 || op === 0x9509 || op === 0x9519) {
+      // CALL, RCALL, ICALL, EICALL
+      if (this.dansCroquis(cpu.pc * 2)) this.pasRetourSp = cpu.SP;
+    } else if (op === 0x9508 || op === 0x9518) {
+      this.pasSorti = true; // RET, RETI
+    }
+  }
+
+  /**
+   * Pas suivi, APRÈS l'instruction et le tick : vrai s'il faut s'arrêter ici.
+   * `spAvantTick` démasque une interruption prise pendant le tick (elle empile
+   * l'adresse de retour) : elle est franchie d'un bloc, comme un appel.
+   */
+  private pasApresInstruction(pcBytes: number, spAvantTick: number): boolean {
+    const sp = this.cpu.SP;
+    if (this.pasRetourSp === null && sp < spAvantTick) this.pasRetourSp = spAvantTick;
+    if (this.pasRetourSp !== null) {
+      if (sp < this.pasRetourSp) return false;
+      this.pasRetourSp = null; // revenu : l'adresse de retour peut ouvrir une ligne
+    }
+    const ligne = this.debutsDeLigne.get(pcBytes);
+    // L'entrée d'une fonction porte son accolade : le prologue n'est pas une
+    // ligne de l'élève, on s'arrête à la première instruction qui suit.
+    if (ligne === undefined || this.entreesDeFonction.has(pcBytes)) return false;
+    return ligne !== this.stepStartLine || this.pasSorti;
+  }
+
+  /** Vrai si l'adresse (octets) tombe dans une fonction du croquis. */
+  private dansCroquis(pcBytes: number): boolean {
+    for (const f of this.debugInfo?.functions ?? []) {
+      if (pcBytes >= f.lo && pcBytes < f.hi) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Ligne du croquis d'où part l'appel en cours, quand le PC est hors du croquis
+   * (pause pendant un delay(), dans main()…) : première adresse de retour de la
+   * pile qui tombe dans le croquis juste après une instruction d'appel. Sans
+   * elle, la pause affichait la dernière ligne du croquis en mémoire.
+   */
+  private ligneAppelante(): number | undefined {
+    const cpu = this.cpu;
+    const data = cpu.data;
+    const pm = cpu.progMem;
+    const large = cpu.pc22Bits; // Mega : adresse de retour sur 3 octets
+    const n = large ? 3 : 2;
+    for (let a = cpu.SP + 1; a + n <= data.length; a++) {
+      const ret = large ? (data[a] << 16) | (data[a + 1] << 8) | data[a + 2] : (data[a] << 8) | data[a + 1];
+      if (ret < 1 || !this.dansCroquis(ret * 2 - 1)) continue;
+      const op = pm[ret - 1];
+      const appel =
+        (ret >= 2 && (pm[ret - 2] & 0xfe0e) === 0x940e) || // CALL (deux mots)
+        (op & 0xf000) === 0xd000 || op === 0x9509 || op === 0x9519; // RCALL, ICALL, EICALL
+      if (appel) return this.lineForPc(ret * 2 - 1);
+    }
+    return undefined;
+  }
+
+  /** Ancien pas (croquis sans fonctions bornées) : SP revenu au départ, autre ligne. */
+  private pasAncien(pcBytes: number): boolean {
+    const line = this.lineForPc(pcBytes);
+    return line !== undefined && line !== this.stepStartLine && this.cpu.SP >= this.stepStartSp;
   }
 
   /**
@@ -1474,9 +1579,14 @@ export class AvrEngine implements SimEngine {
     return table[lo].line;
   }
 
-  /** Ligne source associée au PC courant, d'après la table DWARF. */
+  /**
+   * Ligne source associée au PC courant, d'après la table DWARF. Hors du croquis
+   * (fonctions bornées), c'est la ligne qui a appelé le code en cours.
+   */
   private currentLine(): number | undefined {
-    return this.lineForPc(this.cpu.pc * 2); // PC AVR en mots, table DWARF en octets
+    const pcBytes = this.cpu.pc * 2; // PC AVR en mots, table DWARF en octets
+    if (!this.pasSuivi || this.dansCroquis(pcBytes)) return this.lineForPc(pcBytes);
+    return this.ligneAppelante();
   }
 
   /** Lit les globales en SRAM (little-endian) pour le panneau Variables. */
@@ -1565,11 +1675,15 @@ export class AvrEngine implements SimEngine {
       const cpu = this.cpu;
       let guard = 0;
       while (cpu.cycles < deadline && !this.isPaused) {
+        // Pas suivi : l'instruction est lue AVANT d'être exécutée (appel à
+        // franchir, retour de fonction), et SP relevé avant le tick (interruption).
+        const suivi = this.stepping && this.pasSuivi;
+        if (suivi) this.pasAvantInstruction();
         avrInstruction(cpu);
+        const spAvantTick = suivi ? cpu.SP : 0;
         cpu.tick();
         // Actions d'entrée programmées (ECHO ultrason) à échéance en temps simulé.
         if (this.scheduled.length > 0) this.fireScheduled();
-        if ((++guard & 0x1fff) === 0 && performance.now() - started > MAX_FRAME_MS) break;
         const pcBytes = cpu.pc * 2;
         // Points d'arrêt : test du PC (en octets) après chaque instruction.
         if (this.breakpoints.size > 0) {
@@ -1581,16 +1695,19 @@ export class AvrEngine implements SimEngine {
             break;
           }
         }
-        // Pas à pas « par-dessus » : arrêt sur une autre ligne du sketch, une fois
-        // la pile revenue au niveau de départ (les appels sont franchis d'un bloc).
+        // Pas à pas « par-dessus » : arrêt sur une autre ligne du sketch, les
+        // appels étant franchis d'un bloc (cf. step()).
         if (this.stepping) {
-          const line = this.lineForPc(pcBytes);
-          if (line !== undefined && line !== this.stepStartLine && cpu.SP >= this.stepStartSp) {
+          if (suivi ? this.pasApresInstruction(pcBytes, spAvantTick) : this.pasAncien(pcBytes)) {
             this.stepping = false;
             this.pause(); // émet l'état (isPaused devient vrai)
             break;
           }
         }
+        // Plafond de frame testé APRÈS les arrêts : testé avant, il rendait la
+        // main sans examiner le PC atteint, et la tranche suivante exécutait
+        // l'instruction — point d'arrêt ou fin de pas manqué (une fois sur 8192).
+        if ((++guard & 0x1fff) === 0 && performance.now() - started > MAX_FRAME_MS) break;
       }
       this.flushRx();
       // En avance sur le temps réel : on dort d'autant (le sketch ne doit pas

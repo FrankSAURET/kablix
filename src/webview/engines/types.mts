@@ -185,6 +185,8 @@ export interface AvrDebugInfo {
   globals: Array<{ name: string; addr: number; size: number; type?: string }>;
   /** Locales repérées mais non lisibles (pile/registre) : nommées dans le panneau. */
   locals?: string[];
+  /** Fonctions du fichier principal (adresses flash en octets, `hi` exclu). */
+  functions?: Array<{ name: string; lo: number; hi: number }>;
 }
 
 export interface SimEngine {

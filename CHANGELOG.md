@@ -45,6 +45,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - **L'icône des fichiers `.projix` n'a plus de fond vert** dans l'Explorateur Windows. Une icône déjà installée est remplacée au lancement suivant de Kablix.
 - **Les variables Arduino sont de nouveau visibles en pause de débogage.**.
+- **Le pas à pas Arduino ne saute plus de lignes.** Au début de `loop()`, tout le corps de la fonction passait d'un coup. Une pause pendant un `delay()` montre la ligne qui l'appelle.
 - **Pico : `machine.freq()` ne dérègle plus la PWM.** Un servomoteur réglé après un changement de fréquence prenait une mauvaise position.
 - **L'UART du Pico tourne à la vitesse réglée par le programme MicroPython.** Les octets partaient plus de deux fois trop vite.
 - **Les propriétés d'une sonde logique ne s'affichent plus en plusieurs exemplaires** quand on la pose sur une patte. Même correction pour l'interrupteur 3V3/5V du Grove Shield et les bascules dessinées sur les composants.

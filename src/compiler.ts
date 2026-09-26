@@ -886,6 +886,13 @@ export interface AvrDebugInfo {
    * cette liste, l'élève cherche une variable qui n'apparaît nulle part.
    */
   locals?: string[];
+  /**
+   * Fonctions du fichier de l'élève : adresses flash en octets, `hi` exclu.
+   * Sans elles, le pas à pas ne sait pas qu'il est sorti du croquis : la table
+   * des lignes ne connaît que des DÉBUTS de ligne, et main() ou delay() héritent
+   * de la dernière ligne qui les précède en mémoire.
+   */
+  functions?: Array<{ name: string; lo: number; hi: number }>;
 }
 
 const AVR_DATA_BIAS = 0x800000; // biais ELF de l'espace données AVR
@@ -1125,11 +1132,12 @@ function resolveType(
 function parseDwarfVariables(
   text: string,
   srcPath: string
-): { globals: AvrDebugInfo['globals']; locals: string[] } {
+): { globals: AvrDebugInfo['globals']; locals: string[]; functions: NonNullable<AvrDebugInfo['functions']> } {
   const srcBase = basename(srcPath).toLowerCase();
   const srcStem = srcBase.replace(/\.[^.]+$/, '');
   const dies = new Map<number, DwarfDie>(); // tous les DIE, par offset de section
   const candidates: DwarfDie[] = []; // DW_TAG_variable du fichier de l'élève
+  const sousProgrammes: DwarfDie[] = []; // DW_TAG_subprogram du fichier de l'élève
   // Fonction englobante de chaque candidat (vide pour une globale) : sert à
   // qualifier le nom, deux fonctions pouvant déclarer un `static` homonyme.
   const scopeOf = new Map<DwarfDie, string>();
@@ -1152,6 +1160,7 @@ function parseDwarfVariables(
         const parent = depth > 0 ? stack[depth - 1] : undefined;
         parent?.children.push(current);
         if (current.tag === 'DW_TAG_compile_unit') cuMatches = false; // tranché par DW_AT_name
+        else if (current.tag === 'DW_TAG_subprogram' && cuMatches) sousProgrammes.push(current);
         else if (current.tag === 'DW_TAG_variable' && cuMatches) {
           // Niveau 1 = globale. Plus profond = déclarée dans une fonction : c'est
           // soit un `static` (adresse fixe, donc lisible), soit une locale
@@ -1214,7 +1223,20 @@ function parseDwarfVariables(
     globals.push(...flattenGlobal(name, addr, type));
   }
   globals.sort((a, b) => a.name.localeCompare(b.name));
-  return { globals, locals: [...locals].sort((a, b) => a.localeCompare(b)) };
+
+  // Étendue des fonctions : seules celles qui ont du code (une déclaration n'a
+  // pas de DW_AT_low_pc). En DWARF 4, DW_AT_high_pc peut être une LONGUEUR et
+  // non une adresse : une borne haute sous la basse ne peut être que ça.
+  const functions: NonNullable<AvrDebugInfo['functions']> = [];
+  for (const die of sousProgrammes) {
+    const lo = parseInt(die.attrs.get('DW_AT_low_pc') ?? '', 16);
+    let hi = parseInt(die.attrs.get('DW_AT_high_pc') ?? '', 16);
+    if (!Number.isFinite(lo) || !Number.isFinite(hi)) continue;
+    if (hi <= lo) hi += lo;
+    if (hi > lo) functions.push({ name: dieName(die) ?? '?', lo, hi });
+  }
+  functions.sort((a, b) => a.lo - b.lo);
+  return { globals, locals: [...locals].sort((a, b) => a.localeCompare(b)), functions };
 }
 
 /**
@@ -1295,13 +1317,24 @@ async function extractAvrDebug(
       run(objdump, ['--dwarf=info', elfPath]),
     ]);
     const lines = parseDecodedLines(decoded, srcPath);
-    const { globals, locals } = parseDwarfVariables(info, srcPath);
+    const dwarf = parseDwarfVariables(info, srcPath);
+    const { globals, locals } = dwarf;
+    // L'unité du croquis contient aussi les copies hors ligne des fonctions
+    // d'en-tête qu'il appelle (Serial.begin(9600) de HardwareSerial.h) : sans
+    // ligne de l'élève, elles ne sont pas « dans le croquis » pour le pas à pas.
+    const functions = dwarf.functions.filter((f) => lines.some((l) => l.addr >= f.lo && l.addr < f.hi));
     if (lines.length === 0 && globals.length === 0) return undefined;
     log.push(
       `Infos de débogage : ${lines.length} point(s) de ligne, ${globals.length} variable(s) lisible(s)` +
-        (locals.length > 0 ? `, ${locals.length} locale(s) non lisible(s).` : '.')
+        (locals.length > 0 ? `, ${locals.length} locale(s) non lisible(s)` : '') +
+        `, ${functions.length} fonction(s) bornée(s).`
     );
-    return { lines, globals, locals: locals.length > 0 ? locals : undefined };
+    return {
+      lines,
+      globals,
+      locals: locals.length > 0 ? locals : undefined,
+      functions: functions.length > 0 ? functions : undefined,
+    };
   } catch (err) {
     log.push(`Infos de débogage indisponibles : ${(err as Error).message}`);
     return undefined;
@@ -1317,7 +1350,8 @@ async function extractAvrDebug(
  * le CONTENU des sources. Le mémo en mémoire du panneau (chemin + date de
  * modification) ne survit pas au rechargement de la fenêtre ; ce cache-ci, si.
  */
-const CACHE_FORMAT = 1;
+// 2 : les infos de débogage portent l'étendue des fonctions (pas à pas).
+const CACHE_FORMAT = 2;
 /** Nombre d'entrées gardées ; au-delà, les plus anciennes sont recyclées. */
 const CACHE_MAX_ENTRIES = 60;
 const CACHE_MAX_SOURCES = 300;
