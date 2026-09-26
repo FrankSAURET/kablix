@@ -21,6 +21,7 @@
 import { couleurVoie, themeSombre } from './voies-couleurs.mjs';
 import type { AnalyseurCapture, SensDeclenchement } from './analyseur-capture.mjs';
 import type { Annotation } from './analyseur-decodage.mjs';
+import { ContexteSvg } from './contexte-svg.mjs';
 
 /** Hauteur d'une piste de voie, en pixels CSS. */
 const PISTE_H = 46;
@@ -304,6 +305,11 @@ export interface EtatRendu {
   marqueurs?: ReadonlyArray<number | null>;
   /** Marqueur tenu à la souris : dessiné par-dessus l'autre. */
   marqueurPris?: number | null;
+  /**
+   * Rendu pour l'export SVG : sans ce qui ne sert qu'à la souris (boutons de
+   * voie, bouton de rappel, marqueurs garés ou hors de vue, réticule).
+   */
+  export?: boolean;
 }
 
 export class AnalyseurVue {
@@ -406,7 +412,29 @@ export class AnalyseurVue {
     this.zones = [];
     this.zonesMarqueurs = [];
     this.zoneRappel = null;
+    this.peindre(ctx, e, w, h);
+  }
 
+  /**
+   * Les courbes en SVG, pour les exports du menu ☰ : le MÊME dessin que
+   * l'écran, peint dans un contexte qui écrit du SVG (contexte-svg.mts), moins
+   * ce qui ne sert qu'à la souris. `largeur` fixe l'échelle des temps :
+   * l'appelant la tire du zoom affiché.
+   */
+  svg(e: EtatRendu, largeur: number): string {
+    const h = this.hauteurPour(e.voies);
+    const ctx = new ContexteSvg(largeur, h);
+    // Fond plein : les textes clairs du thème sombre disparaîtraient sur la
+    // page blanche où l'on colle l'image.
+    ctx.fillStyle = fondPage(themeSombre());
+    ctx.fillRect(0, 0, largeur, h);
+    // Le contexte SVG couvre tout ce dont la vue se sert, pas l'interface entière.
+    this.peindre(ctx as unknown as CanvasRenderingContext2D, { ...e, souris: null, export: true }, largeur, h);
+    return ctx.texte();
+  }
+
+  /** Tout le dessin, dans un contexte déjà prêt (canvas de l'écran ou SVG d'export). */
+  private peindre(ctx: CanvasRenderingContext2D, e: EtatRendu, w: number, h: number): void {
     const sombre = themeSombre();
     const style = getComputedStyle(document.body);
     const fg = style.getPropertyValue('--vscode-foreground').trim() || (sombre ? '#ccc' : '#333');
@@ -598,7 +626,7 @@ export class AnalyseurVue {
     // qui forçait à désigner la voie avant de pouvoir régler quoi que ce soit.
     // Une voie en défaut ne garde que sa pastille de réglages : ni déclencher
     // ni décoder n'a de sens sur une pince qui n'écoute rien.
-    this.boutonsVoie(ctx, vv, haut, couleur, fg, sombre, vv.probleme === null);
+    if (!e.export) this.boutonsVoie(ctx, vv, haut, couleur, fg, sombre, vv.probleme === null);
 
     // Séparateur de piste.
     ctx.save();
@@ -1119,10 +1147,13 @@ export class AnalyseurVue {
     }
 
     // Le rappel ne sert que si un marqueur est posé : sinon il reste pâle et
-    // ne se prend pas.
+    // ne se prend pas. L'export n'en a que faire, comme des marqueurs garés et
+    // des pointes de bord : ils servent à manier la vue, pas à la lire.
     const unPose = ts.some((t) => t !== null);
-    this.rappel(ctx, COL_X, yD, fg, unPose);
-    if (unPose) this.zoneRappel = { x: COL_X, y: GRAD_H, w: RAPPEL_W, h: BANDE_M };
+    if (!e.export) {
+      this.rappel(ctx, COL_X, yD, fg, unPose);
+      if (unPose) this.zoneRappel = { x: COL_X, y: GRAD_H, w: RAPPEL_W, h: BANDE_M };
+    }
 
     // Le marqueur tenu se dessine en dernier : c'est lui qu'on regarde, et il
     // doit passer devant l'autre quand on l'amène dessus.
@@ -1131,11 +1162,15 @@ export class AnalyseurVue {
       const couleur = teintes[m]!;
       const x = xs[m] ?? null;
       if (x === null) {
+        if (e.export) continue;
         this.drapeau(ctx, m, xGare(m), yD, couleur);
         this.zonesMarqueurs.push({ m, x: xGare(m) - DRAPEAU_W / 2, y: GRAD_H, w: DRAPEAU_W, h: BANDE_M });
         continue;
       }
-      if (x < xMin || x > xMax) {
+      // Un marqueur exporté sur le bord droit tombe au pixel près sur la fin du
+      // tracé : un demi-pixel d'arrondi ne doit pas l'effacer.
+      if (e.export && (x < xMin - 0.5 || x > xMax + 0.5)) continue;
+      if (!e.export && (x < xMin || x > xMax)) {
         const bord = x < xMin ? xMin + 1 : xMax - 1;
         const s = x < xMin ? 1 : -1;
         ctx.fillStyle = couleur;
@@ -1158,6 +1193,7 @@ export class AnalyseurVue {
       ctx.stroke();
       ctx.setLineDash([]);
       this.drapeau(ctx, m, x, yD, couleur);
+      if (e.export) continue;
       this.zonesMarqueurs.push(
         { m, x: x - 4, y: REGLE_H, w: 8, h: h - REGLE_H },
         { m, x: x - DRAPEAU_W / 2, y: GRAD_H, w: DRAPEAU_W, h: BANDE_M }

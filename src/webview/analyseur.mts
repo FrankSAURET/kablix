@@ -540,17 +540,22 @@ function majVitesses(): void {
 
 /** Décodage : recalculé à chaque rendu, sur la fenêtre visible seulement. */
 function calculerAnnotations(): Annotation[] {
+  return annotationsEntre(fenetre);
+}
+
+/** Décodage d'une fenêtre de temps : la vue, ou la plage d'un export SVG. */
+function annotationsEntre(f: Fenetre): Annotation[] {
   if (decodages.length === 0) return [];
   // On ne décode QUE la fenêtre visible, marge d'un octet de chaque côté : à
   // pleine profondeur (60 000 fronts par voie) décoder tout l'enregistrement à
   // chaque image de l'écran coûterait des centaines de milliers d'opérations
   // pour afficher vingt étiquettes.
-  const marge = fenetre.duree * 0.1;
+  const marge = f.duree * 0.1;
   // À gauche, certains protocoles doivent remonter jusqu'au début de leur
   // trame, loin hors de l'écran quand on zoome (DHT : 18 ms de départ).
   const recul = Math.max(marge, ...decodages.map((d) => reculNecessaireMs(d.protocole)));
-  const t0 = fenetre.t0 - recul;
-  const t1 = fenetre.t0 + fenetre.duree + marge;
+  const t0 = f.t0 - recul;
+  const t1 = f.t0 + f.duree + marge;
   // `capture.fenetre` rend déjà les fronts INVERSÉS sur les voies réglées
   // actives-bas : le décodeur lit donc exactement ce que la vue dessine.
   return decoderTous(trancheCapture(t0, t1), reglagesEffectifs());
@@ -634,6 +639,9 @@ function sauterTrame(sens: -1 | 1): void {
 const selHorloge = document.getElementById('horloge') as HTMLSelectElement;
 const etatTexte = document.getElementById('etat') as HTMLSpanElement;
 const btnReafficher = document.getElementById('reafficher') as HTMLButtonElement | null;
+/** Bouton ☰ des exports, et son menu (posé hors de la barre, voir analyseur-panel.ts). */
+const btnMenuExport = document.getElementById('menu-export') as HTMLButtonElement | null;
+const menuExport = document.getElementById('menu-export-liste') as HTMLDivElement | null;
 
 /** Remplit un sélecteur de voie avec les voies traçables. */
 function remplirVoies(sel: HTMLSelectElement, aucun: string): void {
@@ -701,11 +709,12 @@ let panneau: HTMLDivElement | null = null;
 /** Ce que le panneau ouvert montre — sert à refermer au second clic. */
 let panneauPour: { voie: number; quoi: BoutonVoie } | null = null;
 
-/** Ferme le panneau flottant s'il y en a un. */
+/** Ferme le panneau flottant s'il y en a un, menu ☰ compris. */
 function fermerPanneau(): void {
   panneau?.remove();
   panneau = null;
   panneauPour = null;
+  fermerMenuExport();
 }
 
 /**
@@ -1330,6 +1339,12 @@ document.addEventListener(
   'pointerdown',
   (ev) => {
     if (panneau && !panneau.contains(ev.target as Node)) fermerPanneau();
+    // Le bouton ☰ lui-même est exclu : son clic referme le menu ouvert, le
+    // fermer ici le rouvrirait aussitôt.
+    const cible = ev.target as Node;
+    if (menuExport && !menuExport.hidden && !menuExport.contains(cible) && !btnMenuExport?.contains(cible)) {
+      fermerMenuExport();
+    }
   },
   true
 );
@@ -1701,6 +1716,92 @@ canvas.addEventListener('pointerup', (ev) => {
   if (canvas.hasPointerCapture(ev.pointerId)) canvas.releasePointerCapture(ev.pointerId);
 });
 
+// --- Exports : menu ☰ ----------------------------------------------------------
+//
+// Trois sorties (Frank, 26/09) : CSV enregistré, SVG copié, SVG enregistré.
+// Toutes suivent la même mécanique : M1 au début de ce qu'on veut, M2 à la fin.
+// Sans les deux marqueurs, le CSV emporte toute la mesure et le SVG la fenêtre
+// affichée.
+
+/** Largeur au-delà de laquelle un SVG n'est plus une image qu'on manie. */
+const SVG_LARGEUR_MAX = 50000;
+/** Tracé en deçà duquel un SVG ne montrerait plus rien de lisible. */
+const SVG_TRACE_MIN = 40;
+
+function ouvrirMenuExport(): void {
+  if (!menuExport || !btnMenuExport) return;
+  fermerPanneau();
+  menuExport.hidden = false;
+  // Sous le bouton, en coordonnées de page, sans dépasser le bord droit.
+  const r = btnMenuExport.getBoundingClientRect();
+  const largeur = menuExport.offsetWidth;
+  const x = r.left + window.scrollX;
+  menuExport.style.left = `${Math.max(4, Math.min(x, window.scrollX + document.documentElement.clientWidth - largeur - 6))}px`;
+  menuExport.style.top = `${r.bottom + window.scrollY + 4}px`;
+  btnMenuExport.setAttribute('aria-expanded', 'true');
+}
+
+function fermerMenuExport(): void {
+  if (!menuExport || menuExport.hidden) return;
+  menuExport.hidden = true;
+  btnMenuExport?.setAttribute('aria-expanded', 'false');
+}
+
+/** M1 et M2 posés tous deux, à deux instants distincts ; null sinon. */
+function plageMarqueurs(): { t1: number; t2: number } | null {
+  const [t1, t2] = [marqueurs[0] ?? null, marqueurs[1] ?? null];
+  if (t1 === null || t2 === null || t1 === t2) return null;
+  return { t1, t2 };
+}
+
+/**
+ * CSV : la page n'emporte rien, c'est l'hôte qui détient la mesure entière dans
+ * son journal de session (voir AnalyseurVersHote). Elle ne donne que la plage.
+ */
+function exporterCsv(): void {
+  const plage = plageMarqueurs();
+  vscode?.postMessage(plage ? { type: 'analyseurExport', plage } : { type: 'analyseurExport' });
+}
+
+/**
+ * SVG : dessiné ici, au zoom affiché — un pixel de l'image vaut le même temps
+ * qu'un pixel de l'écran. La plage entre M1 et M2 peut donc donner une image
+ * bien plus large que la fenêtre.
+ */
+function exporterSvg(action: 'copier' | 'enregistrer'): void {
+  const voies = voiesVisibles();
+  if (voies.length === 0 || !capture.aDesDonnees) {
+    vscode?.postMessage({ type: 'analyseurSvg', action, svg: '', refus: 'vide' });
+    return;
+  }
+  const p = plageMarqueurs();
+  const f: Fenetre = p ? { t0: Math.min(p.t1, p.t2), duree: Math.abs(p.t2 - p.t1) } : { ...fenetre };
+  const { MARGE_G, MARGE_D } = DISPOSITION;
+  const pxParMs = (canvas.clientWidth - MARGE_G - MARGE_D) / fenetre.duree;
+  const trace = f.duree * pxParMs;
+  const largeur = MARGE_G + MARGE_D + trace;
+  if (!(trace >= SVG_TRACE_MIN) || largeur > SVG_LARGEUR_MAX) {
+    const refus = trace >= SVG_TRACE_MIN ? 'large' : 'etroit';
+    vscode?.postMessage({ type: 'analyseurSvg', action, svg: '', refus, largeur: Math.round(refus === 'large' ? largeur : trace) });
+    return;
+  }
+  const svg = vue.svg(
+    {
+      capture,
+      voies,
+      fenetre: f,
+      annotations: annotationsEntre(f),
+      souris: null,
+      textes: textes(),
+      lang: locale(),
+      marqueurs,
+      marqueurPris: null,
+    },
+    largeur
+  );
+  vscode?.postMessage({ type: 'analyseurSvg', action, svg });
+}
+
 // --- Câblage de la barre -----------------------------------------------------
 
 selHorloge.addEventListener('change', () => {
@@ -1720,10 +1821,18 @@ btnReafficher?.addEventListener('click', () => {
   dessiner();
   envoyerReglages();
 });
-// L'export n'emporte rien de la page : c'est l'hôte qui détient la mesure
-// entière, dans son journal de session (voir AnalyseurVersHote).
-document.getElementById('exporter')?.addEventListener('click', () => {
-  vscode?.postMessage({ type: 'analyseurExport' });
+btnMenuExport?.addEventListener('click', () => {
+  if (menuExport && !menuExport.hidden) fermerMenuExport();
+  else ouvrirMenuExport();
+});
+menuExport?.addEventListener('click', (ev) => {
+  const b = (ev.target as HTMLElement).closest<HTMLButtonElement>('button[data-export]');
+  if (!b) return;
+  fermerMenuExport();
+  const quoi = b.dataset.export;
+  if (quoi === 'csv') exporterCsv();
+  else if (quoi === 'copier-svg') exporterSvg('copier');
+  else if (quoi === 'svg') exporterSvg('enregistrer');
 });
 window.addEventListener('resize', () => dessiner());
 // Retour au premier plan : la fenêtre a pu changer de largeur pendant que

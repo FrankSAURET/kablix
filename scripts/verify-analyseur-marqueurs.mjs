@@ -148,7 +148,8 @@ const proc = spawn(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox', '
 let ws;
 try {
 	let liste = null;
-	for (let i = 0; i < 40 && !liste; i++) {
+	// 30 s : sous verify:all, sept bancs en parallèle, Chrome met parfois plus de 10 s à ouvrir son port.
+	for (let i = 0; i < 120 && !liste; i++) {
 		try { liste = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json(); } catch { await attendre(250); }
 	}
 	ws = new WebSocket(liste.find((c) => c.type === 'page').webSocketDebuggerUrl);
@@ -165,7 +166,7 @@ try {
 		if (r.result?.exceptionDetails) throw new Error(JSON.stringify(r.result.exceptionDetails).slice(0, 600));
 		return r.result?.result?.value;
 	};
-	for (let i = 0; i < 40 && !(await ev(`(window.__msgs || []).some((m) => m.type === 'analyseurPret')`).catch(() => false)); i++) await attendre(250);
+	for (let i = 0; i < 120 && !(await ev(`(window.__msgs || []).some((m) => m.type === 'analyseurPret')`).catch(() => false)); i++) await attendre(250);
 
 	await ev(`window.postMessage(${JSON.stringify({ type: 'restaure', etat: ETAT })}, '*')`);
 	await attendre(250);

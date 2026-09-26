@@ -356,7 +356,8 @@ let ws;
 try {
 	etape = 'connexion à Chrome';
 	let listeCibles = null;
-	for (let i = 0; i < 40 && !listeCibles; i++) {
+	// 30 s : sous verify:all, sept bancs en parallèle, Chrome met parfois plus de 10 s à ouvrir son port.
+	for (let i = 0; i < 120 && !listeCibles; i++) {
 		try { listeCibles = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json(); } catch { await attendre(250); }
 	}
 	ws = new WebSocket(listeCibles.find((c) => c.type === 'page').webSocketDebuggerUrl);
@@ -374,7 +375,7 @@ try {
 		return r.result?.result?.value;
 	};
 	etape = 'page prête';
-	for (let i = 0; i < 40 && !(await ev(`(window.__msgs || []).some((m) => m.type === 'analyseurPret')`).catch(() => false)); i++) await attendre(250);
+	for (let i = 0; i < 120 && !(await ev(`(window.__msgs || []).some((m) => m.type === 'analyseurPret')`).catch(() => false)); i++) await attendre(250);
 	etape = 'restauration de la capture';
 
 	const etat = {

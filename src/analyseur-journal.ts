@@ -338,6 +338,56 @@ export class AnalyseurJournal {
   }
 }
 
+/**
+ * Le journal réduit à la plage [t1, t2] (ms simulées), pour l'export entre M1
+ * et M2 (Frank, 26/09).
+ *
+ * En tête des données, le niveau de chaque voie À t1 : une ligne datée de t1
+ * par voie, recopiée de son dernier front d'avant. Sans elle, un tableur ne
+ * saurait pas d'où part une voie qui ne bouge qu'après t1 — ou plus du tout.
+ * Une voie sans front avant t1 n'a pas de niveau connu : pas de ligne.
+ *
+ * Les lignes sont triées par temps : le journal, lui, les range par salve et
+ * par broche. Commentaires et ligne de colonnes sont gardés, avec la plage.
+ */
+export function extraitCsv(texte: string, t1: number, t2: number): string {
+  const a = Math.min(t1, t2);
+  const b = Math.max(t1, t2);
+  const tete: string[] = [];
+  const dedans: Array<{ t: number; ligne: string }> = [];
+  /** Dernier front d'avant la plage, par voie et broche : `,voie,broche,nom,niveau`. */
+  const avant = new Map<string, { t: number; suite: string }>();
+  for (const ligne of texte.split('\n')) {
+    if (ligne === '') continue;
+    if (ligne.startsWith('#') || ligne === ENTETE) {
+      tete.push(ligne);
+      continue;
+    }
+    const v1 = ligne.indexOf(',');
+    const t = Number(ligne.slice(0, v1));
+    if (v1 < 0 || !Number.isFinite(t)) continue;
+    if (t < a) {
+      // La clé s'arrête avant le nom : il peut être cité et porter des virgules.
+      const v3 = ligne.indexOf(',', ligne.indexOf(',', v1 + 1) + 1);
+      const cle = ligne.slice(v1 + 1, v3);
+      const deja = avant.get(cle);
+      if (!deja || t >= deja.t) avant.set(cle, { t, suite: ligne.slice(v1) });
+    } else if (t <= b) {
+      dedans.push({ t, ligne });
+    }
+  }
+  dedans.sort((x, y) => x.t - y.t);
+  // La plage se dit juste avant la ligne de colonnes, avec les autres commentaires.
+  const colonnes = tete.indexOf(ENTETE);
+  const plage = `# plage exportée : de ${a} à ${b} ms (M1 → M2), niveau de chaque voie à ${a} ms en tête`;
+  if (colonnes >= 0) tete.splice(colonnes, 0, plage);
+  else tete.push(plage, ENTETE);
+  const depart = [...avant.entries()]
+    .sort(([x], [y]) => parseInt(x, 10) - parseInt(y, 10))
+    .map(([, x]) => `${a}${x.suite}`);
+  return [...tete, ...depart, ...dedans.map((x) => x.ligne), ''].join('\n');
+}
+
 /** Échappe un champ CSV : guillemets doublés, champ cité s'il contient un séparateur. */
 function csv(texte: string): string {
   if (!/[",\n]/.test(texte)) return texte;

@@ -359,7 +359,8 @@ window.acquireVsCodeApi = () => ({
 		let ws = null;
 		try {
 			let liste = null;
-			for (let i = 0; i < 40 && !liste; i++) {
+			// 30 s : sous verify:all, sept bancs en parallèle, Chrome met parfois plus de 10 s à ouvrir son port.
+			for (let i = 0; i < 120 && !liste; i++) {
 				try { liste = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json(); }
 				catch { await attendre(250); }
 			}
@@ -383,7 +384,7 @@ window.acquireVsCodeApi = () => ({
 				if (r.result?.exceptionDetails) throw new Error(JSON.stringify(r.result.exceptionDetails));
 				return r.result?.result?.value;
 			};
-			for (let i = 0; i < 60; i++) {
+			for (let i = 0; i < 150; i++) {
 				if (await ev('(window.__msgs || []).some((m) => m && m.type === "ready")')) break;
 				await attendre(200);
 			}

@@ -69,8 +69,27 @@ export type AnalyseurVersHote =
    * (`analyseur-journal.ts`), déjà au format CSV. La page, elle, rabote sa
    * capture (FRONTS_MAX_PAR_VOIE) pour rester fluide : elle exporterait une
    * mesure amputée de son début.
+   *
+   * `plage` : M1 et M2 posés tous deux, l'export se limite à l'intervalle qui
+   * les sépare (ms simulées, dans l'ordre du temps). Absente : tout le journal.
    */
-  | { type: 'analyseurExport' };
+  | { type: 'analyseurExport'; plage?: { t1: number; t2: number } }
+  /**
+   * Les courbes entre M1 et M2, en SVG, à copier dans le presse-papier ou à
+   * enregistrer. Celui-là PORTE son contenu : le dessin, c'est la page qui le
+   * fait, au zoom qu'elle affiche.
+   *
+   * `refus` : la page n'a rien dessiné (`svg` vide) et l'hôte dit pourquoi —
+   * rien de mesuré, ou une plage trop étroite ou trop large à ce zoom
+   * (`largeur` = pixels qu'elle aurait pris).
+   */
+  | {
+      type: 'analyseurSvg';
+      action: 'copier' | 'enregistrer';
+      svg: string;
+      refus?: 'vide' | 'etroit' | 'large';
+      largeur?: number;
+    };
 
 /** Ce que l'atelier veut faire parvenir à l'onglet. */
 export type HoteVersAnalyseur =
@@ -393,8 +412,10 @@ export class AnalyseurPanel {
   /* Panneau flottant : réglages d'une voie, choix d'un front, choix d'un
      protocole. Il s'ouvre SOUS le bouton dessiné qui l'appelle — les boutons
      vivent dans le canvas, un panneau ancré à la barre du haut aurait obligé à
-     faire l'aller-retour des yeux entre la voie et son réglage. */
-  .flottant {
+     faire l'aller-retour des yeux entre la voie et son réglage. Le menu ☰
+     d'export en prend l'habit sous une autre classe : .flottant désigne LE
+     panneau ouvert d'une voie, et lui reste dans la page, caché. */
+  .flottant, .menu-flottant {
     position: absolute; z-index: 20;
     display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px;
     max-width: 460px; padding: 6px 8px;
@@ -404,13 +425,13 @@ export class AnalyseurPanel {
     box-shadow: 0 2px 8px rgba(0,0,0,.35);
   }
   .flottant label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
-  .flottant input, .flottant select, .flottant button {
+  .flottant input, .flottant select, .flottant button, .menu-flottant button {
     font: inherit; color: var(--vscode-foreground);
     background: var(--vscode-input-background, transparent);
     border: 1px solid var(--vscode-dropdown-border, rgba(128,128,128,.4));
     border-radius: 3px; padding: 1px 4px;
   }
-  .flottant button { cursor: pointer; }
+  .flottant button, .menu-flottant button { cursor: pointer; }
   .flottant input[type=checkbox] { padding: 0; }
   /* Choix d'un front ou d'un protocole : une colonne d'entrées, pas une
      rangée — on choisit dans une liste, on ne règle pas plusieurs champs. */
@@ -422,6 +443,10 @@ export class AnalyseurPanel {
   .flottant--liste button:hover { background: var(--vscode-list-hoverBackground, rgba(128,128,128,.2)); }
   .flottant--liste button[aria-pressed=true] { outline: 1px solid var(--vscode-focusBorder, #07f); }
   .flottant--liste svg { flex: none; }
+  /* Le menu d'export est écrit dans la page, caché : sans cette règle, le
+     display:flex de son habit l'emporterait sur l'attribut hidden. */
+  .menu-flottant[hidden] { display: none; }
+  #menu-export { font-size: 14px; line-height: 1; padding: 1px 6px; }
   #trace { display: block; width: 100%; }
   .aide { padding: 4px 10px 8px; opacity: .6; }
 </style>
@@ -458,14 +483,23 @@ export class AnalyseurPanel {
        qu'ils font une fois dans un analyseur (retour Frank, .91). -->
   <button id="tout" type="button" title="${l.t('Zoom out until the whole capture, from the start to the last edge, fits the window.')}">${l.t('Whole capture')}</button>
   <button id="suivre" type="button" title="${l.t('Keep the window on the last captured edges: the view scrolls by itself while the simulation runs. Zooming with the wheel turns it off.')}">${l.t('Follow live')}</button>
-  <!-- L'export lit le journal de session côté hôte : la page ne fait que le
-       demander, elle ne détient pas la mesure entière. -->
-  <button id="exporter" type="button" title="${l.t('Save every edge measured since the simulation started to a CSV file: time in milliseconds, channel, pin, name and level. Sampling does not apply: the file holds the raw edges.')}">${l.t('Export CSV')}</button>
+  <!-- Menu d'export (Frank, 26/09) : CSV, SVG copié, SVG enregistré, tous
+       limités à l'intervalle M1–M2 quand les deux marqueurs sont posés. Le CSV
+       lit le journal de session côté hôte ; le SVG, la page le dessine au zoom
+       affiché. Le menu est ici, et non construit par la page, pour que ses
+       libellés passent par la traduction de l'hôte comme le reste de la barre. -->
+  <button id="menu-export" type="button" aria-haspopup="menu" aria-expanded="false" title="${l.t('Export the measurement: CSV file, SVG picture saved or copied. Place M1 and M2 around the span to export.')}">☰</button>
   <!-- Voies masquées : leur menu vit sur la piste, qui a disparu avec elles.
        Ce bouton est le chemin du retour (Frank, 23/09) ; la page le montre,
        avec le compte, dès qu'une voie est masquée. -->
   <button id="reafficher" type="button" hidden title="${l.t('Show again every channel hidden from its settings menu.')}"></button>
   <span id="etat"></span>
+</div>
+<!-- Hors de la barre : la page le pose sous le bouton ☰, en coordonnées de page. -->
+<div id="menu-export-liste" class="menu-flottant flottant--liste" role="menu" hidden>
+  <button type="button" role="menuitem" data-export="csv" title="${l.t('Save the edges to a CSV file: time in milliseconds, channel, pin, name and level. With M1 and M2 placed, only the span between them, starting with the level of each channel at the first marker; otherwise everything measured since the simulation started. Sampling does not apply: the file holds the raw edges.')}">${l.t('Export CSV')}</button>
+  <button type="button" role="menuitem" data-export="copier-svg" title="${l.t('Copy the curves between M1 and M2 to the clipboard as SVG code, at the current zoom. Without both markers, the visible window.')}">${l.t('Copy SVG')}</button>
+  <button type="button" role="menuitem" data-export="svg" title="${l.t('Save the curves between M1 and M2 to an SVG file, at the current zoom. Without both markers, the visible window.')}">${l.t('Export SVG')}</button>
 </div>
 <canvas id="trace"></canvas>
 <div class="aide">${l.t('Wheel to zoom, drag to pan. Under each channel name: T sets the trigger edge, P picks the bus to decode.')}</div>

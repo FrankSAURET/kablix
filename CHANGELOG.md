@@ -7,50 +7,52 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 ### Nouveauté
 
 - **Signal des composants au démarrage** : une notification prévient quand un composant installé a une version plus récente dans le dépôt, ou quand de nouveaux composants y sont apparus.
-- **Octets en hexadécimal ou en décimal** : le panneau de décodage de l'analyseur propose le choix, pour tous les protocoles. L'hexadécimal reste le défaut.
-- **Affichage binaire dans l'analyseur logique** : la case `Bits` du panneau de décodage écrit chaque bit (`0` ou `1`) sous le créneau qui le porte, séparé du suivant par un trait pointillé posé sur les fronts. Elle vaut pour tous les protocoles.
-- **Le décodage DMX512 détaille chaque trame** : `BREAK`, `MAB`, `START code`, puis pour chaque canal son `Start`, sa valeur en hexadécimal (`c1=0xC8`) et son `STOP`, avec les `PAUSE` et le `MBB` entre les créneaux.
 - **Le projecteur DMX PAR 38 lit son quatrième canal**.
+- **Bouton Analyseur dans la barre de simulation** : il rouvre l'onglet de l'analyseur logique après une fermeture, avec sa dernière mesure. Il n'apparaît que si une pince est posée sur le schéma et que l'onglet est fermé.
 - **Tensions dans la marge de l'analyseur logique** : face aux deux niveaux de chaque courbe.
 - **Marqueurs M1 et M2 dans l'analyseur logique** : ils attendent à gauche de la barre de temps. Glissés sur les courbes, ils se collent au front le plus proche et tracent un trait de leur couleur. Posés tous les deux, une flèche donne la durée qui les sépare.
 - - **Bouton de rappel des marqueurs M1 et M2** : une flèche tout à gauche de leur marge les ramène à leur place de départ, quand un zoom les a fait sortir de la vue.
+- **Courbes de l'analyseur en image SVG** : le menu ☰ de l'onglet les copie au presse-papier (« Copie SVG ») ou les enregistre dans un fichier (« Exporter SVG »), au zoom affiché. M1 et M2 posés, l'image va de l'un à l'autre.
 - **Flèches ⏮ ⏭ dans l'analyseur logique** : elles amènent le début de la trame décodée précédente ou suivante au bord gauche, sans changer le zoom. Les trames répétées à l'identique sont sautées.
 - **Déclenchement sur début de trame pour tous les protocoles** : sur une voie décodée, le menu T propose `Frame start`.
-- **Bouton Analyseur dans la barre de simulation** : il rouvre l'onglet de l'analyseur logique après une fermeture, avec sa dernière mesure. Il n'apparaît que si une pince est posée sur le schéma et que l'onglet est fermé.
+- **Octets en hexadécimal ou en décimal** : le panneau de décodage de l'analyseur propose le choix, pour tous les protocoles. L'hexadécimal reste le défaut.
+- **Affichage binaire dans l'analyseur logique** : la case `Bits` du panneau de décodage écrit chaque bit (`0` ou `1`) sous le créneau qui le porte, séparé du suivant par un trait pointillé posé sur les fronts. Elle vaut pour tous les protocoles.
+- **Le décodage DMX512 détaille chaque trame** : `BREAK`, `MAB`, `START code`, puis pour chaque canal son `Start`, sa valeur en hexadécimal (`c1=0xC8`) et son `STOP`, avec les `PAUSE` et le `MBB` entre les créneaux.
 
 ### Modification
 
 - **Grove DMX512 (composant 2026.9.2) : une pince posée sur `−` montre le signal inversé**. Cocher « Inverser » sur cette voie la remet à l'endroit pour la décoder.
-- **Le décodage DHT11/DHT22 s'écrit sur deux lignes** : les cinq octets, chacun dans sa case, puis l'humidité, la température et la somme cochée sous leurs octets. La température du DHT11 s'écrit au dixième (`22,0 °C`).
+- **Grove DMX512 (composant 2026.9.3) : les voies `+` et `−` de l'analyseur affichent `3,7 V` et `1,1 V`**, les tensions de sortie de l'émetteur de ligne SN75176A. La voie `SIG` garde celles de la carte.
+- **L'export CSV de l'analyseur passe dans le menu ☰ de l'onglet**, à côté de la copie et de l'export SVG. M1 et M2 posés, il ne garde que la mesure comprise entre eux, précédée du niveau de chaque voie à M1.
+- **Le panneau Variables se replie au lancement quand un analyseur logique s'ouvre**, se déplie à chaque pause du débogage, et se rouvre à l'arrêt.
+- **« Repos haut » devient « Inverser »** dans le menu d'une voie de l'analyseur.
+- **Les niveaux 0 et 1 à gauche des courbes de l'analyseur logique sont en gras**, 0 en rouge et 1 en vert (le vert des départs de décodage).
+- **Le message gris sur les courbes passe à la ligne** quand l'onglet est étroit.
+- **Le texte sous les courbes de l'analyseur est plus grand et en gras.**
 - **Le départ est en vert et l'arrêt en rouge sous les courbes de l'analyseur**, pour tous les protocoles. Les données passent au bleu et les erreurs au magenta.
 - **Un caractère UART se découpe comme sur le fil** : `Start`, valeur, `STOP`. Une erreur de parité ou de cadrage se pose sur le bit fautif, et la valeur reste affichée.
-- **Les niveaux 0 et 1 à gauche des courbes de l'analyseur logique sont en gras**, 0 en rouge et 1 en vert (le vert des départs de décodage).
-- **Le texte sous les courbes de l'analyseur est plus grand et en gras.**
-- **Le message gris sur les courbes passe à la ligne** quand l'onglet est étroit.
-- **« Repos haut » devient « Inverser »** dans le menu d'une voie de l'analyseur.
-- **Le panneau Variables se replie au lancement quand un analyseur logique s'ouvre**, se déplie à chaque pause du débogage, et se rouvre à l'arrêt.
-- **Grove DMX512 (composant 2026.9.3) : les voies `+` et `−` de l'analyseur affichent `3,7 V` et `1,1 V`**, les tensions de sortie de l'émetteur de ligne SN75176A. La voie `SIG` garde celles de la carte.
+- **Le décodage DHT11/DHT22 s'écrit sur deux lignes** : les cinq octets, chacun dans sa case, puis l'humidité, la température et la somme cochée sous leurs octets. La température du DHT11 s'écrit au dixième (`22,0 °C`).
 - **Simulation du Pico : moteur rp2040js 1.4.0.** Les horloges du processeur et des périphériques suivent les réglages du programme.
 
 ### Correction
 
 - **L'icône des fichiers `.projix` n'a plus de fond vert** dans l'Explorateur Windows. Une icône déjà installée est remplacée au lancement suivant de Kablix.
+- **Les variables Arduino sont de nouveau visibles en pause de débogage.**.
 - **Pico : `machine.freq()` ne dérègle plus la PWM.** Un servomoteur réglé après un changement de fréquence prenait une mauvaise position.
+- **L'UART du Pico tourne à la vitesse réglée par le programme MicroPython.** Les octets partaient plus de deux fois trop vite.
+- **Les propriétés d'une sonde logique ne s'affichent plus en plusieurs exemplaires** quand on la pose sur une patte. Même correction pour l'interrupteur 3V3/5V du Grove Shield et les bascules dessinées sur les composants.
 - **Plusieurs pinces sur un même signal tracent toutes.** Sur une carte DMX, les pinces posées sur `SIG`, `+` et `−` remontent à la même broche : seule la dernière montrait la trame, les autres restaient plates.
-- **Le décodage 1-Wire nomme la réponse du capteur au `RESET` (`PRÉSENT`).** Elle s'affichait en erreur « 1 bits » juste après le `RESET`.
 - **Pico : une trame DMX s'affiche avec ses vrais canaux.** Sous plusieurs pinces reliées à la même broche, chaque octet était compté plusieurs fois : 4 canaux devenaient 17, dans le désordre.
 - **Le DMX de la bibliothèque DmxSimple se décode trame par trame.** Son `BREAK`, plus court que la norme, n'était pas reconnu et toutes les trames se fondaient en une seule. Il est lu et l'étiquette donne sa durée (`BREAK 76,6 µs < 88 µs`).
+- **Le DMX d'un Pico programmé sans bibliothèque se décode canal par canal.** L'analyseur n'y voyait que des pauses et des erreurs de cadrage.
+- **Le décodage 1-Wire nomme la réponse du capteur au `RESET` (`PRÉSENT`).** Elle s'affichait en erreur « 1 bits » juste après le `RESET`.
+- **Changer le déclenchement de l'analyseur ne fait plus disparaître la courbe**.
+- **Le déclenchement tombe sur un front affiché** quand l'analyseur échantillonne. Il était posé sur le front réel, parfois plusieurs millisecondes avant le front dessiné, et « montant » ou « descendant » semblait sans effet.
 - **Déplacer l'onglet de l'analyseur vers une autre fenêtre (un second écran) ne fait plus disparaître les courbes.** 
+- **L'analyseur garde son zoom** quand on déplace son onglet ou qu'on change un réglage (déclenchement, protocole…).
 - **L'instant lu au curseur de l'analyseur reste lisible sur la barre de temps**.
 - **Rouvrir un projet avec l'analyseur ouvert ne double plus sa capture.**.
-- **Les variables Arduino sont de nouveau visibles en pause de débogage.**.
-- **Les propriétés d'une sonde logique ne s'affichent plus en plusieurs exemplaires** quand on la pose sur une patte. Même correction pour l'interrupteur 3V3/5V du Grove Shield et les bascules dessinées sur les composants.
-- **Changer le déclenchement de l'analyseur ne fait plus disparaître la courbe**.
 - **Ouvrir une deuxième fenêtre de VS Code n'efface plus la mesure de l'analyseur logique en cours dans la première.** L'export CSV restait incomplet.
-- **Le déclenchement tombe sur un front affiché** quand l'analyseur échantillonne. Il était posé sur le front réel, parfois plusieurs millisecondes avant le front dessiné, et « montant » ou « descendant » semblait sans effet.
-- **Le DMX d'un Pico programmé sans bibliothèque se décode canal par canal.** L'analyseur n'y voyait que des pauses et des erreurs de cadrage.
-- **L'UART du Pico tourne à la vitesse réglée par le programme MicroPython.** Les octets partaient plus de deux fois trop vite.
-- **L'analyseur garde son zoom** quand on déplace son onglet ou qu'on change un réglage (déclenchement, protocole…).
 
 ## 2026.9.5 (24 septembre 2026)
 

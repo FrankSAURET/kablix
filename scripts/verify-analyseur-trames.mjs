@@ -140,7 +140,8 @@ if (!chrome) {
 	let ws;
 	try {
 		let liste = null;
-		for (let i = 0; i < 40 && !liste; i++) {
+		// 30 s : sous verify:all, sept bancs en parallèle, Chrome met parfois plus de 10 s à ouvrir son port.
+		for (let i = 0; i < 120 && !liste; i++) {
 			try { liste = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json(); } catch { await attendre(250); }
 		}
 		ws = new WebSocket(liste.find((c) => c.type === 'page').webSocketDebuggerUrl);
@@ -158,7 +159,7 @@ if (!chrome) {
 			return r.result?.result?.value;
 		};
 		const pret = async () => {
-			for (let i = 0; i < 40; i++) {
+			for (let i = 0; i < 120; i++) {
 				if (await ev(`(window.__msgs || []).some((m) => m.type === 'analyseurPret')`)) return true;
 				await attendre(250);
 			}

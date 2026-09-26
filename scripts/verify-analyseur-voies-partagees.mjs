@@ -275,7 +275,8 @@ let ws;
 try {
 	etape = 'connexion à Chrome';
 	let listeCibles = null;
-	for (let i = 0; i < 40 && !listeCibles; i++) {
+	// 30 s : sous verify:all, sept bancs en parallèle, Chrome met parfois plus de 10 s à ouvrir son port.
+	for (let i = 0; i < 120 && !listeCibles; i++) {
 		try { listeCibles = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json(); } catch { await attendre(250); }
 	}
 	ws = new WebSocket(listeCibles.find((x) => x.type === 'page').webSocketDebuggerUrl);
@@ -294,7 +295,7 @@ try {
 	};
 	const poster = (m) => ev(`window.postMessage(${JSON.stringify(m)}, '*')`);
 	etape = 'page prête';
-	for (let i = 0; i < 40 && !(await ev(`(window.__msgs || []).some((m) => m.type === 'analyseurPret')`).catch(() => false)); i++) await attendre(250);
+	for (let i = 0; i < 120 && !(await ev(`(window.__msgs || []).some((m) => m.type === 'analyseurPret')`).catch(() => false)); i++) await attendre(250);
 
 	const trace = async () => ev(`(() => { const r = document.getElementById('trace').getBoundingClientRect(); return { left: r.left, top: r.top, w: r.width, h: r.height }; })()`);
 	/** Vraie souris sur l'instant `t` (vue « toute la capture » de 1 à 13 ms), puis relevé. */

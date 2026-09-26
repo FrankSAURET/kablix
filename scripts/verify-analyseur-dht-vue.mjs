@@ -158,7 +158,8 @@ const proc = spawn(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox', '
 let ws;
 try {
 	let liste = null;
-	for (let i = 0; i < 40 && !liste; i++) {
+	// 30 s : sous verify:all, sept bancs en parallèle, Chrome met parfois plus de 10 s à ouvrir son port.
+	for (let i = 0; i < 120 && !liste; i++) {
 		try { liste = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json(); } catch { await attendre(250); }
 	}
 	ws = new WebSocket(liste.find((c) => c.type === 'page').webSocketDebuggerUrl);
@@ -188,7 +189,7 @@ try {
 	for (const langue of LANGUES) {
 		if (langue !== LANGUES[0]) await cdp('Page.navigate', { url: pages[langue] });
 		// `lang` de la page : sans lui, on relirait l'onglet PRÉCÉDENT, encore prêt.
-		for (let i = 0; i < 40 && !(await ev(`document.documentElement.lang === '${langue}' && (window.__msgs || []).some((m) => m.type === 'analyseurPret')`).catch(() => false)); i++) await attendre(250);
+		for (let i = 0; i < 120 && !(await ev(`document.documentElement.lang === '${langue}' && (window.__msgs || []).some((m) => m.type === 'analyseurPret')`).catch(() => false)); i++) await attendre(250);
 
 		// La capture arrive comme à la réouverture d'un .projix : décodage DHT11 réglé
 		// sur la voie de la pince, cadrage « toute la capture ».

@@ -1,10 +1,4 @@
 # À faire
-1. Analyseur logique :
-    1. Le bouton Exporter en CSV disparait au profit d'un bouton  hamburger qui ouvre un menu dans lequel on retrouve : Exporter SVG, Copie SVG, Exporter SVG. 
-    1. Copier les courbes en svg. On place M1 au début de l'export souhaité et M2 à la fin. Le facteur de zoom est celui actuellement sélectionné. On clique sur "Copie SVG". 
-    1. Exporter les courbes en svg. On place M1 au début de l'export souhaité et M2 à la fin. Le facteur de zoom est celui actuellement sélectionné. On clique sur "Exporter SVG".
-    1. Même mécanique pour l'export csv. On place M1 au début de l'export souhaité et M2 à la fin.
-1. Désormais tu organisera le changelog par thème. Pas de séparation particulière mais 2 nouveautés (ou correction ou modification) sur le même thème se suivent (en restant dans leur catégorie  nouveautés ou correction ou modification)
 ## fait
 
 
@@ -13,6 +7,31 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.159
+1. ✅ **Menu ☰ des exports de l'analyseur** (« Le bouton Exporter en CSV disparait au profit d'un bouton hamburger qui ouvre un menu dans lequel on retrouve : Exporter SVG, Copie SVG, Exporter SVG »). Lu : Exporter CSV, Copie SVG, Exporter SVG.
+    1. [analyseur-panel.ts](src/analyseur-panel.ts) : bouton `#menu-export` (☰, `aria-haspopup`, `aria-expanded`) à la place de `#exporter` ; menu `#menu-export-liste` écrit caché dans la page, trois entrées `data-export` avec leurs infobulles.
+    2. Classe `menu-flottant`, pas `.flottant` : `.flottant` désigne LE panneau ouvert d'une voie, et quatre bancs le cherchent ainsi (`verify-analyseur-trames` lisait les entrées du menu ☰ à la place du menu T : 10 échecs avant la correction).
+    3. [analyseur.mts](src/webview/analyseur.mts) : ouvert sous le bouton ; fermé au second clic, à Échap, au clic à côté, au choix d'une entrée et à l'ouverture d'un panneau de voie.
+2. ✅ **CSV borné par M1 et M2** (« Même mécanique pour l'export csv. On place M1 au début de l'export souhaité et M2 à la fin »).
+    1. La page envoie `analyseurExport { plage }` quand les deux marqueurs sont posés à deux instants distincts ; sans eux, `analyseurExport` nu → tout le journal, comme avant.
+    2. [analyseur-journal.ts](src/analyseur-journal.ts) `extraitCsv` : en-tête gardé, plus une ligne `# plage exportée : de a à b ms` avant la ligne de colonnes ; puis le niveau de chaque voie à M1 (ligne datée de M1, recopiée de son dernier front d'avant ; aucune si la voie n'a pas encore bougé) ; puis les fronts compris entre M1 et M2 (bornes incluses), triés par temps. L'ordre des marqueurs ne compte pas.
+3. ✅ **Copie SVG et Exporter SVG** (« On place M1 au début de l'export souhaité et M2 à la fin. Le facteur de zoom est celui actuellement sélectionné »).
+    1. Nouveau [contexte-svg.mts](src/webview/contexte-svg.mts) : `ContexteSvg`, contexte 2D qui écrit du SVG au lieu de peindre. Chemins, rectangles, arrondis, textes mesurés par un vrai canvas ; couleurs en `#rrggbb` + opacité ; ni `rgba()` ni `dominant-baseline` (lecteurs anciens).
+    2. [analyseur-vue.mts](src/webview/analyseur-vue.mts) : le dessin passe dans `peindre()`, commun à l'écran et à `svg()`. En export : fond plein du thème, ni boutons T/P, ni flèche de rappel, ni marqueurs garés ou hors plage, ni réticule.
+    3. [analyseur.mts](src/webview/analyseur.mts) `exporterSvg` : plage = M1 → M2, sinon la fenêtre affichée ; largeur = marges + durée × px/ms de l'écran. Refus envoyés à l'hôte : `vide` (rien de mesuré), `etroit` (moins de 40 px de courbe), `large` (plus de 50 000 px).
+    4. [panel.ts](src/panel.ts) `exporterSvgAnalyseur` : presse-papier (`env.clipboard`) ou dialogue `.svg` à côté du .projix (`demanderCibleAnalyseur`, commun au CSV) ; refus dits en avertissement, avec la largeur et quoi faire (zoomer, dézoomer).
+4. ✅ **CHANGELOG par thème** (« Désormais tu organisera le changelog par thème… »). Section 2026.9.6 regroupée : dans chaque partie, les entrées d'un même thème se suivent (composants, analyseur, Grove DMX512, Pico, débogage…). Texte des entrées inchangé. Consigne gardée en mémoire.
+5. ✅ **Aide FR** [sonde-logique.md](docs/fr/composants/sonde-logique.md) : section « Exporter » ; marqueurs M1 et M2 ajoutés aux gestes (ils n'y figuraient pas).
+6. ✅ **Banc** [verify-analyseur-export.mjs](scripts/verify-analyseur-export.mjs) réécrit :
+    1. Page : vrai HTML et vrai `analyseur.mts` en Chrome, VRAIE souris en CDP — menu (ouverture, trois entrées dans l'ordre, fermetures), M1 et M2 glissés, molette. SVG relu : XML valide, image décodée et peinte (sur une page vierge : la CSP de l'onglet refuse les images), fond du thème, noms des voies, M1 et M2 aux bords, graduations à l'échelle de l'écran, sans boutons T/P. Refus `etroit` et `large` provoqués à la souris.
+    2. Hôte : plages CSV exactes (à l'envers, sans front, avant tout front), SVG copié et enregistré octet pour octet, refus sans dialogue ni presse-papier, contenu non SVG ignoré.
+    3. **82 contrôles verts** ; `--ancien=analyseur` : 5 échecs.
+7. ✅ **Bancs de l'analyseur solides sous charge** : `verify:all` a fait tomber trames, voies-partagees et bouton (verts seuls). Cause : sept bancs en parallèle, Chrome met plus de 10 s à ouvrir son port de mise au point, et la page plus de 10 s à se dire prête ; les bancs n'attendaient que 10 s (12 s pour bouton). Attentes portées à 30 s dans les neuf bancs Chrome de l'analyseur (export, trames, voies-partagees, bouton, bits, zoom, marqueurs, dht-vue). Preuve : les neuf lancés ensemble, deux passes, 9/9 verts (avant : 2 à 3 rouges par passe, jamais les mêmes).
+8. ✅ **Tests** : typecheck et construction propres. `verify:all` : 140/145 ; les 3 bancs de l'analyseur ci-dessus (corrigés, cf. 7) ; `verify:i18n` et `verify:help-bars` rouges attendus (traductions, cf. 9).
+9. ⏳ Traductions avant publication (`l10n/bundle.l10n.fr.json`) : `Copy SVG`, `Export SVG`, infobulle du ☰, infobulles des trois entrées (celle de `Export CSV` a changé : M1 et M2), `SVG pictures`, `Export the logic analyzer curves (SVG)`, `Kablix: curves copied to the clipboard as SVG.`, les deux avertissements de largeur. Libellés FR donnés par ta consigne : « Exporter CSV », « Copie SVG », « Exporter SVG ». Aide EN ([sonde-logique.md](docs/en/composants/sonde-logique.md)).
 
 ---
 

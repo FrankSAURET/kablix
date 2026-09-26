@@ -16,7 +16,7 @@ import {
 } from './compiler';
 import { pistesArduinoIde } from './arduinoCliPistes';
 import { AnalyseurPanel, type AnalyseurVersHote, type EtatAnalyseur } from './analyseur-panel';
-import { AnalyseurJournal } from './analyseur-journal';
+import { AnalyseurJournal, extraitCsv } from './analyseur-journal';
 import {
   packProject,
   unpackProject,
@@ -1663,7 +1663,9 @@ export class SimulatorPanel {
         };
       });
     } else if (m.type === 'analyseurExport') {
-      void this.exporterMesureAnalyseur();
+      void this.exporterMesureAnalyseur(m.plage);
+    } else if (m.type === 'analyseurSvg') {
+      void this.exporterSvgAnalyseur(m);
     }
   }
 
@@ -1672,19 +1674,89 @@ export class SimulatorPanel {
    * ce CSV, écrit au fil de l'eau : on le recopie tel quel, sans conversion.
    * C'est aussi pourquoi l'export ne dépend ni de l'onglet (qui ne garde qu'une
    * capture rabotée) ni de l'arrêt de la simulation — il marche en plein run.
+   *
+   * `plage` (M1 et M2 posés) : seulement l'intervalle entre les deux marqueurs,
+   * précédé du niveau de chaque voie au premier (`extraitCsv`).
    */
-  private async exporterMesureAnalyseur(): Promise<void> {
-    const csv = AnalyseurJournal.existant(this.analyseurCle())?.lire();
-    if (csv === undefined) {
+  private async exporterMesureAnalyseur(plage?: { t1: number; t2: number }): Promise<void> {
+    const journal = AnalyseurJournal.existant(this.analyseurCle())?.lire();
+    if (journal === undefined) {
       vscode.window.showInformationMessage(
         l10n.t('Kablix: no measurement to export yet. Clip probes onto the circuit and run the simulation first.')
       );
       return;
     }
-    // Proposé À CÔTÉ du .projix : la mesure se range avec son montage. Un
-    // projet jamais enregistré n'a pas de dossier, on se rabat sur l'espace de
-    // travail comme l'export du traceur.
-    const nom = `${this.projectDisplayName() ?? 'kablix'}-${l10n.t('analyzer')}.csv`;
+    const bornes = plage && Number.isFinite(plage.t1) && Number.isFinite(plage.t2) ? plage : undefined;
+    const csv = bornes ? extraitCsv(journal, bornes.t1, bornes.t2) : journal;
+    const target = await this.demanderCibleAnalyseur(
+      'csv',
+      l10n.t('CSV measurements'),
+      l10n.t('Export the logic analyzer measurement (CSV)')
+    );
+    if (!target) return;
+    await this.ecrireExportAnalyseur(target, csv);
+  }
+
+  /**
+   * Courbes de l'analyseur en SVG, dessinées par la page au zoom affiché :
+   * copiées dans le presse-papier (en texte : c'est ce que VS Code sait y
+   * mettre — Inkscape, un navigateur ou un éditeur de code le relisent), ou
+   * enregistrées dans un fichier. Un refus de la page (rien de mesuré, plage
+   * illisible à ce zoom) se dit ici, avec la façon d'y remédier.
+   */
+  private async exporterSvgAnalyseur(m: {
+    action: 'copier' | 'enregistrer';
+    svg: string;
+    refus?: 'vide' | 'etroit' | 'large';
+    largeur?: number;
+  }): Promise<void> {
+    const { action, svg, refus } = m;
+    const largeur = String(Math.round(Number(m.largeur) || 0));
+    if (refus === 'vide') {
+      vscode.window.showInformationMessage(
+        l10n.t('Kablix: no measurement to export yet. Clip probes onto the circuit and run the simulation first.')
+      );
+      return;
+    }
+    if (refus === 'etroit') {
+      vscode.window.showWarningMessage(
+        l10n.t('Kablix: at this zoom the curves would be only {0} pixels wide. Zoom in, or move M1 and M2 apart.', largeur)
+      );
+      return;
+    }
+    if (refus === 'large') {
+      vscode.window.showWarningMessage(
+        l10n.t('Kablix: at this zoom the picture would be {0} pixels wide, too wide to be of use. Zoom out, or bring M1 and M2 closer.', largeur)
+      );
+      return;
+    }
+    if (typeof svg !== 'string' || !svg.startsWith('<svg')) return;
+    if (action === 'copier') {
+      await vscode.env.clipboard.writeText(svg);
+      vscode.window.showInformationMessage(l10n.t('Kablix: curves copied to the clipboard as SVG.'));
+      return;
+    }
+    const target = await this.demanderCibleAnalyseur(
+      'svg',
+      l10n.t('SVG pictures'),
+      l10n.t('Export the logic analyzer curves (SVG)')
+    );
+    if (!target) return;
+    await this.ecrireExportAnalyseur(target, svg);
+  }
+
+  /**
+   * Dialogue d'enregistrement d'un export de l'analyseur. Proposé À CÔTÉ du
+   * .projix : la mesure se range avec son montage. Un projet jamais enregistré
+   * n'a pas de dossier, on se rabat sur l'espace de travail comme l'export du
+   * traceur.
+   */
+  private async demanderCibleAnalyseur(
+    extension: string,
+    filtre: string,
+    titre: string
+  ): Promise<vscode.Uri | undefined> {
+    const nom = `${this.projectDisplayName() ?? 'kablix'}-${l10n.t('analyzer')}.${extension}`;
     const folders = vscode.workspace.workspaceFolders;
     const defaultUri =
       this.projectUri?.scheme === 'file'
@@ -1692,14 +1764,13 @@ export class SimulatorPanel {
         : folders?.length
           ? vscode.Uri.joinPath(folders[0].uri, nom)
           : vscode.Uri.file(nom);
-    const target = await vscode.window.showSaveDialog({
-      defaultUri,
-      filters: { [l10n.t('CSV measurements')]: ['csv'] },
-      title: l10n.t('Export the logic analyzer measurement (CSV)'),
-    });
-    if (!target) return;
+    return vscode.window.showSaveDialog({ defaultUri, filters: { [filtre]: [extension] }, title: titre });
+  }
+
+  /** Écrit un export de l'analyseur et dit où, ou pourquoi c'est raté. */
+  private async ecrireExportAnalyseur(target: vscode.Uri, texte: string): Promise<void> {
     try {
-      await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(csv));
+      await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(texte));
       vscode.window.showInformationMessage(l10n.t('Kablix: measurements exported to {0}', target.fsPath));
     } catch (err) {
       vscode.window.showErrorMessage(
