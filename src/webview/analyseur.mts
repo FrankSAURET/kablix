@@ -33,7 +33,7 @@ import {
   type ZoneBouton,
 } from './analyseur-vue.mjs';
 import {
-  debutsDeTrame,
+  changementsDeTrame,
   decoderTous,
   lignesSousVoie,
   reculNecessaireMs,
@@ -603,7 +603,9 @@ const MARGE_TRAME = 0.02;
 
 /**
  * Flèches ⏮ ⏭ : amène le début de la trame précédente (-1) ou suivante (+1)
- * au bord gauche de la vue, zoom inchangé (Frank, 25/09).
+ * au bord gauche de la vue, zoom inchangé (Frank, 25/09). Seulement les trames
+ * dont le contenu change (Frank, 26/09) : les répétitions identiques sont
+ * sautées, ⏮ revient au début de la série précédente.
  *
  * Les trames sont cherchées dans TOUTE la capture, pas dans la fenêtre : la
  * suivante peut être à des secondes de là (un DS18B20 ne parle qu'une fois par
@@ -613,7 +615,7 @@ const MARGE_TRAME = 0.02;
  */
 function sauterTrame(sens: -1 | 1): void {
   if (decodages.length === 0 || !capture.aDesDonnees) return;
-  const debuts = debutsDeTrame(trancheCapture(capture.tDebut, capture.tFin), reglagesEffectifs());
+  const debuts = changementsDeTrame(trancheCapture(capture.tDebut, capture.tFin), reglagesEffectifs());
   // Le bord actuel, là où ⏮ ⏭ posent une trame ; un millième de largeur
   // d'écart pour ne pas retomber sur celle qu'on vient de poser.
   const bord = fenetre.t0 + fenetre.duree * MARGE_TRAME;

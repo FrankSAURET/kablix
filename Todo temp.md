@@ -1,5 +1,6 @@
 1. Analyseur logique :
-    1. Dans dmx-pico j'envoie une trame de 4 canaux mais  l'analyseur en affiche 17 ? et dans le désordre.
-    1. Si on zoom on  peut perdre les curseurs M1 et M2 Prévois dans leur marge un bouton fleche vers la gauche qui les ramène dans leur position  initiale. Le bouton sera tout à gauche de la marge.
-    1. dans dmx-uno, j'envoie rouge, cyan, cyan foncé, bleu clignotant. l'analyseur logique reproduit plein  de fois chaque trame avan,t de passer à la suivante
-    1. Dans media\icones.svg, j'ai rajouté une icone Analyseur. Tu l'utilise pour rajouter un bouton analyseur dans la barre de simultation. Il n'apparaitra que si une simulation avec analyseur logique existe et à été fermé et permettra de la rouvrir
+    1. Le bouton Exporter en CSV disparait au profit d'un bouton  hamburger qui ouvre un menu dans lequel on retrouve : Exporter SVG, Copie SVG, Exporter SVG. 
+    1. Copier les courbes en svg. On place M1 au début de l'export souhaité et M2 à la fin. Le facteur de zoom est celui actuellement sélectionné. On clique sur "Copie SVG". 
+    1. Exporter les courbes en svg. On place M1 au début de l'export souhaité et M2 à la fin. Le facteur de zoom est celui actuellement sélectionné. On clique sur "Exporter SVG".
+    1. Même mécanique pour l'export csv. On place M1 au début de l'export souhaité et M2 à la fin.
+1. Désormais tu organisera le changelog par thème. Pas de séparation particulière mais 2 nouveautés (ou correction ou modification) sur le même thème se suivent (en restant dans leur catégorie  nouveautés ou correction ou modification)

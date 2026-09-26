@@ -45,7 +45,7 @@ Plusieurs pinces peuvent écouter le **même signal** : sur une carte DMX, une p
 - **Molette** : zoom, autour du point sous la souris.
 - **Glisser** : se promener dans l'enregistrement.
 - **Flèches ◀ ▶** de la barre, ou touches **←** **→** : recule ou avance d'une demi-fenêtre, sans changer le zoom.
-- **Flèches ⏮ ⏭** de la barre : amènent le **début de la trame** décodée précédente ou suivante au bord gauche, sans changer le zoom. Elles demandent au moins un décodage ; avec plusieurs, elles passent d'un bus à l'autre dans l'ordre du temps.
+- **Flèches ⏮ ⏭** de la barre : amènent le **début de la trame** décodée précédente ou suivante au bord gauche, sans changer le zoom. Elles sautent les trames qui répètent la précédente à l'identique : un programme qui renvoie la même trame en boucle (DmxSimple, toutes les 2 ms environ) passe d'un contenu à l'autre en un clic, et ⏮ revient au début de la série d'avant. Elles demandent au moins un décodage ; avec plusieurs, elles passent d'un bus à l'autre dans l'ordre du temps, chaque bus comparé à ses propres trames.
 - **Survol** : un réticule donne l'instant, et le niveau (0 ou 1) de chaque voie à cet instant.
 - **Toute la capture** : ramène toute la capture dans l'écran.
 - **Suivre en direct** : recolle la vue à la fin de la capture, ce qu'elle fait d'elle-même pendant un run tant qu'on n'a pas zoomé.

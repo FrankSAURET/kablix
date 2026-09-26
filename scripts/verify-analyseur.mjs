@@ -92,7 +92,7 @@ const { AnalyseurCapture, VOIES_MAX, FRONTS_MAX_PAR_VOIE, RESERVE_AVANT } = awai
 // Le décodeur parle la langue de la webview (`t()`, v2026.9.4.133) : son paquet
 // embarque SON i18n, qu'il faut régler dans CE paquet. Le banc lit en français,
 // puis refait un tour en anglais (langue de base) plus bas.
-const { decoder, decoderTous, debutsDeTrame, reglageComplet, rolesDe, reculNecessaireMs, lignesSousVoie, initLocale } = await buildTo(
+const { decoder, decoderTous, debutsDeTrame, changementsDeTrame, reglageComplet, rolesDe, reculNecessaireMs, lignesSousVoie, initLocale } = await buildTo(
   {
     resolveDir: join(root, 'src/webview'),
     contents: [
@@ -1929,6 +1929,53 @@ const dhtDe = (tempC, humidity, model) => {
   const attendu = [...uartOuv, ...owOuv].sort((a, b) => a - b);
   check('⏮ ⏭ : les débuts de trame de tous les décodages, triés, un décodage incomplet ignoré',
     memes(deux, attendu), `${deux} / ${attendu}`);
+
+  // ⏮ ⏭ sautent les trames identiques (Frank, 26/09) : DmxSimple renvoie la
+  // même trame toutes les ~2 ms. Six trames DMX : rouge ×3 (la deuxième avec
+  // un BREAK normal de 95,7 µs — son étiquette change, pas son contenu), cyan
+  // ×2, rouge de nouveau. En même temps, sur une autre voie, trois groupes
+  // UART « AB », « AB », « AC » : chaque décodage se compare à lui-même.
+  const dmxFronts = [];
+  {
+    const BIT = 0.004;
+    let t = 1.0;
+    let niveau = 1;
+    const palier = (n, ms) => {
+      if (n !== niveau) {
+        dmxFronts.push([t, n]);
+        niveau = n;
+      }
+      t += ms;
+    };
+    const octetDmx = (o) => {
+      palier(0, BIT);
+      for (let i = 0; i < 8; i++) palier((o >> i) & 1, BIT);
+      palier(1, 2 * BIT);
+    };
+    palier(1, 0.1);
+    const ROUGE = [255, 0, 0, 189];
+    const CYAN = [0, 255, 255, 189];
+    for (const [c, bk] of [[ROUGE, 0.0766], [ROUGE, 0.0957], [ROUGE, 0.0766], [CYAN, 0.0766], [CYAN, 0.0766], [ROUGE, 0.0766]]) {
+      palier(0, bk); // BREAK
+      palier(1, 0.0128); // MAB
+      octetDmx(0x00);
+      for (const v of c) octetDmx(v);
+      palier(1, 1.7);
+    }
+  }
+  const dmxOuv = ouvertures(decoder([voieDe(0, 'DMX', dmxFronts, 1)], { protocole: 'dmx', donnees: 0 }));
+  const SIL_AB = Math.round(4 / (1000 / 9600));
+  const ab = serieDe([0x41, 0x42, 0x41, 0x42, 0x41, 0x43], 9600, 8, 'none', 1, [0, SIL_AB, 0, SIL_AB, 0, 0]);
+  const abOuv = ouvertures(decoder([voieDe(1, 'TX', ab, 1)], { protocole: 'uart', donnees: 1, bauds: 9600 }));
+  const REG_DMX = { protocole: 'dmx', donnees: 0 };
+  const REG_AB = { protocole: 'uart', donnees: 1, bauds: 9600 };
+  const seulDmx = changementsDeTrame([voieDe(0, 'DMX', dmxFronts, 1)], [REG_DMX]);
+  check('⏮ ⏭ DmxSimple : six trames, trois changements (rouge, cyan, rouge) — le BREAK de durée différente ne compte pas',
+    dmxOuv.length === 6 && memes(seulDmx, [dmxOuv[0], dmxOuv[3], dmxOuv[5]]), `${seulDmx} / ${dmxOuv}`);
+  const melange = changementsDeTrame([voieDe(0, 'DMX', dmxFronts, 1), voieDe(1, 'TX', ab, 1)], [REG_DMX, REG_AB]);
+  const attenduMelange = [dmxOuv[0], dmxOuv[3], dmxOuv[5], abOuv[0], abOuv[2]].sort((a, b) => a - b);
+  check('⏮ ⏭ : deux bus entrelacés, chacun comparé à ses propres trames (« AB » répété sauté, « AC » gardé)',
+    abOuv.length === 3 && memes(melange, attenduMelange), `${melange} / ${attenduMelange}`);
 
   // --- Déclenchement « début de trame » dans la capture ---
   // UART sur trois groupes séparés par des silences de 5 ms : A (3 car.), B

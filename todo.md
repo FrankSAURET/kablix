@@ -1,5 +1,10 @@
 # À faire
-
+1. Analyseur logique :
+    1. Le bouton Exporter en CSV disparait au profit d'un bouton  hamburger qui ouvre un menu dans lequel on retrouve : Exporter SVG, Copie SVG, Exporter SVG. 
+    1. Copier les courbes en svg. On place M1 au début de l'export souhaité et M2 à la fin. Le facteur de zoom est celui actuellement sélectionné. On clique sur "Copie SVG". 
+    1. Exporter les courbes en svg. On place M1 au début de l'export souhaité et M2 à la fin. Le facteur de zoom est celui actuellement sélectionné. On clique sur "Exporter SVG".
+    1. Même mécanique pour l'export csv. On place M1 au début de l'export souhaité et M2 à la fin.
+1. Désormais tu organisera le changelog par thème. Pas de séparation particulière mais 2 nouveautés (ou correction ou modification) sur le même thème se suivent (en restant dans leur catégorie  nouveautés ou correction ou modification)
 ## fait
 
 
@@ -8,6 +13,16 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.158
+1. ✅ **⏮ ⏭ sautent les trames identiques** (réponse « A » à l'option du lot .157 : DmxSimple renvoie la même trame toutes les ~2 ms, ~490 fois par couleur). [analyseur-decodage.mts](src/webview/analyseur-decodage.mts) `changementsDeTrame` : garde le début d'une trame quand son contenu diffère de la trame précédente DU MÊME décodage, la première toujours. Contenu = textes des annotations hors `cadre` (BREAK et sa durée, MAB, PAUSE, MBB, présence) et hors résumé. [analyseur.mts](src/webview/analyseur.mts) `sauterTrame` s'en sert : ⏭ va au contenu suivant, ⏮ au début de la série d'avant. Le déclenchement « Frame start » garde toutes les trames (`debutsDeTrame`).
+2. ✅ Infobulles de ⏮ ⏭ ([analyseur-panel.ts](src/analyseur-panel.ts)) et aide FR ([sonde-logique.md](docs/fr/composants/sonde-logique.md)) disent le saut.
+3. ✅ **Bancs** :
+    1. [verify-analyseur.mjs](scripts/verify-analyseur.mjs) : six trames DmxSimple (rouge ×3 dont une au BREAK de 95,7 µs, cyan ×2, rouge) → trois changements ; DMX et UART entrelacés, chacun comparé à ses propres trames. **331 contrôles verts.**
+    2. [verify-analyseur-trames.mjs](scripts/verify-analyseur-trames.mjs) : répétitions identiques de A et B dans la ligne série, vraie souris : ⏭ et ⏮ les sautent. **24 contrôles verts** ; `--ancien` : 5 échecs.
+4. ⏳ Traductions avant publication : les deux infobulles de ⏮ ⏭ (`l10n/bundle.l10n.fr.json`), aide EN.
 
 ---
 

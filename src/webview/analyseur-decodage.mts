@@ -1441,6 +1441,50 @@ export function debutsDeTrame(voies: VoieCapture[], reglages: ReglageDecodage[])
 }
 
 /**
+ * Débuts des trames dont le CONTENU change, dans l'ordre du temps : ce que
+ * parcourent les flèches ⏮ ⏭ (Frank, 26/09). DmxSimple renvoie tout l'univers
+ * toutes les ~2 ms : une couleur tenue une seconde, c'est ~490 trames
+ * identiques, et ⏭ n'avançait que de 2 ms par clic.
+ *
+ * Une trame est retenue quand elle diffère de la précédente DU MÊME décodage ;
+ * la première compte toujours. Son contenu, ce sont ses textes hors
+ * délimiteurs (`cadre` : BREAK et sa durée, MAB, PAUSE, MBB, présence) et hors
+ * résumé, qui ne fait que redire le détail.
+ */
+export function changementsDeTrame(voies: VoieCapture[], reglages: ReglageDecodage[]): number[] {
+  const debuts: number[] = [];
+  for (const r of reglages) {
+    if (!reglageComplet(r)) continue;
+    // À instant égal, l'ouverture passe devant : ce qui tombe pile sur le
+    // début d'une trame lui appartient.
+    const annotations = decoder(voies, { ...r, bits: false })
+      .sort((a, b) => a.t0 - b.t0 || Number(!!b.trame) - Number(!!a.trame));
+    let precedente: string | undefined;
+    let debut: number | undefined;
+    let contenu: string[] = [];
+    const clore = (): void => {
+      if (debut === undefined) return;
+      const signature = contenu.join('\u0001');
+      if (signature !== precedente) debuts.push(debut);
+      precedente = signature;
+    };
+    for (const a of annotations) {
+      if (a.trame) {
+        clore();
+        debut = a.t0;
+        contenu = [];
+      }
+      // Avant la première ouverture : un morceau de trame coupé par le début
+      // de la capture, sans début à montrer.
+      if (debut === undefined || a.nature === 'cadre' || a.resume) continue;
+      contenu.push(a.texte);
+    }
+    clore();
+  }
+  return debuts.sort((a, b) => a - b);
+}
+
+/**
  * Rôles de voie attendus par un protocole, pour construire l'interface de
  * réglage sans que la vue connaisse les protocoles. `obligatoire` distingue ce
  * qui bloque le décodage de ce qui l'enrichit.

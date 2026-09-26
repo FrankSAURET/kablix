@@ -1,4 +1,5 @@
-// Banc : flèches ⏮ ⏭ et déclenchement « début de trame » (v2026.9.5.153).
+// Banc : flèches ⏮ ⏭ et déclenchement « début de trame » (v2026.9.5.153) ;
+// trames identiques sautées (v2026.9.5.158).
 //
 // LA DEMANDE (Frank, 25/09) : « Rajoute des flèches (flèche avec trait vertical
 // ⏮ ⏭) qui permettent de sauter d'une trame à l'autre en positionnant le début
@@ -106,7 +107,15 @@ const serie = (trames) => {
 const T_A = 2;
 const T_B = 30;
 const T_C = 60;
-const TX = serie([{ t: T_A, octets: [0x41, 0x42] }, { t: T_B, octets: [0x55, 0x43] }, { t: T_C, octets: [0x5a] }]);
+// Répétitions à l'identique de A et de B : ⏮ ⏭ les sautent (Frank, 26/09 —
+// DmxSimple renvoie la même trame toutes les ~2 ms).
+const T_A2 = 16;
+const T_B2 = 45;
+const TX = serie([
+	{ t: T_A, octets: [0x41, 0x42] }, { t: T_A2, octets: [0x41, 0x42] },
+	{ t: T_B, octets: [0x55, 0x43] }, { t: T_B2, octets: [0x55, 0x43] },
+	{ t: T_C, octets: [0x5a] },
+]);
 const horloge = (pas, n) => { const f = []; for (let k = 1; k <= n; k++) f.push(k * pas, k % 2); return f; };
 const VOIES = [
 	{ voie: 0, nom: 'TX', pin: 'D1', probleme: null, analogique: false },
@@ -277,9 +286,12 @@ if (!chrome) {
 				`premier front à x=${xs[0]}, attendu ${xA.toFixed(1)}`);
 		}
 
-		// 4. ⏭ : trame suivante, puis la dernière, puis plus rien.
+		// 4. ⏭ : trame suivante, puis la dernière, puis plus rien. Les
+		//    répétitions identiques (A2, B2) sont sautées.
 		await cliquerBouton('trame-suiv');
 		const surB = await fenetre();
+		check(!!surB && !pres(surB.t0, T_A2 - marge(surB), 1e-6), '⏭ saute la répétition identique de la première trame',
+			JSON.stringify(surB));
 		check(!!surB && pres(surB.t0, T_B - marge(surB), 1e-6), '⏭ : la trame suivante au bord gauche', JSON.stringify(surB));
 		if (surB) {
 			const xs = await fronts();
@@ -295,7 +307,9 @@ if (!chrome) {
 		check(!!toujoursC && !!surC && toujoursC.t0 === surC.t0, 'après la dernière trame, ⏭ ne bouge plus', JSON.stringify(toujoursC));
 		await cliquerBouton('trame-prec');
 		const retourB = await fenetre();
-		check(!!retourB && pres(retourB.t0, T_B - marge(retourB), 1e-6), '⏮ ramène à la trame d’avant', JSON.stringify(retourB));
+		check(!!retourB && !pres(retourB.t0, T_B2 - marge(retourB), 1e-6), '⏮ saute la répétition identique, lui aussi',
+			JSON.stringify(retourB));
+		check(!!retourB && pres(retourB.t0, T_B - marge(retourB), 1e-6), '⏮ ramène au début de la série d’avant', JSON.stringify(retourB));
 		check(!!retourB && !!zoom && pres(retourB.duree, zoom.duree, 1e-9), 'le zoom n’a pas bougé de tout le parcours');
 
 		// 5. Menu « T » de la voie décodée : « Frame start » ; la capture arrêtée
