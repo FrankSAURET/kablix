@@ -1,8 +1,4 @@
 # À faire
-1. Tu as retiré « expérimental » des README, mais l'aide FR le dit encore à deux endroits : USAGE.md:103 et l'encadré de sonde-logique.md:9. -> c'est fait
-1. Met une couleur différente pour les commandes du 1-wire et applique pour le ds18B20.
-1. Les curseurs F1 et F2 doivent être référencés par rapport au trigger de la voie de déclenchement. La si je déplace la courbe puis appuie sur le bouton ⏭, la fenêtre reste en place dans l'écran la ou elle est et n'est plus référencée par rapport au déclenchement
-1. commit + push + vsix
 1. Prépare une publication
 ## fait
 
@@ -12,6 +8,24 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.5.167
+1. ✅ **Aide FR : l'analyseur n'est plus dit expérimental** (« l'aide FR le dit encore à deux endroits : USAGE.md:103 et l'encadré de sonde-logique.md:9 ») — fait par Frank dans « V167 temporaire » (ec6e698), enregistré tel quel.
+2. ✅ **Commandes 1-Wire en rose** (« Met une couleur différente pour les commandes du 1-wire et applique pour le ds18B20 »).
+    1. [analyseur-decodage.mts](src/webview/analyseur-decodage.mts) : nouvelle nature `commande`. Commande par sa PLACE dans la transaction : commande ROM après le `RESET`, commande de fonction ensuite (après les 8 octets d'un `MATCH ROM`). Un octet inconnu à cette place reste une commande, sans nom. Adresse et données restent `donnee` (bleu).
+    2. [analyseur-vue.mts](src/webview/analyseur-vue.mts) : teinte `#d37bc1` (clair) / `#9e3699` (sombre), écart ≥ 16 (OKLab ×100) avec les six autres.
+    3. Aide FR [sonde-logique.md](docs/fr/composants/sonde-logique.md) (couleurs, paragraphe 1-Wire). CHANGELOG.
+    4. Bancs : [verify-analyseur.mjs](scripts/verify-analyseur.mjs) +3 contrôles de nature (`MATCH ROM` + adresse + `READ SCRATCHPAD`, `SKIP ROM` + `CONVERT T`, octet inconnu). [verify-analyseur-onewire-e2e.mjs](scripts/verify-analyseur-onewire-e2e.mjs) +2 (toute commande nommée de la vraie capture en `commande`, aucun octet brut). [verify-analyseur-onewire-glisse.mjs](scripts/verify-analyseur-onewire-glisse.mjs) +2 à la vraie page (fond rose sous `0x55 MATCH ROM`, bleu sous l'adresse ; `--image=<dossier>` photographie les deux thèmes). `--ancien` (sources du lot 166) : 1 échec (fond `#5a9ee6` sous `MATCH ROM`).
+3. ✅ **F1/F2 référencés au déclenchement** (« Les curseurs F1 et F2 doivent être référencés par rapport au trigger de la voie de déclenchement. La si je déplace la courbe puis appuie sur le bouton ⏭, la fenêtre reste en place dans l'écran la ou elle est et n'est plus référencée par rapport au déclenchement »).
+    1. Cause : ⏮ ⏭ décalaient F du saut de la VUE. Juste quand la vue partait du déclenchement, faux dès que la courbe avait été promenée.
+    2. [analyseur.mts](src/webview/analyseur.mts) : `ancreF` = le déclenchement, puis le début de la trame où ⏮ ⏭ ont mené. Un saut pose F à la même distance du début de la nouvelle trame que de son ancre ; un déclenchement déplacé fait de même. Bulle de F1/F2 réécrite.
+    3. Aide FR [sonde-logique.md](docs/fr/composants/sonde-logique.md), CHANGELOG (entrée F1/F2 non publiée, corrigée).
+    4. Banc [verify-analyseur-fenetre.mjs](scripts/verify-analyseur-fenetre.mjs) section 4 réécrite (VRAIE souris) : ⏭ (trame 30 ms), ⏮ (2 ms), puis courbe tirée de 160 px et ⏭ — à chaque fois F1/F2 à +2 et +6 ms du début de la trame, rectangle idem. 50 contrôles, `--ancien` (sources du lot 166) : 6 échecs (F à +2,9 / +1,2 ms).
+    5. ℹ️ Avec un déclenchement sur front (et non `Frame start`), l'ancre du premier saut est le front lui-même : F garde son écart au front, puis au début des trames.
+4. ✅ Typecheck et construction propres. Bancs de l'analyseur joués ici avec le Chromium du conteneur (les bancs ne cherchent que Chrome sous Windows) : fenetre 50, onewire-glisse 18, trames 24, verify-analyseur verts. onewire-e2e sauté (firmware MicroPython absent du conteneur).
+5. ⏳ Traductions avant publication : [analyseur.mts](src/webview/analyseur.mts) — `Window marker {0}: drag it onto the curves. F1 and F2 frame a span set relative to the trigger: ⏮ ⏭ carry it to the same place in the frame they reach, so the same spot can be checked frame after frame.` Aide EN.
 
 ---
 

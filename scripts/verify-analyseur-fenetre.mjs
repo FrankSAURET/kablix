@@ -386,25 +386,51 @@ if (!chrome) {
 		check(!m1d || Math.abs(m1d.x - (m1?.x ?? 0)) > 5, 'témoin : M1, lui, est resté sur son instant',
 			m1d ? `M1 ${fmt(m1?.x)} → ${fmt(m1d.x)}` : 'M1 sorti de la vue');
 
-		// --- 4. ⏭ : la trame suivante ; F1 et F2 ne bougent pas à l'écran ----------
+		// --- 4. ⏭ ⏮ : F1 et F2 gardent leur écart au début de la trame -----------
+		// Ancrés au déclenchement (20 ms), F1 et F2 sont à +2 et +6 ms. Chaque saut
+		// les pose à la même distance du début de la trame atteinte (Frank, 27/09),
+		// même après avoir promené la courbe : ils ne restent plus à leur place
+		// de l'écran. Trames qui changent : 2, 30, 60 ms (16 et 45 sont des
+		// répétitions, sautées).
 		console.log('Trame suivante');
-		for (const [fleche, nomFleche] of [['trame-suiv', '⏭'], ['trame-prec', '⏮']]) {
+		/** Instant, en ms, d'une abscisse du canvas (inverse de xDe). */
+		const tDe = (x, f) => f.t0 + ((x - 104) / (boite.largeur - 104 - 12)) * f.duree;
+		const ecartsF = (vu, f) => {
+			const debut = f.t0 + f.duree * 0.02; // MARGE_TRAME : la trame est posée là
+			return ['F1', 'F2'].map((n) => { const d = drapeauDe(vu, n); return d ? tDe(d.x, f) - debut : null; });
+		};
+		const unPx = (f) => (1.2 * f.duree) / (boite.largeur - 104 - 12);
+		const sauts = [['trame-suiv', '⏭', 30], ['trame-prec', '⏮', 2], ['promenade', 'courbe promenée puis ⏭', null]];
+		for (const [fleche, nomFleche, attendu] of sauts) {
+			if (fleche === 'promenade') {
+				// Le cas de Frank : la courbe tirée de 160 px vers la gauche, puis ⏭.
+				const fP = await fenetre();
+				await glisser(700, 110, 540, 110);
+				const fQ = await fenetre();
+				check(!!fP && !!fQ && fQ.t0 > fP.t0, 'témoin : la courbe tenue et tirée fait défiler la vue', `${fmt(fP?.t0)} → ${fmt(fQ?.t0)} ms`);
+				await cliquerBouton('trame-suiv');
+			}
 			const fAvant = await fenetre();
 			const vAvant = await releve();
-			const avant = ['F1', 'F2', 'M1'].map((n) => drapeauDe(vAvant, n)?.x ?? null);
-			await cliquerBouton(fleche);
+			const m1Avant = drapeauDe(vAvant, 'M1')?.x ?? null;
+			if (fleche !== 'promenade') await cliquerBouton(fleche);
 			const fApres = await fenetre();
-			check(!!fApres && !!fAvant && Math.abs(fApres.t0 - fAvant.t0) > 1, `témoin : ${nomFleche} a sauté à une autre trame`,
-				`${fmt(fAvant?.t0)} → ${fmt(fApres?.t0)} ms`);
+			const debut = fApres ? fApres.t0 + fApres.duree * 0.02 : null;
+			check(!!fApres && (attendu === null ? debut > 2.5 : pres(debut, attendu, 1e-6)), `témoin : ${nomFleche} pose une trame au bord`,
+				`${fmt(fAvant?.t0)} → ${fmt(fApres?.t0)} ms, début ${fmt(debut)}`);
 			vu = await releve();
-			const apres = ['F1', 'F2', 'M1'].map((n) => drapeauDe(vu, n)?.x ?? null);
-			check(avant[0] !== null && pres(apres[0], avant[0], 1) && pres(apres[1], avant[1], 1),
-				`${nomFleche} : F1 et F2 restent à la même place de l’écran`,
-				`F1 ${fmt(avant[0])} → ${fmt(apres[0])} · F2 ${fmt(avant[1])} → ${fmt(apres[1])}`);
+			const [e1, e2] = ecartsF(vu, fApres);
+			check(pres(e1, 2, unPx(fApres)) && pres(e2, 6, unPx(fApres)),
+				`${nomFleche} : F1 et F2 à +2 et +6 ms du début de la trame, comme du déclenchement`,
+				`F1 +${fmt(e1)} · F2 +${fmt(e2)} ms`);
 			const r = cadres(vu)[0]?.chemin[0];
-			check(r?.quoi === 'chemin-rect' && pres(r.x, rect?.x, 1) && pres(r.w, rect?.w, 1), `${nomFleche} : le rectangle aussi`, JSON.stringify(r));
-			check(apres[2] === null || avant[2] === null || Math.abs(apres[2] - avant[2]) > 5, `témoin : ${nomFleche} emporte M1 avec les courbes`,
-				`M1 ${fmt(avant[2])} → ${fmt(apres[2])}`);
+			check(r?.quoi === 'chemin-rect' && pres(r.x, xDe(debut + 2, fApres) + 0.5, 1.5) && pres(r.x + r.w, xDe(debut + 6, fApres) + 0.5, 1.5),
+				`${nomFleche} : le rectangle aussi`, JSON.stringify(r));
+			const m1Apres = drapeauDe(vu, 'M1')?.x ?? null;
+			if (fleche !== 'promenade') {
+				check(m1Apres === null || m1Avant === null || Math.abs(m1Apres - m1Avant) > 5, `témoin : ${nomFleche} emporte M1 avec les courbes`,
+					`M1 ${fmt(m1Avant)} → ${fmt(m1Apres)}`);
+			}
 		}
 
 		// --- 5. Rappel de F : F1 et F2 au garage, M1 reste posé ---------------------
