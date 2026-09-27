@@ -1,5 +1,4 @@
 # À faire
-1. Prépare une publication
 ## fait
 
 
@@ -8,6 +7,17 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.6.169
+1. ✅ **Publication 2026.9.6 préparée** (« Prépare une publication »), sur le modèle de la 2026.9.5 (24c8275).
+    1. [package.json](package.json) : `version` 2026.9.6, `buildNumber` 169 ; [package-lock.json](package-lock.json) suit.
+    2. [CHANGELOG.md](CHANGELOG.md) : `## 2026.9.6 (27 septembre 2026)` à la place de « prochaine publication ». Deux « .** . » en trop retirés (variables Arduino, projet rouvert).
+    3. Traductions soldées au lot 168.
+2. ℹ️ `.vsix` : demande annulée par Frank (« annule la demande de vsix ») — le paquet du lot 167, construit dans le conteneur, a été effacé ; rien n'est enregistré.
+3. ⏳ **Reste à Frank** : empaqueter et publier. Après publication, mettre à jour l'état du [CLAUDE.md](CLAUDE.md) (« dernière version en ligne `2026.9.6`, publiée le … ; prochaine publication `2026.9.7` ») et ouvrir `## 2026.9.7 (prochaine publication)` dans le CHANGELOG. Publication faite un autre jour : remplacer la date du CHANGELOG.
+4. ℹ️ Toujours ouverts, hors publication : Pico 2 (RP2350) qui étire les créneaux d'écriture 1-Wire (lot 165) ; `verify:compiler` à rendre indépendant du chemin Windows de son journal de test.
 
 ---
 

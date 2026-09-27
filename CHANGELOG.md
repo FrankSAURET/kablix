@@ -2,7 +2,7 @@
 
 Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque mois.
 
-## 2026.9.6 (prochaine publication)
+## 2026.9.6 (27 septembre 2026)
 
 ### Nouveauté
 
@@ -45,7 +45,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 ### Correction
 
 - **L'icône des fichiers `.projix` n'a plus de fond vert** dans l'Explorateur Windows. Une icône déjà installée est remplacée au lancement suivant de Kablix.
-- **Les variables Arduino sont de nouveau visibles en pause de débogage.**.
+- **Les variables Arduino sont de nouveau visibles en pause de débogage.**
 - **Le pas à pas Arduino ne saute plus de lignes.** Au début de `loop()`, tout le corps de la fonction passait d'un coup. Une pause pendant un `delay()` montre la ligne qui l'appelle.
 - **Pico : `machine.freq()` ne dérègle plus la PWM.** Un servomoteur réglé après un changement de fréquence prenait une mauvaise position.
 - **L'UART du Pico tourne à la vitesse réglée par le programme MicroPython.** Les octets partaient plus de deux fois trop vite.
@@ -65,7 +65,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **L'analyseur garde son zoom** quand on déplace son onglet ou qu'on change un réglage (déclenchement, protocole…).
 - **L'analyseur logique ne se fige plus** sur une longue capture décodée vue en entier : zoom, marqueurs et déclenchement restaient bloqués jusqu'à la réouverture de l'onglet.
 - **L'instant lu au curseur de l'analyseur reste lisible sur la barre de temps**.
-- **Rouvrir un projet avec l'analyseur ouvert ne double plus sa capture.**.
+- **Rouvrir un projet avec l'analyseur ouvert ne double plus sa capture.**
 - **Ouvrir une deuxième fenêtre de VS Code n'efface plus la mesure de l'analyseur logique en cours dans la première.** L'export CSV restait incomplet.
 
 ## 2026.9.5 (24 septembre 2026)
