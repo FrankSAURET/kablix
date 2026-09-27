@@ -439,16 +439,16 @@ try {
 	if (T.length === 2 && P.length === 2) {
 		// La pastille de teinte est à gauche du T, au même pas que P l'est du T.
 		const bTeinte = await survol(T[0], -pas);
-		check('pastille : la bulle dit les réglages de la voie', /name.*invert.*hide.*baud.*tolerance/i.test(bTeinte), bTeinte);
+		check('pastille : la bulle dit les réglages de la voie', /nom.*inversion.*masquage.*bauds.*tolérance/i.test(bTeinte), bTeinte);
 		check('pastille : le curseur annonce un bouton', (await curseur()) === 'pointer', await curseur());
 		const bT = await survol(T[0]);
-		check('T au repos : la bulle dit à quoi sert le déclenchement', /^Trigger: .*edge/.test(bT), bT);
+		check('T au repos : la bulle dit à quoi sert le déclenchement', /^Déclenchement : .*front/.test(bT), bT);
 		check('T : le curseur annonce un bouton', (await curseur()) === 'pointer', await curseur());
 		const bP = await survol(P[0]);
-		check('P au repos : la bulle dit à quoi sert le décodage et quels bus', /^Decoding: .*I²C.*DMX512/.test(bP), bP);
+		check('P au repos : la bulle dit à quoi sert le décodage et quels bus', /^Décodage : .*I²C.*DMX512/.test(bP), bP);
 		// Un marqueur garé, dans la marge lui aussi.
 		const bM1 = await survol({ x: xG1, y: Y_BANDE });
-		check('M1 garé : la bulle dit de le glisser et ce qu\'il borne', /^Marker M1: drag.*export/i.test(bM1), bM1);
+		check('M1 garé : la bulle dit de le glisser et ce qu\'il borne', /^Marqueur M1 : faites-le glisser.*exports/i.test(bM1), bM1);
 		// Hors de tout bouton : plus de bulle.
 		const bVide = await survol({ x: boite.w / 2, y: boite.h - 40 });
 		check('sur les courbes, pas de bulle', bVide === '', bVide);
@@ -458,14 +458,14 @@ try {
 		await ev(`window.postMessage(${JSON.stringify({ type: 'restaure', etat: { ...ETAT, declenchement: { voie: 0, sens: 'rising' }, decodages: [{ protocole: 'uart', id: 'd1', donnees: 1 }] } })}, '*')`);
 		await attendre(250);
 		const bT0 = await survol(T[0]);
-		// Page en français : « Rising edge » y est déjà traduit, la phrase neuve pas encore.
-		check('T armé : la bulle dit le déclenchement de la voie', /^Trigger on this channel: (Rising edge|Front montant)\./.test(bT0), bT0);
+		// Page en français : bulles traduites au lot de traduction (v2026.9.5.168).
+		check('T armé : la bulle dit le déclenchement de la voie', /^Déclenchement sur cette voie : Front montant\./.test(bT0), bT0);
 		const bT1 = await survol(T[1]);
-		check('T d\'une autre voie : la bulle reste celle du repos', /^Trigger: /.test(bT1), bT1);
+		check('T d\'une autre voie : la bulle reste celle du repos', /^Déclenchement : /.test(bT1), bT1);
 		const bP1 = await survol(P[1]);
-		check('P décodé : la bulle nomme le bus', /^Decoding: UART\./.test(bP1), bP1);
+		check('P décodé : la bulle nomme le bus', /^Décodage : UART\./.test(bP1), bP1);
 		const bP0 = await survol(P[0]);
-		check('P d\'une voie non décodée : la bulle reste celle du repos', /^Decoding: read/.test(bP0), bP0);
+		check('P d\'une voie non décodée : la bulle reste celle du repos', /^Décodage : lire/.test(bP0), bP0);
 	}
 	if (dossierImage) {
 		await glisser(xG1, Y_BANDE, Math.round(xDe(5)) + 100, Y_BANDE);

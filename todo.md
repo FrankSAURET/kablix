@@ -11,6 +11,18 @@
 
 ---
 
+# v2026.9.5.168
+1. ✅ **Lot de traduction avant publication** (« oui d'abord la traduction puis préparation ») : tous les ⏳ de traduction depuis la 2026.9.5 soldés.
+    1. [i18n.mts](src/webview/i18n.mts) : 16 chaînes FR de l'analyseur (capture pleine, `Frame start` → « Début de trame », `Values`, `Bits`, `Invert` → « Inverser », les cinq bulles de la marge, M1/M2, F1/F2 et leurs rappels). Retirées, plus appelées : `start {0} ignored`, `Capture full at {0} ms. Set the trigger again…`, `Idle high`.
+    2. [bundle.l10n.fr.json](l10n/bundle.l10n.fr.json) : 23 chaînes (Relancer la capture, Profondeur, infobulle d'Échantillonnage, ⏮ ⏭, menu ☰ et ses entrées « Exporter CSV » / « Copie SVG » / « Exporter SVG » — tes libellés —, messages de copie et de largeur, notifications de composants, « Rouvrir l'analyseur logique »). Retirées : les deux anciennes infobulles (`Save every edge…`, `Sampling rate…` courte).
+    3. [package.nls.fr.json](package.nls.fr.json) : `kablix.config.checkComponentsOnStartup`.
+    4. Aide EN : [sonde-logique.md](docs/en/composants/sonde-logique.md) retraduite en entier depuis la FR (tensions, pinces sur un même signal, ⏮ ⏭, M1/M2, F1/F2, bulles, profondeur et relance, exports, Début de trame, couleurs, Valeurs, Bits, DMX, 1-Wire et DS18B20, DHT sur deux lignes ; plus « experimental »). [USAGE.md](docs/en/USAGE.md) : bouton de réouverture de l'analyseur, gestionnaire (mises à jour dans « New »), signal au démarrage.
+    5. Composants : `spot` 2026.9.2 (libellé FR du paramètre `address` avec « effets », fiche EN section Channels), `dmx-grove` 2026.9.4 (fiche EN, paragraphe analyseur ; le paquet emporte aussi la fiche FR à jour). Paquets reconstruits, images d'origine gardées (le Chromium Linux du conteneur les redessinait autrement : remises depuis les anciens paquets), index régénéré.
+2. ✅ Banc [verify-analyseur-marqueurs.mjs](scripts/verify-analyseur-marqueurs.mjs) : page en français, les bulles y sont désormais traduites → 8 attentes passées en FR. Contre-épreuve sans les traductions : 8 échecs.
+3. ✅ Typecheck et construction propres. `verify:i18n`, `verify:help-bars` (70), `verify:docs`, `verify:kompix` (43/43) verts. `verify:all` : 150 bancs, les rouges d'ici rejoués avec le Chromium du conteneur (lien temporaire au chemin Windows attendu, supprimé) : tous verts sauf `verify:compiler`, propre au conteneur (journal de compilation Windows `V:\Temp\…` lu sous Linux, compilateur non touché).
+
+---
+
 # v2026.9.5.167
 1. ✅ **Aide FR : l'analyseur n'est plus dit expérimental** (« l'aide FR le dit encore à deux endroits : USAGE.md:103 et l'encadré de sonde-logique.md:9 ») — fait par Frank dans « V167 temporaire » (ec6e698), enregistré tel quel.
 2. ✅ **Commandes 1-Wire en rose** (« Met une couleur différente pour les commandes du 1-wire et applique pour le ds18B20 »).

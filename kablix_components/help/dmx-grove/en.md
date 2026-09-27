@@ -28,6 +28,8 @@ Two grounds, hence two names: the drawing says “GND” on both sides, the netl
 
 The board has no behavior of its own: it is a line driver. It is what gives the circuit its meaning — Kablix goes up from the pin wired to **SIG** to the fixtures sharing its pair, and applies to them the channels they listen to. Unplugged from the board or from the fixture, nothing lights up any more.
 
+With the **logic analyzer**, a [probe](sonde-logique.md) clipped on **SIG** or on **+** shows the signal of the pin driving the board, and a probe clipped on **−** the same signal **inverted**: this is the DMX differential pair, where the − line is always opposite to the + line. To decode the − channel, tick **Invert** in its settings: it then reads like the + one. In the margin, the **+** and **−** channels carry the output voltages of the line driver, **3.7 V** high and **1.1 V** low (SN75176A datasheet values), not those of the board; the **SIG** channel keeps those of the board.
+
 DMX traffic does **not** reach the serial monitor: a frame is 513 binary bytes per second, the console would be drowned.
 
 ---

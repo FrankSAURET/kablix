@@ -97,9 +97,10 @@
   - **REPL**: for Pico only, shows the traditional Python console (it only appears when the board on the canvas is a Pico)
   - **serial monitor / console**
   - **Plotter**
+  - **reopen the logic analyzer**: only appears when the analyzer tab has been closed while a clip is still on the diagram. A click reopens it with its last measurement.
   - **fault explanations**: the red frame and the yellow label put on a faulty part. On by default; the button hides them when they get in the way of reading the diagram.
 
-  There is **no button for the logic analyzer**: the [logic probe](composants/sonde-logique.md) is what triggers it. Drop at least one clip on a pin, start the simulation, and its tab opens on its own, to be placed next to the diagram. Without a clip, nothing opens — the analyzer would have nothing to show. The logic analyzer is **experimental** for now: its interface and its decoders may still change.
+  The logic analyzer has **no button to open it**: the [logic probe](composants/sonde-logique.md) is what triggers it. Drop at least one clip on a pin, start the simulation, and its tab opens on its own, to be placed next to the diagram. Without a clip, nothing opens — the analyzer would have nothing to show. The toolbar button only reopens a closed tab.
 - **Drawing bar** (on the right, over the canvas)  
 ![Drawing bar](../../media/BarreDessin.webp)
   - **part button**: shows the **internal schematic** of the selected part, or the **full pinout** of the board. It only appears when the selected part offers one.
@@ -521,7 +522,7 @@ Management from the palette: **click** = place on the canvas, **double-click** =
 
 The **⚙ Manage components** button, at the bottom of the palette (or the **Kablix: Download components** command), opens the list of parts, which can be filtered:
 
-- **New**: what the repositories offer and that is not installed yet;
+- **New**: what the repositories offer and that is not installed yet, plus the installed parts whose repository has a newer version (orange frame, “Update available”);
 - **Installed**: everything the local library holds, including the parts created here and those no repository offers;
 - **All**: both.
 
@@ -530,6 +531,8 @@ The **⚙ Manage components** button, at the bottom of the palette (or the **Kab
 A card may carry the **Experimental** mention (a badge and a dashed frame): the part is published and it works, but it is not settled yet — its drawing, its pins or its simulation may change from one version to the next. Nothing stops you from using it; just expect to have to bring it up to date.
 
 You select cards with a click, then **Download** installs and **Delete** uninstalls. Deleting asks for confirmation, erases the `.kompix` file from the library and removes the part from the palette **and** from open diagrams. It is final: reinstalling goes through the original repository, or through a `.kompix` exported beforehand (**⇩**).
+
+**Signal at startup.** When Kablix opens, the repositories are checked: a notification warns when an installed part has a newer version in the repository, or when new parts have appeared there since the last check. Its **Open the manager** button leads straight to the list. Each update and each new part is reported only once; nothing shows if nothing has changed or if the network is unavailable. The very first check only reports updates: the whole repository is not announced as “new”. The **Kablix › Check Components On Startup** setting (on by default) turns this signal off.
 
 Where installed parts live: in a folder **shared by every Kablix project** on the machine — by default `%APPDATA%\Code\User\globalStorage\electropol-fr.kablix\kablix_components` on Windows (`~/Library/Application Support/Code/User/globalStorage/...` on macOS, `~/.config/Code/User/globalStorage/...` on Linux). The **Kablix › Components Folder** setting points to another one, and the **Kablix: Open the component library** command opens the one really in use, whether the setting is filled in or not. The repositories the manager queries are set the same way (**Kablix › Component Repositories**).
 

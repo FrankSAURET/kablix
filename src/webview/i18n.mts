@@ -715,8 +715,6 @@ const FR: Record<string, string> = {
   'analog-capable pin: only 0/1 shown': 'broche analogique : seuls les 0/1 sont montrés',
   'Waiting for the trigger edge…': 'En attente du front de déclenchement…',
   'Show hidden channels ({0})': 'Réafficher les voies masquées ({0})',
-  'Capture full at {0} ms. Set the trigger again to capture anew.':
-    'Capture pleine à {0} ms. Réarmez le déclenchement pour capturer à nouveau.',
   'Capturing… {0} (waiting for the trigger edge)':
     'Capture en cours… {0} (en attente du front de déclenchement)',
   'Capturing… {0}': 'Capture en cours… {0}',
@@ -732,20 +730,51 @@ const FR: Record<string, string> = {
   'Remove this decoding': 'Retirer ce décodage',
   'Active-low line: read the channel upside down (idle high).':
     'Ligne active à l\'état bas : lire la voie à l\'envers (repos à l\'état haut).',
-  'Idle high': 'Repos haut',
   'Hide this channel: it keeps its capture, it just leaves the screen.':
     'Masquer cette voie : elle garde sa capture, elle quitte seulement l\'écran.',
   'Hide': 'Masquer',
   'Baud': 'Bauds',
   'auto': 'auto',
   'Tolerance %': 'Tolérance %',
+  // Analyseur logique (v2026.9.6) : état de capture, bulles de la marge, marqueurs, décodage.
+  'Capture full: {0} kept ({1} edges per channel). Click Restart capture to capture anew.':
+    'Capture pleine : {0} de mesure ({1} fronts par voie). Cliquez sur Relancer la capture pour capturer à nouveau.',
+  'Frame start':
+    'Début de trame',
+  'Values':
+    'Valeurs',
+  'Write each bit under the signal, with a marker between bits.':
+    'Écrire chaque bit sous le signal, avec un repère entre deux bits.',
+  'Bits':
+    'Bits',
+  'Invert':
+    'Inverser',
+  'Channel settings: name, invert, hide, baud rate, tolerance':
+    'Réglages de la voie : nom, inversion, masquage, débit en bauds, tolérance',
+  'Trigger: wait for an edge on this channel, then freeze the capture on it':
+    'Déclenchement : attendre un front sur cette voie, puis figer la capture dessus',
+  'Trigger on this channel: {0}. Click to change or remove it.':
+    'Déclenchement sur cette voie : {0}. Cliquez pour le changer ou le retirer.',
+  'Decoding: read a bus on this channel (I²C, SPI, UART, 1-Wire, DHT, DMX512)':
+    'Décodage : lire un bus sur cette voie (I²C, SPI, UART, 1-Wire, DHT, DMX512)',
+  'Decoding: {0}. Click for its settings or to remove it.':
+    'Décodage : {0}. Cliquez pour ses réglages ou pour le retirer.',
+  'Marker {0}: drag it along the curves; drop it back in the names column to park it.':
+    'Marqueur {0} : faites-le glisser le long des courbes ; lâchez-le dans la colonne des noms pour le ranger.',
+  'Marker {0}: drag it onto the curves. With M1 and M2 placed, the time between them is shown and the exports keep only that span.':
+    'Marqueur {0} : faites-le glisser sur les courbes. M1 et M2 posés, l\'écart entre eux s\'affiche et les exports ne gardent que cette plage.',
+  'Window marker {0}: drag it onto the curves. F1 and F2 frame a span set relative to the trigger: ⏮ ⏭ carry it to the same place in the frame they reach, so the same spot can be checked frame after frame.':
+    'Marqueur de fenêtre {0} : faites-le glisser sur les courbes. F1 et F2 encadrent une plage réglée par rapport au déclenchement : ⏮ ⏭ la portent au même endroit de la trame atteinte, pour vérifier le même passage d\'une trame à l\'autre.',
+  'Bring M1 and M2 back to their starting place':
+    'Ramener M1 et M2 à leur place de départ',
+  'Bring F1 and F2 back to their starting place':
+    'Ramener F1 et F2 à leur place de départ',
   // Analyseur logique : annotations des décodeurs (analyseur-decodage.mts). Les
   // termes des normes (START, STOP, ACK, BREAK, RESET) ne se traduisent pas.
   'START rep.': 'START rép.',
   'truncated': 'tronqué',
   'addr {0} {1}': 'adr {0} {1}',
   'framing': 'cadrage',
-  'start {0} ignored': 'start {0} ignoré',
   'parity': 'parité',
   'checksum ✓': 'somme ✓',
   'CHECKSUM ✗': 'SOMME ✗',

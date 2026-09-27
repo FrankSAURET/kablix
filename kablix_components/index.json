@@ -3,7 +3,7 @@
     {
       "type": "dmx-grove",
       "label": "Grove DMX512",
-      "version": "2026.9.3",
+      "version": "2026.9.4",
       "author": "Frank Sauret",
       "description": "Grove DMX512 shield (SP3485 line driver): turns the board UART into a DMX512 output on a 3-pin XLR socket.",
       "category": "Misc",
@@ -157,7 +157,7 @@
     {
       "type": "spot",
       "label": "DMX PAR 38 spotlight",
-      "version": "2026.9.1",
+      "version": "2026.9.2",
       "author": "Frank Sauret",
       "description": "PAR 38 LED spotlight driven over DMX512 (Contest): the LED array takes the colour sent on its channels.",
       "category": "Systems",
@@ -169,11 +169,11 @@
           "label": "Projecteur DMX PAR 38",
           "description": "Projecteur à LED PAR 38 piloté en DMX512 (Contest) : le bloc de LED prend la couleur envoyée sur ses canaux.",
           "params": {
-            "address": "Adresse DMX (canaux : rouge, vert, bleu)"
+            "address": "Adresse DMX (canaux : rouge, vert, bleu, effets)"
           }
         }
       }
     }
   ],
-  "generated": "2026-09-25T14:54:32.078Z"
+  "generated": "2026-09-27T17:13:14.140Z"
 }
