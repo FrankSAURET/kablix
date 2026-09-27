@@ -1,4 +1,9 @@
 # À faire
+1. Tu as retiré « expérimental » des README, mais l'aide FR le dit encore à deux endroits : USAGE.md:103 et l'encadré de sonde-logique.md:9. -> c'est fait
+1. Met une couleur différente pour les commandes du 1-wire et applique pour le ds18B20.
+1. Les curseurs F1 et F2 doivent être référencés par rapport au trigger de la voie de déclenchement. La si je déplace la courbe puis appuie sur le bouton ⏭, la fenêtre reste en place dans l'écran la ou elle est et n'est plus référencée par rapport au déclenchement
+1. commit + push + vsix
+1. Prépare une publication
 ## fait
 
 

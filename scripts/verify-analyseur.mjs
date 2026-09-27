@@ -1670,6 +1670,19 @@ const oneWireDe = (sequence) => {
     const tz = decoder([voieDe(0, 'DQ', oneWireDe(['reset', 0xf0, 0x44, 0xbe]), 1)], { protocole: 'onewire', donnees: 0 }).map((a) => a.texte);
     check('1-Wire : après SEARCH ROM, rien n\'est nommé jusqu\'au RESET suivant',
       tz.join(' | ') === 'RESET | 0xF0 SEARCH ROM | 0x44 | 0xBE', tz.join(' | '));
+    // Les commandes ont leur propre nature (teinte rose) : ROM et fonction,
+    // jamais l'adresse ni les données, même quand elles en ont la valeur
+    // (Frank, 27/09). Un octet inconnu à la place d'une commande en reste une.
+    const natures = (octets) => decoder([voieDe(0, 'DQ', oneWireDe(['reset', ...octets]), 1)], { protocole: 'onewire', donnees: 0 })
+      .filter((a) => a.texte !== 'RESET').map((a) => (a.nature === 'commande' ? 'C' : a.nature === 'donnee' ? 'd' : a.nature)).join('');
+    const nMatch = natures([0x55, ...adresse, 0xbe, 0x30, 0x02]);
+    check('1-Wire : MATCH ROM et READ SCRATCHPAD en commande, adresse et données en donnée',
+      nMatch === 'CddddddddCdd', nMatch);
+    const nSkip = natures([0xcc, 0x44, 0xcc]);
+    check('1-Wire : SKIP ROM et CONVERT T en commande, l\'octet suivant en donnée', nSkip === 'CCd', nSkip);
+    const nInconnu = natures([0xcc, 0x5a, 0x44]);
+    check('1-Wire : octet inconnu à la place de la commande de fonction = commande, sans nom',
+      nInconnu === 'CCd', nInconnu);
   }
   // Le VRAI capteur répond au RESET : 30 µs après la relâche, il tient la ligne
   // basse 110 µs (ds18b20.mjs). Lue comme un bit, cette présence sortait en

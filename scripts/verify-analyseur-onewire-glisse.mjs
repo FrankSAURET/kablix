@@ -104,7 +104,8 @@ const espionner = (nom, releve) => {
 	const origine = P[nom];
 	P[nom] = function (...a) { window.__peint.push(releve.call(this, ...a)); return origine.apply(this, a); };
 };
-espionner('fillText', function (t, x, y) { return { quoi: 'texte', t: String(t), x, y }; });`;
+espionner('fillText', function (t, x, y) { return { quoi: 'texte', t: String(t), x, y }; });
+espionner('fillRect', function (x, y, w, h) { return { quoi: 'rect', x, y, w, h, c: String(this.fillStyle), a: this.globalAlpha }; });`;
 html = html
 	.replace('</head>', `<script nonce="${nonce}">${ESPION}</script></head>`)
 	.replace(/<script nonce="[^"]*" src="[^"]*"><\/script>/, () => `<script nonce="${nonce}">${bundle}</script>`);
@@ -298,6 +299,43 @@ if (!chrome) {
 		let e = ecarts(vu, f);
 		check(e.length === 0 && octetsPeints(vu).some((p) => p.t === '0x55 MATCH ROM'),
 			'la vue montre RESET, 0x55 MATCH ROM et le début de l’adresse, comme la référence', e.join(' · '));
+		// Teinte des commandes (Frank, 27/09) : le fond pâle peint SOUS le texte de
+		// chaque octet — rose pour une commande, bleu pour l'adresse.
+		const ROSE = ['#d37bc1', '#9e3699'];
+		const BLEU = ['#2f7fd8', '#5a9ee6'];
+		const fondDe = (p) => vu.find((r) => r.quoi === 'rect' && r.a > 0.1 && r.a < 0.5 &&
+			p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h)?.c ?? null;
+		const teintes = octetsPeints(vu).map((p) => `${p.t} ${fondDe(p)}`);
+		const commandes = octetsPeints(vu).filter((p) => / [A-Z]/.test(p.t));
+		const adresse = octetsPeints(vu).filter((p) => /^0x[0-9A-F]{2}$/.test(p.t));
+		check(commandes.length > 0 && commandes.every((p) => ROSE.includes(fondDe(p))),
+			'0x55 MATCH ROM peint sur fond rose', teintes.join(' · '));
+		check(adresse.length > 0 && adresse.every((p) => BLEU.includes(fondDe(p))),
+			'les octets d’adresse restent sur fond bleu', teintes.join(' · '));
+		const dossierImage = process.argv.find((a) => a.startsWith('--image='))?.slice('--image='.length);
+		/** Capture dans les deux thèmes, variables posées comme VS Code le fait ; la page finit en sombre, comme au départ. */
+		const photos = async (nom) => {
+			if (!dossierImage) return;
+			for (const th of [
+				{ nom: 'clair', classe: 'vscode-light', fond: '#ffffff', texte: '#3b3b3b' },
+				{ nom: 'sombre', classe: 'vscode-dark', fond: '#1f1f1f', texte: '#cccccc' },
+			]) {
+				await ev(`(() => {
+					document.documentElement.style.setProperty('--vscode-editor-background', '${th.fond}');
+					document.documentElement.style.setProperty('--vscode-foreground', '${th.texte}');
+					document.body.style.background = '${th.fond}';
+					document.body.className = '${th.classe}';
+				})()`);
+				await envoyer({ type: 'repeindre' });
+				await attendre(150);
+				const png = await cdp('Page.captureScreenshot', { format: 'png' });
+				writeFileSync(join(dossierImage, `onewire-${nom}-${th.nom}.png`), Buffer.from(png.result.data, 'base64'));
+			}
+			await ev(`(() => { document.documentElement.removeAttribute('style'); document.body.removeAttribute('style'); document.body.className = ''; })()`);
+			await envoyer({ type: 'repeindre' });
+			await attendre(100);
+		};
+		await photos('commandes');
 
 		// --- 2. F1 et F2 posés autour de 0xBE -------------------------------------
 		// La courbe glisse d'abord jusqu'à montrer 0xBE au milieu, puis F1 et F2
@@ -329,6 +367,7 @@ if (!chrome) {
 		const texteBE = octetsPeints(vu).find((p) => p.t === '0xBE READ SCRATCHPAD');
 		check(!!texteBE && texteBE.x > f1.x && texteBE.x < f2.x, '« 0xBE READ SCRATCHPAD » est écrit entre F1 et F2',
 			`F1 ${fmt(f1?.x)} · texte ${fmt(texteBE?.x)} · F2 ${fmt(f2?.x)}`);
+		await photos('be');
 
 		// --- 3. Le glissé qui faisait tout sauter ---------------------------------
 		// Retour au départ, puis la courbe est tenue et tirée vers la gauche, pas à

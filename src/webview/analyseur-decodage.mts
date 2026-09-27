@@ -40,6 +40,12 @@ export type NatureAnnotation =
   | 'cadre'
   /** Une donnée lue (octet, adresse). */
   | 'donnee'
+  /**
+   * Un octet de COMMANDE 1-Wire : commande ROM après le RESET, commande de
+   * fonction ensuite (`MATCH ROM`, `READ SCRATCHPAD`…). Rose, pour qu'elle se
+   * détache des octets d'adresse et de données qui l'entourent (Frank, 27/09).
+   */
+  | 'commande'
   /** Un acquittement ou un bit de contrôle. */
   | 'controle'
   /** Une anomalie : cadrage impossible, trame tronquée. */
@@ -1144,8 +1150,13 @@ function decoderOneWire(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
     bits += 1;
     if (bits === 8) {
       let nom: string | undefined;
+      // Commande par sa PLACE dans la transaction, nommée ou non : un octet
+      // inconnu à la place d'une commande (autre composant que le DS18B20)
+      // reste une commande.
+      let commande = false;
       if (attendu === 'rom') {
         nom = OW_ROM[acc];
+        commande = true;
         const adresse = OW_ROM_ADRESSE[acc];
         attendu = adresse === undefined ? null : 'fonction';
         adresseRestante = adresse ?? 0;
@@ -1153,6 +1164,7 @@ function decoderOneWire(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
         if (adresseRestante > 0) adresseRestante -= 1;
         else {
           nom = OW_FONCTIONS[acc];
+          commande = true;
           attendu = null;
         }
       }
@@ -1160,7 +1172,7 @@ function decoderOneWire(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
         t0: tOctet,
         t1: suivant.t,
         texte: nom ? `${octet(acc, r.base)} ${nom}` : octet(acc, r.base),
-        nature: 'donnee',
+        nature: commande ? 'commande' : 'donnee',
       });
       bits = 0;
       acc = 0;

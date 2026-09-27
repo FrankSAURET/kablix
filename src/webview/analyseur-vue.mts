@@ -1025,6 +1025,11 @@ export class AnalyseurVue {
       stop: sombre ? '#e66767' : '#e34948',
       cadre: sombre ? '#9085e9' : '#4a3aa7',
       donnee: sombre ? '#5a9ee6' : '#2f7fd8',
+      // Rose (prune en sombre) : écart ≥ 16 (OKLab ×100) avec les six autres
+      // teintes, dans les deux thèmes — elle se lit à côté du bleu des octets
+      // et du violet du PRÉSENT (commandes 1-Wire, Frank, 27/09). Saturée : à
+      // 22 % d'opacité, une prune plus grise passait pour un fond sale.
+      commande: sombre ? '#9e3699' : '#d37bc1',
       controle: sombre ? '#c98500' : '#eda100',
       erreur: sombre ? '#e05cc9' : '#b0249a',
     };

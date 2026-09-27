@@ -201,6 +201,13 @@ let marqueurPris: number | null = null;
  * la fenêtre attend le suivant là où elle est.
  */
 let declenchementVu: number | null = null;
+/**
+ * Instant auquel F1 et F2 sont rattachés : le déclenchement, puis le début de
+ * la trame où ⏮ ⏭ ont mené la vue — il y tient le rôle du déclenchement
+ * (Frank, 27/09). F garde son écart à cette ancre d'un saut à l'autre, où que
+ * la vue ait été promenée entre-temps. Null tant que rien ne l'a posée.
+ */
+let ancreF: number | null = null;
 
 /** Décale la fenêtre F1/F2 de `dt` ms, marqueurs garés exceptés. */
 function decalerFenetreF(dt: number): void {
@@ -211,12 +218,18 @@ function decalerFenetreF(dt: number): void {
   }
 }
 
-/** Fait suivre le déclenchement à F1/F2, s'il a bougé depuis le dernier rendu. */
+/**
+ * Fait suivre le déclenchement à F1/F2, s'il a bougé depuis le dernier rendu :
+ * F retrouve auprès du nouveau déclenchement l'écart qu'il avait à son ancre,
+ * même après des sauts de trame. Le premier déclenchement vu devient l'ancre
+ * sans rien déplacer.
+ */
 function suivreDeclenchementF(): void {
   const tt = capture.tTrigger;
-  if (tt === null) return;
-  if (declenchementVu !== null) decalerFenetreF(tt - declenchementVu);
+  if (tt === null || tt === declenchementVu) return;
+  if (declenchementVu !== null) decalerFenetreF(tt - (ancreF ?? declenchementVu));
   declenchementVu = tt;
+  ancreF = tt;
 }
 
 const canvas = document.getElementById('trace') as HTMLCanvasElement;
@@ -739,8 +752,13 @@ const MARGE_TRAME = 0.02;
  * décodages comptent : un montage à deux bus passe de l'un à l'autre dans
  * l'ordre du temps.
  *
- * F1 et F2 suivent le saut (Frank, 26/09) : ils ne bougent pas à l'écran, donc
- * encadrent dans la nouvelle trame ce qu'ils encadraient dans l'ancienne.
+ * F1 et F2 suivent le saut : ils se posent à la même distance du début de la
+ * nouvelle trame que de leur ancre (`ancreF` : le déclenchement, ou la trame du
+ * saut précédent), et encadrent donc le même morceau d'une trame à l'autre.
+ * Décaler F du saut de la VUE les laissait à leur place à l'écran : juste quand
+ * la vue partait du déclenchement, faux dès qu'on avait promené la courbe
+ * (Frank, 27/09). Sans ancre (aucun déclenchement, aucun saut), le premier saut
+ * les laisse à leur place à l'écran.
  */
 function sauterTrame(sens: -1 | 1): void {
   if (decodages.length === 0 || !capture.aDesDonnees) return;
@@ -754,7 +772,8 @@ function sauterTrame(sens: -1 | 1): void {
     : [...debuts].reverse().find((t) => t < bord - eps);
   if (cible === undefined) return;
   const t0 = cible - fenetre.duree * MARGE_TRAME;
-  decalerFenetreF(t0 - fenetre.t0);
+  decalerFenetreF(cible - (ancreF ?? bord));
+  ancreF = cible;
   fenetre = { t0, duree: fenetre.duree };
   suivi = false;
   dessiner();
@@ -1805,7 +1824,7 @@ function bulleMarqueur(m: number): string {
   }
   return m < FENETRE[0]
     ? t('Marker {0}: drag it onto the curves. With M1 and M2 placed, the time between them is shown and the exports keep only that span.', nom)
-    : t('Window marker {0}: drag it onto the curves. F1 and F2 frame a span that stays put on screen when ⏮ ⏭ jump to another frame, and follows the trigger: the same spot can be checked frame after frame.', nom);
+    : t('Window marker {0}: drag it onto the curves. F1 and F2 frame a span set relative to the trigger: ⏮ ⏭ carry it to the same place in the frame they reach, so the same spot can be checked frame after frame.', nom);
 }
 
 canvas.addEventListener('pointermove', (ev) => {

@@ -150,7 +150,7 @@ function apres(commande, combien) {
 		for (let j = i + 1; j < annotations.length && octets.length < combien; j++) {
 			const b = annotations[j];
 			if (b.texte === 'RESET') break;
-			if (b.nature === 'donnee') octets.push(octetDe(b));
+			if (b.nature === 'donnee' || b.nature === 'commande') octets.push(octetDe(b));
 		}
 		lectures.push(octets);
 	});
@@ -186,6 +186,16 @@ check('adresse visée par MATCH ROM : code famille 0x28 et CRC juste',
 	match.map((o) => o.map(hex).join(' ')).join(', '));
 
 check('CONVERT T reconnu', annotations.some((a) => a.texte.endsWith('CONVERT T')));
+// Teinte à part pour les commandes (Frank, 27/09) : sur la vraie capture, toute
+// commande nommée est une `commande`, et aucun octet d'adresse ni de données.
+const nommees = annotations.filter((a) => /^0x[0-9A-F]{2} [A-Z]/.test(a.texte));
+check('commandes du DS18B20 en nature « commande » (teinte rose)',
+	nommees.length > 0 && nommees.every((a) => a.nature === 'commande'),
+	`${nommees.filter((a) => a.nature !== 'commande').map((a) => a.texte).join(', ')}`);
+const brutes = annotations.filter((a) => /^0x[0-9A-F]{2}$/.test(a.texte));
+check('adresse et scratchpad restent des données',
+	brutes.length > 0 && brutes.every((a) => a.nature === 'donnee'),
+	`${brutes.length} octets, ${brutes.filter((a) => a.nature !== 'donnee').length} hors donnée`);
 
 console.log(echecs ? `\nRESULTAT: ECHEC (${echecs})` : '\nRESULTAT: OK');
 process.exit(echecs ? 1 : 0);

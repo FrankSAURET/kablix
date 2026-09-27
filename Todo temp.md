@@ -1,2 +1,1 @@
 1. Analyseur logique :
-    - Rajoute 2 marqueurs F1 et F2 (pour fenêtre). Par défaut ils apparaissent en dessous de M1 et M2, ils ont aussi leur flèche de rappel. Il sont positionnés par rapport au déclenchement et ne bouge pas quand on passe d'un frame start à l'autre. ils permettent de surligner qqc pour le vérifier d'une trame à l'autre. Ils sont matérialisés par un rectangle coloré (mais vide) entre eux qui recouvre toutes les trames. Les bords du rectangle sont semi-transparent. 
