@@ -36,10 +36,12 @@ import {
   type ZoneBouton,
 } from './analyseur-vue.mjs';
 import {
+  avanceNecessaireMs,
   changementsDeTrame,
   decoderTous,
   lignesSousVoie,
   reculNecessaireMs,
+  repriseAvant,
   rolesDe,
   type Annotation,
   type Protocole,
@@ -631,19 +633,58 @@ function annotationsEntre(f: Fenetre): Annotation[] {
   // chaque image de l'écran coûterait des centaines de milliers d'opérations
   // pour afficher vingt étiquettes.
   const marge = f.duree * 0.1;
-  // À gauche, certains protocoles doivent remonter jusqu'au début de leur
-  // trame, loin hors de l'écran quand on zoome (DHT : 18 ms de départ).
-  const recul = Math.max(marge, ...decodages.map((d) => reculNecessaireMs(d.protocole)));
-  const t0 = f.t0 - recul;
-  const t1 = f.t0 + f.duree + marge;
-  // `capture.fenetre` rend déjà les fronts INVERSÉS sur les voies réglées
-  // actives-bas : le décodeur lit donc exactement ce que la vue dessine.
-  return decoderTous(trancheCapture(t0, t1), reglagesEffectifs());
+  const out: Annotation[] = [];
+  // Chaque décodage lit SA tranche : un 1-Wire qui remonte loin chercher son
+  // RESET n'entraîne pas le DMX voisin et ses milliers de fronts.
+  for (const r of reglagesEffectifs()) {
+    const siennes = voiesDu(r);
+    // À droite, l'octet coupé par le bord doit finir (1-Wire : jusqu'à 0,96 ms).
+    const t1 = f.t0 + f.duree + Math.max(marge, avanceNecessaireMs(r.protocole));
+    // À gauche, certains protocoles doivent remonter jusqu'au début de leur
+    // trame, loin hors de l'écran quand on zoome (DHT : 18 ms de départ).
+    const t0 = repriseDe(r, f.t0 - Math.max(marge, reculNecessaireMs(r.protocole)), t1, siennes);
+    // `capture.fenetre` rend déjà les fronts INVERSÉS sur les voies réglées
+    // actives-bas : le décodeur lit donc exactement ce que la vue dessine.
+    for (const a of decoderTous(trancheCapture(t0, t1, siennes), [r])) out.push(a);
+  }
+  return out.sort((a, b) => a.t0 - b.t0);
 }
 
-/** Les voies de la capture entre t0 et t1, telles que la vue les montre. */
-function trancheCapture(t0: number, t1: number): VoieCapture[] {
-  return capture.listeVoies.map((v) => {
+/** Les voies qu'un décodage lit (ses rôles). */
+function voiesDu(r: ReglageDecodage): Set<number> {
+  const s = new Set<number>();
+  for (const role of rolesDe(r.protocole)) {
+    const v = r[role.cle];
+    if (typeof v === 'number') s.add(v);
+  }
+  return s;
+}
+
+/** Premier recul essayé pour trouver la reprise d'un décodage, quadruplé tant qu'elle manque. */
+const RECUL_REPRISE_MS = 20;
+
+/**
+ * Début de lecture d'un décodage qui doit montrer juste ce qui suit `t` : la
+ * dernière ouverture de trame d'où il repart à froid (`repriseAvant` : le
+ * RESET d'un 1-Wire), cherchée de plus en plus loin. Sans elle dans toute la
+ * capture, on lit depuis le début : c'est là que partirait un décodage complet,
+ * et les octets ne bougent donc plus quand la vue glisse. `t` tel quel pour un
+ * protocole qui ne se recale pas ainsi.
+ */
+function repriseDe(r: ReglageDecodage, t: number, t1: number, voies: ReadonlySet<number>): number {
+  for (let recul = RECUL_REPRISE_MS; ; recul *= 4) {
+    const debut = t - recul;
+    const reprise = repriseAvant(r, trancheCapture(debut, t1, voies), t);
+    if (reprise === undefined) return t;
+    if (reprise !== null) return reprise;
+    if (debut <= capture.tDebut) return debut;
+  }
+}
+
+/** Les voies de la capture entre t0 et t1, telles que la vue les montre (`seules` : celles-là). */
+function trancheCapture(t0: number, t1: number, seules?: ReadonlySet<number>): VoieCapture[] {
+  const voies = seules ? capture.listeVoies.filter((v) => seules.has(v.voie)) : capture.listeVoies;
+  return voies.map((v) => {
     const f = capture.fenetre(v.voie, t0, t1);
     return { ...v, niveauInitial: f.entrant, fronts: f.fronts };
   });

@@ -12,7 +12,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Tensions dans la marge de l'analyseur logique** : face aux deux niveaux de chaque courbe.
 - **Marqueurs M1 et M2 dans l'analyseur logique** : ils attendent à gauche de la barre de temps. Glissés sur les courbes, ils se collent au front le plus proche et tracent un trait de leur couleur. Posés tous les deux, une flèche donne la durée qui les sépare.
 - **Bouton de rappel des marqueurs M1 et M2** : une flèche tout à gauche de leur marge les ramène à leur place de départ, quand un zoom les a fait sortir de la vue.
-- **Marqueurs de fenêtre F1 et F2 dans l'analyseur logique** : garés sous M1 et M2, avec leur flèche de rappel. Posés, ils tracent entre eux un cadre vide qui couvre toutes les courbes. Le cadre reste en place quand ⏮ ⏭ changent de trame et suit le déclenchement : on vérifie le même endroit d'une trame à l'autre.
+- **Marqueurs de fenêtre F1 et F2 dans l'analyseur logique** : Sous M1 et M2, avec leur flèche de rappel. Posés, ils tracent entre eux un cadre vide qui couvre toutes les courbes. Le cadre reste en place quand ⏮ ⏭ changent de trame et suit le déclenchement : on vérifie le même endroit d'une trame à l'autre.
 - **Bulles d'aide dans la marge de l'analyseur logique** : la pastille, les boutons T et P et les marqueurs disent ce qu'ils font au survol. T et P disent aussi leur réglage.
 - **Courbes de l'analyseur en image SVG** : le menu ☰ de l'onglet les copie au presse-papier en image, à coller dans Word comme dans Inkscape (« Copie SVG »), ou les enregistre dans un fichier (« Exporter SVG »), au zoom affiché. M1 et M2 posés, l'image va de l'un à l'autre.
 - **Flèches ⏮ ⏭ dans l'analyseur logique** : elles amènent le début de la trame décodée précédente ou suivante au bord gauche, sans changer le zoom. Les trames répétées à l'identique sont sautées.
@@ -56,6 +56,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Le décodage 1-Wire nomme la réponse du capteur au `RESET` (`PRÉSENT`).** Elle s'affichait en erreur « 1 bits » juste après le `RESET`.
 - **Le décodage 1-Wire lit juste la réponse du DS18B20.** Ses bits à 0 passaient pour des 1 : la température lue était fausse et le CRC en erreur.
 - **Le décodage 1-Wire nomme les commandes après `SKIP ROM` ou `MATCH ROM`** : `CONVERT T`, `READ SCRATCHPAD`…
+- **Le décodage 1-Wire ne change plus quand on fait glisser la courbe.** Dès que le début d'une transaction sortait à gauche, les octets devenaient faux et `READ SCRATCHPAD` disparaissait.
 - **Changer le déclenchement de l'analyseur ne fait plus disparaître la courbe**.
 - **La vue de l'analyseur ne saute plus pendant la capture** quand son onglet s'ouvre avec la simulation : elle se pose sur le déclenchement et y reste.
 - **Le déclenchement tombe sur un front affiché** quand l'analyseur échantillonne. Il était posé sur le front réel, parfois plusieurs millisecondes avant le front dessiné, et « montant » ou « descendant » semblait sans effet.

@@ -1609,6 +1609,58 @@ export function reculNecessaireMs(p: Protocole): number {
   return p === 'dht' || p === 'dmx' ? 30 : 0;
 }
 
+/**
+ * Avance minimale, en ms, que le décodeur doit lire APRÈS la fenêtre visible
+ * pour finir l'octet qu'elle coupe à droite.
+ *
+ * 1-Wire : un octet, ce sont huit slots de 60 à 120 µs, jusqu'à 0,96 ms. Zoomé
+ * sur quelques octets, la marge ordinaire (10 % de la largeur) s'arrêtait en
+ * plein octet : le dernier à l'écran sortait « 5 bits », en erreur, alors qu'il
+ * était entier sur le fil (Frank, 27/09).
+ */
+export function avanceNecessaireMs(p: Protocole): number {
+  return p === 'onewire' ? 1 : 0;
+}
+
+/**
+ * Instant d'où le décodeur de `r` peut partir À FROID et lire juste tout ce qui
+ * suit `t` : l'ouverture de la dernière trame commencée à `t` ou avant.
+ *
+ * Rend null quand `voies` ne remonte pas jusqu'à elle (il faut lire plus tôt),
+ * undefined pour un protocole qui ne se recale pas ainsi — son recul fixe
+ * suffit (`reculNecessaireMs`). `voies` doit aller au-delà de `t` : le creux
+ * en cours à `t` peut être le RESET cherché, et seul son front montant le dit.
+ *
+ * 1-Wire : le décodeur compte les bits DEPUIS le RESET, et c'est lui qui dit
+ * que l'octet suivant est une commande ROM. Parti d'un creux quelconque, il
+ * décalait tous les octets jusqu'au RESET suivant (0x2A 0x14 0x92 au lieu de
+ * 0x28 0x24 0x61) et ne nommait plus rien. Or la vue ne décode que ce qu'elle
+ * montre : dès que le RESET sortait à gauche en faisant glisser la courbe,
+ * `0xBE READ SCRATCHPAD` disparaissait et les octets changeaient sous les
+ * yeux (Frank, 27/09, ds18b20-pico). Un creux d'au moins `OW.reset` ne se
+ * confond avec rien : c'est un point de départ sûr.
+ */
+export function repriseAvant(r: ReglageDecodage, voies: VoieCapture[], t: number): number | null | undefined {
+  if (r.protocole !== 'onewire') return undefined;
+  const v = voie(voies, r.donnees);
+  if (!v) return null;
+  const f = v.fronts;
+  const usMs = 1 / 1000;
+  let i = indiceApres(f, t);
+  while (i < f.length && f[i]!.t <= t) i++;
+  // Le front montant qui refermera le creux en cours à `t`, s'il y en a un ;
+  // en remontant ensuite, celui qui referme chaque creux rencontré.
+  let k = i;
+  while (k < f.length && f[k]!.niveau !== 1) k++;
+  let montant = k < f.length ? f[k]!.t : null;
+  for (let j = i - 1; j >= 0; j--) {
+    const g = f[j]!;
+    if (g.niveau === 1) montant = g.t;
+    else if (montant !== null && (montant - g.t) / usMs >= OW.reset) return g.t;
+  }
+  return null;
+}
+
 // `frontsDe` sert aux bancs : compter les fronts d'un sens est le contrôle le
 // plus simple qu'un test puisse faire sur une voie.
 export { frontsDe };
