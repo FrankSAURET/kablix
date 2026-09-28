@@ -315,16 +315,59 @@ export function formatTension(volts: number, lang = 'en'): string {
   return `${(Math.round(volts * 10) / 10).toLocaleString(lang, { maximumFractionDigits: 1 })} V`;
 }
 
-/** Formatage d'une durée en ms simulées, unité choisie d'après l'ordre. */
-export function formatTemps(ms: number, lang = 'en'): string {
+/** Unités de temps, de la plus grande à la plus petite : nom et valeur en ms. */
+const UNITES_TEMPS: ReadonlyArray<readonly [string, number]> = [
+  ['s', 1000], ['ms', 1], ['µs', 0.001], ['ns', 1e-6],
+];
+
+/** L'unité où `ms` s'écrit avec au moins un chiffre avant la virgule. */
+function uniteDe(ms: number): readonly [string, number] {
   const abs = Math.abs(ms);
-  const rendu = (v: number, u: string, d: number): string =>
-    `${v.toLocaleString(lang, { maximumFractionDigits: d })} ${u}`;
-  if (abs === 0) return rendu(0, 'ms', 0);
-  if (abs >= 1000) return rendu(ms / 1000, 's', 3);
-  if (abs >= 1) return rendu(ms, 'ms', 3);
-  if (abs >= 0.001) return rendu(ms * 1000, 'µs', 3);
-  return rendu(ms * 1e6, 'ns', 1);
+  return UNITES_TEMPS.find(([, f]) => abs >= f) ?? UNITES_TEMPS[UNITES_TEMPS.length - 1]!;
+}
+
+/** Décimales qu'il faut, dans une unité de `facteur` ms, pour distinguer `resolution` ms. */
+function decimalesPour(resolution: number, facteur: number): number {
+  if (!(resolution > 0)) return 3;
+  return Math.min(9, Math.max(0, Math.ceil(-Math.log10(resolution / facteur) - 1e-9)));
+}
+
+/**
+ * Formatage d'une durée en ms simulées, unité choisie d'après l'ordre.
+ * `resolution` (ms) : le plus petit écart à distinguer — un pixel pour le
+ * réticule. Sans elle, trois décimales, comme toujours. Avec, autant qu'il en
+ * faut : à 12 s de capture et zoomé sur quelques µs, « 12,346 s » ne dit plus
+ * rien, « 12,345678 s » si (Frank, 28/09).
+ */
+export function formatTemps(ms: number, lang = 'en', resolution?: number): string {
+  if (ms === 0) return `${(0).toLocaleString(lang)} ${resolution ? uniteDe(resolution)[0] : 'ms'}`;
+  const [u, f] = uniteDe(ms);
+  const d = resolution === undefined ? (u === 'ns' ? 1 : 3) : decimalesPour(resolution, f);
+  return `${(ms / f).toLocaleString(lang, { maximumFractionDigits: d })} ${u}`;
+}
+
+/**
+ * Étiquettes des graduations de la règle (instants depuis l'origine, en ms),
+ * espacées de `pas` ms. L'unité suit le PAS, donc le zoom, pas l'instant
+ * (Frank, 28/09 : « l'affichage dans la barre de temps doit s'adapter au zoom
+ * et non rester sur des secondes ») : à 12 s de capture et 20 µs par
+ * graduation, toutes s'écrivaient « 12,346 s ».
+ *
+ * Dans l'unité du pas, un instant trop loin de l'origine ferait une étiquette
+ * interminable (« 12 345 680 µs ») : la première graduation donne alors
+ * l'instant entier, à la précision du pas, et les suivantes leur écart à elle
+ * (« +20 µs »), comme sur un analyseur du commerce.
+ */
+export function libellesRegle(instants: readonly number[], pas: number, lang = 'en'): string[] {
+  // Une décimale plutôt qu'un changement d'unité : 0,5 ms s'écrit « 16,5 ms »,
+  // pas « 16 500 µs ».
+  const [u, f] = uniteDe(pas * 10);
+  const d = decimalesPour(pas, f);
+  const ecrire = (ms: number): string => `${(ms / f).toLocaleString(lang, { maximumFractionDigits: d })} ${u}`;
+  const long = instants.some((t) => Math.abs(t / f) >= 1e5);
+  if (!long) return instants.map(ecrire);
+  const base = instants[0]!;
+  return instants.map((t, k) => (k === 0 ? formatTemps(t, lang, pas) : `+${ecrire(t - base)}`));
 }
 
 /** Pas de graduation « rond » (1-2-5 × 10ⁿ), comme dans le traceur. */
@@ -575,7 +618,9 @@ export class AnalyseurVue {
     const s = e.souris!;
     if (s.x < MARGE_G || s.x > w - MARGE_D) return null;
     const t = this.tDe(s.x, e.fenetre, w);
-    const texte = formatTemps(t - (e.capture.tTrigger ?? 0), e.lang);
+    // Précision d'un pixel : zoomé loin dans la capture, l'instant lu garde
+    // ses chiffres utiles.
+    const texte = formatTemps(t - (e.capture.tTrigger ?? 0), e.lang, e.fenetre.duree / Math.max(1, w - MARGE_G - MARGE_D));
     const droite = s.x > w / 2;
     const x = s.x + (droite ? -4 : 4);
     const largeur = ctx.measureText(texte).width;
@@ -628,20 +673,24 @@ export class AnalyseurVue {
     ctx.globalAlpha = 0.85;
     ctx.font = `10px ${police}`;
     ctx.textAlign = 'center';
-    for (let t = premier; t <= e.fenetre.t0 + e.fenetre.duree; t += pas) {
+    const graduations: number[] = [];
+    for (let k = 0, t = premier; t <= e.fenetre.t0 + e.fenetre.duree; k++, t = premier + k * pas) {
+      if (this.xDe(t, e.fenetre, w) >= MARGE_G - 1) graduations.push(t);
+    }
+    const libelles = libellesRegle(graduations.map((t) => t - origine), pas, e.lang);
+    graduations.forEach((t, k) => {
       const x = this.xDe(t, e.fenetre, w);
-      if (x < MARGE_G - 1) continue;
       ctx.beginPath();
       ctx.moveTo(Math.round(x) + 0.5, GRAD_H - 5);
       ctx.lineTo(Math.round(x) + 0.5, GRAD_H);
       ctx.stroke();
       // Graduation sous l'instant du réticule : on la tait. La plaque seule en
       // laissait dépasser un bout (« 16,194 mss »).
-      const libelle = formatTemps(t - origine, e.lang);
+      const libelle = libelles[k]!;
       const demi = ctx.measureText(libelle).width / 2;
-      if (instant && x - demi < instant.d && x + demi > instant.g) continue;
+      if (instant && x - demi < instant.d && x + demi > instant.g) return;
       ctx.fillText(libelle, x, GRAD_H / 2 - 2);
-    }
+    });
     // Trait de base des graduations, puis bas de la bande des marqueurs.
     ctx.globalAlpha = 1;
     ctx.beginPath();

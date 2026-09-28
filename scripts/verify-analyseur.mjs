@@ -2369,7 +2369,7 @@ const dhtDe = (tempC, humidity, model) => {
 // ici on prouve les CONVERSIONS, parce qu'un réticule décalé de 100 px vient
 // toujours d'une marge oubliée dans l'une des deux formules.
 {
-  const { AnalyseurVue, formatTemps, pasRond, DISPOSITION } =
+  const { AnalyseurVue, formatTemps, libellesRegle, pasRond, DISPOSITION } =
     await buildTo('src/webview/analyseur-vue.mts', 'vue.mjs');
   const vue = new AnalyseurVue({}); // le canvas ne sert qu'au dessin
 
@@ -2379,6 +2379,26 @@ const dhtDe = (tempC, humidity, model) => {
     [formatTemps(2500), formatTemps(12), formatTemps(0.004), formatTemps(0.0000005)].join(' / '));
   check('temps : un bit DMX (4 µs) s\'affiche en microsecondes, pas en 0,004 ms',
     formatTemps(0.004, 'en') === '4 µs', formatTemps(0.004, 'en'));
+
+  // Règle : l'unité suit le PAS, donc le zoom (Frank, 28/09). À 12 s de
+  // capture et 20 µs par graduation, toutes s'écrivaient « 12,346 s ».
+  const grads = (t0, pas) => [...Array(5)].map((_, k) => (Math.ceil(t0 / pas - 1e-9) + k) * pas);
+  const r20 = libellesRegle(grads(12345.678, 0.02), 0.02, 'fr');
+  check('règle : zoom à 20 µs loin dans la capture → instant entier puis « +20 µs »',
+    r20.join(' | ') === '12,34568 s | +20 µs | +40 µs | +60 µs | +80 µs', r20.join(' | '));
+  check('règle : aucune étiquette répétée, même loin dans la capture',
+    new Set(r20).size === r20.length && new Set(libellesRegle(grads(8300.123, 0.001), 0.001, 'fr')).size === 5,
+    libellesRegle(grads(8300.123, 0.001), 0.001, 'fr').join(' | '));
+  const r05 = libellesRegle(grads(16.1, 0.5), 0.5, 'fr');
+  check('règle : pas de 0,5 ms → millisecondes à une décimale',
+    r05.join(' | ') === '16,5 ms | 17 ms | 17,5 ms | 18 ms | 18,5 ms', r05.join(' | '));
+  const rus = libellesRegle(grads(-0.05, 0.01), 0.01, 'fr');
+  check('règle : près du déclenchement, en µs, signe compris',
+    rus.join(' | ') === '-50 µs | -40 µs | -30 µs | -20 µs | -10 µs', rus.join(' | '));
+  const rs = libellesRegle(grads(8300, 1000), 1000, 'fr');
+  check('règle : vue d\'ensemble en secondes', rs.join(' | ') === '9 s | 10 s | 11 s | 12 s | 13 s', rs.join(' | '));
+  check('réticule : à la précision d\'un pixel, l\'instant garde ses chiffres utiles',
+    formatTemps(12345.6781234, 'fr', 0.001) === '12,345678 s', formatTemps(12345.6781234, 'fr', 0.001));
 
   check('graduation : pas arrondi en 1-2-5 × 10ⁿ',
     pasRond(0.0037) === 0.005 && pasRond(0.11) === 0.2 && pasRond(7) === 10 && pasRond(1) === 1,

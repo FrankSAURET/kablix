@@ -10,6 +10,21 @@
 
 ---
 
+# v2026.9.6.171
+1. ✅ **Bits 1-Wire jusqu'au creux suivant** (« pourquoi pour le ds18b20, tu matérialise le bit avec une durée de 60µs et pas jusqu'au front suivant »).
+    1. [analyseur-decodage.mts](src/webview/analyseur-decodage.mts) : la case d'un bit va de son creux à celui qui ouvre le bit suivant, s'il s'ouvre dans les 120 µs (`OW.slotMax`, plus long slot de la norme) ; sinon (fin de salve, conversion) le slot de 60 µs comme avant. L'octet finit avec la case de son dernier bit.
+    2. [verify-analyseur-bits.mjs](scripts/verify-analyseur-bits.mjs) : contrôle réaccordé (cases de 70 µs, la dernière de 60 µs) + octet borné par son dernier bit + fin de salve après 300 µs de silence (60 µs gardées).
+2. ✅ **Barre de temps qui suit le zoom** (« L'affichage dans la barre de temps doit s'adapter au zoom et non rester sur des secondes »).
+    1. Cause : chaque graduation prenait l'unité de SON instant (`formatTemps`, trois décimales) : à 12 s de capture et 20 µs par graduation, toutes s'écrivaient « 12,346 s ». Le réticule aussi.
+    2. [analyseur-vue.mts](src/webview/analyseur-vue.mts) : `libellesRegle()` — unité et décimales tirées du PAS (choisie sur 10 × le pas : 0,5 ms → « 16,5 ms »). Instant trop long dans cette unité (≥ 100 000) : la première graduation donne l'instant entier à la précision du pas (« 12,34568 s »), les suivantes leur écart (« +20 µs »). `formatTemps(ms, lang, resolution)` : le réticule écrit l'instant à la précision d'un pixel.
+    3. [verify-analyseur.mjs](scripts/verify-analyseur.mjs) : +6 contrôles (20 µs à 12 s, étiquettes distinctes, 0,5 ms, µs signés près du déclenchement, secondes, réticule).
+3. ✅ **Banc** nouveau [verify-analyseur-regle.mjs](scripts/verify-analyseur-regle.mjs) (`npm run verify:analyseur-regle`, port 9436, dans `verify:all`) : vraie page, DS18B20 lu à 12 s, trois vues (600 µs à 12 s, 5 ms, 20 s) — graduations distinctes, dans l'unité du zoom, instant entier puis écarts ; réticule à la VRAIE souris (≥ 6 décimales de seconde) ; cases de bits sans trou (0,0 px). 15 contrôles, `--ancien` : 7 échecs (« 12.002 s » répété 13 fois, trous de 18,1 px, « 500 µs » et « 0 ms » dans des vues en ms et en s). `--image=<dossier>` : photo de la vue à 12 s.
+4. ✅ Aide FR [sonde-logique.md](docs/fr/composants/sonde-logique.md) (règle, case d'un bit 1-Wire). CHANGELOG sous 2026.9.7.
+5. ✅ Typecheck et construction propres. Tous les bancs de l'analyseur verts (joués avec le Chromium du conteneur).
+6. ⏳ Traductions avant publication : aide EN (sonde-logique : règle et bits 1-Wire). Aucune chaîne d'interface nouvelle.
+
+---
+
 # v2026.9.6.170
 1. ✅ **Pico 2 : créneaux 1-Wire du maître étirés** (⏳ du lot 165, « Reprend ça »).
     1. Cause : le saut d'attente active du RP2350 ([rp-chip.mts](src/webview/engines/rp-chip.mts), `Rp2350Chip`). Une boucle qui ne fait que relire TIMER0 voit le temps avancer par bonds d'un seizième de ce qu'elle a déjà attendu ; toute lecture de broche ou écriture de périphérique casse la série… sauf les écritures GPIO du SIO, hors de la table des périphériques. Un maître 1-Wire qui ÉCRIT un octet ne lit jamais la broche : ses huit créneaux (bas 10 µs, relâché 50 µs…) passaient pour une seule attente de 560 µs, et le bond (≈ 35 µs) tombait en plein creux. Rien à voir avec le décodeur ni avec rp2350js.

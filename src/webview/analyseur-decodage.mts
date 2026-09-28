@@ -1010,6 +1010,13 @@ const OW = {
   miniSlot: 1,
   /** Durée d'un slot de bit (norme : 60 à 120 µs) : la cellule de l'affichage binaire. */
   slot: 60,
+  /**
+   * Plus long slot de la norme (120 µs). Un bit dont le suivant s'ouvre avant
+   * est dans la même salve : sa case va jusqu'au creux suivant (Frank, 28/09 :
+   * « pourquoi tu matérialises le bit avec une durée de 60 µs et pas jusqu'au
+   * front suivant »). Au-delà, c'est la fin d'une salve : 60 µs.
+   */
+  slotMax: 120,
   /** Silence qui referme un octet resté incomplet (fin de transaction). */
   repos: 200,
   /**
@@ -1137,14 +1144,15 @@ function decoderOneWire(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
     if (creuxUs < OW.miniSlot) continue; // trop bref pour être un slot
 
     const bit = creuxUs < OW.seuilBit ? 1 : 0;
-    if (r.bits) {
-      // Le slot dure 60 µs par la norme, un « 0 » long davantage ; il s'arrête
-      // au plus tard au creux qui ouvre le slot suivant.
-      const ouvre = frontApres(v.fronts, suivant.t, Number.POSITIVE_INFINITY, 0);
-      let fin = Math.max(suivant.t, f.t + OW.slot * usMs);
-      if (ouvre && ouvre.t < fin) fin = ouvre.t;
-      poseBit(f.t, fin, bit, 'donnee');
-    }
+    // Case du bit : du creux qui l'ouvre à celui qui ouvre le bit suivant, sans
+    // trou entre deux bits d'une même salve (récupération comprise). Sans bit
+    // suivant dans les 120 µs (fin de salve, conversion), le slot de la norme :
+    // 60 µs, un « 0 » long davantage.
+    const ouvre = frontApres(v.fronts, suivant.t, Number.POSITIVE_INFINITY, 0);
+    const finBit = ouvre && ouvre.t - f.t <= OW.slotMax * usMs
+      ? ouvre.t
+      : Math.max(suivant.t, Math.min(f.t + OW.slot * usMs, ouvre?.t ?? Number.POSITIVE_INFINITY));
+    if (r.bits) poseBit(f.t, finBit, bit, 'donnee');
     if (bits === 0) tOctet = f.t;
     if (bit === 1) acc |= 1 << bits; // 1-Wire : LSB en premier
     bits += 1;
@@ -1170,7 +1178,7 @@ function decoderOneWire(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
       }
       out.push({
         t0: tOctet,
-        t1: suivant.t,
+        t1: finBit,
         texte: nom ? `${octet(acc, r.base)} ${nom}` : octet(acc, r.base),
         nature: commande ? 'commande' : 'donnee',
       });

@@ -5,7 +5,8 @@
 // VOLET A — le décodage (Node). Les six décodeurs, réglage `bits` posé : chaque
 // bit lu sort en annotation `bit`, `0`/`1`, dans SA cellule sur le fil (UART et
 // DMX : la durée du bit ; I²C et SPI : d'un front d'horloge opposé au suivant ;
-// 1-Wire : le slot ; DHT : du creux au creux suivant). Les octets et repères
+// 1-Wire : du creux au creux suivant, 60 µs en fin de salve ; DHT : du creux
+// au creux suivant). Les octets et repères
 // descendent d'une ligne, et la piste en réserve une de plus. Sans le réglage,
 // rien ne change.
 //
@@ -243,9 +244,27 @@ const chiffres = (annots) => bitsDe(annots).map((a) => a.texte).join('');
 	const avec = decoder([voieDe(0, paliers(0, liste))], { protocole: 'onewire', donnees: 0, bits: true });
 	check('1-Wire : SKIP ROM 0xCC LSB d\'abord 00110011', () => chiffres(avec) === '00110011', () => chiffres(avec));
 	const debut = 610 * us;
-	check('1-Wire : chaque bit sur son slot de 60 µs, à partir de son creux',
-		() => bitsDe(avec).every((a, k) => proche(a.t0, debut + k * 70 * us, 1e-7) && proche(a.t1 - a.t0, 60 * us, 1e-7)),
+	// Du creux au creux qui ouvre le bit suivant, sans trou (Frank, 28/09 :
+	// « pourquoi tu matérialises le bit avec une durée de 60 µs et pas jusqu'au
+	// front suivant ») ; le dernier, sans suivant, garde le slot de 60 µs.
+	const fins = [...Array(8)].map((_, k) => debut + (k < 7 ? (k + 1) * 70 : k * 70 + 60) * us);
+	check('1-Wire : chaque bit va de son creux au creux suivant, le dernier sur 60 µs',
+		() => bitsDe(avec).length === 8 && bitsDe(avec).every((a, k) => proche(a.t0, debut + k * 70 * us, 1e-7) && proche(a.t1, fins[k], 1e-7)),
 		() => bitsDe(avec).map((a) => `[${(a.t0 / us).toFixed(1)} ${(a.t1 / us).toFixed(1)}]`).join(' '));
+	const octetCC = avec.find((a) => !a.bit && a.texte.startsWith('0xCC'));
+	check('1-Wire : l\'octet finit avec la case de son dernier bit',
+		() => !!octetCC && proche(octetCC.t0, debut, 1e-7) && proche(octetCC.t1, fins[7], 1e-7),
+		() => JSON.stringify(octetCC));
+	// Deux octets séparés par 300 µs de silence (au-delà du plus long slot de la
+	// norme, 120 µs) : le dernier bit du premier ne s'étire pas jusqu'au second.
+	const deux = [[1, 10 * us], [0, 500 * us], [1, 100 * us]];
+	for (const v of lsb(0x44)) deux.push(...(v ? [[0, 6 * us], [1, 64 * us]] : [[0, 60 * us], [1, 10 * us]]));
+	deux[deux.length - 1] = [1, 300 * us];
+	for (const v of lsb(0xbe)) deux.push(...(v ? [[0, 6 * us], [1, 64 * us]] : [[0, 60 * us], [1, 10 * us]]));
+	const bits2 = bitsDe(decoder([voieDe(0, paliers(0, deux))], { protocole: 'onewire', donnees: 0, bits: true }));
+	check('1-Wire : fin de salve (300 µs de silence) : le dernier bit garde ses 60 µs',
+		() => bits2.length === 16 && proche(bits2[7].t1 - bits2[7].t0, 60 * us, 1e-7) && proche(bits2[6].t1, bits2[7].t0, 1e-9),
+		() => bits2.slice(5, 9).map((a) => `[${(a.t0 / us).toFixed(1)} ${(a.t1 / us).toFixed(1)}]`).join(' '));
 	check('1-Wire : RESET et octet descendus en ligne 1', () => avec.filter((a) => !a.bit).every((a) => a.ligne === 1));
 }
 

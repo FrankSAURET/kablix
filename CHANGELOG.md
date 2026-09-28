@@ -4,7 +4,13 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ## 2026.9.7 (prochaine publication)
 
+### Modification
+
+- **Les bits 1-Wire de l'analyseur vont d'un créneau au suivant** : avec la case `Bits`, chaque bit occupe tout son slot, jusqu'au creux du bit suivant, sans trou entre deux bits. Le dernier bit d'une salve garde les 60 µs de la norme.
+
 ### Correction
+
+- **La barre de temps de l'analyseur suit le zoom.** Zoomé loin dans une longue capture, toutes les graduations s'écrivaient `12,346 s`. Elles passent en millisecondes ou en microsecondes ; la première donne l'instant entier, les suivantes leur écart (`+50 µs`). L'instant lu au réticule garde tous ses chiffres utiles.
 
 - **Pico 2 : les créneaux 1-Wire gardent leur durée.** Pendant l'écriture d'un octet, certains « 1 » du programme duraient 22 à 50 µs au lieu de 10 : le capteur les lisait « 0 ». La capture de l'analyseur logique montre maintenant les mêmes créneaux que sur le Pico 1.
 
