@@ -3,7 +3,7 @@
     {
       "type": "dmx-grove",
       "label": "Grove DMX512",
-      "version": "2026.9.4",
+      "version": "2026.9.5",
       "author": "Frank Sauret",
       "description": "Grove DMX512 shield (SP3485 line driver): turns the board UART into a DMX512 output on a 3-pin XLR socket.",
       "category": "Misc",
@@ -14,13 +14,21 @@
         "fr": {
           "label": "Grove DMX512",
           "description": "Carte Grove DMX512 (émetteur de ligne SP3485) : transforme l'UART de la carte en sortie DMX512 sur une embase XLR 3 points."
+        },
+        "es": {
+          "label": "Grove DMX512",
+          "description": "Placa Grove DMX512 (driver de línea SP3485): convierte la UART de la placa en una salida DMX512 en un conector XLR de 3 pines."
+        },
+        "zh": {
+          "label": "Grove DMX512",
+          "description": "Grove DMX512 扩展板（SP3485 线路驱动器）：把开发板的 UART 变成 3 针 XLR 插座上的 DMX512 输出。"
         }
       }
     },
     {
       "type": "ds18b20-etanche",
       "label": "Temperature sensor DS18B20 (waterproof probe)",
-      "version": "2026.9.2",
+      "version": "2026.9.3",
       "author": "Frank Sauret",
       "description": "Dallas DS18B20 digital temperature sensor (-55 to +125 °C, ±0.5 °C): it talks over a single data wire (1-Wire), so several sensors can share the same pin — each one carries its own factory address. A 4.7 kΩ pull-up between Data and VDD is required. This is the stainless-steel probe on a lead, for liquids and outdoor use.",
       "category": "Sensors",
@@ -34,13 +42,27 @@
           "control": {
             "label": "T°"
           }
+        },
+        "es": {
+          "label": "Sensor de temperatura DS18B20 (sonda estanca)",
+          "description": "Sensor de temperatura digital Dallas DS18B20 (−55 a +125 °C, ±0,5 °C): se comunica por un solo hilo de datos (1-Wire), de modo que varios sensores pueden compartir el mismo pin — cada uno lleva su dirección de fábrica. Es obligatoria una resistencia de pull-up de 4,7 kΩ entre Data y VDD. Versión sonda de acero inoxidable en un cable, para líquidos y exteriores.",
+          "control": {
+            "label": "T°"
+          }
+        },
+        "zh": {
+          "label": "温度传感器 DS18B20（防水探头）",
+          "description": "Dallas DS18B20 数字温度传感器（−55 到 +125 °C，±0.5 °C）：通过单根数据线（1-Wire）通信，因此多个传感器可以共用同一个引脚 — 每个传感器都有自己的出厂地址。Data 与 VDD 之间必须接 4.7 kΩ 上拉电阻。这是带引线的不锈钢探头版本，适用于液体和户外。",
+          "control": {
+            "label": "T°"
+          }
         }
       }
     },
     {
       "type": "ds18b20",
       "label": "Temperature sensor DS18B20 (TO-92)",
-      "version": "2026.9.2",
+      "version": "2026.9.3",
       "author": "Frank Sauret",
       "description": "Dallas DS18B20 digital temperature sensor (-55 to +125 °C, ±0.5 °C): it talks over a single data wire (1-Wire), so several sensors can share the same pin — each one carries its own factory address. A 4.7 kΩ pull-up between Data and VDD is required. This is the bare TO-92 package, for a board or a breadboard.",
       "category": "Sensors",
@@ -54,13 +76,27 @@
           "control": {
             "label": "T°"
           }
+        },
+        "es": {
+          "label": "Sensor de temperatura DS18B20 (TO-92)",
+          "description": "Sensor de temperatura digital Dallas DS18B20 (−55 a +125 °C, ±0,5 °C): se comunica por un solo hilo de datos (1-Wire), de modo que varios sensores pueden compartir el mismo pin — cada uno lleva su dirección de fábrica. Es obligatoria una resistencia de pull-up de 4,7 kΩ entre Data y VDD. Versión en encapsulado TO-92 desnudo, para placa o protoboard.",
+          "control": {
+            "label": "T°"
+          }
+        },
+        "zh": {
+          "label": "温度传感器 DS18B20 (TO-92)",
+          "description": "Dallas DS18B20 数字温度传感器（−55 到 +125 °C，±0.5 °C）：通过单根数据线（1-Wire）通信，因此多个传感器可以共用同一个引脚 — 每个传感器都有自己的出厂地址。Data 与 VDD 之间必须接 4.7 kΩ 上拉电阻。这是裸 TO-92 封装版本，用于电路板或面包板。",
+          "control": {
+            "label": "T°"
+          }
         }
       }
     },
     {
       "type": "grove-light-sensor",
       "label": "Grove light sensor",
-      "version": "2026.9.1",
+      "version": "2026.9.2",
       "author": "Frank Sauret",
       "description": "Grove ambient light sensor (LS06-S phototransistor): the analog output rises with the light falling on it. In simulation a slider sets the illuminance, from darkness to the maximum set in the inspector.",
       "category": "Sensors",
@@ -77,13 +113,33 @@
           "control": {
             "label": "Éclairement"
           }
+        },
+        "es": {
+          "label": "Sensor de luz Grove",
+          "description": "Sensor de luz ambiental Grove (fototransistor LS06-S): la salida analógica sube con la luz que recibe. En simulación, un cursor ajusta la iluminancia, de la oscuridad al máximo fijado en el inspector.",
+          "params": {
+            "lxmax": "Iluminancia a fondo de escala (lx)"
+          },
+          "control": {
+            "label": "Iluminancia"
+          }
+        },
+        "zh": {
+          "label": "Grove 光线传感器",
+          "description": "Grove 环境光传感器（LS06-S 光电三极管）：模拟输出随照射光线增强而升高。仿真时用滑块设置照度，从全暗到检查器中设定的最大值。",
+          "params": {
+            "lxmax": "满量程照度 (lx)"
+          },
+          "control": {
+            "label": "照度"
+          }
         }
       }
     },
     {
       "type": "grove-rfid",
       "label": "Grove 125 kHz RFID reader",
-      "version": "2026.9.1",
+      "version": "2026.9.2",
       "author": "Frank Sauret",
       "description": "Grove 125 kHz RFID reader (EM4100 tags): while a tag sits in the antenna loop the module keeps sending its code to the board. A jumper picks the language — UART (the code as plain text on TX, 9600 baud) or Wiegand (two-wire pulses, TX = DATA0 and RX = DATA1). In simulation the arrow moves the tag in and out of the loop.",
       "category": "Sensors",
@@ -94,13 +150,21 @@
         "fr": {
           "label": "Lecteur RFID Grove 125 kHz",
           "description": "Lecteur RFID Grove 125 kHz (badges EM4100) : tant qu'un badge reste dans la boucle d'antenne, le module envoie son code à la carte. Un cavalier choisit la langue — UART (le code en clair sur TX, 9600 bauds) ou Wiegand (impulsions sur deux fils, TX = DATA0 et RX = DATA1). En simulation, la flèche fait entrer et sortir le badge de la boucle."
+        },
+        "es": {
+          "label": "Lector RFID Grove 125 kHz",
+          "description": "Lector RFID Grove 125 kHz (tarjetas EM4100): mientras una tarjeta está en el bucle de la antena, el módulo envía su código a la placa. Un puente elige el lenguaje — UART (el código en claro por TX, 9600 baudios) o Wiegand (impulsos en dos hilos, TX = DATA0 y RX = DATA1). En simulación, la flecha mete y saca la tarjeta del bucle."
+        },
+        "zh": {
+          "label": "Grove 125 kHz RFID 读卡器",
+          "description": "Grove 125 kHz RFID 读卡器（EM4100 卡）：只要卡片停留在天线线圈中，模块就会不断把卡号发送给开发板。跳线选择通信方式 — UART（卡号以明文从 TX 发出，9600 波特）或 Wiegand（两线脉冲，TX = DATA0，RX = DATA1）。仿真时用箭头把卡片移入或移出线圈。"
         }
       }
     },
     {
       "type": "grove-uno",
       "label": "Grove Shield (Uno)",
-      "version": "2026.9.1",
+      "version": "2026.9.2",
       "author": "Frank Sauret",
       "description": "Grove Base Shield V2 for Arduino Uno: 16 Grove sockets (4 analog, 7 digital, 4 I2C, 1 UART) wired to the board headers. A slide switch feeds them 3.3 V or 5 V.",
       "category": "Boards",
@@ -111,13 +175,21 @@
         "fr": {
           "label": "Grove Shield (Uno)",
           "description": "Carte Grove Base Shield V2 pour Arduino Uno : 16 prises Grove (4 analogiques, 7 numeriques, 4 I2C, 1 UART) cablees sur les connecteurs de la carte. Un interrupteur a glissiere leur donne 3,3 V ou 5 V."
+        },
+        "es": {
+          "label": "Grove Shield (Uno)",
+          "description": "Placa Grove Base Shield V2 para Arduino Uno: 16 conectores Grove (4 analógicos, 7 digitales, 4 I2C, 1 UART) cableados a los conectores de la placa. Un interruptor deslizante les da 3,3 V o 5 V."
+        },
+        "zh": {
+          "label": "Grove 扩展板 (Uno)",
+          "description": "用于 Arduino Uno 的 Grove Base Shield V2：16 个 Grove 接口（4 个模拟、7 个数字、4 个 I2C、1 个 UART）接到开发板的排针上。一个拨动开关为它们提供 3.3 V 或 5 V。"
         }
       }
     },
     {
       "type": "ir-barrier",
       "label": "Through-beam IR barrier",
-      "version": "2026.9.0",
+      "version": "2026.9.1",
       "author": "Frank Sauret",
       "description": "Through-beam infrared barrier (emitter + receiver): while the beam reaches the receiver its output transistor conducts and OUT stays low; an object cutting the beam releases it and the pull-up brings OUT high. Open-collector output: a pull-up is required.",
       "category": "Sensors",
@@ -131,13 +203,27 @@
           "control": {
             "label": "Obstacle"
           }
+        },
+        "es": {
+          "label": "Barrera IR de haz",
+          "description": "Barrera infrarroja de haz (emisor + receptor): mientras el haz llega al receptor, su transistor de salida conduce y OUT se mantiene bajo; un objeto que corta el haz lo libera y la resistencia de pull-up sube OUT. Salida de colector abierto: la resistencia de pull-up es obligatoria.",
+          "control": {
+            "label": "Obstáculo"
+          }
+        },
+        "zh": {
+          "label": "对射式红外光栅",
+          "description": "对射式红外光栅（发射器 + 接收器）：光束照到接收器时，其输出三极管导通，OUT 保持低电平；物体遮断光束时三极管截止，上拉电阻将 OUT 拉高。集电极开路输出：必须接上拉电阻。",
+          "control": {
+            "label": "障碍物"
+          }
         }
       }
     },
     {
       "type": "soil-moisture-sensor",
       "label": "Soil moisture sensor",
-      "version": "2026.9.1",
+      "version": "2026.9.2",
       "author": "Frank Sauret",
       "description": "Resistive soil moisture probe (two prongs): wet soil conducts, so the analog output rises with moisture. In simulation a slider sets the moisture from 0 to 100 %.",
       "category": "Sensors",
@@ -151,13 +237,27 @@
           "control": {
             "label": "Humidité du sol"
           }
+        },
+        "es": {
+          "label": "Sensor de humedad del suelo",
+          "description": "Sonda resistiva de humedad del suelo (dos puntas): la tierra húmeda conduce, así que la salida analógica sube con la humedad. En simulación, un cursor ajusta la humedad de 0 a 100 %.",
+          "control": {
+            "label": "Humedad del suelo"
+          }
+        },
+        "zh": {
+          "label": "土壤湿度传感器",
+          "description": "电阻式土壤湿度探头（两根探针）：湿润的土壤导电，因此模拟输出随湿度升高。仿真时用滑块在 0 到 100 % 之间设置湿度。",
+          "control": {
+            "label": "土壤湿度"
+          }
         }
       }
     },
     {
       "type": "spot",
       "label": "DMX PAR 38 spotlight",
-      "version": "2026.9.2",
+      "version": "2026.9.3",
       "author": "Frank Sauret",
       "description": "PAR 38 LED spotlight driven over DMX512 (Contest): the LED array takes the colour sent on its channels.",
       "category": "Systems",
@@ -171,9 +271,23 @@
           "params": {
             "address": "Adresse DMX (canaux : rouge, vert, bleu, effets)"
           }
+        },
+        "es": {
+          "label": "Proyector DMX PAR 38",
+          "description": "Proyector LED PAR 38 controlado por DMX512 (Contest): el bloque de LED toma el color enviado en sus canales.",
+          "params": {
+            "address": "Dirección DMX (canales: rojo, verde, azul, efectos)"
+          }
+        },
+        "zh": {
+          "label": "DMX PAR 38 投光灯",
+          "description": "通过 DMX512 控制的 PAR 38 LED 投光灯（Contest）：LED 阵列显示其通道上收到的颜色。",
+          "params": {
+            "address": "DMX 地址（通道：红、绿、蓝、效果）"
+          }
         }
       }
     }
   ],
-  "generated": "2026-09-27T17:13:14.140Z"
+  "generated": "2026-09-28T08:10:07.978Z"
 }

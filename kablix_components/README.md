@@ -36,15 +36,15 @@ Composants de cette bibliothèque, à installer depuis Kablix (**⚙ Gérer les 
 
 | | Type | Label | Version | Catégorie | Description |
 |---|------|-------|---------|-----------|-------------|
-| <img src="thumbnails/dmx-grove.webp" alt="Grove DMX512" width="64"> | `dmx-grove` | Grove DMX512 | 2026.9.4 | Misc | Grove DMX512 shield (SP3485 line driver): turns the board UART into a DMX512 output on a 3-pin XLR socket. |
-| <img src="thumbnails/ds18b20.webp" alt="Temperature sensor DS18B20 (TO-92)" width="64"> | `ds18b20` | Temperature sensor DS18B20 (TO-92) | 2026.9.2 | Sensors | Dallas DS18B20 digital temperature sensor (-55 to +125 °C, ±0.5 °C): it talks over a single data wire… |
-| <img src="thumbnails/ds18b20-etanche.webp" alt="Temperature sensor DS18B20 (waterproof probe)" width="64"> | `ds18b20-etanche` | Temperature sensor DS18B20 (waterproof probe) | 2026.9.2 | Sensors | Dallas DS18B20 digital temperature sensor (-55 to +125 °C, ±0.5 °C): it talks over a single data wire… |
-| <img src="thumbnails/grove-light-sensor.webp" alt="Grove light sensor" width="64"> | `grove-light-sensor` | Grove light sensor | 2026.9.1 | Sensors | Grove ambient light sensor (LS06-S phototransistor): the analog output rises with the light falling on it. In… |
-| <img src="thumbnails/grove-rfid.webp" alt="Grove 125 kHz RFID reader" width="64"> | `grove-rfid` | Grove 125 kHz RFID reader | 2026.9.1 | Sensors | Grove 125 kHz RFID reader (EM4100 tags): while a tag sits in the antenna loop the module keeps sending its… |
-| <img src="thumbnails/grove-uno.webp" alt="Grove Shield (Uno)" width="64"> | `grove-uno` | Grove Shield (Uno) | 2026.9.1 | Boards | Grove Base Shield V2 for Arduino Uno: 16 Grove sockets (4 analog, 7 digital, 4 I2C, 1 UART) wired to the… |
-| <img src="thumbnails/ir-barrier.webp" alt="Through-beam IR barrier" width="64"> | `ir-barrier` | Through-beam IR barrier | 2026.9.0 | Sensors | Through-beam infrared barrier (emitter + receiver): while the beam reaches the receiver its output transistor… |
-| <img src="thumbnails/soil-moisture-sensor.webp" alt="Soil moisture sensor" width="64"> | `soil-moisture-sensor` | Soil moisture sensor | 2026.9.1 | Sensors | Resistive soil moisture probe (two prongs): wet soil conducts, so the analog output rises with moisture. In… |
-| <img src="thumbnails/spot.webp" alt="DMX PAR 38 spotlight" width="64"> | `spot` | DMX PAR 38 spotlight | 2026.9.2 | Systems | PAR 38 LED spotlight driven over DMX512 (Contest): the LED array takes the colour sent on its channels. |
+| <img src="thumbnails/dmx-grove.webp" alt="Grove DMX512" width="64"> | `dmx-grove` | Grove DMX512 | 2026.9.5 | Misc | Grove DMX512 shield (SP3485 line driver): turns the board UART into a DMX512 output on a 3-pin XLR socket. |
+| <img src="thumbnails/ds18b20.webp" alt="Temperature sensor DS18B20 (TO-92)" width="64"> | `ds18b20` | Temperature sensor DS18B20 (TO-92) | 2026.9.3 | Sensors | Dallas DS18B20 digital temperature sensor (-55 to +125 °C, ±0.5 °C): it talks over a single data wire… |
+| <img src="thumbnails/ds18b20-etanche.webp" alt="Temperature sensor DS18B20 (waterproof probe)" width="64"> | `ds18b20-etanche` | Temperature sensor DS18B20 (waterproof probe) | 2026.9.3 | Sensors | Dallas DS18B20 digital temperature sensor (-55 to +125 °C, ±0.5 °C): it talks over a single data wire… |
+| <img src="thumbnails/grove-light-sensor.webp" alt="Grove light sensor" width="64"> | `grove-light-sensor` | Grove light sensor | 2026.9.2 | Sensors | Grove ambient light sensor (LS06-S phototransistor): the analog output rises with the light falling on it. In… |
+| <img src="thumbnails/grove-rfid.webp" alt="Grove 125 kHz RFID reader" width="64"> | `grove-rfid` | Grove 125 kHz RFID reader | 2026.9.2 | Sensors | Grove 125 kHz RFID reader (EM4100 tags): while a tag sits in the antenna loop the module keeps sending its… |
+| <img src="thumbnails/grove-uno.webp" alt="Grove Shield (Uno)" width="64"> | `grove-uno` | Grove Shield (Uno) | 2026.9.2 | Boards | Grove Base Shield V2 for Arduino Uno: 16 Grove sockets (4 analog, 7 digital, 4 I2C, 1 UART) wired to the… |
+| <img src="thumbnails/ir-barrier.webp" alt="Through-beam IR barrier" width="64"> | `ir-barrier` | Through-beam IR barrier | 2026.9.1 | Sensors | Through-beam infrared barrier (emitter + receiver): while the beam reaches the receiver its output transistor… |
+| <img src="thumbnails/soil-moisture-sensor.webp" alt="Soil moisture sensor" width="64"> | `soil-moisture-sensor` | Soil moisture sensor | 2026.9.2 | Sensors | Resistive soil moisture probe (two prongs): wet soil conducts, so the analog output rises with moisture. In… |
+| <img src="thumbnails/spot.webp" alt="DMX PAR 38 spotlight" width="64"> | `spot` | DMX PAR 38 spotlight | 2026.9.3 | Systems | PAR 38 LED spotlight driven over DMX512 (Contest): the LED array takes the colour sent on its channels. |
 
 </details>
 
@@ -169,4 +169,4 @@ Le point décisif est le dernier : tant qu'un composant de bibliothèque peut d�
 
 ---
 
-Généré le 27/09/2026 17:13:14 — Kablix v2026.9.5
+Généré le 28/09/2026 08:10:08 — Kablix v2026.9.6
