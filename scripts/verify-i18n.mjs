@@ -88,7 +88,7 @@ const marche = (d) => {
   for (const e of readdirSync(d, { withFileTypes: true })) {
     const p = join(d, e.name);
     if (e.isDirectory()) marche(p);
-    else if (e.name.endsWith('.mts') && e.name !== 'i18n.mts') sources.push(p);
+    else if (e.name.endsWith('.mts') && !/^i18n(-\w+)?\.mts$/.test(e.name)) sources.push(p);
   }
 };
 marche(join(root, 'src/webview'));
@@ -163,6 +163,37 @@ ok(`manifeste : les ${citees.size} clés %…% existent en anglais`,
 const nlsSansFr = Object.keys(NLS_EN).filter((k) => !(k in NLS_FR));
 ok(`manifeste : les ${Object.keys(NLS_EN).length} clés %…% sont traduites en français`,
   nlsSansFr.length === 0, nlsSansFr.join(' · '));
+
+// --- Les autres langues : espagnol et chinois simplifié ------------------------
+// Le français sert de référence (chaque clé y est contrôlée plus haut) : chaque
+// autre langue doit avoir EXACTEMENT ses clés, dans les trois registres, et
+// garder les marqueurs {0}, {1}… de la chaîne source. Une clé absente sortirait
+// en anglais ; un marqueur perdu, une phrase à trou.
+const marqueurs = (s) => (String(s).match(/\{\d+\}/g) ?? []).sort().join(',');
+const clesDe = (fichier) => {
+  const k = new Map();
+  const txt = readFileSync(join(root, fichier), 'utf8');
+  for (const m of txt.matchAll(/^\s*'((?:[^'\\]|\\.)*)':\s*\n?\s*'((?:[^'\\]|\\.)*)'/gm)) {
+    k.set(m[1].replace(/\\'/g, "'"), m[2].replace(/\\'/g, "'"));
+  }
+  return k;
+};
+for (const [lang, nom, code] of [['es', 'espagnol', 'es'], ['zh', 'chinois', 'zh-cn']]) {
+  const dico = clesDe(`src/webview/i18n-${lang}.mts`);
+  const sans = [...KEYS].filter((k) => !dico.has(k));
+  const trous = [...dico].filter(([k, v]) => marqueurs(k) !== marqueurs(v)).map(([k]) => k);
+  ok(`webview ${nom} : les ${KEYS.size} clés du français sont traduites, marqueurs {n} gardés`,
+    sans.length === 0 && trous.length === 0, [...sans, ...trous.map((k) => `marqueurs : ${k}`)].slice(0, 8).join(' · '));
+  const hote = JSON.parse(readFileSync(join(root, `l10n/bundle.l10n.${code}.json`), 'utf8'));
+  const hSans = Object.keys(FR_HOTE).filter((k) => !(k in hote));
+  const hTrous = Object.entries(hote).filter(([k, v]) => marqueurs(k) !== marqueurs(v)).map(([k]) => k);
+  ok(`extension ${nom} : les ${Object.keys(FR_HOTE).length} clés de bundle.l10n.${code}.json, marqueurs gardés`,
+    hSans.length === 0 && hTrous.length === 0, [...hSans, ...hTrous].slice(0, 8).join(' · '));
+  const nls = JSON.parse(readFileSync(join(root, `package.nls.${code}.json`), 'utf8'));
+  const nSans = Object.keys(NLS_EN).filter((k) => !(k in nls));
+  ok(`manifeste ${nom} : les ${Object.keys(NLS_EN).length} clés %…% de package.nls.${code}.json`,
+    nSans.length === 0, nSans.join(' · '));
+}
 
 let fail = 0;
 for (const r of checks) {

@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { randomBytes } from 'node:crypto';
 import { renderMarkdown, markdownTitle, markdownOutline, type OutlineEntry } from './markdown';
-import { SHOW_PART_HELP } from './partHelp';
+import { SHOW_PART_HELP, docLangs, type DocLang } from './partHelp';
 
 // Aide GÉNÉRALE de Kablix (bouton ❔ / commande « Kablix : Aide »).
 //
@@ -36,10 +36,7 @@ async function dataUri(uri: vscode.Uri): Promise<string> {
   return `data:${mime};base64,${Buffer.from(bytes).toString('base64')}`;
 }
 
-/** Langue des guides selon VS Code (repli anglais). */
-function docLang(): 'fr' | 'en' {
-  return (vscode.env.language ?? 'en').toLowerCase().startsWith('fr') ? 'fr' : 'en';
-}
+
 
 export class GuidePanel {
   public static readonly viewType = 'kablix.guide';
@@ -116,16 +113,14 @@ export class GuidePanel {
 }
 
 interface Guide {
-  lang: 'fr' | 'en';
+  lang: DocLang;
   title: string;
   text: string;
 }
 
 /** Guide dans la langue de VS Code, sinon dans l'autre langue. */
 async function readGuide(extensionUri: vscode.Uri, name: string): Promise<Guide | undefined> {
-  const first = docLang();
-  const langs: ('fr' | 'en')[] = first === 'fr' ? ['fr', 'en'] : ['en', 'fr'];
-  for (const lang of langs) {
+  for (const lang of docLangs()) {
     const uri = vscode.Uri.joinPath(extensionUri, 'docs', lang, `${name}.md`);
     try {
       const text = new TextDecoder('utf-8').decode(await vscode.workspace.fs.readFile(uri));

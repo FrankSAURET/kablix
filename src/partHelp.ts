@@ -16,9 +16,25 @@ import { renderMarkdown, markdownTitle } from './markdown';
 /** Commande interne : navigation d'une fiche à l'autre (liens `[texte](led.md)`). */
 export const SHOW_PART_HELP = 'kablix.showPartHelp';
 
-/** Langue des fiches selon VS Code (repli français : toutes les fiches existent en FR). */
-export function docLang(): 'fr' | 'en' {
-  return (vscode.env.language ?? 'fr').toLowerCase().startsWith('en') ? 'en' : 'fr';
+/** Langues des aides : un dossier `docs/<langue>/` chacune. */
+export type DocLang = 'fr' | 'en' | 'es' | 'zh';
+const DOC_LANGS: readonly DocLang[] = ['fr', 'en', 'es', 'zh'];
+
+/**
+ * Langue des aides selon VS Code : `es-ES` → `es`, `zh-cn` → `zh` (chinois
+ * simplifié). Une langue sans aide retombe sur l'anglais.
+ */
+export function docLang(): DocLang {
+  const base = (vscode.env?.language ?? 'en').toLowerCase().split(/[-_]/)[0] as DocLang;
+  return DOC_LANGS.includes(base) ? base : 'en';
+}
+
+/**
+ * Ordre de recherche d'une aide : la langue de VS Code, puis l'anglais, puis
+ * le français — toutes les fiches existent en français, la langue de base.
+ */
+export function docLangs(lang: DocLang = docLang()): DocLang[] {
+  return [...new Set<DocLang>([lang, 'en', 'fr'])];
 }
 
 /**
@@ -84,7 +100,7 @@ export class PartHelpPanel {
    */
   public static showEmbedded(extensionUri: vscode.Uri, type: string, sheet: EmbeddedSheet): void {
     PartHelpPanel.open(extensionUri, {
-      lang: sheet.lang === 'en' ? 'en' : 'fr',
+      lang: (DOC_LANGS as readonly string[]).includes(sheet.lang) ? (sheet.lang as DocLang) : 'en',
       title: markdownTitle(sheet.text) ?? type,
       text: sheet.text,
       assets: sheet.assets,
@@ -147,17 +163,16 @@ export class PartHelpPanel {
 }
 
 interface Sheet {
-  lang: 'fr' | 'en';
+  lang: DocLang;
   title: string;
   text: string;
   /** Fiche embarquée dans un .kompix : ses images voyagent avec elle. */
   assets?: Map<string, string>;
 }
 
-/** Fiche du composant dans la langue de VS Code, sinon en français. */
+/** Fiche du composant dans la langue de VS Code, sinon en anglais, sinon en français. */
 async function readSheet(extensionUri: vscode.Uri, type: string): Promise<Sheet | undefined> {
-  const langs: ('fr' | 'en')[] = docLang() === 'en' ? ['en', 'fr'] : ['fr'];
-  for (const lang of langs) {
+  for (const lang of docLangs()) {
     const uri = vscode.Uri.joinPath(extensionUri, 'docs', lang, 'composants', `${type}.md`);
     try {
       const text = new TextDecoder('utf-8').decode(await vscode.workspace.fs.readFile(uri));

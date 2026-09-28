@@ -575,19 +575,22 @@ export class Plotter {
 
   /**
    * CSV au format long : temps (s depuis le départ) ; grandeur ; valeur ; unité.
-   * Séparateur « ; » et virgule décimale en français (ouverture directe dans
-   * Excel FR), sinon « , » et point décimal.
+   * Séparateur « ; » et virgule décimale en français et en espagnol (ouverture
+   * directe dans Excel FR / ES), sinon « , » et point décimal.
    */
   private toCsv(): string {
-    const fr = (window.KABLIX_LANG ?? 'en').startsWith('fr');
-    const sep = fr ? ';' : ',';
+    const langue = (window.KABLIX_LANG ?? 'en').toLowerCase().slice(0, 2);
+    const virgule = langue === 'fr' || langue === 'es';
+    const sep = virgule ? ';' : ',';
     const num = (n: number): string => {
       const s = String(n);
-      return fr ? s.replace('.', ',') : s;
+      return virgule ? s.replace('.', ',') : s;
     };
-    const lines = [
-      fr ? `temps_s${sep}grandeur${sep}valeur${sep}unite` : `time_s${sep}name${sep}value${sep}unit`,
-    ];
+    const entetes: Record<string, string[]> = {
+      fr: ['temps_s', 'grandeur', 'valeur', 'unite'],
+      es: ['tiempo_s', 'magnitud', 'valor', 'unidad'],
+    };
+    const lines = [(entetes[langue] ?? ['time_s', 'name', 'value', 'unit']).join(sep)];
     for (const s of this.series.values()) {
       for (const p of s.pts) {
         lines.push(`${num((p.t - this.t0) / 1000)}${sep}${s.name}${sep}${num(p.v)}${sep}${s.unit}`);

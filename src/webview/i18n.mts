@@ -3,6 +3,9 @@
 // vient de vscode.env.language, injectée par l'extension dans window.KABLIX_LANG.
 // t() remplace les marqueurs {0}, {1}… par ses arguments.
 
+import { ES } from './i18n-es.mjs';
+import { ZH } from './i18n-zh.mjs';
+
 const FR: Record<string, string> = {
   // Barre d'état / simulation
   'Ready': 'Prêt',
@@ -867,7 +870,8 @@ const FR: Record<string, string> = {
     'Ce transistor sature : il ne passe que gain × courant de base, moins que ce que le moteur demande, donc le moteur reste bloqué. Baissez la résistance de base pour envoyer plus de courant de base, ou prenez un transistor de plus grand gain.',
 };
 
-const DICTS: Record<string, Record<string, string>> = { fr: FR };
+// `zh` : chinois simplifié (VS Code : zh-cn). zh-tw retombe aussi dessus.
+const DICTS: Record<string, Record<string, string>> = { fr: FR, es: ES, zh: ZH };
 
 let dict: Record<string, string> = {};
 let current = 'en';

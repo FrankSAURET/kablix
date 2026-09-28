@@ -29,10 +29,13 @@ export function labelUnit(label: string): string | null {
   return SCALED_UNITS.has(unit) || PLAIN_UNITS.has(unit) ? unit : null;
 }
 
-/** Nombre écrit dans la langue de l'interface (virgule décimale en français). */
+/** Langues de l'interface qui écrivent la virgule décimale (le chinois garde le point). */
+const VIRGULE_DECIMALE = new Set(['fr', 'es']);
+
+/** Nombre écrit dans la langue de l'interface (virgule décimale en français et en espagnol). */
 export function localizeNumber(n: number): string {
   const text = String(Number(n.toPrecision(4)));
-  return locale() === 'fr' ? text.replace('.', ',') : text;
+  return VIRGULE_DECIMALE.has(locale()) ? text.replace('.', ',') : text;
 }
 
 /**
