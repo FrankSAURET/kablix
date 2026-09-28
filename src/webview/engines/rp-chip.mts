@@ -79,6 +79,14 @@ const ATTENTE_FRACTION = 16;
  */
 const ATTENTE_RECONFIRM = 8;
 /**
+ * Registres GPIO du SIO (RP2350) : de GPIO_OUT (0x010) à GPIO_HI_OE_XOR
+ * (0x04C) — niveau de sortie et direction, par valeur, SET, CLR ou XOR. Les
+ * écrire, c'est piloter une broche : l'attente qui suit est un tempo de
+ * protocole, pas une sieste.
+ */
+const SIO_GPIO_MIN = 0x010;
+const SIO_GPIO_MAX = 0x04c;
+/**
  * Plafond d'un pas de saut d'attente (ns simulées). Un changement d'entrée
  * décidé par l'éditeur est donc vu au pire une milliseconde plus tard — c'est
  * déjà la granularité du moteur, qui exécute ses lots par tranches d'une
@@ -476,6 +484,20 @@ class Rp2350Chip implements PicoChip {
         ecrire(offset, value);
       };
     }
+    // Les broches se pilotent par le SIO, hors table des périphériques : sans
+    // ce second guet, un maître 1-Wire qui écrit un octet (broche basse, 10 µs,
+    // relâchée, 50 µs… huit fois, sans jamais lire la broche) passait pour une
+    // seule longue attente. Le saut grandissait avec elle — un seizième de ce
+    // qui était « attendu » — et tombait en plein creux : des « 1 » de 22 à
+    // 50 µs au lieu de 10, lus « 0 » par le capteur (Pico 2, lot 165).
+    const sio = this.puce.sio as unknown as {
+      writeUint32(offset: number, value: number, core: number): void;
+    };
+    const ecrireSio = sio.writeUint32.bind(sio);
+    sio.writeUint32 = (offset: number, value: number, core: number): void => {
+      if (offset >= SIO_GPIO_MIN && offset <= SIO_GPIO_MAX) this.serieHeure = 0;
+      ecrireSio(offset, value, core);
+    };
   }
 
   /** Le cœur a touché autre chose que la pendule : ce n'est plus une attente. */

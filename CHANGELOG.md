@@ -2,6 +2,12 @@
 
 Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque mois.
 
+## 2026.9.7 (prochaine publication)
+
+### Correction
+
+- **Pico 2 : les créneaux 1-Wire gardent leur durée.** Pendant l'écriture d'un octet, certains « 1 » du programme duraient 22 à 50 µs au lieu de 10 : le capteur les lisait « 0 ». La capture de l'analyseur logique montre maintenant les mêmes créneaux que sur le Pico 1.
+
 ## 2026.9.6 (27 septembre 2026)
 
 ### Nouveauté

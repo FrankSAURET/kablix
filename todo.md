@@ -10,6 +10,18 @@
 
 ---
 
+# v2026.9.6.170
+1. ✅ **Pico 2 : créneaux 1-Wire du maître étirés** (⏳ du lot 165, « Reprend ça »).
+    1. Cause : le saut d'attente active du RP2350 ([rp-chip.mts](src/webview/engines/rp-chip.mts), `Rp2350Chip`). Une boucle qui ne fait que relire TIMER0 voit le temps avancer par bonds d'un seizième de ce qu'elle a déjà attendu ; toute lecture de broche ou écriture de périphérique casse la série… sauf les écritures GPIO du SIO, hors de la table des périphériques. Un maître 1-Wire qui ÉCRIT un octet ne lit jamais la broche : ses huit créneaux (bas 10 µs, relâché 50 µs…) passaient pour une seule attente de 560 µs, et le bond (≈ 35 µs) tombait en plein creux. Rien à voir avec le décodeur ni avec rp2350js.
+    2. Correction : `compterLecturesHeure()` guette aussi `sio.writeUint32` ; une écriture d'un registre GPIO du SIO (0x010 à 0x04C : sortie et direction, valeur/SET/CLR/XOR) remet la série à zéro. Le saut reste en service ailleurs, et après 50 µs d'attente dans un créneau (dépassement mesuré : 1,1 µs sur un « 0 » de 60 µs).
+    3. Banc nouveau [verify-pico2-onewire.mjs](scripts/verify-pico2-onewire.mjs) (`npm run verify:pico2-onewire`, dans `verify:all`) SANS firmware : 140 octets de Thumb (source assembleur en commentaire) qui font ce que fait `onewire_bus_writebit` de MicroPython, joués par la vraie `Rp2350Chip` dans la boucle de pico.mts. 20 ms : 281 créneaux, « 1 » de 9,91 à 9,96 µs, « 0 » de 61,11 µs, bits du motif `0x55CC33BE` tous justes, 388 sauts. `--ancien` : 4 échecs (22 créneaux, « 1 » de 19 à 26 µs, « 0 » jusqu'à 2 ms, bit 3 faux).
+    4. [verify-analyseur-onewire-e2e.mjs](scripts/verify-analyseur-onewire-e2e.mjs) joué sur les DEUX cartes (`CARTES_PICO`), contrôles préfixés par la carte.
+2. ✅ CHANGELOG : entrée sous `## 2026.9.7 (prochaine publication)`. La section 2026.9.6 est datée ; je n'ai pas pu vérifier sur la Marketplace si elle est en ligne. Si elle ne l'est pas encore, l'entrée remonte dans la 2026.9.6.
+3. ✅ Typecheck et construction propres.
+4. ⏳ **À jouer chez Frank** (firmware MicroPython absent du conteneur, micropython.org refusé par le réseau) : `npm run verify:analyseur-onewire-e2e` (Pico 2 : la capture du DS18B20 doit se décoder comme sur Pico 1), puis `verify:pico2`, `verify:ds18b20-e2e`, `verify:dht-e2e`, `verify:realtime`, `verify:simspeed` : le saut d'attente est désormais coupé par toute écriture de broche, ce qui peut ralentir un programme qui fait clignoter une broche en attente active.
+
+---
+
 # v2026.9.6.169
 1. ✅ **Publication 2026.9.6 préparée** (« Prépare une publication »), sur le modèle de la 2026.9.5 (24c8275).
     1. [package.json](package.json) : `version` 2026.9.6, `buildNumber` 169 ; [package-lock.json](package-lock.json) suit.
@@ -17,7 +29,7 @@
     3. Traductions soldées au lot 168.
 2. ℹ️ `.vsix` : demande annulée par Frank (« annule la demande de vsix ») — le paquet du lot 167, construit dans le conteneur, a été effacé ; rien n'est enregistré.
 3. ⏳ **Reste à Frank** : empaqueter et publier. Après publication, mettre à jour l'état du [CLAUDE.md](CLAUDE.md) (« dernière version en ligne `2026.9.6`, publiée le … ; prochaine publication `2026.9.7` ») et ouvrir `## 2026.9.7 (prochaine publication)` dans le CHANGELOG. Publication faite un autre jour : remplacer la date du CHANGELOG.
-4. ℹ️ Toujours ouverts, hors publication : Pico 2 (RP2350) qui étire les créneaux d'écriture 1-Wire (lot 165) ; `verify:compiler` à rendre indépendant du chemin Windows de son journal de test.
+4. ℹ️ Toujours ouverts, hors publication : Pico 2 (RP2350) qui étire les créneaux d'écriture 1-Wire (lot 165, corrigé au lot 170) ; `verify:compiler` à rendre indépendant du chemin Windows de son journal de test.
 
 ---
 

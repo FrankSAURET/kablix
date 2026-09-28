@@ -26,9 +26,10 @@
 //  - l'adresse : l'octet qui suit MATCH ROM est le code famille 0x28 ;
 //  - les commandes de fonction nommées : CONVERT T, READ SCRATCHPAD.
 //
-// Pico 1 seulement : sur Pico 2, l'émulateur étire certains « 1 » du maître
-// (creux de 22 à 50 µs au lieu de quelques µs, par paquets d'horloge) ; le fil
-// simulé n'y respecte plus la norme, aucun seuil ne peut s'en accommoder.
+// Pico 1 ET Pico 2 (v2026.9.6.170). Jusque-là Pico 1 seulement : sur Pico 2,
+// le saut d'attente active du moteur tombait en plein créneau et étirait les
+// « 1 » du maître de 10 µs à 22-50 µs (rp-chip.mts ; banc sans firmware :
+// verify-pico2-onewire.mjs).
 //
 // Contre-épreuve : `node scripts/verify-analyseur-onewire-e2e.mjs --ancien`
 // compile analyseur-decodage.mts dans sa version HEAD.
@@ -38,7 +39,7 @@ import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { firmwareAbsent, firmwarePico } from './_firmware.mjs';
+import { CARTES_PICO, firmwareAbsent, firmwarePico } from './_firmware.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const tmp = mkdtempSync(join(tmpdir(), 'kablix-onewire-e2e-'));
@@ -98,104 +99,113 @@ function crc8(octets) {
 	return crc;
 }
 
-const fw = firmwarePico('RPI_PICO-');
-if (!fw) {
-	console.log(`SKIP : ${firmwareAbsent('RPI_PICO-')}`);
+/** Joue le banc sur une carte ; rend faux si son firmware manque. */
+async function jouer(carte) {
+	const fw = firmwarePico(carte.prefixe);
+	if (!fw) {
+		console.log(`SKIP ${carte.nom} : ${firmwareAbsent(carte.prefixe)}`);
+		return false;
+	}
+	const segments = parseUf2(new Uint8Array(readFileSync(fw))).map((s) => ({ addr: s.addr, data: s.data }));
+	const script = readFileSync(join(root, 'testkablix/ds18b20-pico.py'), 'utf8');
+	const engine = new PicoEngine({ kind: 'flash', segments, script }, carte.famille);
+	engine.setDs18b20([{ id: 'Capt1', pin: BROCHE, temperatureC: TEMP }]);
+	// Les deux déclarations de la page (cf. verify-analyseur-e2e.mjs) : sans la
+	// seconde, samplePulses ne date pas les fronts du maître.
+	engine.setLogicProbes([BROCHE]);
+	engine.setPulseMonitors([BROCHE]);
+	let serie = '';
+	engine.onSerial = (c) => { serie += c; };
+
+	const fronts = [];
+	const debut = Date.now();
+	engine.start();
+	await new Promise((resolve) => {
+		const minuteur = setInterval(() => {
+			const journal = engine.drainScopeEdges()[BROCHE];
+			if (journal) for (let i = 0; i < journal.length; i += 2) fronts.push({ t: journal[i], niveau: journal[i + 1] });
+			const n = (serie.match(/T0 =/g) ?? []).length;
+			if (n >= MESURES || Date.now() - debut > 180_000) {
+				clearInterval(minuteur);
+				resolve();
+			}
+		}, 50);
+	});
+	engine.dispose();
+	console.log(`${carte.nom}, ${((Date.now() - debut) / 1000).toFixed(1)} s, ${fronts.length} fronts sur ${BROCHE}`);
+
+	check(`${carte.nom} : le programme lit ${TEMP}.0 °C au port série`, (serie.match(/T0 = 35\.0 C/g) ?? []).length >= MESURES, JSON.stringify(serie.slice(-120)));
+
+	const voies = [{ voie: 0, pin: BROCHE, nom: BROCHE, fronts, niveauInitial: 1 }];
+	const annotations = decoder(voies, { protocole: 'onewire', id: 'ow', donnees: 0, bits: false });
+	const octetDe = (a) => {
+		const m = /^0x([0-9a-f]{2})/i.exec(a.texte);
+		return m ? parseInt(m[1], 16) : undefined;
+	};
+
+	// Les octets qui suivent chaque commande, jusqu'au RESET suivant.
+	function apres(commande, combien) {
+		const lectures = [];
+		annotations.forEach((a, i) => {
+			if (!a.texte.endsWith(commande)) return;
+			const octets = [];
+			for (let j = i + 1; j < annotations.length && octets.length < combien; j++) {
+				const b = annotations[j];
+				if (b.texte === 'RESET') break;
+				if (b.nature === 'donnee' || b.nature === 'commande') octets.push(octetDe(b));
+			}
+			lectures.push(octets);
+		});
+		return lectures;
+	}
+
+	const hex = (o) => (o === undefined ? '??' : o.toString(16).padStart(2, '0').toUpperCase());
+	// La lecture se repère par sa FORME, pas par le nom de la commande (le nommage
+	// a son propre contrôle plus bas) : MATCH ROM, huit octets d'adresse, 0xBE,
+	// puis les neuf octets du scratchpad. Ainsi la contre-épreuve montre aussi les
+	// octets faux de l'ancien seuil, et pas seulement l'absence de nom.
+	// La première lecture a le droit de tomber pendant que la ligne s'établit :
+	// on juge les suivantes, comme verify-ds18b20-e2e.
+	const scratch = apres('MATCH ROM', 18)
+		.filter((o) => o.length === 18 && o[8] === 0xbe)
+		.map((o) => o.slice(9));
+	console.log(`${scratch.length} lectures du scratchpad (MATCH ROM, adresse, 0xBE) :`);
+	for (const o of scratch) console.log(`   ${o.map(hex).join(' ')}`);
+	check(`${carte.nom} : au moins deux lectures du scratchpad complètes`, scratch.length >= 2, `${scratch.length}`);
+	check(`${carte.nom} : READ SCRATCHPAD nommé en clair derrière l’adresse`,
+		annotations.filter((a) => a.texte === '0xBE READ SCRATCHPAD').length >= 2);
+	const jugees = scratch.slice(1);
+	check(`${carte.nom} : température lue par l’analyseur : 0x30 0x02 (35 °C) à chaque lecture`,
+		jugees.length > 0 && jugees.every((o) => o[0] === 0x30 && o[1] === 0x02),
+		jugees.map((o) => `${hex(o[0])} ${hex(o[1])}`).join(', '));
+	check(`${carte.nom} : somme de contrôle juste : le 9e octet est le CRC-8 des huit premiers`,
+		jugees.length > 0 && jugees.every((o) => o.every((x) => x !== undefined) && crc8(o.slice(0, 8)) === o[8]),
+		jugees.map((o) => `${hex(crc8(o.slice(0, 8)))} ≠ ${hex(o[8])}`).join(', '));
+
+	const match = apres('MATCH ROM', 8).filter((o) => o.length === 8).slice(1);
+	check(`${carte.nom} : adresse visée par MATCH ROM : code famille 0x28 et CRC juste`,
+		match.length > 0 && match.every((o) => o[0] === 0x28 && crc8(o.slice(0, 7)) === o[7]),
+		match.map((o) => o.map(hex).join(' ')).join(', '));
+
+	check(`${carte.nom} : CONVERT T reconnu`, annotations.some((a) => a.texte.endsWith('CONVERT T')));
+	// Teinte à part pour les commandes (Frank, 27/09) : sur la vraie capture, toute
+	// commande nommée est une `commande`, et aucun octet d'adresse ni de données.
+	const nommees = annotations.filter((a) => /^0x[0-9A-F]{2} [A-Z]/.test(a.texte));
+	check(`${carte.nom} : commandes du DS18B20 en nature « commande » (teinte rose)`,
+		nommees.length > 0 && nommees.every((a) => a.nature === 'commande'),
+		`${nommees.filter((a) => a.nature !== 'commande').map((a) => a.texte).join(', ')}`);
+	const brutes = annotations.filter((a) => /^0x[0-9A-F]{2}$/.test(a.texte));
+	check(`${carte.nom} : adresse et scratchpad restent des données`,
+		brutes.length > 0 && brutes.every((a) => a.nature === 'donnee'),
+		`${brutes.length} octets, ${brutes.filter((a) => a.nature !== 'donnee').length} hors donnée`);
+	return true;
+}
+
+let joues = 0;
+for (const carte of CARTES_PICO) if (await jouer(carte)) joues++;
+if (joues === 0) {
 	console.log('RESULTAT: OK (ignoré)');
 	process.exit(0);
 }
-const segments = parseUf2(new Uint8Array(readFileSync(fw))).map((s) => ({ addr: s.addr, data: s.data }));
-const script = readFileSync(join(root, 'testkablix/ds18b20-pico.py'), 'utf8');
-const engine = new PicoEngine({ kind: 'flash', segments, script }, 'rp2040');
-engine.setDs18b20([{ id: 'Capt1', pin: BROCHE, temperatureC: TEMP }]);
-// Les deux déclarations de la page (cf. verify-analyseur-e2e.mjs) : sans la
-// seconde, samplePulses ne date pas les fronts du maître.
-engine.setLogicProbes([BROCHE]);
-engine.setPulseMonitors([BROCHE]);
-let serie = '';
-engine.onSerial = (c) => { serie += c; };
-
-const fronts = [];
-const debut = Date.now();
-engine.start();
-await new Promise((resolve) => {
-	const minuteur = setInterval(() => {
-		const journal = engine.drainScopeEdges()[BROCHE];
-		if (journal) for (let i = 0; i < journal.length; i += 2) fronts.push({ t: journal[i], niveau: journal[i + 1] });
-		const n = (serie.match(/T0 =/g) ?? []).length;
-		if (n >= MESURES || Date.now() - debut > 180_000) {
-			clearInterval(minuteur);
-			resolve();
-		}
-	}, 50);
-});
-engine.dispose();
-console.log(`Pico 1, ${((Date.now() - debut) / 1000).toFixed(1)} s, ${fronts.length} fronts sur ${BROCHE}`);
-
-check(`le programme lit ${TEMP}.0 °C au port série`, (serie.match(/T0 = 35\.0 C/g) ?? []).length >= MESURES, JSON.stringify(serie.slice(-120)));
-
-const voies = [{ voie: 0, pin: BROCHE, nom: BROCHE, fronts, niveauInitial: 1 }];
-const annotations = decoder(voies, { protocole: 'onewire', id: 'ow', donnees: 0, bits: false });
-const octetDe = (a) => {
-	const m = /^0x([0-9a-f]{2})/i.exec(a.texte);
-	return m ? parseInt(m[1], 16) : undefined;
-};
-
-// Les octets qui suivent chaque commande, jusqu'au RESET suivant.
-function apres(commande, combien) {
-	const lectures = [];
-	annotations.forEach((a, i) => {
-		if (!a.texte.endsWith(commande)) return;
-		const octets = [];
-		for (let j = i + 1; j < annotations.length && octets.length < combien; j++) {
-			const b = annotations[j];
-			if (b.texte === 'RESET') break;
-			if (b.nature === 'donnee' || b.nature === 'commande') octets.push(octetDe(b));
-		}
-		lectures.push(octets);
-	});
-	return lectures;
-}
-
-const hex = (o) => (o === undefined ? '??' : o.toString(16).padStart(2, '0').toUpperCase());
-// La lecture se repère par sa FORME, pas par le nom de la commande (le nommage
-// a son propre contrôle plus bas) : MATCH ROM, huit octets d'adresse, 0xBE,
-// puis les neuf octets du scratchpad. Ainsi la contre-épreuve montre aussi les
-// octets faux de l'ancien seuil, et pas seulement l'absence de nom.
-// La première lecture a le droit de tomber pendant que la ligne s'établit :
-// on juge les suivantes, comme verify-ds18b20-e2e.
-const scratch = apres('MATCH ROM', 18)
-	.filter((o) => o.length === 18 && o[8] === 0xbe)
-	.map((o) => o.slice(9));
-console.log(`${scratch.length} lectures du scratchpad (MATCH ROM, adresse, 0xBE) :`);
-for (const o of scratch) console.log(`   ${o.map(hex).join(' ')}`);
-check('au moins deux lectures du scratchpad complètes', scratch.length >= 2, `${scratch.length}`);
-check('READ SCRATCHPAD nommé en clair derrière l’adresse',
-	annotations.filter((a) => a.texte === '0xBE READ SCRATCHPAD').length >= 2);
-const jugees = scratch.slice(1);
-check('température lue par l’analyseur : 0x30 0x02 (35 °C) à chaque lecture',
-	jugees.length > 0 && jugees.every((o) => o[0] === 0x30 && o[1] === 0x02),
-	jugees.map((o) => `${hex(o[0])} ${hex(o[1])}`).join(', '));
-check('somme de contrôle juste : le 9e octet est le CRC-8 des huit premiers',
-	jugees.length > 0 && jugees.every((o) => o.every((x) => x !== undefined) && crc8(o.slice(0, 8)) === o[8]),
-	jugees.map((o) => `${hex(crc8(o.slice(0, 8)))} ≠ ${hex(o[8])}`).join(', '));
-
-const match = apres('MATCH ROM', 8).filter((o) => o.length === 8).slice(1);
-check('adresse visée par MATCH ROM : code famille 0x28 et CRC juste',
-	match.length > 0 && match.every((o) => o[0] === 0x28 && crc8(o.slice(0, 7)) === o[7]),
-	match.map((o) => o.map(hex).join(' ')).join(', '));
-
-check('CONVERT T reconnu', annotations.some((a) => a.texte.endsWith('CONVERT T')));
-// Teinte à part pour les commandes (Frank, 27/09) : sur la vraie capture, toute
-// commande nommée est une `commande`, et aucun octet d'adresse ni de données.
-const nommees = annotations.filter((a) => /^0x[0-9A-F]{2} [A-Z]/.test(a.texte));
-check('commandes du DS18B20 en nature « commande » (teinte rose)',
-	nommees.length > 0 && nommees.every((a) => a.nature === 'commande'),
-	`${nommees.filter((a) => a.nature !== 'commande').map((a) => a.texte).join(', ')}`);
-const brutes = annotations.filter((a) => /^0x[0-9A-F]{2}$/.test(a.texte));
-check('adresse et scratchpad restent des données',
-	brutes.length > 0 && brutes.every((a) => a.nature === 'donnee'),
-	`${brutes.length} octets, ${brutes.filter((a) => a.nature !== 'donnee').length} hors donnée`);
-
 console.log(echecs ? `\nRESULTAT: ECHEC (${echecs})` : '\nRESULTAT: OK');
 process.exit(echecs ? 1 : 0);
