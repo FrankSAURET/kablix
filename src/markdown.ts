@@ -73,14 +73,18 @@ function videoSources(target: string, opt: MarkdownOptions): string {
  * ponctuation est SUPPRIMÉE (et non remplacée par un tiret) puis les espaces
  * deviennent des tirets — pour que les sommaires écrits à la main dans les
  * guides (`#linterface`, `#enregistrer--ouvrir-un-projet-projix`) tombent bien
- * sur leur titre. Les accents sont retirés des deux côtés, donc cohérents.
+ * sur leur titre. Les accents sont retirés des deux côtés, donc cohérents ;
+ * les autres écritures (chinois…) sont gardées telles quelles, comme GitHub.
  */
 function slug(text: string): string {
   return text
     .normalize('NFD')
-    .replace(/[^\x20-\x7e]/g, '') // NFD a détaché les accents : on ne garde que l'ASCII
+    .replace(/\p{M}/gu, '') // NFD a détaché les accents : on les retire
     .toLowerCase()
-    .replace(/[^a-z0-9 -]/g, '')
+    // Lettres de TOUTES les écritures gardées (v2026.9.6.172) : un titre chinois
+    // n'est fait que de lettres non latines, l'ancienne règle « ASCII seul » lui
+    // donnait une ancre vide — et tous les titres du guide tombaient sur la même.
+    .replace(/[^\p{L}\p{N} -]/gu, '')
     .trim()
     .replace(/ /g, '-');
 }

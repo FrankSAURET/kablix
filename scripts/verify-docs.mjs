@@ -48,6 +48,9 @@ const sheetsOf = (lang) => {
 };
 const fr = sheetsOf('fr');
 const en = sheetsOf('en');
+// Langues de l'aide (v2026.9.6.172 : + espagnol et chinois simplifié). Le FR est
+// la langue de base ; les autres suivent au lot de traduction d'avant publication.
+const LANGS = ['fr', 'en', 'es', 'zh'];
 
 // --- 1. Tous les liens relatifs résolvent -------------------------------------
 const broken = [];
@@ -74,7 +77,7 @@ ok(`docs : les ${links} liens relatifs résolvent (images comprises)`, broken.le
 // dossier de la fiche, liens .md transformés en navigation interne.
 const renderIssues = [];
 const imgIssues = [];
-for (const lang of ['fr', 'en']) {
+for (const lang of LANGS) {
   for (const name of sheetsOf(lang)) {
     const p = join(root, 'docs', lang, 'composants', `${name}.md`);
     const text = readFileSync(p, 'utf8');
@@ -99,7 +102,7 @@ for (const lang of ['fr', 'en']) {
     for (const f of seen) if (!existsSync(f)) imgIssues.push(`${lang}/${name} → ${rel(f)}`);
   }
 }
-ok(`rendu : les ${fr.length + en.length} fiches passent le rendu maison sans reste de Markdown`,
+ok(`rendu : les ${LANGS.reduce((n, l) => n + sheetsOf(l).length, 0)} fiches passent le rendu maison sans reste de Markdown`,
   renderIssues.length === 0, renderIssues.slice(0, 4).join(' · '));
 ok('rendu : chaque fiche affiche au moins une image, toutes présentes',
   imgIssues.length === 0, imgIssues.slice(0, 4).join(' · '));
@@ -121,7 +124,7 @@ ok(`guides : USAGE.md présent en FR et EN (noms de fichiers en anglais)`,
 
 const guideIssues = [];
 const anchorIssues = [];
-for (const lang of ['fr', 'en']) {
+for (const lang of LANGS) {
   for (const name of guidesOf(lang)) {
     const p = join(root, 'docs', lang, `${name}.md`);
     const text = readFileSync(p, 'utf8');
@@ -146,7 +149,7 @@ for (const lang of ['fr', 'en']) {
     if (leftovers.length) guideIssues.push(`${lang}/${name}: ${leftovers.join(', ')}`);
   }
 }
-ok(`guides : les ${guidesFr.length + guidesEn.length} guides passent le rendu maison`,
+ok(`guides : les ${LANGS.reduce((n, l) => n + guidesOf(l).length, 0)} guides passent le rendu maison`,
   guideIssues.length === 0, guideIssues.slice(0, 4).join(' · '));
 ok('guides : chaque lien du sommaire tombe sur un titre', anchorIssues.length === 0,
   anchorIssues.slice(0, 5).join(' · '));
@@ -163,6 +166,14 @@ ok(`fiches : chaque fiche EN a bien sa FR (${fr.length}/${en.length})`, orphanEn
   `FR manquantes: ${orphanEn.join(',')}`);
 attention(`fiches : parité FR/EN (${fr.length}/${en.length})`, missingEn.length === 0,
   `EN à écrire avant publication: ${missingEn.join(',')}`);
+for (const l of LANGS.slice(2)) {
+  const s = sheetsOf(l);
+  ok(`fiches : chaque fiche ${l.toUpperCase()} a bien sa FR`, s.every((n) => fr.includes(n)),
+    `FR manquantes: ${s.filter((n) => !fr.includes(n)).join(',')}`);
+  const manque = fr.filter((n) => !s.includes(n));
+  attention(`fiches : parité FR/${l.toUpperCase()} (${fr.length}/${s.length})`, manque.length === 0,
+    `${l.toUpperCase()} à écrire avant publication: ${manque.join(',')}`);
+}
 
 // --- 4. Une fiche par type du catalogue ---------------------------------------
 // partHelp.ts ouvre `docs/<lang>/composants/<def.type>.md` : un type sans fiche
@@ -209,6 +220,10 @@ const mustShip = [
   ...readdirSync(join(root, 'docs', 'img', 'composants')).map((f) => `docs/img/composants/${f}`),
   ...guidesFr.filter((n) => !GITHUB_ONLY.has(n)).map((n) => `docs/fr/${n}.md`),
   ...guidesEn.filter((n) => !GITHUB_ONLY.has(n)).map((n) => `docs/en/${n}.md`),
+  ...LANGS.slice(2).flatMap((l) => [
+    ...sheetsOf(l).map((n) => `docs/${l}/composants/${n}.md`),
+    ...guidesOf(l).filter((n) => !GITHUB_ONLY.has(n)).map((n) => `docs/${l}/${n}.md`),
+  ]),
 ];
 const dropped = mustShip.filter(excluded);
 ok(`vsix : les ${mustShip.length} fiches, guides et images d'aide sont dans le paquet`, dropped.length === 0,
@@ -218,11 +233,11 @@ ok(`vsix : les ${mustShip.length} fiches, guides et images d'aide sont dans le p
 // et qu'aucun guide embarqué ne référence (le lien mènerait à un guide absent).
 const ghIssues = [];
 for (const n of GITHUB_ONLY) {
-  for (const lang of ['fr', 'en']) {
+  for (const lang of LANGS) {
     if (!guidesOf(lang).includes(n)) { ghIssues.push(`${lang}/${n}.md absent`); continue; }
     if (!excluded(`docs/${lang}/${n}.md`)) ghIssues.push(`${lang}/${n}.md embarqué dans le vsix`);
   }
-  for (const lang of ['fr', 'en']) {
+  for (const lang of LANGS) {
     for (const g of guidesOf(lang)) {
       if (GITHUB_ONLY.has(g)) continue;
       if (readFileSync(join(root, 'docs', lang, `${g}.md`), 'utf8').includes(`${n}.md`)) {
@@ -241,7 +256,7 @@ ok(`guides : les ${GITHUB_ONLY.size} guides « GitHub seulement » sont hors vsi
 // servent plus qu'au README. Le motif reste pour ne pas piéger un futur GIF.
 const HEAVY = /\.gif$/i;
 const guideAssets = new Set();
-for (const lang of ['fr', 'en']) {
+for (const lang of LANGS) {
   for (const name of guidesOf(lang)) {
     // Guides « GitHub seulement » : leurs illustrations sont hors paquet AVEC
     // eux (elles n'ont personne à illustrer dans l'aide embarquée). Leur
@@ -329,7 +344,7 @@ ok('démos : plus aucun WebM dans media/ (l’Electron de VS Code ne les démuxe
 // une image n'affiche pas une vidéo, et l'aperçu Markdown de VS Code — celui dont
 // Frank se sert pour relire ses guides — ne rend que la balise vidéo.
 const demoTags = [];
-for (const lang of ['fr', 'en']) {
+for (const lang of LANGS) {
   const t = readFileSync(join(root, 'docs', lang, 'USAGE.md'), 'utf8');
   for (const d of DEMOS) {
     const tag = new RegExp(`<video\\s[^>]*src="\\.\\./\\.\\./media/${d}\\.mp4"[^>]*>`, 'i').exec(t)?.[0];
