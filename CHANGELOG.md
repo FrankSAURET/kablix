@@ -4,6 +4,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ## 2026.9.7 (prochaine publication)
 
+### Nouveauté
+
+- **Kablix parle espagnol et chinois simplifié** : interface, messages, réglages, aide des composants, guide d'utilisation et README. La langue suit celle de VS Code. Les composants de la bibliothèque sont traduits aussi : mettez-les à jour depuis **⚙ Gérer les composants**.
+
 ### Modification
 
 - **Les bits 1-Wire de l'analyseur vont d'un créneau au suivant** : avec la case `Bits`, chaque bit occupe tout son slot, jusqu'au creux du bit suivant, sans trou entre deux bits. Le dernier bit d'une salve garde les 60 µs de la norme.

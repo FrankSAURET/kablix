@@ -10,6 +10,20 @@
 
 ---
 
+# v2026.9.6.172
+1. ✅ **Espagnol et chinois simplifié** (« traduit tout en espagnole et chinois, rajoute l'option au readme »).
+    1. Interface : [i18n-es.mts](src/webview/i18n-es.mts) et [i18n-zh.mts](src/webview/i18n-zh.mts) (662 clés, mêmes que le FR), branchés dans `DICTS` ([i18n.mts](src/webview/i18n.mts)) ; `l10n/bundle.l10n.es.json` et `bundle.l10n.zh-cn.json` (271 clés) ; `package.nls.es.json` et `package.nls.zh-cn.json` (47 clés). Virgule décimale et CSV en `;` aussi en espagnol ([quantity.mts](src/webview/quantity.mts), [plotter.mts](src/webview/plotter.mts)).
+    2. README : [README.es.md](README.es.md) et [README.zh-CN.md](README.zh-CN.md) ; ligne des langues en tête de README.md et README.en.md.
+    3. Bibliothèque : blocs `l10n` `es` et `zh` pour les 9 composants de `_sources.json`, fiches `help/<type>/es.md` et `zh.md` ; versions bumpées, `.kompix` et index reconstruits.
+    4. Aide : `docs/es/` et `docs/zh/` complets — 81 fiches, USAGE (sommaire régénéré depuis les titres traduits), retouche SVG, et les deux guides contributeurs (Creating-components, Drawing-systems). [partHelp.ts](src/partHelp.ts) et [guide.ts](src/guide.ts) : langue de l'aide = langue de VS Code, repli EN puis FR.
+    5. [markdown.ts](src/markdown.ts) : ancres des titres en lettres de toutes les écritures. L'ancienne règle « ASCII seul » donnait une ancre vide à chaque titre chinois : tout le sommaire tombait sur le premier.
+    6. Bancs : [verify-i18n.mjs](scripts/verify-i18n.mjs) contrôle es/zh (clés, marqueurs `{n}`, bundle, manifeste) ; [verify-docs.mjs](scripts/verify-docs.mjs) couvre les quatre langues (rendu, ancres, parité avec le FR, vsix) ; [verify-kompix-help.mjs](scripts/verify-kompix-help.mjs) attend `en,es,fr,zh` pour `spot`.
+2. ✅ ⏳ du lot 171 soldé : aide EN de la sonde logique (règle et bits 1-Wire).
+3. ✅ Typecheck, construction, `verify:i18n`, `verify:docs`, `verify:kompix` et aide des composants verts.
+4. ℹ️ Dorénavant, une traduction avant publication couvre quatre langues : EN, ES, ZH en plus du FR de base.
+
+---
+
 # v2026.9.6.171
 1. ✅ **Bits 1-Wire jusqu'au creux suivant** (« pourquoi pour le ds18b20, tu matérialise le bit avec une durée de 60µs et pas jusqu'au front suivant »).
     1. [analyseur-decodage.mts](src/webview/analyseur-decodage.mts) : la case d'un bit va de son creux à celui qui ouvre le bit suivant, s'il s'ouvre dans les 120 µs (`OW.slotMax`, plus long slot de la norme) ; sinon (fin de salve, conversion) le slot de 60 µs comme avant. L'octet finit avec la case de son dernier bit.

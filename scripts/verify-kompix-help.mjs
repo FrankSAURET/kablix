@@ -119,7 +119,7 @@ ok('bibliothèque : hasHelp allumé sur « spot »', composants.get('spot')?.has
 	JSON.stringify(composants.get('spot')?.hasHelp));
 ok('bibliothèque : hasHelp éteint sur un paquet sans fiche', !composants.get('sans-aide')?.hasHelp,
 	JSON.stringify(composants.get('sans-aide')?.hasHelp));
-ok('bibliothèque : langues annoncées pour « spot »', library.helpLanguages('spot').join(',') === 'en,fr',
+ok('bibliothèque : langues annoncées pour « spot »', library.helpLanguages('spot').join(',') === 'en,es,fr,zh',
 	library.helpLanguages('spot').join(','));
 ok('bibliothèque : aucune langue pour un paquet sans fiche', library.helpLanguages('sans-aide').length === 0,
 	library.helpLanguages('sans-aide').join(','));
