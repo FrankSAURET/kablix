@@ -1,6 +1,6 @@
 ![Kablix](https://raw.githubusercontent.com/FrankSAURET/kablix/main/media/accroche.webp)
 
-*[English version](README.en.md)*
+*[English](README.en.md) · [Español](README.es.md) · [中文](README.zh-CN.md)*
 
 > Attention Nouveauté : Les nouveaux composants sont téléchargeables via le bouton « gérer  les composants ».
 
@@ -62,12 +62,12 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
 > 📖 **Guide complet** : USAGE.md — interface, câblage, création de composants personnalisés (avec prompt IA), format `.kompix`, gestionnaire de composants, sources de composants existants.  
 > **Ajouter un composant à Kablix** (contributeurs, sur GitHub uniquement) : Creating-components.md — du dessin dans `Composants2D.svg` au composant simulé, testé et documenté, à la main ou avec une IA.  
 > **Dessiner les systèmes en volume** (araignée, pattes — contributeurs, sur GitHub uniquement) : Drawing-systems.md — vous tracez le contour d’une pièce, le moteur isométrique la met en volume.  
-> 🌍 **Interface bilingue** : français si VS Code est en français, anglais sinon.  
+> 🌍 **Interface en quatre langues** : français, anglais, espagnol et chinois simplifié, selon la langue de VS Code (anglais pour toute autre langue). Aides et fiches existent dans les quatre langues.  
 > Le mécanisme est extensible à d’autres langues — voir [Internationalisation](#internationalisation).
 
 ## Bibliothèque de composants
 
-**76 composants** posables à la souris, rangés dans l’ordre de la palette (plus leurs variantes : condensateur polarisé, transistors PN2222A/NPN/PNP, claviers 3×4 et 4×4, platines d’essai mini/half/full…). Chacun a sa **fiche d’aide illustrée** (bouton ❔ de l’inspecteur, hors-ligne, FR et EN) et **deux montages de test** prêts à simuler dans [testkablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix) — un en C sur Arduino, un en MicroPython sur Pico.
+**76 composants** posables à la souris, rangés dans l’ordre de la palette (plus leurs variantes : condensateur polarisé, transistors PN2222A/NPN/PNP, claviers 3×4 et 4×4, platines d’essai mini/half/full…). Chacun a sa **fiche d’aide illustrée** (bouton ❔ de l’inspecteur, hors-ligne, en français, anglais, espagnol et chinois) et **deux montages de test** prêts à simuler dans [testkablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix) — un en C sur Arduino, un en MicroPython sur Pico.
 
 | Catégorie                            | Composants                                                                                                                                                                                                                                                                                                     |
 | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -88,7 +88,7 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
 
 ## Internationalisation
 
-L’interface suit la langue de VS Code (`vscode.env.language`) : **français si elle commence par `fr`, anglais sinon** (langue de repli). La traduction repose sur trois registres indépendants, parce qu’ils traduisent des choses de nature différente :
+L’interface suit la langue de VS Code (`vscode.env.language`) : **français (`fr`), anglais (`en`), espagnol (`es`) ou chinois simplifié (`zh-cn`)**, anglais pour toute autre langue (langue de repli). La traduction repose sur trois registres indépendants, parce qu’ils traduisent des choses de nature différente :
 
 | Quoi                                                                    | Fichier                                                    | Forme                                                                                                                         |
 | ----------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
@@ -104,9 +104,9 @@ Les trois registres utilisent la même résolution : le **code base** de la lang
 
 À faire aux **trois** registres — une langue déclarée à un seul endroit ne sera traduite qu’en partie :
 
-1. **Webview** — dans [`src/webview/i18n.mts`](src/webview/i18n.mts) : créer le dictionnaire `const DE = { … }` (mêmes clés anglaises que `FR`) puis l’ajouter à `DICTS` → `{ fr : FR, de : DE }`. Les clés non traduites retombent automatiquement sur l’anglais.
+1. **Webview** — créer `src/webview/i18n-de.mts` sur le modèle de [`i18n-es.mts`](src/webview/i18n-es.mts) (`export const DE = { … }`, mêmes clés anglaises que `FR`), puis l’ajouter à `DICTS` dans [`src/webview/i18n.mts`](src/webview/i18n.mts) → `{ fr: FR, es: ES, zh: ZH, de: DE }`. Les clés non traduites retombent automatiquement sur l’anglais.
 2. **Extension** — copier `package.nls.json` en `package.nls.de.json` et `l10n/bundle.l10n.fr.json` en `l10n/bundle.l10n.de.json`, puis traduire les valeurs (les clés restent identiques). VS Code choisit le fichier tout seul.
-3. **Aide** — créer `docs/de/` : le guide `USAGE.md` et le dossier `composants/` (mêmes NOMS de fichiers que `docs/fr/`, seul le contenu est traduit ; les images sont mutualisées dans `docs/img/`). Élargir ensuite `docLang()` dans [`src/guide.ts`](src/guide.ts) et [`src/partHelp.ts`](src/partHelp.ts) — une fiche absente retombe déjà sur une autre langue.
+3. **Aide** — créer `docs/de/` : le guide `USAGE.md` et le dossier `composants/` (mêmes NOMS de fichiers que `docs/fr/`, seul le contenu est traduit ; les images sont mutualisées dans `docs/img/`). Ajouter ensuite la langue à `DOC_LANGS` dans [`src/partHelp.ts`](src/partHelp.ts) — une fiche absente retombe déjà sur l’anglais, puis sur le français.
 
 Aucune autre modification de logique n’est nécessaire : la sélection et le repli sont gérés par `initLocale()` (webview) et `docLang()` (aide). `npm run verify:docs` contrôle que les guides et les fiches restent complets, illustrés et embarqués dans le paquet.
 

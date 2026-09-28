@@ -1,6 +1,6 @@
  <img src="https://raw.githubusercontent.com/FrankSAURET/kablix/main/media/accroche.webp" alt="Kablix" width="1000" />
 
-*[Version française](README.md)*
+*[Français](README.md) · [Español](README.es.md) · [中文](README.zh-CN.md)*
 > Heads-up, new: extra parts are downloadable through the “Manage components” button.
 # Kablix
 A **Gaulish** application to simulate microcontrollers (**Arduino Uno / Raspberry Pi Pico**) straight inside VS Code,
@@ -52,11 +52,11 @@ My test library is available here: [TestKablix](https://github.com/FrankSAURET/k
 > 📖 **Full guide**: USAGE.md — interface, wiring, building custom parts (with an AI prompt), the `.kompix` format, the component manager, where to find existing parts.  
 > **Adding a part to Kablix** (contributors, on GitHub only): Creating-components.md — from the drawing in `Composants2D.svg` to a simulated, tested and documented part, by hand or with an AI.  
 > **Drawing systems in 3D** (spider, legs — contributors, on GitHub only): Drawing-systems.md — you draw the outline of a part, the isometric engine turns it into a volume.  
-> 🌍 **Bilingual interface**: French when VS Code runs in French, English otherwise. The mechanism extends to other languages — see [Internationalisation](#internationalisation).
+> 🌍 **Interface in four languages**: French, English, Spanish and Simplified Chinese, following the VS Code language (English for any other language). Guides and sheets exist in all four languages. The mechanism extends to other languages — see [Internationalisation](#internationalisation).
 
 ## Part library
 
-**76 parts** you can drop with the mouse, filed in palette order (plus their variants: polarized capacitor, PN2222A/NPN/PNP transistors, 3×4 and 4×4 keypads, mini/half/full breadboards…). Each one comes with its **illustrated help sheet** (❔ button in the inspector, offline, English and French) and **two test circuits** ready to simulate in [testkablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix) — one in C on Arduino, one in MicroPython on the Pico.
+**76 parts** you can drop with the mouse, filed in palette order (plus their variants: polarized capacitor, PN2222A/NPN/PNP transistors, 3×4 and 4×4 keypads, mini/half/full breadboards…). Each one comes with its **illustrated help sheet** (❔ button in the inspector, offline, in English, French, Spanish and Chinese) and **two test circuits** ready to simulate in [testkablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix) — one in C on Arduino, one in MicroPython on the Pico.
 
 | Category | Parts |
 | --- | --- |
@@ -77,7 +77,7 @@ On top of these come the **library parts** (`.kompix`), installed by the manager
 
 ## Internationalisation
 
-The interface follows the VS Code language (`vscode.env.language`): **French when it starts with `fr`, English otherwise** (fallback language). Translation rests on three independent registries, because they translate things of a different nature:
+The interface follows the VS Code language (`vscode.env.language`): **French (`fr`), English (`en`), Spanish (`es`) or Simplified Chinese (`zh-cn`)**, English for any other language (fallback language). Translation rests on three independent registries, because they translate things of a different nature:
 
 | What | File | Form |
 | --- | --- | --- |
@@ -93,9 +93,9 @@ All three registries share the same resolution: the language **base code** (`fr-
 
 To be done in **all three** registries — a language declared in a single place will only be partly translated:
 
-1. **Webview** — in [`src/webview/i18n.mts`](src/webview/i18n.mts): create the `const DE = { … }` dictionary (same English keys as `FR`) then add it to `DICTS` → `{ fr : FR, de : DE }`. Untranslated keys automatically fall back to English.
+1. **Webview** — create `src/webview/i18n-de.mts` modelled on [`i18n-es.mts`](src/webview/i18n-es.mts) (`export const DE = { … }`, same English keys as `FR`), then add it to `DICTS` in [`src/webview/i18n.mts`](src/webview/i18n.mts) → `{ fr: FR, es: ES, zh: ZH, de: DE }`. Untranslated keys automatically fall back to English.
 2. **Extension** — copy `package.nls.json` to `package.nls.de.json` and `l10n/bundle.l10n.fr.json` to `l10n/bundle.l10n.de.json`, then translate the values (the keys stay identical). VS Code picks the right file on its own.
-3. **Help** — create `docs/de/`: the `USAGE.md` guide and the `composants/` folder (same file NAMES as `docs/fr/`, only the content is translated; images are shared in `docs/img/`). Then widen `docLang()` in [`src/guide.ts`](src/guide.ts) and [`src/partHelp.ts`](src/partHelp.ts) — a missing sheet already falls back to another language.
+3. **Help** — create `docs/de/`: the `USAGE.md` guide and the `composants/` folder (same file NAMES as `docs/fr/`, only the content is translated; images are shared in `docs/img/`). Then add the language to `DOC_LANGS` in [`src/partHelp.ts`](src/partHelp.ts) — a missing sheet already falls back to English, then French.
 
 No other logic change is needed: selection and fallback are handled by `initLocale()` (webview) and `docLang()` (help). `npm run verify:docs` checks that the guides and sheets stay complete, illustrated and shipped in the package.
 
