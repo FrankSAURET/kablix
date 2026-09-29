@@ -1,6 +1,14 @@
  <img src="https://raw.githubusercontent.com/FrankSAURET/kablix/main/media/accroche.webp" alt="Kablix" width="1000" />
 
-*[Français](README.md) · [Español](README.es.md) · [中文](README.zh-CN.md)*
+---
+
+<div align="center">
+
+[Français](README.md) · [Español](README.es.md) · [中文](README.zh-CN.md)
+
+</div>
+
+---
 > Heads-up, new: extra parts are downloadable through the “Manage components” button.
 # Kablix
 A **Gaulish** application to simulate microcontrollers (**Arduino Uno / Raspberry Pi Pico**) straight inside VS Code,

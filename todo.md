@@ -1,5 +1,4 @@
 # À faire
-1. Dans le readme, l'option pour changer de langue (les 3 pays) doit apparaitre centrée avec une barre au-dessus et en dessous
 1. Traite les points 1 et 2 du roadmap.md
 ## fait
 
@@ -9,6 +8,12 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.7.178
+1. ✅ **Choix de langue du README centré, entre deux barres** (« l'option pour changer de langue (les 3 pays) doit apparaitre centrée avec une barre au-dessus et en dessous »). [README.md](README.md), [README.en.md](README.en.md), [README.es.md](README.es.md), [README.zh-CN.md](README.zh-CN.md) : `---`, bloc `<div align="center">` (liens Markdown gardés : vsce les réécrit pour le Marketplace), `---`.
+2. ⬜ Points 1 et 2 de [roadmap.md](roadmap.md) (consommation en temps réel, batterie) : choix de conception demandés à Frank.
 
 ---
 

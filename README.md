@@ -1,6 +1,14 @@
 ![Kablix](https://raw.githubusercontent.com/FrankSAURET/kablix/main/media/accroche.webp)
 
-*[English](README.en.md) · [Español](README.es.md) · [中文](README.zh-CN.md)*
+---
+
+<div align="center">
+
+[English](README.en.md) · [Español](README.es.md) · [中文](README.zh-CN.md)
+
+</div>
+
+---
 
 > Attention Nouveauté : Les nouveaux composants sont téléchargeables via le bouton « gérer  les composants ».
 

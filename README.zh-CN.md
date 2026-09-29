@@ -1,6 +1,14 @@
  <img src="https://raw.githubusercontent.com/FrankSAURET/kablix/main/media/accroche.webp" alt="Kablix" width="1000" />
 
-*[Français](README.md) · [English](README.en.md) · [Español](README.es.md)*
+---
+
+<div align="center">
+
+[Français](README.md) · [English](README.en.md) · [Español](README.es.md)
+
+</div>
+
+---
 > 新功能提示：可以通过 “管理元件” 按钮下载更多元件。
 # Kablix
 一款 **高卢** 风格的微控制器仿真应用（**Arduino Uno / Raspberry Pi Pico**），直接在 VS Code 中运行，
