@@ -69,6 +69,18 @@ if (construit.length === 0) {
 	);
 }
 
+// Bundles à nom calculé (`outfile: \`dist/i18n-${langue}.js\``, v2026.9.7.176) :
+// la partie variable devient `*`, et la réautorisation doit porter ce motif. Les
+// dictionnaires existent-ils bien, un par langue déclarée dans LANGUES_DICTS ?
+const motifs = [...esb.matchAll(/outfile:\s*`([^`]+)`/g)].map((m) => m[1].replace(/\$\{[^}]+\}/g, '*'));
+for (const m of motifs) ok(`.vscodeignore : ${m} est embarqué dans le vsix (!${m})`, lignes.includes(`!${m}`));
+const langues = /LANGUES_DICTS = \{([^}]*)\}/.exec(esb)?.[1].match(/\b(\w+):/g)?.map((l) => l.slice(0, -1)) ?? [];
+ok(`esbuild.js déclare les dictionnaires de langue (${langues.join(', ')})`, motifs.length > 0 && langues.length >= 3);
+if (construit.length > 0) {
+	const absents = langues.filter((l) => !existsSync(join(ROOT, 'dist', `i18n-${l}.js`)));
+	ok(`les ${langues.length} dictionnaires sont construits dans dist/`, absents.length === 0);
+}
+
 // Les ressources chargées par fetch, hors bundle, qui ont le même piège.
 ok(
 	'.vscodeignore : les posters de brochage sont embarqués (!dist/pinout/**)',
