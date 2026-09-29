@@ -32,10 +32,11 @@ Deux scénarios de bout en bout, dessin compris :
 Composants de cette bibliothèque, à installer depuis Kablix (**⚙ Gérer les composants**).
 
 <details>
-<summary><strong>9 composant(s) à télécharger</strong></summary>
+<summary><strong>13 composant(s) à télécharger</strong></summary>
 
 | | Type | Label | Version | Catégorie | Description |
 |---|------|-------|---------|-----------|-------------|
+| <img src="thumbnails/batterie-lipo.webp" alt="LiPo battery 1S" width="64"> | `batterie-lipo` | LiPo battery 1S **(expérimental)** | 2026.9.1 | Misc | Single-cell lithium-polymer battery: 4.2 V when charged, down to 3.0 V when flat, 1000 mAh. Suits a Pico on… |
 | <img src="thumbnails/dmx-grove.webp" alt="Grove DMX512" width="64"> | `dmx-grove` | Grove DMX512 | 2026.9.5 | Misc | Grove DMX512 shield (SP3485 line driver): turns the board UART into a DMX512 output on a 3-pin XLR socket. |
 | <img src="thumbnails/ds18b20.webp" alt="Temperature sensor DS18B20 (TO-92)" width="64"> | `ds18b20` | Temperature sensor DS18B20 (TO-92) | 2026.9.3 | Sensors | Dallas DS18B20 digital temperature sensor (-55 to +125 °C, ±0.5 °C): it talks over a single data wire… |
 | <img src="thumbnails/ds18b20-etanche.webp" alt="Temperature sensor DS18B20 (waterproof probe)" width="64"> | `ds18b20-etanche` | Temperature sensor DS18B20 (waterproof probe) | 2026.9.3 | Sensors | Dallas DS18B20 digital temperature sensor (-55 to +125 °C, ±0.5 °C): it talks over a single data wire… |
@@ -43,6 +44,9 @@ Composants de cette bibliothèque, à installer depuis Kablix (**⚙ Gérer les 
 | <img src="thumbnails/grove-rfid.webp" alt="Grove 125 kHz RFID reader" width="64"> | `grove-rfid` | Grove 125 kHz RFID reader | 2026.9.2 | Sensors | Grove 125 kHz RFID reader (EM4100 tags): while a tag sits in the antenna loop the module keeps sending its… |
 | <img src="thumbnails/grove-uno.webp" alt="Grove Shield (Uno)" width="64"> | `grove-uno` | Grove Shield (Uno) | 2026.9.2 | Boards | Grove Base Shield V2 for Arduino Uno: 16 Grove sockets (4 analog, 7 digital, 4 I2C, 1 UART) wired to the… |
 | <img src="thumbnails/ir-barrier.webp" alt="Through-beam IR barrier" width="64"> | `ir-barrier` | Through-beam IR barrier | 2026.9.1 | Sensors | Through-beam infrared barrier (emitter + receiver): while the beam reaches the receiver its output transistor… |
+| <img src="thumbnails/pile-4aa.webp" alt="Battery pack 4 × AA" width="64"> | `pile-4aa` | Battery pack 4 × AA **(expérimental)** | 2026.9.1 | Misc | Holder of four AA alkaline cells in series: 6.4 V when new, down to 4.4 V when flat, 2500 mAh. It drains at… |
+| <img src="thumbnails/pile-9v.webp" alt="Battery 9 V" width="64"> | `pile-9v` | Battery 9 V **(expérimental)** | 2026.9.1 | Misc | 9 V alkaline battery (6LR61): 9.5 V when new, down to 6.0 V when flat, 500 mAh. It drains at the pace of what… |
+| <img src="thumbnails/pile-cr2032.webp" alt="Coin cell CR2032" width="64"> | `pile-cr2032` | Coin cell CR2032 **(expérimental)** | 2026.9.1 | Misc | CR2032 lithium coin cell: 3.0 V when new, down to 2.0 V when flat, 220 mAh. Enough for a Pico on VSYS, not… |
 | <img src="thumbnails/soil-moisture-sensor.webp" alt="Soil moisture sensor" width="64"> | `soil-moisture-sensor` | Soil moisture sensor | 2026.9.2 | Sensors | Resistive soil moisture probe (two prongs): wet soil conducts, so the analog output rises with moisture. In… |
 | <img src="thumbnails/spot.webp" alt="DMX PAR 38 spotlight" width="64"> | `spot` | DMX PAR 38 spotlight | 2026.9.3 | Systems | PAR 38 LED spotlight driven over DMX512 (Contest): the LED array takes the colour sent on its channels. |
 
@@ -154,7 +158,7 @@ Pour proposer un composant :
 
 La question se pose : un dépôt séparé ne serait-il pas plus propre ? **Non, pas au volume actuel.**
 
-Ce dossier **n'est pas livré dans l'extension** (il est écarté par `.vscodeignore`) : il est servi directement depuis GitHub, en `raw`, et l'extension le télécharge à la demande. Il ne pèse donc rien pour l'utilisateur, et ses 9 composants tiennent dans quelques centaines de kilo-octets.
+Ce dossier **n'est pas livré dans l'extension** (il est écarté par `.vscodeignore`) : il est servi directement depuis GitHub, en `raw`, et l'extension le télécharge à la demande. Il ne pèse donc rien pour l'utilisateur, et ses 13 composants tiennent dans quelques centaines de kilo-octets.
 
 | Ce qu'un dépôt dédié apporterait | Ce qu'il coûterait |
 |---|---|
@@ -169,4 +173,4 @@ Le point décisif est le dernier : tant qu'un composant de bibliothèque peut d�
 
 ---
 
-Généré le 28/09/2026 08:10:08 — Kablix v2026.9.6
+Généré le 29/09/2026 15:12:16 — Kablix v2026.9.7

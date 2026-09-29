@@ -291,6 +291,8 @@ async function main() {
       toggles: comp.toggles,
       // Lecteur de badges : ce qu'il envoie, sur quel fil et dans quelle langue.
       rfid: comp.rfid,
+      // Pile ou batterie : tension pleine et tension à vide (v2026.9.7.180).
+      battery: comp.battery,
       // Traductions des libellés du composant : le catalogue de Kablix ne
       // connaît que ses composants natifs, un composant de bibliothèque emporte
       // donc les siennes dans son paquet (voir kompix_specification.md).

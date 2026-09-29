@@ -8,8 +8,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - **Consommation de la carte au traceur** : deux courbes à chaque lancement, sans une ligne de code — le courant de la carte (mA) et la charge consommée (mAh). C'est la carte réelle qui est mesurée : une Uno endormie garde 31 mA, une Pico en `lightsleep()` descend à 1,3 mA.
 - **La mise en veille compte** : `sleep_cpu()` ou *LowPower* sur Arduino (power-down, power-save, standby), `machine.lightsleep()` sur Pico. `delay()` et `time.sleep()` laissent la puce éveillée, comme en vrai.
-- **Le Power bank a une capacité et se vide** : il alimente la carte par VIN, 5V, VSYS ou VBUS, sa jauge suit la charge, le traceur montre sa charge et son autonomie. Vide, il éteint la carte et la barre d'état dit au bout de combien de temps.
+- **Le Power bank a une capacité et se vide** : il alimente la carte par 5V, VSYS ou VBUS, sa jauge suit la charge, le traceur montre sa charge et son autonomie. Vide, il éteint la carte et la barre d'état dit au bout de combien de temps.
 - **Tests `consommation-uno` et `consommation-pico`** : une carte qui alterne veille et réveil, sur une batterie d'1 mAh.
+- **Piles dans la bibliothèque** : 4 × AA, 9 V, CR2032 et LiPo 1S, à installer depuis **⚙ Gérer les composants**. Capacité réglable, tension qui baisse avec la charge (courbe au traceur).
+- **Une alimentation inadaptée est refusée** : hors de la plage de l'entrée (VIN 6,2 à 20 V, 5V 4,5 à 5,5 V, VSYS et VBUS 1,8 à 5,5 V), la carte ne démarre pas et la barre d'état dit pourquoi. Une CR2032 ne fait pas tourner une Uno, une LiPo ne passe pas le régulateur de VIN. Une pile qui s'use sous le seuil éteint la carte en route.
 
 ### Modification
 

@@ -651,6 +651,74 @@
           }
         }
       }
+    },
+    {
+      "group": "4AA",
+      "type": "pile-4aa",
+      "experimental": true,
+      "label": "Battery pack 4 × AA",
+      "description": "Holder of four AA alkaline cells in series: 6.4 V when new, down to 4.4 V when flat, 2500 mAh. It drains at the pace of what it feeds, the board included. On VIN it is too low for a Uno once below 6.2 V.",
+      "version": "2026.9.1",
+      "author": "Frank Sauret",
+      "kind": "psu",
+      "category": "Misc",
+      "pinRoles": { "V+": "+", "GND": "-" },
+      "attrs": { "voltage": "6.4" },
+      "params": [
+        { "name": "capacity", "label": "Capacity (mAh)", "value": 2500 }
+      ],
+      "battery": { "full": 6.4, "empty": 4.4 }
+    },
+    {
+      "group": "9V",
+      "type": "pile-9v",
+      "experimental": true,
+      "label": "Battery 9 V",
+      "description": "9 V alkaline battery (6LR61): 9.5 V when new, down to 6.0 V when flat, 500 mAh. It drains at the pace of what it feeds, the board included.",
+      "version": "2026.9.1",
+      "author": "Frank Sauret",
+      "kind": "psu",
+      "category": "Misc",
+      "pinRoles": { "V+": "+", "GND": "-" },
+      "attrs": { "voltage": "9.5" },
+      "params": [
+        { "name": "capacity", "label": "Capacity (mAh)", "value": 500 }
+      ],
+      "battery": { "full": 9.5, "empty": 6.0 }
+    },
+    {
+      "group": "CR2032",
+      "type": "pile-cr2032",
+      "experimental": true,
+      "label": "Coin cell CR2032",
+      "description": "CR2032 lithium coin cell: 3.0 V when new, down to 2.0 V when flat, 220 mAh. Enough for a Pico on VSYS, not for a Uno.",
+      "version": "2026.9.1",
+      "author": "Frank Sauret",
+      "kind": "psu",
+      "category": "Misc",
+      "pinRoles": { "V+": "+", "GND": "-" },
+      "attrs": { "voltage": "3" },
+      "params": [
+        { "name": "capacity", "label": "Capacity (mAh)", "value": 220 }
+      ],
+      "battery": { "full": 3.0, "empty": 2.0 }
+    },
+    {
+      "group": "LIPO",
+      "type": "batterie-lipo",
+      "experimental": true,
+      "label": "LiPo battery 1S",
+      "description": "Single-cell lithium-polymer battery: 4.2 V when charged, down to 3.0 V when flat, 1000 mAh. Suits a Pico on VSYS; too low for the VIN input of a Uno.",
+      "version": "2026.9.1",
+      "author": "Frank Sauret",
+      "kind": "psu",
+      "category": "Misc",
+      "pinRoles": { "V+": "+", "GND": "-" },
+      "attrs": { "voltage": "4.2" },
+      "params": [
+        { "name": "capacity", "label": "Capacity (mAh)", "value": 1000 }
+      ],
+      "battery": { "full": 4.2, "empty": 3.0 }
     }
   ]
 }

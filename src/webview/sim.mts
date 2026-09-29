@@ -68,7 +68,7 @@ import './composants/custom-part.mjs';
 
 import { initLocale, locale, t } from './i18n.mjs';
 import { Plotter } from './plotter.mjs';
-import { CompteurConsommation, decharger, autonomieH } from './consommation.mjs';
+import { CompteurConsommation, decharger, autonomieH, tensionBatterie, PLAGES_ENTREE } from './consommation.mjs';
 import { Editor, KABLIX_BADGE, type PaletteState } from './diagram/editor.mjs';
 import { partDef, boardFamily, isPicoBoard, isBoardId, mcuPinRole, pca9685Address, controlMax, PARAM_ATTR_PREFIX, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { compileExpr } from './diagram/expr.mjs';
@@ -447,6 +447,8 @@ let courantChargesA = 0;
 const compteurConso = new CompteurConsommation();
 /** Charge restante (Ah) de chaque batterie du schéma, depuis le lancement. */
 const chargesBatteries = new Map<string, number>();
+/** La carte a déjà tourné sur sa batterie ce lancement-ci (refus au démarrage ou extinction). */
+let carteDemarree = false;
 // PCA9685 (carte 16 servos) grillés pendant ce run : surtension du bornier V+
 // (> 5,5 V). Définitif jusqu'au prochain lancement (carte « remplacée »).
 const burnedPcas = new Set<string>();
@@ -2872,32 +2874,87 @@ function majConsommation(): void {
  * qu'elle fait tourner la carte : la carte s'éteint, la simulation s'arrête et
  * dit au bout de combien de temps de programme.
  */
+function refusAlimentation(): string | null {
+  const alim = alimentationDeLaCarte(editor.diagram);
+  const plage = alim ? PLAGES_ENTREE[alim.broche] : undefined;
+  if (!alim || !plage) return null;
+  const part = editor.diagram.parts.find((p) => p.id === alim.psuId);
+  if (!part) return null;
+  const def = partDef(part.type);
+  // Seules les batteries (capacité) sont contrôlées, comme dans majBatteries :
+  // l'alim de laboratoire se règle à la main pendant la simulation.
+  // Attributs par défaut du composant sous ceux de l'instance.
+  const attrs = { ...def.attrs, ...part.attrs };
+  if (attrs.capacity === undefined && attrs[`${PARAM_ATTR_PREFIX}capacity`] === undefined) return null;
+  const battery = def.custom?.battery;
+  const volts = battery ? tensionBatterie(battery, 1) : Number(attrs.voltage ?? 5) || 5;
+  if (volts >= plage.min && volts <= plage.max) return null;
+  const nombre = (v: number): string => v.toLocaleString(locale(), { maximumFractionDigits: 1 });
+  return t('The board does not start: {0} gives {1} V on {2}, which needs {3} to {4} V.',
+    part.id, nombre(volts), alim.broche, nombre(plage.min), nombre(plage.max));
+}
+
 function majBatteries(courantCarteA: number, dtMs: number): void {
   const alim = alimentationDeLaCarte(editor.diagram);
+  const nombre = (v: number): string => v.toLocaleString(locale(), { maximumFractionDigits: 1 });
   for (const part of editor.diagram.parts) {
-    if (part.type !== 'powerbank') continue;
-    const capaciteAh = Math.max(0.001, Number(part.attrs?.capacity ?? 10000) / 1000 || 10);
-    const volts = Number(part.attrs?.voltage ?? 5) || 5;
+    const def = partDef(part.type);
+    if (def.kind !== 'psu') continue;
+    // Une BATTERIE a une capacité : Power bank (`capacity`), pile de
+    // bibliothèque (paramètre `prm_capacity`). L'alim de laboratoire n'en a pas.
+    const attrs = { ...def.attrs, ...part.attrs };
+    const capacite = attrs.capacity ?? attrs[`${PARAM_ATTR_PREFIX}capacity`];
+    if (capacite === undefined) continue;
+    const capaciteAh = Math.max(0.001, Number(capacite) / 1000 || 0.001);
+    const battery = def.custom?.battery;
+    const nominale = Number(attrs.voltage ?? 5) || 5;
+    // Tension au début de la tranche : une pile baisse avec sa charge, le
+    // Power bank tient ses 5 V régulés jusqu'au bout.
+    const avantAh = chargesBatteries.get(part.id) ?? capaciteAh;
+    const volts = avantAh <= 0 ? 0 : battery ? tensionBatterie(battery, avantAh / capaciteAh) : nominale;
     const alimenteLaCarte = alim?.psuId === part.id;
-    const courantA = psuLoadAmps(editor.diagram, part.id, volts, liveVariableOhms) + (alimenteLaCarte ? courantCarteA : 0);
-    const restantAh = decharger(chargesBatteries.get(part.id) ?? capaciteAh, courantA, dtMs);
+    const courantA = (volts > 0 ? psuLoadAmps(editor.diagram, part.id, volts, liveVariableOhms) : 0)
+      + (alimenteLaCarte ? courantCarteA : 0);
+    const restantAh = decharger(avantAh, courantA, dtMs);
     chargesBatteries.set(part.id, restantAh);
+    const sortie = restantAh <= 0 ? 0 : battery ? tensionBatterie(battery, restantAh / capaciteAh) : nominale;
     const el = editor.elementOf(part.id) as unknown as { charge?: number; volts?: number } | null;
     if (el) {
       el.charge = restantAh / capaciteAh;
-      // Vide : la sortie se coupe (psuLiveVolts relit `volts`) — ce qu'elle
-      // alimente directement s'éteint avec elle.
-      el.volts = restantAh > 0 ? undefined : 0;
+      // Tension de sortie relue par tout le modèle (psuLiveVolts) : vide, elle
+      // tombe à 0 et ce que la batterie alimente directement s'éteint avec elle.
+      el.volts = battery || restantAh <= 0 ? sortie : undefined;
     }
     plotter.probe(t('{0}: charge', part.id), Math.round((restantAh / capaciteAh) * 1000) / 10, '%', true);
+    if (battery) plotter.probe(t('{0}: voltage', part.id), Math.round(sortie * 100) / 100, 'V', true);
     const h = autonomieH(restantAh, courantA);
     if (Number.isFinite(h)) plotter.probe(t('{0}: battery life', part.id), Math.round(h * 100) / 100, 'h', true);
-    if (restantAh <= 0 && alimenteLaCarte && engine) {
+    if (!alimenteLaCarte || !engine) continue;
+    if (restantAh <= 0) {
       const duree = formatDureeProgramme(engine.simulatedMs?.() ?? 0);
       stopRun();
       setStatus(t('{0} is empty: the board switched off after {1} of program.', part.id, duree));
       return;
     }
+    // L'entrée de la carte a sa plage : une CR2032 (3 V) ne fait pas tourner
+    // une Uno, une LiPo (4,2 V) ne passe pas le régulateur de VIN, une pile de
+    // 9 V grillerait le VSYS d'une Pico — la carte refuse de démarrer. Une pile
+    // qui s'use peut aussi passer SOUS le seuil en cours de route : la carte
+    // s'éteint alors (4 × AA sur VIN, sous 6,2 V).
+    const plage = PLAGES_ENTREE[alim!.broche];
+    if (!plage) continue;
+    if (sortie >= plage.min && sortie <= plage.max) {
+      carteDemarree = true;
+      continue;
+    }
+    const msg = !carteDemarree
+      ? t('The board does not start: {0} gives {1} V on {2}, which needs {3} to {4} V.',
+        part.id, nombre(sortie), alim!.broche, nombre(plage.min), nombre(plage.max))
+      : t('{0} dropped to {1} V: the board switched off after {2} of program ({3} needs at least {4} V).',
+        part.id, nombre(sortie), formatDureeProgramme(engine.simulatedMs?.() ?? 0), alim!.broche, nombre(plage.min));
+    stopRun();
+    setStatus(msg);
+    return;
   }
 }
 
@@ -4525,6 +4582,12 @@ speedSelect.addEventListener('change', () => {
 function startRun(): void {
   stopRun();
   resetDebugVars(); // nouveau run : l'historique des changements (rouge) repart à zéro
+  // Pile inadaptée à l'entrée qu'elle alimente : la carte ne démarre pas.
+  const refus = refusAlimentation();
+  if (refus) {
+    setStatus(refus);
+    return;
+  }
   try {
     // Fil de simulation : le moteur peut tourner dans un Web Worker, ce qui rend
     // la page fluide (il tient à lui seul ~92 % du fil principal). AVR comme
@@ -4611,6 +4674,7 @@ function startRun(): void {
   plotter.start(); // nouvelles courbes à chaque run (comme la console)
   compteurConso.reinitialiser();
   chargesBatteries.clear();
+  carteDemarree = false;
   // Pont réseau Pico W : le moteur publie les requêtes, l'hôte fait le vrai
   // fetch et renvoie la réponse (message 'netResponse').
   if (engine.onNetRequest !== undefined) {

@@ -95,3 +95,29 @@ export function decharger(restantAh: number, courantA: number, dtMs: number): nu
 export function autonomieH(restantAh: number, courantA: number): number {
   return courantA > 0 ? restantAh / courantA : Infinity;
 }
+
+/**
+ * Tension d'une pile qui se vide (v2026.9.7.180) : droite de `full` (pleine)
+ * à `empty` (vide). Une vraie courbe a un plateau puis chute ; la droite suffit
+ * à la leçon — la tension baisse, et sous le seuil de la carte, elle s'éteint.
+ */
+export function tensionBatterie(battery: { full: number; empty: number }, charge: number): number {
+  const c = Math.max(0, Math.min(1, charge));
+  return battery.empty + (battery.full - battery.empty) * c;
+}
+
+/**
+ * Plage de tension acceptée par chaque entrée d'alimentation, en volts
+ * (v2026.9.7.180). En dessous, la carte ne démarre pas (ou s'éteint) ; au-dessus,
+ * elle refuse de démarrer plutôt que de griller.
+ *   - VIN (Arduino) : régulateur linéaire, ~1,2 V de chute → 6,2 V au moins pour
+ *     tenir 5 V ; 20 V au plus ;
+ *   - 5V (Arduino) : rail direct, 4,5 à 5,5 V ;
+ *   - VSYS / VBUS (Pico) : convertisseur abaisseur-élévateur, 1,8 à 5,5 V.
+ */
+export const PLAGES_ENTREE: Record<string, { min: number; max: number }> = {
+  VIN: { min: 6.2, max: 20 },
+  '5V': { min: 4.5, max: 5.5 },
+  VSYS: { min: 1.8, max: 5.5 },
+  VBUS: { min: 1.8, max: 5.5 },
+};

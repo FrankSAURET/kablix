@@ -189,6 +189,10 @@ interface KompixManifest {
     zone?: { x: number; y: number; w: number; h: number };
     options: Array<{ value: string; label: string; dx?: number; dy?: number; flip?: boolean }>;
   }>;
+  /** Pile ou batterie (kind `psu`) : tension pleine et tension à vide, en volts.
+   *  Sa sortie baisse de l'une à l'autre à mesure qu'elle se vide (v2026.9.7.180).
+   *  Une version qui ignore ce bloc la traite comme une source fixe. */
+  battery?: { full: number; empty: number };
   /** Lecteur de badges : code envoyé au microcontrôleur quand le badge passe.
    *  Détaillé dans src/webview/diagram/catalog.mts (CustomRfid). */
   rfid?: {
@@ -247,6 +251,8 @@ interface CustomPartData {
   toggles?: KompixManifest['toggles'];
   /** Lecteur de badges (voir KompixManifest.rfid). */
   rfid?: KompixManifest['rfid'];
+  /** Pile ou batterie (voir KompixManifest.battery). */
+  battery?: KompixManifest['battery'];
   category?: string;
   /** Le .kompix embarque une fiche d'aide : l'inspecteur montre alors son
    *  bouton « Aide du composant ». Le texte, lui, reste dans le paquet — il est
@@ -514,6 +520,7 @@ export class KompixLibrary {
         shield: manifest.shield,
         toggles: manifest.toggles,
         rfid: manifest.rfid,
+        battery: manifest.battery,
         category: manifest.category,
         hasHelp: langs.length > 0 || undefined,
         behaviorScript: behaviorScript,
@@ -948,6 +955,7 @@ export class KompixLibrary {
       shield: data.shield,
       toggles: data.toggles,
       rfid: data.rfid,
+      battery: data.battery,
       innerOffset: data.innerOffset ?? null,
       extAnchor: data.extAnchor ?? null,
       intAnchor: data.intAnchor ?? null,

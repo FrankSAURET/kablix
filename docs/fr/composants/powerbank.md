@@ -33,7 +33,7 @@ Les quatre LED blanches du dessin forment la **jauge de charge** : pleine au lan
 La batterie se vide de ce qu'elle débite, en **temps de programme** (au ralenti comme en accéléré, une seconde de programme consomme la même chose) :
 
 - ses charges directes — LED, résistances, servos branchés sur **V+** ;
-- **la carte entière** quand c'est elle qui l'alimente : **V+** sur une entrée d'alimentation de la carte (**VIN** ou **5V** d'une Arduino, **VSYS** ou **VBUS** d'une Pico) et **GND** sur une masse de la carte. La carte ne tire alors plus rien de l'USB : sa consommation — elle-même, plus ce que ses broches alimentent — sort de la batterie (voir *Consommation de la carte* dans le guide d'utilisation).
+- **la carte entière** quand c'est elle qui l'alimente : **V+** sur une entrée d'alimentation de la carte (**5V** d'une Arduino, **VSYS** ou **VBUS** d'une Pico — sur **VIN**, 5 V ne suffisent pas au régulateur : la carte refuse de démarrer) et **GND** sur une masse de la carte. La carte ne tire alors plus rien de l'USB : sa consommation — elle-même, plus ce que ses broches alimentent — sort de la batterie (voir *Consommation de la carte* dans le guide d'utilisation).
 
 Le [traceur](../USAGE.md) montre deux courbes par batterie : **`Bat1 : charge`** (%) et **`Bat1 : autonomie`** (heures restantes au courant du moment). Quand la batterie qui alimente la carte est vide, **la carte s'éteint** : la simulation s'arrête et la barre d'état dit au bout de combien de temps de programme.
 

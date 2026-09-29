@@ -145,6 +145,10 @@ export const PART_PINS = {
   // TO-92 et la sonde étanche), « Data » étant la ligne 1-Wire.
   ds18b20: ['GND', 'Data', 'VDD'],
   'ds18b20-etanche': ['GND', 'Data', 'VDD'],
+  'pile-4aa': ['+', '-'],
+  'pile-9v': ['+', '-'],
+  'pile-cr2032': ['+', '-'],
+  'batterie-lipo': ['+', '-'],
 };
 
 // --- Grove Shield (Uno) : la carte fille qui se pose sur l'Arduino Uno ---------
@@ -3878,6 +3882,90 @@ while True:
     lightsleep(2000)
 `,
   }),
+
+  // Piles de bibliothèque (v2026.9.7.180) : 4 × AA, 9 V, CR2032, LiPo 1S. Leur
+  // tension baisse avec la charge (traceur : charge, tension, autonomie). Chaque
+  // entrée de carte a sa plage — VIN 6,2 à 20 V, 5V 4,5 à 5,5 V, VSYS 1,8 à
+  // 5,5 V : hors plage, la carte refuse de démarrer ; une pile qui passe sous le
+  // seuil en route éteint la carte. Capacité réduite à 1 mAh là où la carte
+  // démarre, pour voir la fin sans attendre des heures.
+  ...[
+    { type: 'pile-4aa', board: 'uno', broche: 'VIN', demarre: true,
+      note: "6,4 V neuves sur VIN : la Uno démarre, puis s'éteint sous 6,2 V (quelques secondes avec 1 mAh)." },
+    { type: 'pile-9v', board: 'uno', broche: 'VIN', demarre: true,
+      note: "9,5 V neuve sur VIN : la Uno tourne jusqu'à ce que la pile passe sous 6,2 V." },
+    { type: 'pile-cr2032', board: 'uno', broche: '5V', demarre: false,
+      note: '3 V sur la broche 5V : la Uno refuse de démarrer (il faut 4,5 à 5,5 V).' },
+    { type: 'batterie-lipo', board: 'uno', broche: 'VIN', demarre: false,
+      note: '4,2 V sur VIN : la Uno refuse de démarrer (il faut au moins 6,2 V).' },
+  ].map((c) => test({
+    name: `${c.type}-uno`, board: 'uno', ext: 'ino',
+    kompix: [c.type],
+    parts: [
+      MCU('uno', 200, 80),
+      { id: 'Bat1', type: c.type, x: 700, y: 60, attrs: c.demarre ? { prm_capacity: '1' } : {} },
+    ],
+    wires: () => [
+      w('Bat1', '+', 'U1', c.broche, 'red'),
+      w('Bat1', '-', 'U1', 'GND.1', 'black'),
+    ],
+    expect: { kind: 'batterie', partId: 'Bat1', broche: c.broche, demarre: c.demarre },
+    code: `// Test pile ${c.type} : ${c.note}
+// La LED L clignote et la console compte les secondes tant que la carte tourne.
+unsigned long secondes = 0;
+
+void setup() {
+  pinMode(LED_BUILTIN, OUTPUT);
+  Serial.begin(9600);
+}
+
+void loop() {
+  digitalWrite(LED_BUILTIN, HIGH);
+  delay(500);
+  digitalWrite(LED_BUILTIN, LOW);
+  delay(500);
+  secondes++;
+  Serial.println(secondes);
+}
+`,
+  })),
+  ...[
+    { type: 'pile-4aa', broche: 'VSYS', demarre: false,
+      note: '6,4 V sur VSYS : la Pico refuse de demarrer (il faut 1,8 a 5,5 V).' },
+    { type: 'pile-9v', broche: 'VSYS', demarre: false,
+      note: '9,5 V sur VSYS : la Pico refuse de demarrer (il faut 1,8 a 5,5 V).' },
+    { type: 'pile-cr2032', broche: 'VSYS', demarre: true,
+      note: "3 V sur VSYS : la Pico tourne jusqu'a ce que la pile soit vide." },
+    { type: 'batterie-lipo', broche: 'VSYS', demarre: true,
+      note: "4,2 V sur VSYS : la Pico tourne jusqu'a ce que la batterie soit vide." },
+  ].map((c) => test({
+    name: `${c.type}-pico`, board: 'pico', ext: 'py',
+    kompix: [c.type],
+    parts: [
+      MCU('pico', 160, 100),
+      { id: 'Bat1', type: c.type, x: 700, y: 60, attrs: c.demarre ? { prm_capacity: '1' } : {} },
+    ],
+    wires: () => [
+      w('Bat1', '+', 'U1', c.broche, 'red'),
+      w('Bat1', '-', 'U1', 'GND.1', 'black'),
+    ],
+    expect: { kind: 'batterie', partId: 'Bat1', broche: c.broche, demarre: c.demarre },
+    code: `# Test pile ${c.type} : ${c.note}
+# La LED GP25 clignote et la console compte les secondes tant que la carte tourne.
+from machine import Pin
+import time
+
+led = Pin(25, Pin.OUT)
+secondes = 0
+while True:
+    led.toggle()
+    time.sleep(0.5)
+    led.toggle()
+    time.sleep(0.5)
+    secondes += 1
+    print(secondes)
+`,
+  })),
 
   test({
     name: 'blink-picow', board: 'picow', ext: 'py',

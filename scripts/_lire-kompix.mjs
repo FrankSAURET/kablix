@@ -110,6 +110,7 @@ export async function lireKompix(ref) {
     shield: manifest.shield,
     toggles: manifest.toggles,
     rfid: manifest.rfid,
+    battery: manifest.battery,
     category: manifest.category,
     hasHelp: helpLangs.length > 0 || undefined,
     behaviorScript,

@@ -11,6 +11,9 @@
 //   2. la décharge et l'autonomie (`consommation.mts`) ;
 //   3. la jauge du VRAI élément <kablix-powerbank> en Chrome headless ;
 //   4. le câblage dans sim.mts (décharge, coupure, arrêt de la carte).
+//   2 bis. les piles de bibliothèque (v2026.9.7.180) : tension qui baisse avec
+//      la charge, plages des entrées (refus de démarrer, extinction en route),
+//      pattes « + » / « - » lues par leurs rôles.
 //
 // Contre-épreuve : `node scripts/verify-batterie.mjs --ancien=<réf>` prend
 // model.mts, consommation.mts et powerbank-element.mts d'une autre version.
@@ -28,7 +31,7 @@ if (REF) console.log(`(contre-épreuve : sources en version ${REF})`);
 const versionAncienne = {
 	name: 'version-ancienne',
 	setup(b) {
-		b.onLoad({ filter: /[\\/](diagram[\\/]model|consommation|composants[\\/]powerbank-element)\.mts$/ }, (args) => {
+		b.onLoad({ filter: /[\\/](diagram[\\/](model|catalog)|consommation|composants[\\/]powerbank-element)\.mts$/ }, (args) => {
 			if (!REF) return undefined;
 			const rel = relative(ROOT, args.path).replace(/\\/g, '/');
 			let contents = '';
@@ -84,6 +87,45 @@ if (typeof decharger !== 'function') {
 	check(autonomieH(1, 0) === Infinity, 'rien ne débite : autonomie infinie');
 }
 
+// --- 2 bis. Piles de bibliothèque (v2026.9.7.180) ----------------------------------
+console.log('2 bis. Piles de bibliothèque (4 × AA, 9 V, CR2032, LiPo)');
+const { tensionBatterie, PLAGES_ENTREE } = await charger('src/webview/consommation.mts', 'conso2.mjs');
+if (typeof tensionBatterie !== 'function' || !PLAGES_ENTREE) {
+	check(false, 'consommation.mts exporte tensionBatterie() et PLAGES_ENTREE');
+} else {
+	const AA4 = { full: 6.4, empty: 4.4 };
+	check(tensionBatterie(AA4, 1) === 6.4 && tensionBatterie(AA4, 0) === 4.4, '4 × AA : 6,4 V pleine, 4,4 V vide');
+	check(Math.abs(tensionBatterie(AA4, 0.5) - 5.4) < 1e-9, 'la tension baisse en ligne droite avec la charge (50 % → 5,4 V)');
+	check(tensionBatterie(AA4, 2) === 6.4 && tensionBatterie(AA4, -1) === 4.4, 'charge bornée à 0..1');
+	const dansPlage = (v, broche) => v >= PLAGES_ENTREE[broche].min && v <= PLAGES_ENTREE[broche].max;
+	check(!dansPlage(3.0, '5V') && !dansPlage(3.0, 'VIN'), 'CR2032 (3 V) sur une Uno : refusée sur 5V comme sur VIN');
+	check(!dansPlage(4.2, 'VIN'), 'LiPo (4,2 V) sur VIN : refusée');
+	check(dansPlage(4.2, 'VSYS') && dansPlage(3.0, 'VSYS') && dansPlage(2.0, 'VSYS'), 'LiPo et CR2032 sur VSYS : acceptées jusqu’à vide');
+	check(!dansPlage(9.5, 'VSYS') && !dansPlage(6.4, 'VSYS'), '9 V et 4 × AA sur VSYS : refusées');
+	check(dansPlage(6.4, 'VIN') && !dansPlage(6.1, 'VIN'), '4 × AA sur VIN : démarre à 6,4 V, s’éteint sous 6,2 V');
+}
+const { model: m2, catalog: c2 } = await (async () => {
+	const out = join(tmp, 'diag.mjs');
+	await esbuild.build({ stdin: { contents: "export * as model from './src/webview/diagram/model.mts';\nexport * as catalog from './src/webview/diagram/catalog.mts';\n",
+		resolveDir: ROOT, loader: 'ts' }, outfile: out, bundle: true, format: 'esm', platform: 'node', logLevel: 'silent',
+		loader: { '.svg': 'text', '.webp': 'dataurl' }, plugins: [versionAncienne] });
+	return import(pathToFileURL(out).href);
+})();
+try {
+	c2.registerCustomPart({ type: 'pile-test', label: 'Pile', kind: 'psu', svg: '<svg viewBox="0 0 20 20"></svg>',
+		pins: [{ name: '+', x: 10, y: 0 }, { name: '-', x: 10, y: 20 }], pinRoles: { 'V+': '+', GND: '-' },
+		attrs: { voltage: '3' }, params: [{ name: 'capacity', label: 'Capacity (mAh)', value: 220 }], battery: { full: 3, empty: 2 } });
+	const d = { parts: [{ id: 'c', type: 'pico', x: 0, y: 0 }, { id: 'p1', type: 'pile-test', x: 0, y: 0 }],
+		wires: [W('w1', { partId: 'p1', pin: '+' }, { partId: 'c', pin: 'VSYS' }), W('w2', { partId: 'p1', pin: '-' }, { partId: 'c', pin: 'GND.1' })] };
+	const a = m2.alimentationDeLaCarte(d);
+	check(a?.psuId === 'p1' && a?.broche === 'VSYS', 'pile de bibliothèque (pattes « + » et « - ») : elle alimente la Pico par VSYS', JSON.stringify(a));
+	check(c2.partDef('pile-test').custom?.battery?.full === 3, 'le bloc battery du paquet arrive jusqu’au catalogue');
+	check(c2.pinElectricalRole('pile-test', '+') === 'vcc' && c2.pinElectricalRole('pile-test', '-') === 'gnd',
+		'fil tiré depuis « + » : rouge ; depuis « - » : noir');
+} catch (err) {
+	check(false, 'pile de bibliothèque dans le modèle', String(err).split('\n')[0]);
+}
+
 // --- 3. La jauge du vrai élément --------------------------------------------------
 console.log('3. Jauge du Power bank (Chrome headless)');
 const chrome = [process.env.CHROME_PATH, 'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -127,8 +169,16 @@ const sim = readFileSync(join(ROOT, 'src/webview/sim.mts'), 'utf8');
 const bloc = sim.match(/function majBatteries\([\s\S]*?\n}\n/)?.[0] ?? '';
 check(/alimentationDeLaCarte\(editor\.diagram\)/.test(bloc) && /psuLoadAmps\(/.test(bloc) && /decharger\(/.test(bloc),
 	'la batterie se vide de ses charges ET de la carte quand elle l’alimente');
-check(/el\.volts = restantAh > 0 \? undefined : 0/.test(bloc), 'vide : sa sortie se coupe (tension 0)');
-check(/restantAh <= 0 && alimenteLaCarte/.test(bloc) && /stopRun\(\)/.test(bloc), 'vide alors qu’elle alimente la carte : la simulation s’arrête');
+check(/const sortie = restantAh <= 0 \? 0/.test(bloc) && /el\.volts = battery \|\| restantAh <= 0 \? sortie : undefined/.test(bloc),
+	'vide : sa sortie se coupe (tension 0) ; une pile publie sa tension qui baisse');
+check(/PLAGES_ENTREE\[alim!?\.broche\]/.test(bloc) && /dropped to \{1\} V: the board switched off/.test(bloc),
+	'pile qui passe sous le seuil de l’entrée en route : la carte s’éteint');
+const refus = sim.match(/function refusAlimentation\([\s\S]*?\n}\n/)?.[0] ?? '';
+check(/tensionBatterie\(battery, 1\)/.test(refus) && /The board does not start/.test(refus),
+	'pile hors plage au lancement : la carte refuse de démarrer, avec un message');
+check(/const refus = refusAlimentation\(\);\s*if \(refus\) \{\s*setStatus\(refus\);\s*return;/.test(sim),
+	'le refus tombe AVANT la création du moteur');
+check(/if \(!alimenteLaCarte \|\| !engine\) continue;\s*if \(restantAh <= 0\) \{/.test(bloc) && /stopRun\(\)/.test(bloc), 'vide alors qu’elle alimente la carte : la simulation s’arrête');
 check(/chargesBatteries\.clear\(\)/.test(sim), 'nouveau lancement : les batteries repartent pleines');
 
 console.log(echecs ? `\nRESULTAT: ECHEC (${echecs})` : '\nRESULTAT: OK');

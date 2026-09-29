@@ -58,7 +58,8 @@ async function bundleDiagram() {
   await esbuild.build({
     stdin: {
       contents: "export * as model from './src/webview/diagram/model.mts';\n"
-        + "export * as catalog from './src/webview/diagram/catalog.mjs';\n",
+        + "export * as catalog from './src/webview/diagram/catalog.mjs';\n"
+        + "export * as conso from './src/webview/consommation.mts';\n",
       resolveDir: ROOT,
       loader: 'ts',
     },
@@ -67,7 +68,7 @@ async function bundleDiagram() {
   return import(pathToFileURL(out).href);
 }
 
-const { model, catalog } = await bundleDiagram();
+const { model, catalog, conso } = await bundleDiagram();
 
 /**
  * Point fixe des ponts commandés (transistor saturé, contact de relais fermé) :
@@ -763,6 +764,17 @@ for (const t of TESTS) {
         const alim = model.alimentationDeLaCarte(diagram);
         check(`${t.name} : ${e.partId} alimente la carte par ${e.broche}`,
           alim?.psuId === e.partId && alim?.broche === e.broche, JSON.stringify(alim));
+        // Pile de bibliothèque : sa tension pleine tombe-t-elle dans la plage de
+        // l'entrée ? Hors plage, la carte refuse de démarrer (v2026.9.7.180).
+        if (e.demarre !== undefined) {
+          const pile = diagram.parts.find((p) => p.id === e.partId);
+          const battery = pile && catalog.partDef(pile.type).custom?.battery;
+          const plage = conso.PLAGES_ENTREE[e.broche];
+          const v = battery ? conso.tensionBatterie(battery, 1) : NaN;
+          const ok = !!plage && v >= plage.min && v <= plage.max;
+          check(`${t.name} : ${e.demarre ? 'la carte démarre' : 'la carte refuse de démarrer'} (${v} V sur ${e.broche})`,
+            ok === e.demarre, JSON.stringify({ v, plage }));
+        }
         break;
       }
       case 'nets':

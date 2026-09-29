@@ -448,6 +448,18 @@ Ce qui est mesuré, c'est la **carte réelle**, pas la puce seule : son microcon
 
 Pour mesurer une **autonomie**, faites alimenter la carte par une batterie : voir la fiche [Batterie externe (Power bank)](composants/powerbank.md).
 
+**Piles de la bibliothèque** — **4 × AA**, **9 V**, **CR2032** et **LiPo 1S** s'installent par **⚙ Gérer les composants**. Pattes **+** et **−**, capacité réglable dans l'inspecteur. Leur tension **baisse avec la charge** (4 × AA : 6,4 V neuves, 4,4 V usées) : le traceur montre `Bat1 : tension` en plus de la charge et de l'autonomie.
+
+Chaque entrée de carte a sa plage de tension :
+
+| Entrée | Plage acceptée |
+| ------ | -------------- |
+| **VIN** (Uno, Nano, Mega) | 6,2 à 20 V |
+| **5V** (Uno, Nano, Mega) | 4,5 à 5,5 V |
+| **VSYS**, **VBUS** (Pico) | 1,8 à 5,5 V |
+
+Hors plage au lancement, **la carte refuse de démarrer** et la barre d'état dit pourquoi : une CR2032 (3 V) ne fait pas tourner une Uno, une LiPo (4,2 V) ne passe pas le régulateur de VIN, une pile de 9 V grillerait le VSYS d'une Pico. Une pile qui s'use peut aussi passer **sous** le seuil en route : la carte s'éteint alors, et la barre d'état dit au bout de combien de temps de programme (4 × AA sur VIN, sous 6,2 V).
+
 ### Éclairage DMX512
 
 Kablix simule une **ligne DMX512** de bout en bout : le programme envoie la trame, le décodeur la lit, et le **projecteur s'allume vraiment** à la couleur demandée.

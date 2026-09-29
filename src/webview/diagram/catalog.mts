@@ -304,6 +304,17 @@ export function toggleOption(
  * Les codes sont ceux des badges fournis avec la carte : le lecteur en tire un
  * au hasard à chaque passage, comme si on présentait un badge parmi trois.
  */
+/**
+ * Pile ou batterie de bibliothèque (kind `psu`, v2026.9.7.180) : sa sortie part
+ * de `full` volts, pleine, et descend jusqu'à `empty` quand elle est vide —
+ * droite entre les deux, une simplification assumée des courbes de décharge.
+ * La capacité, elle, est un paramètre réglable (`prm_capacity`, en mAh).
+ */
+export interface CustomBattery {
+  full: number;
+  empty: number;
+}
+
 export interface CustomRfidMode {
   /** Valeur de l'attribut de mode qui choisit cette liaison. */
   value: string;
@@ -439,6 +450,8 @@ export interface PartDef {
     toggles?: CustomToggle[];
     /** Lecteur de badges : ce qu'il envoie, sur quel fil et dans quelle langue. */
     rfid?: CustomRfid;
+    /** Pile ou batterie : tension pleine et tension à vide (voir sim.mts, majBatteries). */
+    battery?: CustomBattery;
   };
   /**
    * Variante d'un composant déjà listé : le type reste parfaitement valide
@@ -498,6 +511,8 @@ export interface CustomPartData {
   toggles?: CustomToggle[];
   /** Lecteur de badges (voir CustomRfid). */
   rfid?: CustomRfid;
+  /** Pile ou batterie (voir CustomBattery). */
+  battery?: CustomBattery;
   /** Script behavior.mjs embarqué (optionnel) : comportement de simulation. */
   behaviorScript?: string;
   /** Métadonnées provenance + confiance (kompix uniquement, Lot 2). */
@@ -1696,6 +1711,7 @@ export function registerCustomPart(data: CustomPartData): PartDef {
       shield: data.shield,
       toggles: data.toggles,
       rfid: data.rfid,
+      battery: data.battery,
     },
     analogPin: data.kind === 'analog-source' ? data.pinRoles?.['AO'] ?? 'AO' : undefined,
     digitalPin: data.kind === 'digital-source' ? data.pinRoles?.['OUT'] ?? 'OUT' : undefined,
@@ -1830,6 +1846,12 @@ export function pinElectricalRole(type: string, pin: string): 'gnd' | 'vcc' | 'o
   if (def.kind === 'mcu' && def.board) {
     const role = mcuPinRole(def.board, pin).role;
     return role === 'gnd' || role === 'vcc' ? role : 'other';
+  }
+  // Alimentation : ses pôles se lisent sur ses rôles (les piles de bibliothèque
+  // nomment les leurs « + » et « - », v2026.9.7.180).
+  if (def.kind === 'psu') {
+    if (pin === rolePin(type, 'GND')) return 'gnd';
+    if (pin === rolePin(type, 'V+')) return 'vcc';
   }
   // Le nom peut être préfixé par un port (« I2C0.GND », « A0.3V3 » sur le Grove
   // Shield) : le rôle se lit sur le dernier segment. `.b` = trou de dégagement

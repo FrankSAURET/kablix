@@ -423,6 +423,18 @@ const PCA9685_STRIPS: readonly string[][] = [
 export type Level = 0 | 1 | undefined;
 
 /** Alimentations de laboratoire du schéma (kind 'psu' — broches V+ / GND). */
+/**
+ * Bornes d'une alimentation : `V+` et `GND` pour l'alim de laboratoire et le
+ * Power bank, `+` et `-` pour une pile de bibliothèque, qui les déclare dans
+ * ses `pinRoles` (v2026.9.7.180).
+ */
+function psuPlus(psu: Part): string {
+  return rolePin(psu.type, 'V+');
+}
+function psuMoins(psu: Part): string {
+  return rolePin(psu.type, 'GND');
+}
+
 function psuParts(diagram: Diagram): Part[] {
   return diagram.parts.filter((p) => partDef(p.type).kind === 'psu');
 }
@@ -447,8 +459,8 @@ export function alimentationDeLaCarte(diagram: Diagram): { psuId: string; broche
   const massesCarte = new Set(['GND', ...Array.from({ length: 8 }, (_, i) => `GND.${i + 1}`)]
     .map((pin) => nets.netOf({ partId: carte.id, pin })));
   for (const psu of psuParts(diagram)) {
-    if (!massesCarte.has(nets.netOf({ partId: psu.id, pin: 'GND' }))) continue;
-    const vplus = nets.netOf({ partId: psu.id, pin: 'V+' });
+    if (!massesCarte.has(nets.netOf({ partId: psu.id, pin: psuMoins(psu) }))) continue;
+    const vplus = nets.netOf({ partId: psu.id, pin: psuPlus(psu) });
     for (const broche of ENTREES_CARTE) {
       if (nets.netOf({ partId: carte.id, pin: broche }) === vplus) return { psuId: psu.id, broche };
     }
@@ -539,8 +551,8 @@ function netIndex(diagram: Diagram, nets: Nets): NetIndex {
     }
   }
   for (const part of psuParts(diagram)) {
-    index.psuGnd.add(nets.netOf({ partId: part.id, pin: 'GND' }));
-    index.psuVplus.add(nets.netOf({ partId: part.id, pin: 'V+' }));
+    index.psuGnd.add(nets.netOf({ partId: part.id, pin: psuMoins(part) }));
+    index.psuVplus.add(nets.netOf({ partId: part.id, pin: psuPlus(part) }));
   }
   for (const part of diagram.parts) {
     if (partDef(part.type).kind !== 'diode') continue;
@@ -1004,8 +1016,8 @@ function computeResistiveGraph(
   // Alimentations de laboratoire : V+ = rail haut, GND = masse (mêmes rôles que
   // les broches d'alimentation des cartes dans tous les calculs résistifs).
   for (const part of psuParts(diagram)) {
-    vccNets.add(nets.netOf({ partId: part.id, pin: 'V+' }));
-    gndNets.add(nets.netOf({ partId: part.id, pin: 'GND' }));
+    vccNets.add(nets.netOf({ partId: part.id, pin: psuPlus(part) }));
+    gndNets.add(nets.netOf({ partId: part.id, pin: psuMoins(part) }));
   }
   // Générateur BF : sa borne GND est une masse comme les autres. Sa sortie `Vs`
   // n'est PAS un rail — sa tension change à chaque instant — et n'entre donc
@@ -1063,7 +1075,7 @@ export function ledPowerCircuit(
   let supplyVolts: number | null = null;
   if (reached.net !== undefined) {
     for (const psu of psuParts(diagram)) {
-      if (nets.netOf({ partId: psu.id, pin: 'V+' }) !== reached.net) continue;
+      if (nets.netOf({ partId: psu.id, pin: psuPlus(psu) }) !== reached.net) continue;
       const live = psuVolts?.(psu.id);
       const v = live ?? Number(psu.attrs?.voltage ?? 0);
       supplyVolts = Number.isFinite(v) ? v : 0;
@@ -1110,7 +1122,8 @@ export function psuLoadAmps(
   extraAmps = 0
 ): number {
   const { nets, adj, gndNets } = resistiveGraph(diagram, liveOhms);
-  const vplus = nets.netOf({ partId: psuId, pin: 'V+' });
+  const psu = diagram.parts.find((p) => p.id === psuId);
+  const vplus = nets.netOf({ partId: psuId, pin: psu ? psuPlus(psu) : 'V+' });
   let amps = extraAmps;
   // Pont résistif direct V+ → masse (un fil V+↔GND fusionne les nets → 0 Ω).
   // Un chemin qui traverse une DIODE (ou une LED, qui en est une) ne compte pas
@@ -1185,8 +1198,8 @@ export function pca9685PowerState(
     let overVolt = false;
     let psuId: string | null = null;
     for (const psu of psuParts(diagram)) {
-      if (nets.netOf({ partId: psu.id, pin: 'V+' }) !== vNet) continue;
-      if (nets.netOf({ partId: psu.id, pin: 'GND' }) !== gNet) continue;
+      if (nets.netOf({ partId: psu.id, pin: psuPlus(psu) }) !== vNet) continue;
+      if (nets.netOf({ partId: psu.id, pin: psuMoins(psu) }) !== gNet) continue;
       psuId = psu.id;
       const live = psuVolts?.(psu.id);
       const v = live ?? (Number(psu.attrs?.voltage ?? 0) || 0);
@@ -1520,7 +1533,7 @@ function circuitSources(
     }
   }
   for (const psu of psuParts(diagram)) {
-    const net = nets.netOf({ partId: psu.id, pin: 'V+' });
+    const net = nets.netOf({ partId: psu.id, pin: psuPlus(psu) });
     const v = psuVolts?.(psu.id) ?? Number(psu.attrs?.voltage ?? 0);
     if (Number.isFinite(v)) railVolts.set(net, Math.max(railVolts.get(net) ?? 0, v));
   }
@@ -2132,7 +2145,7 @@ function netSupply(
   psuVolts?: (partId: string) => number | null
 ): { volts: number; amps: number; mcuPin: string | null } {
   for (const psu of psuParts(diagram)) {
-    if (nets.netOf({ partId: psu.id, pin: 'V+' }) !== net) continue;
+    if (nets.netOf({ partId: psu.id, pin: psuPlus(psu) }) !== net) continue;
     const v = psuVolts?.(psu.id) ?? Number(psu.attrs?.voltage ?? 0);
     const a = Number(psu.attrs?.maxcurrent);
     return {
@@ -4614,7 +4627,7 @@ function netHasVcc(diagram: Diagram, nets: Nets, netId: string): boolean {
     }
   }
   for (const part of psuParts(diagram)) {
-    if (nets.netOf({ partId: part.id, pin: 'V+' }) === netId) return true;
+    if (nets.netOf({ partId: part.id, pin: psuPlus(part) }) === netId) return true;
   }
   return false;
 }

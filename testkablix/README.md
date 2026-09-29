@@ -52,6 +52,10 @@ Le robot araignée n'a pas de jumeau : sa Pico W est **dans** le châssis, il n'
 | Relais OMRON G5V | `relais-uno` | `relais-pico` | `relais-pico2` | seul le relais bien câblé colle |
 | Batterie externe (Power bank) | `powerbank-uno` | `powerbank-pico` | `powerbank-pico2` | alimente un PCA9685 + servo, LED de jauge suivant la charge |
 | Consommation et batterie | `consommation-uno` | `consommation-pico` | — | la batterie (1 mAh) alimente la carte, qui alterne 2 s éveillée et 2 s en veille profonde ; traceur : courant de la carte, charge et autonomie ; vide, la carte s'éteint |
+| Pile 4 × AA | `pile-4aa-uno` | `pile-4aa-pico` | — | `.kompix` ; Uno : 6,4 V sur VIN, démarre puis s'éteint sous 6,2 V (1 mAh) ; Pico : 6,4 V sur VSYS, **refus de démarrer** |
+| Pile 9 V | `pile-9v-uno` | `pile-9v-pico` | — | `.kompix` ; Uno : 9,5 V sur VIN, tourne jusqu'à 6,2 V (1 mAh) ; Pico : 9,5 V sur VSYS, **refus de démarrer** |
+| Pile CR2032 | `pile-cr2032-uno` | `pile-cr2032-pico` | — | `.kompix` ; Uno : 3 V sur 5V, **refus de démarrer** ; Pico : 3 V sur VSYS, tourne jusqu'à pile vide (1 mAh) |
+| Batterie LiPo 1S | `batterie-lipo-uno` | `batterie-lipo-pico` | — | `.kompix` ; Uno : 4,2 V sur VIN, **refus de démarrer** ; Pico : 4,2 V sur VSYS, tourne jusqu'à batterie vide (1 mAh) |
 | Patte d'araignée (placeholder) | `patte-uno` | `patte-pico` | `patte-pico2` | 2 articulations (coxa, patella) sur 2 canaux PCA9685 indépendants |
 | Robot araignée | — | `araignee-pico` | — | Robot SEUL, sans un fil : il porte sa Pico W (carte `picow`) et son PCA9685 à 0x7F pilote ses 8 articulations. Pas de test Arduino — le robot EST la carte |
 | Buzzer | `buzzer-uno` | `buzzer-pico` | `buzzer-pico2` | halo actif + tone/PWM |
