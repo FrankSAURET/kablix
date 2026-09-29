@@ -10,6 +10,15 @@
 
 ---
 
+# v2026.9.6.174
+1. ✅ **Configuration Claude du PC rendue aux sessions cloud** (« importer la totalité de ma configuration claude de mon PC […] générale ainsi que […] de ce projet »). Copie poussée par Frank sous `.claude/import-pc/` (28f9ed8).
+    1. [.claude/hooks/config-pc.mjs](.claude/hooks/config-pc.mjs), branché en `SessionStart` dans [.claude/settings.json](.claude/settings.json) : en session cloud SEULEMENT (`CLAUDE_CODE_REMOTE=true`), injecte le CLAUDE.md global et l'index de la mémoire, copie `/reprend`, `/caveman`, `/tl` dans `~/.claude/commands/` et la mémoire dans `~/.claude/projects/<chemin encodé>/memory/`, lance `npm install` si `node_modules` manque. Sur le PC : sortie immédiate, rien n'est touché. En Node (tourne sous Windows comme sous Linux).
+    2. Vérifié : 21 456 octets injectés, 3 commandes et 45 fiches de mémoire en place ; hors cloud, 0 octet et rien d'écrit.
+    3. `.claude/import-pc/skills/` (skills Anthropic synchronisées, déjà fournies en cloud, plus un `.trash`) déplacé dans `A Examiner/.claude/import-pc/skills/` : à trancher.
+2. ℹ️ Non repris : `settings.json` global (permissions, modèle, mode rapide, thème : la session cloud les gère elle-même ; chemins `C:\…`, `O:\…`, `\tmp`) et son hook `session-reminder.md` (dossier `hooks\` absent de l'import). `memory-h--OneDrive-…` = ancienne copie de la mémoire (avant le déplacement H: → C: du 21/08), laissée en place, non chargée.
+
+---
+
 # v2026.9.6.173
 1. ✅ **Sans déclenchement, le décodage pose la vue sur la première trame** (« Pendant la capture, avec ds18b20-pico2 […] la courbe se décale tout le temps et pareil avec la version uno », puis « Traite le cas sans déclenchement » — option « Déclencher sur la trame »).
     1. Cause : ds18b20-pico2 n'enregistre pas de déclenchement, ds18b20-uno n'a pas de sonde du tout. Sans déclenchement, la vue suit la fin de la capture, calée sur le DERNIER front reçu : un DS18B20 interrogé en boucle fait sauter la fenêtre à chaque salve. ds18b20-pico, qui enregistre « Début de trame », tenait en place.
