@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { scriptDictionnaire } from './dictionnaire';
 import { randomBytes } from 'node:crypto';
 import { versionPublique } from './version';
 
@@ -333,6 +334,7 @@ window.KABLIX_NONCE = ${JSON.stringify(nonce)};
 window.KABLIX_PINOUT_BASE = ${JSON.stringify(pinoutBase.toString())};
 window.KABLIX_WORKER_URL = ${JSON.stringify(workerUri.toString())};
 window.KABLIX_SIM_WORKER = ${JSON.stringify(simWorker)};</script>
+  ${scriptDictionnaire(webview, extensionUri, nonce)}
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;

@@ -5,6 +5,7 @@
 //   - dist/webview.js   : code du simulateur exécuté dans la webview (navigateur)
 //   - dist/webview-worker.js : le moteur de simulation, dans un Web Worker
 //   - dist/analyseur.js : l'onglet de l'analyseur logique (page à part)
+//   - dist/i18n-<langue>.js : un dictionnaire de traduction par langue (fr, es, zh)
 const esbuild = require('esbuild');
 const fs = require('fs');
 const path = require('path');
@@ -72,6 +73,61 @@ const svgoLoader = {
   },
 };
 
+// Dictionnaires de traduction HORS des bundles de page (v2026.9.7.176) : chaque
+// langue ajoutée coûtait 40 à 50 Ko à webview.js ET à analyseur.js, chargés et
+// analysés à chaque ouverture même quand la langue ne sert pas. Dans les deux
+// bundles, i18n.mts lit désormais `globalThis.KABLIX_DICTS`, que remplit le seul
+// dist/i18n-<langue>.js de la langue de VS Code, posé par la page juste avant son
+// script (webview-html.ts, analyseur-panel.ts). Les sources ne changent pas : les
+// bancs qui bundlent i18n.mts eux-mêmes gardent tous les dictionnaires.
+const LANGUES_DICTS = { fr: null, es: 'ES', zh: 'ZH' };
+const I18N = path.join(__dirname, 'src', 'webview', 'i18n.mts');
+const DEBUT_FR = 'const FR: Record<string, string> = {';
+const FIN_FR = '\n// `zh` : chinois simplifié';
+
+/** Le dictionnaire français, écrit en tête d'i18n.mts : de `{` à `}` inclus. */
+function objetFr(source) {
+  const i = source.indexOf(DEBUT_FR);
+  const j = source.lastIndexOf('};', source.indexOf(FIN_FR));
+  if (i < 0 || j < i) throw new Error('i18n.mts : dictionnaire FR introuvable');
+  return source.slice(i + DEBUT_FR.length - 1, j + 1);
+}
+
+const dictionnairesExternes = {
+  name: 'dictionnaires-externes',
+  setup(build) {
+    build.onLoad({ filter: /[\\/]webview[\\/]i18n\.mts$/ }, (args) => {
+      let s = fs.readFileSync(args.path, 'utf8');
+      const fr = objetFr(s);
+      s = s.replace(fr, '{}').replace(/^import \{ \w+ \} from '\.\/i18n-\w+\.mjs';\r?\n/gm, '');
+      const avant = s;
+      s = s.replace(/const DICTS: Record<string, Record<string, string>> = \{[^}]*\};/,
+        'const DICTS: Record<string, Record<string, string>> = (globalThis as { KABLIX_DICTS?: Record<string, Record<string, string>> }).KABLIX_DICTS ?? {};');
+      if (s === avant) throw new Error('i18n.mts : table DICTS introuvable');
+      return { contents: s, loader: 'ts' };
+    });
+  },
+};
+
+/** Configuration d'un dictionnaire : un IIFE qui range la langue dans KABLIX_DICTS. */
+function configDict(langue) {
+  const nom = LANGUES_DICTS[langue];
+  const contents = nom
+    ? `import { ${nom} } from './i18n-${langue}.mjs';\n((globalThis as any).KABLIX_DICTS ??= {}).${langue} = ${nom};\n`
+    : `((globalThis as any).KABLIX_DICTS ??= {}).fr = ${objetFr(fs.readFileSync(I18N, 'utf8'))};\n`;
+  return {
+    stdin: { contents, resolveDir: path.dirname(I18N), loader: 'ts', sourcefile: `i18n-${langue}-dict.ts` },
+    bundle: true,
+    outfile: `dist/i18n-${langue}.js`,
+    platform: 'browser',
+    format: 'iife',
+    target: 'es2020',
+    charset: 'utf8',
+    minify: production,
+    logLevel: 'info',
+  };
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const extensionConfig = {
   entryPoints: ['src/extension.ts'],
@@ -118,7 +174,9 @@ const webviewConfig = {
   // Le feu des composants grillés (utils/boum.webp, ~21 Ko) est inliné en data URI
   // — la CSP de la webview autorise déjà `img-src … data:`.
   loader: { '.svg': 'text', '.webp': 'dataurl' },
-  plugins: [svgoLoader],
+  plugins: [svgoLoader, dictionnairesExternes],
+  // Texte non ASCII (accents, chinois) écrit tel quel et non en `\\uXXXX` : plus court.
+  charset: 'utf8',
   define: { __BUILD_NUMBER__: JSON.stringify(BUILD_NUMBER) },
   sourcemap: !production,
   minify: production,
@@ -157,6 +215,8 @@ const analyseurConfig = {
   platform: 'browser',
   format: 'iife',
   target: 'es2020',
+  plugins: [dictionnairesExternes],
+  charset: 'utf8',
   sourcemap: !production,
   minify: production,
   logLevel: 'info',
@@ -170,12 +230,14 @@ async function main() {
     const ctxWeb = await esbuild.context(webviewConfig);
     const ctxWorker = await esbuild.context(workerConfig);
     const ctxAnal = await esbuild.context(analyseurConfig);
+    const ctxDicts = await Promise.all(Object.keys(LANGUES_DICTS).map((l) => esbuild.context(configDict(l))));
     await Promise.all([
       ctxExt.watch(),
       ctxZip.watch(),
       ctxWeb.watch(),
       ctxWorker.watch(),
       ctxAnal.watch(),
+      ...ctxDicts.map((c) => c.watch()),
     ]);
     console.log('[watch] build initial terminé, surveillance des fichiers…');
   } else {
@@ -185,6 +247,7 @@ async function main() {
       esbuild.build(webviewConfig),
       esbuild.build(workerConfig),
       esbuild.build(analyseurConfig),
+      ...Object.keys(LANGUES_DICTS).map((l) => esbuild.build(configDict(l))),
     ]);
   }
 }

@@ -38,12 +38,16 @@ PROGRESSION.md
 # (chargés à chaque ouverture sinon) et récupérés par fetch à la demande.
 # Sans cette exception le vsix les perdrait et le bouton ☢ resterait sans effet.
 # Ils sont passés à SVGO au build (esbuild.js) : 3,6 Mo → 1,8 Mo.
+# dist/i18n-*.js : un dictionnaire de traduction par langue (v2026.9.7.176),
+# chargé par la page avant son script. Oublié ici, l'interface resterait en
+# anglais pour tout le monde, sans un mot d'erreur.
 dist/**
 !dist/extension.js
 !dist/zip.js
 !dist/webview.js
 !dist/webview-worker.js
 !dist/analyseur.js
+!dist/i18n-*.js
 !dist/pinout/**
 
 # --- Fichiers de travail / captures / archives ---

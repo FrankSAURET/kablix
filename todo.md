@@ -12,6 +12,27 @@
 
 ---
 
+# v2026.9.7.177
+1. ✅ **2026.9.7 en ligne** (« j'ai déjà publié la 2026.9.7. Avant ta modification ») : publiée le 29 septembre 2026, SANS le lot 176.
+    1. [CHANGELOG.md](CHANGELOG.md) : l'entrée du lot 176 (atelier et analyseur plus légers) quitte la section datée `2026.9.7` pour `## 2026.9.8 (prochaine publication)`.
+    2. [CLAUDE.md](CLAUDE.md) : état au 29/09 — dernière version en ligne `2026.9.7`, prochaine `2026.9.8`.
+    3. `version` reste 2026.9.7 (la version en ligne), `buildNumber` 177.
+
+---
+
+# v2026.9.7.176
+1. ✅ **Coût d'une langue réduit** (« fais les deux gains »).
+    1. [esbuild.js](esbuild.js) : `charset: 'utf8'` pour webview.js, analyseur.js et les dictionnaires — le chinois n'est plus écrit en `\uXXXX`.
+    2. Dictionnaires hors des bundles de page : greffon `dictionnairesExternes` (i18n.mts lu avec `DICTS = globalThis.KABLIX_DICTS`, dictionnaire FR vidé, imports ES/ZH retirés) + un fichier par langue `dist/i18n-fr.js`, `-es`, `-zh` (IIFE qui remplit `KABLIX_DICTS`). Sources inchangées : les bancs qui bundlent i18n.mts gardent tout.
+    3. [src/dictionnaire.ts](src/dictionnaire.ts) `scriptDictionnaire()` : balise du dictionnaire de la langue de VS Code (zh-cn, zh-tw → zh ; anglais ou langue inconnue : aucune), posée avant le script par [webview-html.ts](src/webview-html.ts) et [analyseur-panel.ts](src/analyseur-panel.ts). Attribut `data-dictionnaire` entre `nonce` et `src` : les bancs qui remplacent `<script nonce src>` par leur bundle ne la prennent pas pour la page.
+    4. [.vscodeignore](.vscodeignore) : `!dist/i18n-*.js` — sans lui, interface en anglais pour tous une fois installée. [verify-paquet.mjs](scripts/verify-paquet.mjs) lit aussi les `outfile` calculés (motif `*`) et contrôle un dictionnaire construit par langue.
+    5. Mesuré en construction de production : webview.js 4 248 → 4 107 Ko (gzip 859 → 809 Ko), analyseur.js 213 → 72 Ko (gzip 72 → 25 Ko) ; la page ne charge plus qu'un dictionnaire de 38 à 42 Ko.
+    6. Banc nouveau [verify-dictionnaires.mjs](scripts/verify-dictionnaires.mjs) (`npm run verify:dictionnaires`, port 9438, dans `verify:all`) : fichiers de dist/ (aucun dictionnaire dans les pages, chaque langue dans son fichier, chinois en UTF-8), balise selon 7 langues de VS Code, VRAIE page de l'analyseur avec les vrais fichiers en fr, es, zh-cn, en (texte peint, un seul dictionnaire chargé). 18 contrôles ; contre-épreuve (sources d'avant, reconstruites) : 5 échecs.
+    7. `verify:all` : 153 bancs, les 14 rouges le sont par le conteneur (Chrome cherché sous Windows, chemin Windows de `verify:compiler`) ; les 13 bancs à Chrome rejoués avec le Chromium du conteneur : verts, plus panneaux, réouverture, debugvars-e2e, bom, selection, heure-build.
+2. ℹ️ CHANGELOG : entrée d'abord posée sous `2026.9.7`, déplacée sous `2026.9.8` au lot 177 (la 2026.9.7 était déjà publiée sans ce lot).
+
+---
+
 # v2026.9.7.175
 1. ✅ **Publication 2026.9.7 préparée** (« V 2026.9.7 et 2026.9.6 non publiées. Retouche le changelog (merge les 2) […] le numéro de publication sera bien 2026.9.7. Prépare cette publication »).
     1. [CHANGELOG.md](CHANGELOG.md) : `## 2026.9.6 (27 septembre 2026)` et `## 2026.9.7 (prochaine publication)` fusionnés en `## 2026.9.7 (29 septembre 2026)`. Entrées de la 2026.9.7 rangées dans leur thème (espagnol/chinois en tête des nouveautés, analyseur avec l'analyseur, Pico 2 avec le Pico). Espace en fin de ligne retiré.

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { randomBytes } from 'node:crypto';
+import { scriptDictionnaire } from './dictionnaire';
 import type { VoieExport } from './analyseur-journal';
 
 // Onglet « Analyseur logique » : la VUE de l'instrument, dans un onglet à part.
@@ -536,6 +537,7 @@ export class AnalyseurPanel {
    Elle ne peut pas être posée ici : acquireVsCodeApi() ne s'appelle qu'UNE
    fois par page, et c'est analyseur.js qui le fait. */
 window.KABLIX_ANALYSEUR_CLE = ${JSON.stringify(cle)};</script>
+${scriptDictionnaire(webview, extensionUri, n)}
 <script nonce="${n}" src="${script}"></script>
 </body>
 </html>`;

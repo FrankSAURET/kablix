@@ -2,6 +2,12 @@
 
 Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque mois.
 
+## 2026.9.8 (prochaine publication)
+
+### Modification
+
+- **L'atelier et l'analyseur logique s'ouvrent plus légers** : seules les traductions de la langue de VS Code sont chargées, et non plus celles des quatre langues.
+
 ## 2026.9.7 (29 septembre 2026)
 
 ### Nouveauté
