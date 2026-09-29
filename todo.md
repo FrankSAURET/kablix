@@ -1,4 +1,6 @@
 # À faire
+1. Analyseur logique :
+    1. Une zone qui  ne peut pas afficher son décodage et le texte qui est dessus à cause du zoom doit l'afficher de cette façon : Message total : "0xF0 SEARCH ROM", si pas la place message partiel : "0xF0" et dans la bulle de survol "SEARCH ROM". Pour tous les protocoles.
 ## fait
 
 
