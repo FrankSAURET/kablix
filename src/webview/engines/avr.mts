@@ -17,6 +17,8 @@ import {
   AVRUSART,
   AVRADC,
   AVRTimer,
+  AVRWatchdog,
+  watchdogConfig,
   AVRTWI,
   twiConfig,
   AVRSPI,
@@ -204,6 +206,29 @@ const MEGA_TIMER5 = {
   compPortC: portLConfig.PORT, compPinC: 5, // OC5C = PL5 (D44)
 };
 const MEGA_USART0 = { ...usart0Config, rxCompleteInterrupt: 0x32, dataRegisterEmptyInterrupt: 0x34, txCompleteInterrupt: 0x36 };
+
+// --- Veille (v2026.9.7.179) --------------------------------------------------
+// avr8js n'exécute pas SLEEP (« not implemented » : l'instruction ne fait rien,
+// le programme file). Or un programme qui dort attend une interruption : sans
+// l'arrêt, `LowPower.powerDown(SLEEP_8S…)` durait 0 s. Le moteur l'exécute donc
+// lui-même : le cœur s'arrête, le temps avance d'événement d'horloge en
+// événement d'horloge, et seule une interruption qui RÉVEILLE le mode choisi le
+// relance. Le temps passé là est compté (`sleepMs`), la page en tire le courant.
+/** SMCR : bit 0 = SE (veille autorisée), bits 3..1 = SM2..0 (mode). */
+const SMCR = 0x53;
+/** Modes profonds : power-down (2), power-save (3), standby (6), extended standby (7). */
+const MODES_PROFONDS = new Set([2, 3, 6, 7]);
+/**
+ * Vecteurs (adresses en mots) qui tirent la puce d'une veille profonde :
+ * INTn, PCINTn, chien de garde, adresse TWI reconnue — et le Timer 2 en
+ * power-save / extended standby (horloge asynchrone). Au repos (idle, ADC),
+ * toute interruption réveille.
+ */
+const REVEIL_UNO = { base: [0x02, 0x04, 0x06, 0x08, 0x0a, 0x0c, 0x30], timer2: [0x0e, 0x10, 0x12] };
+const REVEIL_MEGA = {
+  base: [0x02, 0x04, 0x06, 0x08, 0x0a, 0x0c, 0x0e, 0x10, 0x12, 0x14, 0x16, 0x18, 0x4e],
+  timer2: [0x1a, 0x1c, 0x1e],
+};
 // USART1-3 (Serial1/2/3) : génériques aussi, copie de usart0Config avec les
 // adresses UCSR/UBRR/UDR et les vecteurs du 2560.
 const MEGA_USART1 = { ...usart0Config,
@@ -255,6 +280,13 @@ export class AvrEngine implements SimEngine {
   // reset()). Le champ n'est là que pour les garder en vie — à ne pas prendre
   // pour du code mort lors d'un ménage.
   private readonly timers: AVRTimer[];
+  /** Chien de garde : réveille les programmes qui dorment (LowPower, avr/sleep.h). */
+  private readonly watchdog: AVRWatchdog;
+  /** Cœur arrêté par SLEEP : il attend une interruption qui réveille son mode. */
+  private endormi = false;
+  /** Cycles passés en veille PROFONDE depuis le démarrage (cf. sleepMs). */
+  private cyclesVeille = 0;
+  private readonly reveil: { base: number[]; timer2: number[] };
   private rafId: number | null = null; // handle du timer de boucle (setTimeout)
   // Cadencement temps réel : ANCRE reliant le temps mur au temps simulé (même
   // principe que le moteur Pico). L'ancien « dt depuis la tranche précédente »
@@ -497,6 +529,13 @@ export class AvrEngine implements SimEngine {
           new AVRTimer(this.cpu, timer1Config),
           new AVRTimer(this.cpu, timer2Config),
         ];
+    // Horloge de référence du chien de garde : seule sa fréquence sert.
+    this.watchdog = new AVRWatchdog(
+      this.cpu,
+      isMega ? { ...watchdogConfig, watchdogInterrupt: 0x18 } : watchdogConfig,
+      { frequency: CLOCK_HZ } as unknown as ConstructorParameters<typeof AVRWatchdog>[2]
+    );
+    this.reveil = isMega ? REVEIL_MEGA : REVEIL_UNO;
 
     for (const port of Object.values(this.ports)) {
       // À chaque changement de port : échantillonne les impulsions (servo) puis
@@ -669,6 +708,64 @@ export class AvrEngine implements SimEngine {
   /** Temps simulé depuis le démarrage (ms) : cycles CPU ÷ horloge de la carte. */
   simulatedMs(): number {
     return (this.cpu.cycles / CLOCK_HZ) * 1000;
+  }
+
+  /** Temps simulé passé en veille profonde (ms) — voir SimEngine.sleepMs. */
+  sleepMs(): number {
+    return (this.cyclesVeille / CLOCK_HZ) * 1000;
+  }
+
+  /**
+   * Exécute SLEEP (le PC est dessus) : sans SE, l'instruction ne fait rien,
+   * comme sur la puce. Avec SE, le cœur s'arrête jusqu'à l'interruption qui
+   * réveille le mode ; l'ISR servie, le programme reprend APRÈS le SLEEP.
+   */
+  private executerSleep(): void {
+    const cpu = this.cpu;
+    cpu.pc++;
+    cpu.cycles++;
+    if (cpu.data[SMCR]! & 1) this.endormi = true;
+  }
+
+  /**
+   * Veille : le temps avance d'événement d'horloge en événement d'horloge
+   * (timers, chien de garde, actions programmées) jusqu'à `jusqua` ou jusqu'à
+   * une interruption qui réveille le mode. Les événements tournent SANS servir
+   * les interruptions : en power-down, le débordement du Timer 0 (millis) ne
+   * doit pas tirer la puce du sommeil.
+   */
+  private dormir(jusqua: number): void {
+    const cpu = this.cpu;
+    const mode = (cpu.data[SMCR]! >> 1) & 7;
+    const profond = MODES_PROFONDS.has(mode);
+    const timer2 = mode === 3 || mode === 7;
+    const reveille = (): boolean => {
+      if (!cpu.interruptsEnabled || cpu.nextInterrupt < 0) return false;
+      if (!profond) return true;
+      const attente = (cpu as unknown as { pendingInterrupts: Array<{ address: number } | null> }).pendingInterrupts;
+      for (const it of attente) {
+        if (!it) continue;
+        if (this.reveil.base.includes(it.address) || (timer2 && this.reveil.timer2.includes(it.address))) return true;
+      }
+      return false;
+    };
+    // File d'événements d'horloge d'avr8js (privée dans ses types).
+    type Evenement = { cycles: number; callback: () => void; next: Evenement | null };
+    const file = cpu as unknown as { nextClockEvent: Evenement | null };
+    const debut = cpu.cycles;
+    while (!reveille() && cpu.cycles < jusqua) {
+      const ev = file.nextClockEvent;
+      let prochain = ev?.cycles ?? Infinity;
+      for (const a of this.scheduled) if (a.cycle < prochain) prochain = a.cycle;
+      cpu.cycles = Math.max(cpu.cycles, Math.min(prochain, jusqua));
+      if (ev && ev.cycles <= cpu.cycles) {
+        file.nextClockEvent = ev.next;
+        ev.callback();
+      }
+      if (this.scheduled.length > 0) this.fireScheduled();
+    }
+    if (profond) this.cyclesVeille += cpu.cycles - debut;
+    if (reveille()) this.endormi = false;
   }
 
   /** Temps réel cumulé passé dans la boucle du moteur (ms) — voir SimEngine.busyMs. */
@@ -1679,6 +1776,18 @@ export class AvrEngine implements SimEngine {
         // franchir, retour de fonction), et SP relevé avant le tick (interruption).
         const suivi = this.stepping && this.pasSuivi;
         if (suivi) this.pasAvantInstruction();
+        // Veille : cœur arrêté jusqu'à l'interruption qui réveille (cf. dormir).
+        if (this.endormi) {
+          this.dormir(deadline);
+          if (this.endormi) break;
+          cpu.tick(); // sert l'interruption qui vient de réveiller
+          continue;
+        }
+        if (cpu.progMem[cpu.pc] === 0x9588) {
+          this.executerSleep();
+          cpu.tick();
+          continue;
+        }
         avrInstruction(cpu);
         const spAvantTick = suivi ? cpu.SP : 0;
         cpu.tick();

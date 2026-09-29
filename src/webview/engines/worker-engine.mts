@@ -494,6 +494,10 @@ export class WorkerEngine implements SimEngine {
     return this.snap.simulatedMs;
   }
 
+  sleepMs(): number {
+    return this.snap.sleepMs;
+  }
+
   /** Heure du worker à la relève : c'est elle qui date `simulatedMs()`. */
   wallClockMs(): number {
     return this.snap.wallMs;

@@ -121,6 +121,8 @@ class KablixSimulator {
   // instantanément — un time.sleep(0.5) semblerait durer 0 s. Inversement le
   // code calculatoire reste sous le temps réel (plafond de l'interpréteur) : le
   // retard est mis en DETTE et remboursé pendant les accalmies (cf. debtMs).
+  /** Temps simulé sauté en veille profonde (lightsleep), en ns — cf. PicoEngine.sleepMs. */
+  nanosVeille = 0;
   private paceWall = 0;
   private paceSim = 0;
   /**
@@ -241,6 +243,8 @@ class KablixSimulator {
           idle = true;
           break;
         }
+        // Saut pendant une veille profonde (lightsleep) : compté (cf. sleepMs).
+        if (chip.sommeilProfond()) this.nanosVeille += n;
         chip.sauter(n);
         this.onTick?.();
       } else {
@@ -607,6 +611,11 @@ export class PicoEngine implements SimEngine {
    */
   simulatedMs(): number {
     return this.sim.chip.clock.nanos / 1e6;
+  }
+
+  /** Temps simulé passé en veille profonde (ms) — voir SimEngine.sleepMs. */
+  sleepMs(): number {
+    return this.sim.nanosVeille / 1e6;
   }
 
   /**

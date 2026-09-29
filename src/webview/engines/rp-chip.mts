@@ -240,6 +240,12 @@ export interface PicoChip {
   /** Vrai quand plus aucun cœur n'a de travail : le moteur peut sauter à la prochaine alarme. */
   dort(): boolean;
   /**
+   * Veille PROFONDE demandée (v2026.9.7.179) : bit SLEEPDEEP du registre SCR du
+   * cœur 0, que pose `machine.lightsleep()` autour de son WFI. Un `time.sleep()`
+   * attend en WFE sans ce bit : la vraie puce reste éveillée, son courant aussi.
+   */
+  sommeilProfond(): boolean;
+  /**
    * Saut d'alarme : avance de `nanos` d'un coup pendant que le cœur dort
    * (compteur de cycles, PIO et horloge compris).
    */
@@ -275,6 +281,12 @@ export interface PicoChip {
   surBreak(cb: () => void): void;
 }
 
+/** SCR (0xE000ED10) et son bit SLEEPDEEP. Adressage du PPB : rp2040js garde les
+ *  12 bits de poids faible (0xd10), rp2350js les 24 (0xed10). */
+const SCB_SCR_OFFSET = 0xd10;
+const SCB_SCR_OFFSET_2350 = 0xed10;
+const SCR_SLEEPDEEP = 1 << 2;
+
 class Rp2040Chip implements PicoChip {
   readonly famille = 'rp2040';
   readonly mcu: PicoMcu;
@@ -283,15 +295,31 @@ class Rp2040Chip implements PicoChip {
   readonly cycleNanos = 1e9 / CLK_SYS.rp2040;
   private readonly puce: RP2040;
 
+  /** Dernière valeur écrite dans SCR : rp2040js ne garde pas ce registre. */
+  private scr = 0;
+
   constructor(private readonly arret: Arret) {
     this.puce = new RP2040();
     this.clock = this.puce.clock as unknown as PicoClock;
     this.mcu = this.puce as unknown as PicoMcu;
     this.core = this.puce.core as unknown as PicoCore;
+    // SCR (0xE000ED10) : rp2040js l'ignore, on le retient au passage.
+    const ppb = this.puce.ppb as unknown as { writeUint32(offset: number, value: number): void };
+    const ecrire = ppb.writeUint32.bind(ppb);
+    ppb.writeUint32 = (offset: number, value: number): void => {
+      // Gardé ici, et pas transmis : rp2040js n'en fait rien sinon journaliser
+      // « Unimplemented peripheral write » à chaque lightsleep.
+      if (offset === SCB_SCR_OFFSET) this.scr = value >>> 0;
+      else ecrire(offset, value);
+    };
   }
 
   dort(): boolean {
     return this.puce.core.waiting;
+  }
+
+  sommeilProfond(): boolean {
+    return (this.scr & SCR_SLEEPDEEP) !== 0;
   }
 
   sauter(nanos: number): void {
@@ -498,6 +526,12 @@ class Rp2350Chip implements PicoChip {
       if (offset >= SIO_GPIO_MIN && offset <= SIO_GPIO_MAX) this.serieHeure = 0;
       ecrireSio(offset, value, core);
     };
+  }
+
+  sommeilProfond(): boolean {
+    // rp2350js tient SCR, cœur par cœur.
+    const ppb = this.puce.ppb as unknown as { readUint32ViaCore(offset: number, core: number): number };
+    return (ppb.readUint32ViaCore(SCB_SCR_OFFSET_2350, 0) & SCR_SLEEPDEEP) !== 0;
   }
 
   /** Le cœur a touché autre chose que la pendule : ce n'est plus une attente. */

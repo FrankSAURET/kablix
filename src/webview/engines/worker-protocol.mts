@@ -57,6 +57,8 @@ export interface PinSnapshot {
   pulseActive: Uint8Array;
   /** Temps SIMULÉ depuis le démarrage, en ms. */
   simulatedMs: number;
+  /** Temps SIMULÉ passé en veille profonde depuis le démarrage, en ms (SimEngine.sleepMs). */
+  sleepMs: number;
   /**
    * Heure du WORKER au moment de la relève, en ms (`performance.now()` de son
    * propre fil). Elle n'a pas la même origine que celle de la page — seuls ses
@@ -245,6 +247,7 @@ export function emptySnapshot(count: number): PinSnapshot {
     pwmDuty: new Float32Array(count),
     pulseActive: new Uint8Array(count),
     simulatedMs: 0,
+    sleepMs: 0,
     wallMs: 0,
     busyMs: 0,
     lagMs: 0,

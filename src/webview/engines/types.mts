@@ -214,6 +214,13 @@ export interface SimEngine {
    */
   simulatedMs?(): number;
   /**
+   * Temps SIMULÉ passé en veille profonde depuis le démarrage, en ms (v2026.9.7.179).
+   * AVR : instruction SLEEP en mode power-down, power-save ou standby ; Pico :
+   * `machine.lightsleep()` / `deepsleep()`. Un `delay()` ou un `time.sleep()` n'en
+   * est PAS — la vraie puce reste éveillée. La page en tire le courant de la carte.
+   */
+  sleepMs?(): number;
+  /**
    * Heure du fil où `simulatedMs()` a été relevé, en ms. Un moteur qui tourne
    * dans la page n'en a pas besoin (l'appel est immédiat) ; celui qui tourne
    * dans un worker rend l'heure de SON fil au moment de la relève, pour que la
