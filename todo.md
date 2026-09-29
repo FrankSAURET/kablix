@@ -12,6 +12,12 @@
 
 ---
 
+# v2026.9.7.181
+1. ✅ Scénario de test des piles (« fais moi un scenario et des fichiers de tests pour arduino et pico ») : [scenario-piles.md](testkablix/scenario-piles.md) — préparation, refus de démarrer, extinction en route, autonomie Uno / Pico avec et sans veille, non-régression Power bank, valeurs attendues.
+2. ✅ Tests `autonomie-uno` (pile 9 V 2 mAh sur VIN, LED D8, power-down + chien de garde 4 s) et `autonomie-pico` (LiPo 1 mAh sur VSYS, LED GP15, `lightsleep(4000)`), constante `VEILLE` pour comparer : [_spec.mjs](testkablix/_spec.mjs), ligne dans le [README](testkablix/README.md). Générés seuls.
+
+---
+
 # v2026.9.7.180
 1. ✅ **Piles de bibliothèque** (dessins de Frank dans `Composants2D.svg`, groupes `4AA`, `9V`, `CR2032`, `LIPO` ; pattes `+` / `-`) — clôt le point 5 de la 179. Nés `"experimental": true` dans [_sources.json](kablix_components/_sources.json) : `pile-4aa` (6,4 → 4,4 V, 2500 mAh), `pile-9v` (9,5 → 6,0 V, 500 mAh), `pile-cr2032` (3,0 → 2,0 V, 220 mAh), `batterie-lipo` (4,2 → 3,0 V, 1000 mAh). Kind `psu`, `pinRoles {"V+":"+","GND":"-"}`, paramètre `capacity` (mAh), nouveau bloc `battery {full, empty}` porté par le .kompix ([build-kompix.mjs](scripts/build-kompix.mjs), [kompixLibrary.ts](src/kompixLibrary.ts), [catalog.mts](src/webview/diagram/catalog.mts), [_lire-kompix.mjs](scripts/_lire-kompix.mjs)). Fiches FR dans `kablix_components/help/<type>/fr.md`.
 2. ✅ [model.mts](src/webview/diagram/model.mts) : pôles d'une alim lus par `rolePin` (`psuPlus` / `psuMoins`) partout — plus de « V+ » / « GND » écrits en dur. `pinElectricalRole` : fil tiré depuis `+` rouge, depuis `-` noir.

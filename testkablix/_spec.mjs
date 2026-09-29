@@ -3967,6 +3967,126 @@ while True:
 `,
   })),
 
+  // Scénario « autonomie » (v2026.9.7.181, voir testkablix/scenario-piles.md) :
+  // un nœud de mesure sur pile qui s'éveille 1 s (LED allumée) puis attend 4 s.
+  // Une constante VEILLE choisit l'attente : 1 = veille profonde, 0 = attente
+  // éveillée (delay / time.sleep). On compare l'autonomie au traceur : la Pico
+  // gagne un facteur 4, la Uno presque rien (régulateur, puce USB, LED ON).
+  test({
+    name: 'autonomie-uno', board: 'uno', ext: 'ino',
+    kompix: ['pile-9v'],
+    parts: [
+      MCU('uno', 200, 80),
+      { id: 'Bat1', type: 'pile-9v', x: 700, y: 60, attrs: { prm_capacity: '2' } },
+      { id: 'R1', type: 'resistor', x: 560, y: 300, attrs: { value: '220' } },
+      { id: 'L1', type: 'led', x: 700, y: 300, attrs: { color: 'green' } },
+    ],
+    wires: () => [
+      w('Bat1', '+', 'U1', 'VIN', 'red'),
+      w('Bat1', '-', 'U1', 'GND.1', 'black'),
+      w('R1', '1', 'U1', '8', 'green'),
+      w('L1', 'A', 'R1', '2', 'green'),
+      w('L1', 'C', 'U1', 'GND.2', 'black'),
+    ],
+    expect: { kind: 'batterie', partId: 'Bat1', broche: 'VIN', demarre: true },
+    code: `// Scénario autonomie (Uno sur pile 9 V, capacité réduite à 2 mAh).
+// Cycle : 1 s de mesure (LED D8 allumée), puis 4 s d'attente.
+//   VEILLE 1 : attente en veille profonde (power-down, réveil par le chien
+//              de garde) -> Courant de la carte : 46 mA puis 31 mA.
+//   VEILLE 0 : attente par delay() -> 46 mA en permanence.
+// Au traceur : Bat1: voltage descend de 9,5 V ; sous 6,2 V (seuil de VIN), la
+// carte s'éteint et la barre d'état dit au bout de combien de temps.
+#include <avr/sleep.h>
+#include <avr/wdt.h>
+#include <avr/interrupt.h>
+
+#define VEILLE 1
+
+const int LED = 8;
+unsigned long cycles = 0;
+
+ISR(WDT_vect) {}
+
+void dormir4s() {
+  cli();
+  MCUSR = 0;
+  WDTCSR = _BV(WDCE) | _BV(WDE);
+  WDTCSR = _BV(WDIE) | _BV(WDP3);  // 4 s
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+  sleep_enable();
+  sei();
+  sleep_cpu();
+  sleep_disable();
+  wdt_disable();
+}
+
+void setup() {
+  pinMode(LED, OUTPUT);
+  Serial.begin(9600);
+  Serial.println(VEILLE ? "Attente en veille profonde" : "Attente eveillee");
+}
+
+void loop() {
+  digitalWrite(LED, HIGH);   // mesure
+  cycles++;
+  Serial.print("cycle ");
+  Serial.println(cycles);
+  delay(1000);
+  digitalWrite(LED, LOW);
+  Serial.flush();
+#if VEILLE
+  dormir4s();
+#else
+  delay(4000);
+#endif
+}
+`,
+  }),
+
+  test({
+    name: 'autonomie-pico', board: 'pico', ext: 'py',
+    kompix: ['batterie-lipo'],
+    parts: [
+      MCU('pico', 160, 100),
+      { id: 'Bat1', type: 'batterie-lipo', x: 700, y: 60, attrs: { prm_capacity: '1' } },
+      { id: 'R1', type: 'resistor', x: 560, y: 320, attrs: { value: '220' } },
+      { id: 'L1', type: 'led', x: 700, y: 320, attrs: { color: 'green' } },
+    ],
+    wires: () => [
+      w('Bat1', '+', 'U1', 'VSYS', 'red'),
+      w('Bat1', '-', 'U1', 'GND.1', 'black'),
+      w('R1', '1', 'U1', 'GP15', 'green'),
+      w('L1', 'A', 'R1', '2', 'green'),
+      w('L1', 'C', 'U1', 'GND.2', 'black'),
+    ],
+    expect: { kind: 'batterie', partId: 'Bat1', broche: 'VSYS', demarre: true },
+    code: `# Scenario autonomie (Pico sur LiPo 1S, capacite reduite a 1 mAh).
+# Cycle : 1 s de mesure (LED GP15 allumee), puis 4 s d'attente.
+#   VEILLE = True  : attente par machine.lightsleep() -> 21 mA puis 1,3 mA.
+#   VEILLE = False : attente par time.sleep() -> 21 mA en permanence.
+# Au traceur : Bat1: voltage descend de 4,2 V a 3,0 V ; vide, la carte
+# s'eteint et la barre d'etat dit au bout de combien de temps.
+from machine import Pin, lightsleep
+import time
+
+VEILLE = True
+
+led = Pin(15, Pin.OUT)
+cycles = 0
+print("Attente en veille profonde" if VEILLE else "Attente eveillee")
+while True:
+    led.on()                 # mesure
+    cycles += 1
+    print("cycle", cycles)
+    time.sleep(1)
+    led.off()
+    if VEILLE:
+        lightsleep(4000)
+    else:
+        time.sleep(4)
+`,
+  }),
+
   test({
     name: 'blink-picow', board: 'picow', ext: 'py',
     parts: [MCU('picow', 160, 100)],
