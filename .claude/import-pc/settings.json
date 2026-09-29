@@ -1,0 +1,52 @@
+{
+  "cleanupPeriodDays": 365,
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "PowerShell(*)",
+      "Read(*)",
+      "Edit(*)",
+      "Write(*)",
+      "WebFetch(*)",
+      "WebSearch"
+    ],
+    "additionalDirectories": [
+      "\\tmp",
+      "C:\\Users\\Frank\\.claude",
+      "O:\\Jeux\\Traducteur"
+    ]
+  },
+  "model": "sonnet",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -p \"require('fs').readFileSync('C:/Users/Frank/.claude/hooks/session-reminder.md','utf8')\""
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {},
+  "extraKnownMarketplaces": {},
+  "fastMode": true,
+  "subagentModelOrder": [
+    "haiku",
+    "sonnet",
+    "opus"
+  ],
+  "defaultSubagentModel": "haiku",
+  "modelSettings": {
+    "sonnet": {
+      "effortLevel": "medium"
+    },
+    "haiku": {
+      "effortLevel": "low"
+    }
+  },
+  "theme": "light",
+  "switchModelsOnFlag": true,
+  "agentPushNotifEnabled": true
+}

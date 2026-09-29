@@ -1,0 +1,41 @@
+- [Déplacement « - VS Code » H: → C:](deplacement-vscode-h-vers-c.md) — 21/08/2026 : historique et mémoires Claude rapatriés à la main, rétention passée à 365 jours.
+- [Calver partout](calver-partout.md) — tous les numéros de version, composants publiés compris, en ANNÉE.MOIS.incrément.
+- [Deux numéros de version](deux-numeros-version.md) — publique (calver, bumpée à la publication) vs interne dev (champ buildNumber, 4e segment, jamais remis à 0).
+- [Boum : WebP animé, pas MP4](kablix-boum-webp-anime.md) — H.264 sans alpha ; détourage additif, alpha WebP sans perte (gamma+paliers), loader dataurl dans les 36 scripts.
+- [Verdict rp2350js](kablix-rp2350js-verdict.md) — leur Pico 2 (M33) tourne à 60-70 % du nôtre ; cache de décodage M33 écrit et mesuré : +3 %, piste fermée ; tout rapport se mesure entrelacé.
+- [Vitesse Pico : le plan](kablix-vitesse-pico-plan.md) — niveau 3 fait (+30 %), cœur WASM mort (×1,86 < ×3), profil mesuré : plus rien de gros dans le JS ; comment chiffrer un candidat sans se mentir.
+- [Vitesse Pico : le diagnostic](kablix-vitesse-pico-diagnostic.md) — émulateur ×11 plus lent que la puce, 6 % de marge ; firmware, webview et regroupement de tick écartés ; un moteur par processus sinon mesures fausses.
+- [Pico : régime et instrumentation](kablix-pico-regime-instrumentation.md) — le ralenti venait du débogueur ; v2026.8.12 : script brut par défaut (1,00) + bascule instrumentée à rejeu silencieux.
+- [Pico : modules natifs read-only](pico-micropython-native-modules-readonly.md) — patcher machine.I2C etc. passe par sys.modules, pas par réassignation ; scan I²C fige sur adresse absente.
+- [Pico : injection des libs](kablix-pico-lib-injection.md) — libs .py injectées dans sys.modules (pas de filesystem) ; n'injecter que les modules importés.
+- [Autoroutage : repro headless](kablix-autoroute-headless-repro.md) — vrai éditeur en Chrome headless (bundle esbuild), schéma reconstruit au px depuis une capture ; causes racines v2026.7.13 (boîte svg vs part__body, stubs multi-candidats, anti aller-retour).
+- [Définition « bon fil »](kablix-bon-fil-definition.md) — fil propre préservé par l'autoroutage : H/V, ≤4 coudes, ne survole ni composant ni broche étrangère ni autre fil ; sinon rerouté A*.
+- [Géométrie webview : repro Chrome headless](kablix-webview-geometry-headless.md) — vrai éditeur + vrai CSS + --dump-dom via cmd /c ; rAF limité à ~3 frames ; mesurer contre .canvas__sheet.
+- [Retouche : pipeline d'intégration](kablix-retouche-pipeline.md) — clean+probe (convention tel-quel) ; interactifs = élément transparent calé (v2026.6.83) ; pot jamais retouché.
+- [Fork @wokwi/elements](kablix-fork-wokwi-elements.md) — v2026.6.87 : plus de dépendance @wokwi, forks kablix-* dans composants/ (sans décorateurs, lit direct) ; retoucher = modifier le fork.
+- [Numérotation des versions](kablix-versioning-scheme.md) — ANNÉE.MOIS.incrément, repart à 0 chaque mois (juillet 2026 → 2026.7.0).
+- [Outillage Claude 2026-07](claude-outillage-2026-07.md) — /reprend /tl globaux, /livre /retouche /preview Kablix, hook SessionStart, CLAUDE.md projets, qa_tl.py.
+- [Console maison, pas xterm](kablix-console-maison-pas-xterm.md) — xterm.js essayé (v2026.7.34) et annulé (v2026.7.35) : ne pas re-proposer ; le bug de collage venait du presse-papier système.
+- [Overlay interne calé sur SVG externe](kablix-overlay-interne-cale-svg-externe.md) — v2026.7.48 : caler `.part__internal` sur le SVG externe mesuré, pas sur `.part__body` (letterbox + étiquette) sinon interne trop haut.
+- [Infra contrôles de simulation](kablix-siminfra-simcontrol.md) — v50+ : `simControl` (catalog) + attribut `simulating` (setLocked) + curseur/bouton dans le composant visible en sim, event `input` relu par sim.mts.
+- [Décisions capteurs en simulation](kablix-capteurs-sim-decisions.md) — flamme/gaz/son/lumière (AOUT baisse, DOUT actif-bas), temp curseur-only, PIR survol, msg sim près souris clignote 3×.
+- [Pico : simulation temps réel](kablix-pico-temps-reel.md) — tempête IRQ USB-CDC (NAK 1 ms) ; pacing temps réel ; cycles avancés pendant WFE ; v86 : clock.tick PAR instruction (SysTick/NeoPixel) + alarmes FIFO (SPI+DMA), ne pas re-grouper.
+- [Traceur de courbes](kablix-plotter-traceur.md) — v2026.7.94 : protocole Teleplot retenu (pas l'extension) ; filtre série à retenue 500 ms ; sondes setAnalog en escalier (volts) ; palette fixe light/dark ; rAF mort en --dump-dom.
+- [Physique LED/résistance série](kablix-led-resistance-physique.md) — v2026.7.99 : ledSeriesOhms (Dijkstra, netlist non fusionnée) + ledElectrical (35 mA flamme / 10 mA plein / 0,2 mA éteinte) ; extension RGB/7seg/barre à faire.
+- [Timestamp build en test F5](kablix-build-timestamp-f5.md) — afficher l'heure de build sous le nom Kablix pendant les tests F5 (repère visuel de version exécutée).
+- [testkablix : _generate écrase tout](kablix-testkablix-generate-ecrase.md) — schémas réaccordés en v2026.8.25 (0 échec) mais 18 programmes divergent encore ; sur désaccord c'est la spec qui a tort ; régénérer casse 7seg-pico.py multiplexé.
+- [Z-order Pico/Grove Shield](kablix-zorder-pico-grove.md) — shield z=0 sous Pico z=1 ; le hissage pin-reachable (z=4) le passait devant → figé à z=0 (v2026.7.177).
+- [Schémas de test : garder les emplacements](kablix-schemas-test-emplacements.md) — un test retouché par Frank garde ses x/y dans _spec.mjs, sauf refonte complète.
+- [Extraction : X@ic14 écrase le boîtier](kablix-extraction-ecrase-boitier.md) — réextraire un interne réécrit aussi externe/ic14.svg (filigrane « IC-14 ») ; git checkout après, puis recapturer.
+- [todo-keep-separators](todo-keep-separators.md) — garder les `---` dans todo.md et en ajouter par lot.
+- [CHANGELOG : style concis](changelog-style-concis.md) — une ou deux phrases courtes par entrée, zéro explication technique ; le détail reste dans todo.md.
+- [Gestes de souris : banc à vraie souris](kablix-bancs-gestes-souris-reels.md) — preventDefault tue dblclick, pointerdown.detail vaut 0 ; verify:souris pilote Chrome en CDP, contre-épreuve au git stash obligatoire.
+- [RÈGLE ABSOLUE : aucun fichier modifié sans demander](ne-jamais-modifier-fichiers-sans-demander.md) — git checkout/restore/reset compris ; le 20/09/2026 j'ai écrasé 7 fichiers de Frank en « nettoyant » l'état git.
+- [Dire « les tests », pas « la suite »](dire-les-tests-pas-la-suite.md) — « saturé par la suite » lu « plus tard » ; nommer la commande attendue, dire « occupé » et non « saturé ».
+- [Markdown : pas de saut de ligne dans le texte](markdown-sans-saut-de-ligne.md) — tous projets : un paragraphe = une ligne, ni coupure à 80 colonnes ni « deux espaces » en pleine phrase ; corriger aussi les modèles des scripts.
+- [Analyseur : page grise, première cause](kablix-analyseur-page-grise-cause-racine.md) — l'atelier poussait ses voies pendant le montage (sondes sur fil en défaut) ; vrai défaut, mais PAS celui que voyait Frank.
+- [Webview restaurée : sérialiseur obligatoire](kablix-webview-serializer-restauration.md) — LA cause de la page grise : sans WebviewPanelSerializer un onglet rouvert par VS Code ne reçoit plus rien ; 9 bancs aveugles car tous partent d'un onglet ouvert normalement.
+- [npm : node_modules en retard sur le lock](npm-cache-node-modules-trompeur.md) — audit fix a mis à jour le lock sans réinstaller ; npm ls mentait. Lire les package.json sur disque ; touch du dossier puis npm install.
+- [Zones à expliquer](zones-a-expliquer.md) — sujets où Frank a dit « explique » (dépendances npm) : détailler un cran de plus.
+- [kablix.ico intouchable](kablix-icone-ico-intouchable.md) — refait par Frank le 26/09/2026, icône des .projix : ne plus jamais le modifier ni le régénérer.
+- [CHANGELOG par thème](changelog-par-theme.md) — dans chaque partie (Nouveauté/Modification/Correction), les entrées d'un même thème se suivent, sans sous-titre.
