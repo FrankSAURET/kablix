@@ -2,27 +2,11 @@
 
 Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque mois.
 
-## 2026.9.7 (prochaine publication)
+## 2026.9.7 (29 septembre 2026)
 
 ### Nouveauté
 
 - **Kablix parle espagnol et chinois simplifié** : interface, messages, réglages, aide des composants, guide d'utilisation et README. La langue suit celle de VS Code. Les composants de la bibliothèque sont traduits aussi : mettez-les à jour depuis **⚙ Gérer les composants**.
-
-### Modification
-
-- **Analyseur logique : sans déclenchement, un décodage pose la vue sur la première trame.** Elle n'en bouge plus pendant la capture, au lieu de courir après la fin d'un bus qui parle sans arrêt (DS18B20 lu en boucle). Rien n'est enregistré dans le projet : régler un déclenchement reprend la main.
-- **Les bits 1-Wire de l'analyseur vont d'un créneau au suivant** : avec la case `Bits`, chaque bit occupe tout son slot, jusqu'au creux du bit suivant, sans trou entre deux bits. Le dernier bit d'une salve garde les 60 µs de la norme.
-
-### Correction
-
-- **La barre de temps de l'analyseur suit le zoom.** Zoomé loin dans une longue capture, toutes les graduations s'écrivaient `12,346 s`. Elles passent en millisecondes ou en microsecondes ; la première donne l'instant entier, les suivantes leur écart (`+50 µs`). L'instant lu au réticule garde tous ses chiffres utiles.
-
-- **Pico 2 : les créneaux 1-Wire gardent leur durée.** Pendant l'écriture d'un octet, certains « 1 » du programme duraient 22 à 50 µs au lieu de 10 : le capteur les lisait « 0 ». La capture de l'analyseur logique montre maintenant les mêmes créneaux que sur le Pico 1.
-
-## 2026.9.6 (27 septembre 2026)
-
-### Nouveauté
-
 - **Signal des composants au démarrage** : une notification prévient quand un composant installé a une version plus récente dans le dépôt, ou quand de nouveaux composants y sont apparus.
 - **Le projecteur DMX PAR 38 lit son quatrième canal**.
 - **Bouton Analyseur dans la barre de simulation** : il rouvre l'onglet de l'analyseur logique après une fermeture, avec sa dernière mesure. Il n'apparaît que si une pince est posée sur le schéma et que l'onglet est fermé.
@@ -50,6 +34,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Le panneau Variables se replie au lancement quand un analyseur logique s'ouvre**, se déplie à chaque pause du débogage, et se rouvre à l'arrêt.
 - **« Repos haut » devient « Inverser »** dans le menu d'une voie de l'analyseur.
 - **Capture pleine : l'analyseur dit la durée gardée**, avec la profondeur, et non plus l'heure de la simulation. Une capture relancée plus tard annonce la même durée.
+- **Analyseur logique : sans déclenchement, un décodage pose la vue sur la première trame.** Elle n'en bouge plus pendant la capture, au lieu de courir après la fin d'un bus qui parle sans arrêt (DS18B20 lu en boucle). Rien n'est enregistré dans le projet : régler un déclenchement reprend la main.
 - **L'infobulle « Échantillonnage » précise** qu'il ne change pas la durée de la capture.
 - **Les niveaux 0 et 1 à gauche des courbes de l'analyseur logique sont en gras**, 0 en rouge et 1 en vert (le vert des départs de décodage).
 - **Le message gris sur les courbes passe à la ligne** quand l'onglet est étroit.
@@ -57,6 +42,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Le départ est en vert et l'arrêt en rouge sous les courbes de l'analyseur**, pour tous les protocoles. Les données passent au bleu et les erreurs au magenta.
 - **Un caractère UART se découpe comme sur le fil** : `Start`, valeur, `STOP`. Une erreur de parité ou de cadrage se pose sur le bit fautif, et la valeur reste affichée.
 - **Le décodage DHT11/DHT22 s'écrit sur deux lignes** : les cinq octets, chacun dans sa case, puis l'humidité, la température et la somme cochée sous leurs octets. La température du DHT11 s'écrit au dixième (`22,0 °C`).
+- **Les bits 1-Wire de l'analyseur vont d'un créneau au suivant** : avec la case `Bits`, chaque bit occupe tout son slot, jusqu'au creux du bit suivant, sans trou entre deux bits. Le dernier bit d'une salve garde les 60 µs de la norme.
 - **Simulation du Pico : moteur rp2040js 1.4.0.** Les horloges du processeur et des périphériques suivent les réglages du programme.
 
 ### Correction
@@ -66,6 +52,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Le pas à pas Arduino ne saute plus de lignes.** Au début de `loop()`, tout le corps de la fonction passait d'un coup. Une pause pendant un `delay()` montre la ligne qui l'appelle.
 - **Pico : `machine.freq()` ne dérègle plus la PWM.** Un servomoteur réglé après un changement de fréquence prenait une mauvaise position.
 - **L'UART du Pico tourne à la vitesse réglée par le programme MicroPython.** Les octets partaient plus de deux fois trop vite.
+- **Pico 2 : les créneaux 1-Wire gardent leur durée.** Pendant l'écriture d'un octet, certains « 1 » du programme duraient 22 à 50 µs au lieu de 10 : le capteur les lisait « 0 ». La capture de l'analyseur logique montre maintenant les mêmes créneaux que sur le Pico 1.
 - **Les propriétés d'une sonde logique ne s'affichent plus en plusieurs exemplaires** quand on la pose sur une patte. Même correction pour l'interrupteur 3V3/5V du Grove Shield et les bascules dessinées sur les composants.
 - **Plusieurs pinces sur un même signal tracent toutes.** Sur une carte DMX, les pinces posées sur `SIG`, `+` et `−` remontent à la même broche : seule la dernière montrait la trame, les autres restaient plates.
 - **Pico : une trame DMX s'affiche avec ses vrais canaux.** Sous plusieurs pinces reliées à la même broche, chaque octet était compté plusieurs fois : 4 canaux devenaient 17, dans le désordre.
@@ -78,10 +65,11 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Changer le déclenchement de l'analyseur ne fait plus disparaître la courbe**.
 - **La vue de l'analyseur ne saute plus pendant la capture** quand son onglet s'ouvre avec la simulation : elle se pose sur le déclenchement et y reste.
 - **Le déclenchement tombe sur un front affiché** quand l'analyseur échantillonne. Il était posé sur le front réel, parfois plusieurs millisecondes avant le front dessiné, et « montant » ou « descendant » semblait sans effet.
-- **Déplacer l'onglet de l'analyseur vers une autre fenêtre (un second écran) ne fait plus disparaître les courbes.** 
+- **Déplacer l'onglet de l'analyseur vers une autre fenêtre (un second écran) ne fait plus disparaître les courbes.**
 - **L'analyseur garde son zoom** quand on déplace son onglet ou qu'on change un réglage (déclenchement, protocole…).
 - **L'analyseur logique ne se fige plus** sur une longue capture décodée vue en entier : zoom, marqueurs et déclenchement restaient bloqués jusqu'à la réouverture de l'onglet.
 - **L'instant lu au curseur de l'analyseur reste lisible sur la barre de temps**.
+- **La barre de temps de l'analyseur suit le zoom.** Zoomé loin dans une longue capture, toutes les graduations s'écrivaient `12,346 s`. Elles passent en millisecondes ou en microsecondes ; la première donne l'instant entier, les suivantes leur écart (`+50 µs`). L'instant lu au réticule garde tous ses chiffres utiles.
 - **Rouvrir un projet avec l'analyseur ouvert ne double plus sa capture.**
 - **Ouvrir une deuxième fenêtre de VS Code n'efface plus la mesure de l'analyseur logique en cours dans la première.** L'export CSV restait incomplet.
 

@@ -64,7 +64,7 @@ The project itself keeps the **settings** of the instrument (trigger, decoders, 
 
 Like a commercial analyzer, the instrument has a **bounded memory**: the **Depth** list of the toolbar sets the number of edges kept **per channel** — `5 k`, `15 k`, `60 k` (default), `250 k` or `1 M`. The two smallest are for isolating a short passage without keeping seconds of signal. During the measurement, each choice shows in brackets the **duration it covers** (`60 k (≈ 6 s)`), estimated on the busiest channel: a DMX bus or a fast clock fills the memory much faster than a blinking LED. Deeper means longer, but also heavier for the tab.
 
-Without a trigger, the capture keeps the **latest** edges: the oldest ones drop out as it goes, the screen follows the end. With a trigger, it keeps a tenth of the depth **before** the trigger edge and fills the rest **after** it; once full, it stops, and the toolbar gives the **duration of signal kept** and the depth: `Capture full: 8.3 s kept (60 k edges per channel)`. Restarted, a full capture keeps the same duration as long as the signal does not change its pace.
+Without a trigger or a decoding, the capture keeps the **latest** edges: the oldest ones drop out as it goes, the screen follows the end. With a trigger, it keeps a tenth of the depth **before** the trigger edge and fills the rest **after** it; once full, it stops, and the toolbar gives the **duration of signal kept** and the depth: `Capture full: 8.3 s kept (60 k edges per channel)`. Restarted, a full capture keeps the same duration as long as the signal does not change its pace.
 
 Changing the depth during the simulation applies at once: on a full capture, a new acquisition starts. With the simulation stopped, the choice waits for the next run.
 
@@ -86,7 +86,7 @@ The picture keeps the colours of the theme and its background, the channel names
 
 ## The trigger
 
-The **T** menu under a channel name: pick the **direction** — *rising* or *falling* edge. The capture then stays **waiting** until the first edge of that kind, then **locks on it**: instant 0 of the ruler becomes that edge, and everything reads as ahead of it or behind it. Without a trigger, the ruler starts at the instant the simulation was started.
+The **T** menu under a channel name: pick the **direction** — *rising* or *falling* edge. The capture then stays **waiting** until the first edge of that kind, then **locks on it**: instant 0 of the ruler becomes that edge, and everything reads as ahead of it or behind it. Without a trigger or a decoding, the ruler starts at the instant the simulation was started.
 
 Changing the setting **re-arms** the wait, as does the **↻ Restart capture** button: a full capture then starts a new acquisition.
 
@@ -101,6 +101,8 @@ On a channel that carries the data of another decoding, the menu offers **Frame 
 - **DHT11 / DHT22**: the master's request.
 
 The trigger reads the decoding as it is set: changing its channels or its speed restarts the search. The button then shows a line followed by a pulse.
+
+**Without a trigger, a decoding stands in for one.** As soon as a decoding is set and no **T** is, the capture behaves as with **Frame start** on the data channel of the first decoding: the view settles on the first frame and **stays there**, instead of chasing the end of a bus that never stops talking (a DS18B20 read in a loop). This trigger is not saved in the project and the **T** button keeps its look: setting a **T** takes over, removing the decoding brings back the following of the end.
 
 ## Decoding
 

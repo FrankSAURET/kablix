@@ -10,6 +10,19 @@
 
 ---
 
+# v2026.9.7.175
+1. ✅ **Publication 2026.9.7 préparée** (« V 2026.9.7 et 2026.9.6 non publiées. Retouche le changelog (merge les 2) […] le numéro de publication sera bien 2026.9.7. Prépare cette publication »).
+    1. [CHANGELOG.md](CHANGELOG.md) : `## 2026.9.6 (27 septembre 2026)` et `## 2026.9.7 (prochaine publication)` fusionnés en `## 2026.9.7 (29 septembre 2026)`. Entrées de la 2026.9.7 rangées dans leur thème (espagnol/chinois en tête des nouveautés, analyseur avec l'analyseur, Pico 2 avec le Pico). Espace en fin de ligne retiré.
+    2. [package.json](package.json) : `version` 2026.9.7, `buildNumber` 175 ; [package-lock.json](package-lock.json) suit.
+    3. Traductions soldées : ⏳ du lot 173 — aide EN, ES, ZH de la sonde logique (déclenchement implicite, « sans déclenchement ni décodage »).
+    4. [CLAUDE.md](CLAUDE.md) : état au 29/09 (2026.9.6 jamais publiée, 2026.9.7 préparée) ; prochaine section du CHANGELOG = `2026.9.8 (prochaine publication)`.
+    5. Typecheck, construction, `verify:docs`, `verify:i18n`, `verify:kompix`, `verify:heure-build`, `verify:help-bars` verts.
+2. ℹ️ `.vsix` non construit : pas demandé.
+3. ⏳ **Reste à Frank** : empaqueter et publier. Publication faite un autre jour : remplacer la date du CHANGELOG. Après publication : état du CLAUDE.md (« dernière version en ligne `2026.9.7` »), ouvrir `## 2026.9.8 (prochaine publication)`.
+4. ℹ️ `.claude/import-pc/` à GARDER : c'est la source du hook des sessions cloud (lot 174). Exclu du paquet par `.vscodeignore` (`.claude/**`).
+
+---
+
 # v2026.9.6.174
 1. ✅ **Configuration Claude du PC rendue aux sessions cloud** (« importer la totalité de ma configuration claude de mon PC […] générale ainsi que […] de ce projet »). Copie poussée par Frank sous `.claude/import-pc/` (28f9ed8).
     1. [.claude/hooks/config-pc.mjs](.claude/hooks/config-pc.mjs), branché en `SessionStart` dans [.claude/settings.json](.claude/settings.json) : en session cloud SEULEMENT (`CLAUDE_CODE_REMOTE=true`), injecte le CLAUDE.md global et l'index de la mémoire, copie `/reprend`, `/caveman`, `/tl` dans `~/.claude/commands/` et la mémoire dans `~/.claude/projects/<chemin encodé>/memory/`, lance `npm install` si `node_modules` manque. Sur le PC : sortie immédiate, rien n'est touché. En Node (tourne sous Windows comme sous Linux).

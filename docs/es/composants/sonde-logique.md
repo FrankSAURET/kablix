@@ -64,7 +64,7 @@ El proyecto, por su parte, conserva los **ajustes** del instrumento (disparo, de
 
 Como un analizador comercial, el instrumento tiene una **memoria limitada**: la lista **Profundidad** de la barra fija el número de flancos conservados **por canal** — `5 k`, `15 k`, `60 k` (por defecto), `250 k` o `1 M`. Las dos más pequeñas sirven para aislar un pasaje corto sin guardar segundos de señal. Durante la medida, cada opción muestra entre paréntesis la **duración que cubre** (`60 k (≈ 6 s)`), estimada sobre el canal más activo: un bus DMX o un reloj rápido llenan la memoria mucho antes que un LED que parpadea. Más profundo significa más largo, pero también más pesado para la pestaña.
 
-Sin disparo, la captura conserva los **últimos** flancos: los más antiguos van saliendo y la pantalla sigue el final. Con un disparo, conserva una décima parte de la profundidad **antes** del flanco de disparo y llena el resto **después** de él; una vez llena, se detiene, y la barra indica la **duración de señal conservada** y la profundidad: `Captura llena: 8,3 s de medida (60 k flancos por canal)`. Reiniciada, una captura llena conserva la misma duración mientras la señal no cambie de ritmo.
+Sin disparo ni decodificación, la captura conserva los **últimos** flancos: los más antiguos van saliendo y la pantalla sigue el final. Con un disparo, conserva una décima parte de la profundidad **antes** del flanco de disparo y llena el resto **después** de él; una vez llena, se detiene, y la barra indica la **duración de señal conservada** y la profundidad: `Captura llena: 8,3 s de medida (60 k flancos por canal)`. Reiniciada, una captura llena conserva la misma duración mientras la señal no cambie de ritmo.
 
 Cambiar la profundidad durante la simulación se aplica al momento: en una captura llena, empieza una nueva adquisición. Con la simulación detenida, la elección espera a la siguiente ejecución.
 
@@ -86,7 +86,7 @@ La imagen conserva los colores del tema y su fondo, los nombres de los canales, 
 
 ## El disparo
 
-El menú **T** bajo el nombre de un canal: elija el **sentido** — flanco de *subida* o de *bajada*. La captura queda entonces **en espera** hasta el primer flanco de ese tipo, y luego **se fija en él**: el instante 0 de la regla pasa a ser ese flanco, y todo se lee como adelantado o retrasado respecto a él. Sin disparo, la regla parte del instante en que se arrancó la simulación.
+El menú **T** bajo el nombre de un canal: elija el **sentido** — flanco de *subida* o de *bajada*. La captura queda entonces **en espera** hasta el primer flanco de ese tipo, y luego **se fija en él**: el instante 0 de la regla pasa a ser ese flanco, y todo se lee como adelantado o retrasado respecto a él. Sin disparo ni decodificación, la regla parte del instante en que se arrancó la simulación.
 
 Cambiar el ajuste **rearma** la espera, igual que el botón **↻ Reiniciar la captura**: una captura llena empieza entonces una nueva adquisición.
 
@@ -101,6 +101,8 @@ En un canal que lleva los datos de otra decodificación, el menú ofrece **Inici
 - **DHT11 / DHT22**: la petición del maestro.
 
 El disparo lee la decodificación tal como está ajustada: cambiar sus canales o su velocidad reinicia la búsqueda. El botón muestra entonces una línea seguida de un pulso.
+
+**Sin disparo, una decodificación hace sus veces.** En cuanto hay una decodificación y ningún **T** ajustado, la captura se comporta como con **Inicio de trama** en el canal de datos de la primera decodificación: la vista se posa en la primera trama y **ya no se mueve**, en lugar de perseguir el final de un bus que no deja de hablar (un DS18B20 leído en bucle). Este disparo no se guarda en el proyecto y el botón **T** conserva su aspecto: ajustar un **T** retoma el control, quitar la decodificación devuelve el seguimiento del final.
 
 ## La decodificación
 
