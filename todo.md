@@ -10,6 +10,14 @@
 
 ---
 
+# v2026.9.7.177
+1. ✅ **2026.9.7 en ligne** (« j'ai déjà publié la 2026.9.7. Avant ta modification ») : publiée le 29 septembre 2026, SANS le lot 176.
+    1. [CHANGELOG.md](CHANGELOG.md) : l'entrée du lot 176 (atelier et analyseur plus légers) quitte la section datée `2026.9.7` pour `## 2026.9.8 (prochaine publication)`.
+    2. [CLAUDE.md](CLAUDE.md) : état au 29/09 — dernière version en ligne `2026.9.7`, prochaine `2026.9.8`.
+    3. `version` reste 2026.9.7 (la version en ligne), `buildNumber` 177.
+
+---
+
 # v2026.9.7.176
 1. ✅ **Coût d'une langue réduit** (« fais les deux gains »).
     1. [esbuild.js](esbuild.js) : `charset: 'utf8'` pour webview.js, analyseur.js et les dictionnaires — le chinois n'est plus écrit en `\uXXXX`.
@@ -19,7 +27,7 @@
     5. Mesuré en construction de production : webview.js 4 248 → 4 107 Ko (gzip 859 → 809 Ko), analyseur.js 213 → 72 Ko (gzip 72 → 25 Ko) ; la page ne charge plus qu'un dictionnaire de 38 à 42 Ko.
     6. Banc nouveau [verify-dictionnaires.mjs](scripts/verify-dictionnaires.mjs) (`npm run verify:dictionnaires`, port 9438, dans `verify:all`) : fichiers de dist/ (aucun dictionnaire dans les pages, chaque langue dans son fichier, chinois en UTF-8), balise selon 7 langues de VS Code, VRAIE page de l'analyseur avec les vrais fichiers en fr, es, zh-cn, en (texte peint, un seul dictionnaire chargé). 18 contrôles ; contre-épreuve (sources d'avant, reconstruites) : 5 échecs.
     7. `verify:all` : 153 bancs, les 14 rouges le sont par le conteneur (Chrome cherché sous Windows, chemin Windows de `verify:compiler`) ; les 13 bancs à Chrome rejoués avec le Chromium du conteneur : verts, plus panneaux, réouverture, debugvars-e2e, bom, selection, heure-build.
-2. ℹ️ CHANGELOG : entrée ajoutée à `2026.9.7 (29 septembre 2026)`, section préparée mais PAS encore publiée — le paquet construit maintenant contient ce lot.
+2. ℹ️ CHANGELOG : entrée d'abord posée sous `2026.9.7`, déplacée sous `2026.9.8` au lot 177 (la 2026.9.7 était déjà publiée sans ce lot).
 
 ---
 

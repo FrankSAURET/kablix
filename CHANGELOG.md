@@ -2,6 +2,12 @@
 
 Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque mois.
 
+## 2026.9.8 (prochaine publication)
+
+### Modification
+
+- **L'atelier et l'analyseur logique s'ouvrent plus légers** : seules les traductions de la langue de VS Code sont chargées, et non plus celles des quatre langues.
+
 ## 2026.9.7 (29 septembre 2026)
 
 ### Nouveauté
@@ -27,7 +33,6 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Modification
 
-- **L'atelier et l'analyseur logique s'ouvrent plus légers** : seules les traductions de la langue de VS Code sont chargées, et non plus celles des quatre langues.
 - **Grove DMX512 (composant 2026.9.2) : une pince posée sur `−` montre le signal inversé**. Cocher « Inverser » sur cette voie la remet à l'endroit pour la décoder.
 - **Grove DMX512 (composant 2026.9.3) : les voies `+` et `−` de l'analyseur affichent `3,7 V` et `1,1 V`**, les tensions de sortie de l'émetteur de ligne SN75176A. La voie `SIG` garde celles de la carte.
 - **L'export CSV de l'analyseur passe dans le menu ☰ de l'onglet**, à côté de la copie et de l'export SVG. M1 et M2 posés, il ne garde que la mesure comprise entre eux, encadrée par le niveau de chaque voie à M1 et à M2.
