@@ -17,5 +17,15 @@
         "**/docs": true,
         "**/Archives": true,
         "**/A Examiner": true
+    },
+    "python.analysis.typeshedPaths": [
+        "c:\\Users\\Frank\\.vscode\\extensions\\paulober.pico-w-go-4.5.0-win32-x64\\mpy_stubs"
+    ],
+    "python.analysis.extraPaths": [
+        "c:\\Users\\Frank\\.vscode\\extensions\\paulober.pico-w-go-4.5.0-win32-x64\\mpy_stubs"
+    ],
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingModuleSource": "none"
     }
 }

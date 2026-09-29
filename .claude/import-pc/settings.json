@@ -12,8 +12,7 @@
     ],
     "additionalDirectories": [
       "\\tmp",
-      "C:\\Users\\Frank\\.claude",
-      "O:\\Jeux\\Traducteur"
+      "C:\\Users\\Frank\\.claude"
     ]
   },
   "model": "sonnet",
