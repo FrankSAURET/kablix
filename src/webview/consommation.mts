@@ -40,6 +40,8 @@ export interface MesureConsommation {
   chargeAh: number;
   /** Part de la tranche passée en veille profonde (0 à 1). */
   partVeille: number;
+  /** Durée de la tranche en temps simulé (ms) ; 0 pour une tranche vide (pause). */
+  dtMs: number;
 }
 
 /**
@@ -50,14 +52,14 @@ export class CompteurConsommation {
   private simMs = 0;
   private veilleMs = 0;
   private chargeAh = 0;
-  private dernier: MesureConsommation = { courantA: 0, chargeAh: 0, partVeille: 0 };
+  private dernier: MesureConsommation = { courantA: 0, chargeAh: 0, partVeille: 0, dtMs: 0 };
 
   /** Nouveau run : tout repart de zéro. */
   reinitialiser(): void {
     this.simMs = 0;
     this.veilleMs = 0;
     this.chargeAh = 0;
-    this.dernier = { courantA: 0, chargeAh: 0, partVeille: 0 };
+    this.dernier = { courantA: 0, chargeAh: 0, partVeille: 0, dtMs: 0 };
   }
 
   /**
@@ -67,7 +69,7 @@ export class CompteurConsommation {
    */
   pas(carte: BoardId, simMs: number, veilleMs: number, chargesA: number): MesureConsommation {
     const dt = simMs - this.simMs;
-    if (!(dt > 0)) return this.dernier;
+    if (!(dt > 0)) return { ...this.dernier, dtMs: 0 };
     const dv = Math.min(dt, Math.max(0, veilleMs - this.veilleMs));
     this.simMs = simMs;
     this.veilleMs = veilleMs;
@@ -75,7 +77,21 @@ export class CompteurConsommation {
     const partVeille = dv / dt;
     const courantA = eveilleeA * (1 - partVeille) + veilleA * partVeille + Math.max(0, chargesA);
     this.chargeAh += (courantA * dt) / 3_600_000;
-    this.dernier = { courantA, chargeAh: this.chargeAh, partVeille };
+    this.dernier = { courantA, chargeAh: this.chargeAh, partVeille, dtMs: dt };
     return this.dernier;
   }
+}
+
+/**
+ * Décharge d'une batterie pendant une tranche : `courantA` pendant `dtMs` de
+ * temps simulé. Rend la charge restante, jamais négative (Ah).
+ */
+export function decharger(restantAh: number, courantA: number, dtMs: number): number {
+  if (!(dtMs > 0) || !(courantA > 0)) return restantAh;
+  return Math.max(0, restantAh - (courantA * dtMs) / 3_600_000);
+}
+
+/** Autonomie restante au courant actuel, en heures (Infinity si rien ne débite). */
+export function autonomieH(restantAh: number, courantA: number): number {
+  return courantA > 0 ? restantAh / courantA : Infinity;
 }

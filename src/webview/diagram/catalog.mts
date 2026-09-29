@@ -1229,9 +1229,13 @@ export const CATALOG: readonly PartDef[] = [
   // tourne (powerbank-element.mts).
   {
     type: 'powerbank', label: 'Power bank', tag: 'kablix-powerbank', kind: 'psu',
-    attrs: { voltage: '5', maxcurrent: '2' },
+    // `capacity` (mAh, v2026.9.7.179) : la batterie se vide au rythme de ce
+    // qu'elle alimente, carte comprise quand elle la fait tourner ; vide, sa
+    // sortie se coupe (jauge LED1..4 du dessin, sim.mts).
+    attrs: { voltage: '5', maxcurrent: '2', capacity: '10000' },
     props: [
       { attr: 'maxcurrent', label: 'Max current supplied (A)', kind: 'number', min: 0.1, max: 10, step: 0.1 },
+      { attr: 'capacity', label: 'Capacity (mAh)', kind: 'number', min: 1, max: 50000, step: 1 },
     ],
   },
   // Multimètre de table (dessin de Frank) : deux prises banane + et GND, et un

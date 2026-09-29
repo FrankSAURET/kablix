@@ -3793,6 +3793,92 @@ while True:
 `,
   }),
 
+  // Consommation et batterie (feuille de route n° 1 et 2, v2026.9.7.179) : la
+  // carte alterne 2 s éveillée et 2 s en veille PROFONDE, alimentée par une
+  // batterie d'1 mAh qu'on voit se vider. Traceur : « Courant de la carte »
+  // (46 mA éveillée, 31 mA en veille sur Uno — une Uno ne dort pas vraiment ;
+  // 21 mA et 1,3 mA sur Pico), charge et autonomie de la batterie. Vide, la
+  // batterie éteint la carte : la barre d'état dit au bout de combien de temps.
+  test({
+    name: 'consommation-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno', 200, 80),
+      { id: 'Bat1', type: 'powerbank', x: 700, y: 60, attrs: { voltage: '5', maxcurrent: '2', capacity: '1' } },
+    ],
+    wires: () => [
+      w('Bat1', 'V+', 'U1', '5V', 'red'),
+      w('Bat1', 'GND', 'U1', 'GND.1', 'black'),
+    ],
+    expect: { kind: 'batterie', partId: 'Bat1', broche: '5V' },
+    code: `// Test consommation : 2 s éveillée (LED L allumée), 2 s en veille profonde
+// (power-down, réveil par le chien de garde). Au traceur, le courant de la
+// carte passe de 46 à 31 mA : même endormie, une Uno garde son régulateur, sa
+// puce USB et sa LED ON. La batterie (1 mAh) se vide en quelques minutes.
+#include <avr/sleep.h>
+#include <avr/wdt.h>
+#include <avr/interrupt.h>
+
+ISR(WDT_vect) {}
+
+void dormir2s() {
+  cli();
+  MCUSR = 0;
+  WDTCSR = _BV(WDCE) | _BV(WDE);
+  WDTCSR = _BV(WDIE) | _BV(WDP2) | _BV(WDP1) | _BV(WDP0);  // 2 s
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+  sleep_enable();
+  sei();
+  sleep_cpu();
+  sleep_disable();
+  wdt_disable();
+}
+
+void setup() {
+  pinMode(LED_BUILTIN, OUTPUT);
+  Serial.begin(9600);
+}
+
+void loop() {
+  digitalWrite(LED_BUILTIN, HIGH);
+  Serial.println("eveillee");
+  delay(2000);
+  digitalWrite(LED_BUILTIN, LOW);
+  Serial.println("veille");
+  Serial.flush();
+  dormir2s();
+}
+`,
+  }),
+
+  test({
+    name: 'consommation-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico', 160, 100),
+      { id: 'Bat1', type: 'powerbank', x: 700, y: 60, attrs: { voltage: '5', maxcurrent: '2', capacity: '1' } },
+    ],
+    wires: () => [
+      w('Bat1', 'V+', 'U1', 'VSYS', 'red'),
+      w('Bat1', 'GND', 'U1', 'GND.1', 'black'),
+    ],
+    expect: { kind: 'batterie', partId: 'Bat1', broche: 'VSYS' },
+    code: `# Test consommation : 2 s eveillee (LED GP25 allumee), 2 s en veille
+# profonde (machine.lightsleep). Au traceur, le courant de la carte passe de
+# 21 mA a 1,3 mA. time.sleep() ne compte PAS comme veille : la puce reste
+# eveillee. La batterie (1 mAh) dure bien plus longtemps que sur une Uno.
+from machine import Pin, lightsleep
+import time
+
+led = Pin(25, Pin.OUT)
+while True:
+    led.on()
+    print("eveillee")
+    time.sleep(2)
+    led.off()
+    print("veille")
+    lightsleep(2000)
+`,
+  }),
+
   test({
     name: 'blink-picow', board: 'picow', ext: 'py',
     parts: [MCU('picow', 160, 100)],

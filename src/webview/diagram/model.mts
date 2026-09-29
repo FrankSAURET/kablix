@@ -427,6 +427,35 @@ function psuParts(diagram: Diagram): Part[] {
   return diagram.parts.filter((p) => partDef(p.type).kind === 'psu');
 }
 
+/** Entrées d'alimentation d'une carte : régulateur (VIN, VSYS) ou rail direct (5V, VBUS). */
+const ENTREES_CARTE = ['VIN', 'VSYS', 'VBUS', '5V'];
+
+/**
+ * La source qui ALIMENTE LA CARTE (feuille de route n° 2, v2026.9.7.179) : une
+ * alimentation dont le V+ rejoint une entrée d'alimentation de la carte et dont
+ * la masse rejoint la sienne. La carte tire alors son courant de cette source —
+ * et s'éteint quand une batterie se vide. Sans elle, la carte est alimentée par
+ * l'USB, comme toujours. Rend la première trouvée (une seule carte par schéma).
+ */
+export function alimentationDeLaCarte(diagram: Diagram): { psuId: string; broche: string } | null {
+  const carte = mcuParts(diagram)[0]?.part;
+  if (!carte) return null;
+  const { nets } = resistiveGraph(diagram);
+  // Masses DE LA CARTE (GND, GND.1…) : toute broche de masse compte comme
+  // masse du schéma, celle d'une batterie posée à côté comprise — ce qui compte
+  // ici, c'est qu'elle rejoigne la carte.
+  const massesCarte = new Set(['GND', ...Array.from({ length: 8 }, (_, i) => `GND.${i + 1}`)]
+    .map((pin) => nets.netOf({ partId: carte.id, pin })));
+  for (const psu of psuParts(diagram)) {
+    if (!massesCarte.has(nets.netOf({ partId: psu.id, pin: 'GND' }))) continue;
+    const vplus = nets.netOf({ partId: psu.id, pin: 'V+' });
+    for (const broche of ENTREES_CARTE) {
+      if (nets.netOf({ partId: carte.id, pin: broche }) === vplus) return { psuId: psu.id, broche };
+    }
+  }
+  return null;
+}
+
 /** Microcontrôleurs présents dans le schéma, avec leur carte. */
 function mcuParts(diagram: Diagram): Array<{ part: Part; board: BoardId }> {
   const out: Array<{ part: Part; board: BoardId }> = [];

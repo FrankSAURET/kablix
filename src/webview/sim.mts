@@ -66,9 +66,9 @@ import './composants/patte-element.mjs';
 import './composants/araignee-element.mjs';
 import './composants/custom-part.mjs';
 
-import { initLocale, t } from './i18n.mjs';
+import { initLocale, locale, t } from './i18n.mjs';
 import { Plotter } from './plotter.mjs';
-import { CompteurConsommation } from './consommation.mjs';
+import { CompteurConsommation, decharger, autonomieH } from './consommation.mjs';
 import { Editor, KABLIX_BADGE, type PaletteState } from './diagram/editor.mjs';
 import { partDef, boardFamily, isPicoBoard, isBoardId, mcuPinRole, pca9685Address, controlMax, PARAM_ATTR_PREFIX, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { compileExpr } from './diagram/expr.mjs';
@@ -81,6 +81,7 @@ import {
   ledPowerCircuit,
   ledElectrical,
   psuLoadAmps,
+  alimentationDeLaCarte,
   pca9685PowerState,
   rgbSeriesOhms,
   sevenSegSeriesOhms,
@@ -444,6 +445,8 @@ const burnedLeds = new Set<string>();
 // rails), puis intégré dans le temps simulé avec son propre courant.
 let courantChargesA = 0;
 const compteurConso = new CompteurConsommation();
+/** Charge restante (Ah) de chaque batterie du schéma, depuis le lancement. */
+const chargesBatteries = new Map<string, number>();
 // PCA9685 (carte 16 servos) grillés pendant ce run : surtension du bornier V+
 // (> 5,5 V). Définitif jusqu'au prochain lancement (carte « remplacée »).
 const burnedPcas = new Set<string>();
@@ -2858,6 +2861,53 @@ function majConsommation(): void {
   const m = compteurConso.pas(board, engine.simulatedMs(), engine.sleepMs?.() ?? 0, courantChargesA);
   plotter.probe(t('Board current'), Math.round(m.courantA * 10_000) / 10, 'mA', true);
   plotter.probe(t('Charge used'), Math.round(m.chargeAh * 1_000_000) / 1000, 'mAh', true);
+  majBatteries(m.courantA, m.dtMs);
+}
+
+/**
+ * Batteries (feuille de route n° 2) : chacune se vide de ce qu'elle débite —
+ * ses charges directes (psuLoadAmps), plus la carte entière quand c'est elle qui
+ * l'alimente (VIN, 5V, VSYS, VBUS). La jauge du dessin suit la charge, le
+ * traceur montre la charge et l'autonomie au courant du moment. Vide alors
+ * qu'elle fait tourner la carte : la carte s'éteint, la simulation s'arrête et
+ * dit au bout de combien de temps de programme.
+ */
+function majBatteries(courantCarteA: number, dtMs: number): void {
+  const alim = alimentationDeLaCarte(editor.diagram);
+  for (const part of editor.diagram.parts) {
+    if (part.type !== 'powerbank') continue;
+    const capaciteAh = Math.max(0.001, Number(part.attrs?.capacity ?? 10000) / 1000 || 10);
+    const volts = Number(part.attrs?.voltage ?? 5) || 5;
+    const alimenteLaCarte = alim?.psuId === part.id;
+    const courantA = psuLoadAmps(editor.diagram, part.id, volts, liveVariableOhms) + (alimenteLaCarte ? courantCarteA : 0);
+    const restantAh = decharger(chargesBatteries.get(part.id) ?? capaciteAh, courantA, dtMs);
+    chargesBatteries.set(part.id, restantAh);
+    const el = editor.elementOf(part.id) as unknown as { charge?: number; volts?: number } | null;
+    if (el) {
+      el.charge = restantAh / capaciteAh;
+      // Vide : la sortie se coupe (psuLiveVolts relit `volts`) — ce qu'elle
+      // alimente directement s'éteint avec elle.
+      el.volts = restantAh > 0 ? undefined : 0;
+    }
+    plotter.probe(t('{0}: charge', part.id), Math.round((restantAh / capaciteAh) * 1000) / 10, '%', true);
+    const h = autonomieH(restantAh, courantA);
+    if (Number.isFinite(h)) plotter.probe(t('{0}: battery life', part.id), Math.round(h * 100) / 100, 'h', true);
+    if (restantAh <= 0 && alimenteLaCarte && engine) {
+      const duree = formatDureeProgramme(engine.simulatedMs?.() ?? 0);
+      stopRun();
+      setStatus(t('{0} is empty: the board switched off after {1} of program.', part.id, duree));
+      return;
+    }
+  }
+}
+
+/** Durée de programme lisible : « 12,4 s », « 3 min 20 s », « 2 h 05 min ». */
+function formatDureeProgramme(ms: number): string {
+  const s = ms / 1000;
+  if (s < 60) return `${s.toLocaleString(locale(), { maximumFractionDigits: 1 })} s`;
+  const min = Math.floor(s / 60);
+  if (min < 60) return `${min} min ${String(Math.round(s % 60)).padStart(2, '0')} s`;
+  return `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')} min`;
 }
 
 /**
@@ -4560,6 +4610,7 @@ function startRun(): void {
   }
   plotter.start(); // nouvelles courbes à chaque run (comme la console)
   compteurConso.reinitialiser();
+  chargesBatteries.clear();
   // Pont réseau Pico W : le moteur publie les requêtes, l'hôte fait le vrai
   // fetch et renvoie la réponse (message 'netResponse').
   if (engine.onNetRequest !== undefined) {

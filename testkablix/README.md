@@ -50,7 +50,8 @@ Le robot araignée n'a pas de jumeau : sa Pico W est **dans** le châssis, il n'
 | Transistor NPN (proto) | `npn-uno` | `npn-pico` | `npn-pico2` | commande côté bas d'une LED |
 | Transistor PNP (proto) | `pnp-uno` | `pnp-pico` | `pnp-pico2` | commande côté haut (logique inversée) |
 | Relais OMRON G5V | `relais-uno` | `relais-pico` | `relais-pico2` | seul le relais bien câblé colle |
-| Batterie externe (Power bank) | `powerbank-uno` | `powerbank-pico` | `powerbank-pico2` | alimente un PCA9685 + servo, LED de jauge allumées en simulation |
+| Batterie externe (Power bank) | `powerbank-uno` | `powerbank-pico` | `powerbank-pico2` | alimente un PCA9685 + servo, LED de jauge suivant la charge |
+| Consommation et batterie | `consommation-uno` | `consommation-pico` | — | la batterie (1 mAh) alimente la carte, qui alterne 2 s éveillée et 2 s en veille profonde ; traceur : courant de la carte, charge et autonomie ; vide, la carte s'éteint |
 | Patte d'araignée (placeholder) | `patte-uno` | `patte-pico` | `patte-pico2` | 2 articulations (coxa, patella) sur 2 canaux PCA9685 indépendants |
 | Robot araignée | — | `araignee-pico` | — | Robot SEUL, sans un fil : il porte sa Pico W (carte `picow`) et son PCA9685 à 0x7F pilote ses 8 articulations. Pas de test Arduino — le robot EST la carte |
 | Buzzer | `buzzer-uno` | `buzzer-pico` | `buzzer-pico2` | halo actif + tone/PWM |

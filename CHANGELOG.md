@@ -4,6 +4,13 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ## 2026.9.8 (prochaine publication)
 
+### Nouveauté
+
+- **Consommation de la carte au traceur** : deux courbes à chaque lancement, sans une ligne de code — le courant de la carte (mA) et la charge consommée (mAh). C'est la carte réelle qui est mesurée : une Uno endormie garde 31 mA, une Pico en `lightsleep()` descend à 1,3 mA.
+- **La mise en veille compte** : `sleep_cpu()` ou *LowPower* sur Arduino (power-down, power-save, standby), `machine.lightsleep()` sur Pico. `delay()` et `time.sleep()` laissent la puce éveillée, comme en vrai.
+- **Le Power bank a une capacité et se vide** : il alimente la carte par VIN, 5V, VSYS ou VBUS, sa jauge suit la charge, le traceur montre sa charge et son autonomie. Vide, il éteint la carte et la barre d'état dit au bout de combien de temps.
+- **Tests `consommation-uno` et `consommation-pico`** : une carte qui alterne veille et réveil, sur une batterie d'1 mAh.
+
 ### Modification
 
 - **L'atelier et l'analyseur logique s'ouvrent plus légers** : seules les traductions de la langue de VS Code sont chargées, et non plus celles des quatre langues.

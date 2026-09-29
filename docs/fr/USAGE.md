@@ -26,7 +26,8 @@
    5. [Déboguer](#déboguer)
    6. [Moniteur série](#moniteur-série)
    7. [Traceur de courbes](#traceur-de-courbes)
-   8. [Éclairage DMX512](#éclairage-dmx512)
+   8. [Consommation de la carte](#consommation-de-la-carte)
+   9. [Éclairage DMX512](#éclairage-dmx512)
 5. [Exporter la liste des composants (nomenclature CSV)](#exporter-la-liste-des-composants-nomenclature-csv)
 6. [Exporter le schéma en SVG](#exporter-le-schéma-en-svg)
 7. [Créer ses propres composants](#créer-ses-propres-composants)
@@ -422,6 +423,30 @@ Commandes du panneau :
 - **Effacer** : vide les courbes.
 
 À l'arrêt de la simulation, les courbes restent affichées pour analyse.
+
+### Consommation de la carte
+
+Le traceur montre, à chaque lancement, deux courbes **sans une ligne de code** : **`Courant de la carte`** (mA) et **`Charge consommée`** (mAh, cumulée depuis le lancement). Elles n'ouvrent pas le panneau toutes seules : elles attendent que vous le regardiez.
+
+Ce qui est mesuré, c'est la **carte réelle**, pas la puce seule : son microcontrôleur, mais aussi son régulateur, sa puce USB et sa LED ON — plus le courant qu'elle fournit à ce qu'elle alimente (LED pilotées par ses broches ou branchées sur ses rails 5V / 3V3).
+
+| Carte | Éveillée | En veille profonde |
+| ----- | -------- | ------------------ |
+| Uno | 46 mA | 31 mA |
+| Nano | 19 mA | 7 mA |
+| Mega | 72 mA | 47 mA |
+| Pico, Pico 2 | 21-22 mA | 1,3 mA |
+| Pico W, Pico 2 W | 23-24 mA | 1,4 mA |
+
+*Ordres de grandeur de cartes réelles au repos, alimentées en 5 V.* La leçon est dans l'écart : une Uno endormie garde les deux tiers de sa consommation, une Pico en perd 95 %.
+
+**Ce qui compte comme veille profonde** — les vraies instructions de mise en veille, comme sur la puce :
+
+- **Arduino** : `sleep_cpu()` (`avr/sleep.h`) ou une bibliothèque comme *LowPower*, en mode **power-down**, **power-save** ou **standby**. Le cœur s'arrête vraiment jusqu'à l'interruption qui le réveille : le **chien de garde** (`WDT`), une interruption externe (`INT0`, `INT1`, changement de broche) — et le Timer 2 en power-save. Le mode *idle* se réveille à la moindre interruption (celle de `millis()` toutes les millisecondes) et ne compte pas comme veille profonde.
+- **Pico** : `machine.lightsleep(ms)` (et `deepsleep`).
+- **Ne comptent pas** : `delay()`, `time.sleep()` — la vraie puce reste éveillée pendant ces attentes, sa consommation aussi.
+
+Pour mesurer une **autonomie**, faites alimenter la carte par une batterie : voir la fiche [Batterie externe (Power bank)](composants/powerbank.md).
 
 ### Éclairage DMX512
 

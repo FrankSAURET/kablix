@@ -757,6 +757,14 @@ for (const t of TESTS) {
         if (e.nets) checkNets(t, diagram, e.nets);
         break;
       }
+      case 'batterie': {
+        // La batterie ALIMENTE la carte (V+ sur une entrée d'alimentation,
+        // masses réunies) : c'est elle qui se vide de la consommation.
+        const alim = model.alimentationDeLaCarte(diagram);
+        check(`${t.name} : ${e.partId} alimente la carte par ${e.broche}`,
+          alim?.psuId === e.partId && alim?.broche === e.broche, JSON.stringify(alim));
+        break;
+      }
       case 'nets':
         // Continuité pure : aucun modèle de simulation derrière le composant
         // (liaison DMX512, câblage passif).

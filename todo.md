@@ -1,5 +1,4 @@
 # À faire
-1. Traite les points 1 et 2 du roadmap.md
 ## fait
 
 
@@ -11,9 +10,30 @@
 
 ---
 
+# v2026.9.7.179
+1. ✅ **Feuille de route n° 1 : consommation en temps réel** (« Traite les points 1 et 2 du roadmap.md » ; choix de Frank : carte réelle, traceur, vraies instructions de veille).
+    1. Veille AVR : [avr.mts](src/webview/engines/avr.mts) exécute SLEEP (avr8js ne le fait pas : `LowPower.powerDown(SLEEP_8S)` durait 0 s). SE posé : cœur arrêté, le temps avance d'événement d'horloge en événement d'horloge SANS servir les interruptions, jusqu'à celle qui réveille le mode (profond : INTn, PCINTn, WDT, TWI, + Timer 2 en power-save ; idle/ADC : toutes). Chien de garde `AVRWatchdog` branché (vecteur 0x18 sur Mega). Temps en veille profonde compté (`sleepMs`).
+    2. Veille Pico : [rp-chip.mts](src/webview/engines/rp-chip.mts) `sommeilProfond()` = bit SLEEPDEEP de SCR (posé par `machine.lightsleep()` autour de son WFI) — retenu au passage sur RP2040 (rp2040js l'ignore et journalisait « Unimplemented peripheral write »), lu dans rp2350js. [pico.mts](src/webview/engines/pico.mts) compte les sauts d'alarme faits sous ce bit.
+    3. `SimEngine.sleepMs()` ([types.mts](src/webview/engines/types.mts)), transmis par le worker (`PinSnapshot.sleepMs`).
+    4. [consommation.mts](src/webview/consommation.mts) : `COURANT_CARTE` (carte réelle, éveillée / veille profonde : Uno 46/31 mA, Nano 19/7, Mega 72/47, Pico 21/1,3, Pico W 23/1,4, Pico 2 22/1,3, Pico 2 W 24/1,4 — ORDRES DE GRANDEUR à confirmer par Frank), `CompteurConsommation` (moyenne pondérée par le temps en veille, intégration en temps simulé), `decharger`, `autonomieH`.
+    5. [sim.mts](src/webview/sim.mts) : courant fourni par la carte à ses LED (simples et RGB, au prorata du rapport cyclique), `majConsommation()` à chaque image → traceur « Board current » (mA) et « Charge used » (mAh). [plotter.mts](src/webview/plotter.mts) : séries SILENCIEUSES, qui n'ouvrent pas le panneau à chaque lancement.
+2. ✅ **Feuille de route n° 2 : batterie** — Power bank (le nouveau composant « Pile » attend son dessin, point 5).
+    1. [catalog.mts](src/webview/diagram/catalog.mts) : propriété `capacity` (mAh, 10 000 par défaut, 1 à 50 000).
+    2. [model.mts](src/webview/diagram/model.mts) `alimentationDeLaCarte()` : la source dont V+ rejoint VIN, 5V, VSYS ou VBUS de la carte ET dont la masse rejoint la sienne.
+    3. [sim.mts](src/webview/sim.mts) `majBatteries()` : décharge = charges directes (`psuLoadAmps`) + carte entière quand elle l'alimente ; traceur « Bat1: charge » (%) et « Bat1: battery life » (h) ; vide → sortie à 0 V (`el.volts`), et si elle alimentait la carte : `stopRun()` + « Bat1 is empty: the board switched off after … of program. »
+    4. [powerbank-element.mts](src/webview/composants/powerbank-element.mts) : jauge LED1..4 = une LED par quart entamé ; pleine à chaque lancement.
+3. ✅ Tests `consommation-uno` (power-down + chien de garde 2 s) et `consommation-pico` (`lightsleep(2000)`), batterie d'1 mAh sur 5V / VSYS : [_spec.mjs](testkablix/_spec.mjs), attente nouvelle `batterie` dans [_verify.mjs](testkablix/_verify.mjs), ligne dans [README](testkablix/README.md). Générés seuls (`_generate.mjs consommation-uno consommation-pico`).
+4. ✅ Bancs : [verify-veille-avr.mjs](scripts/verify-veille-avr.mjs) (programme AVR assemblé par llvm-mc : power-down réveillé par le seul chien de garde toutes les 16 ms, idle par le Timer 0 chaque 1,024 ms, SLEEP sans SE sans effet ; 6 contrôles, contre-épreuve 3 échecs), [verify-veille-pico.mjs](scripts/verify-veille-pico.mjs) (Thumb, RP2040 et RP2350, 6 contrôles, contre-épreuve 6 échecs), [verify-consommation.mjs](scripts/verify-consommation.mjs) (calcul + vraie AvrEngine : 31,00 mA en power-down, 46,00 éveillée ; contre-épreuve 1 échec), [verify-batterie.mjs](scripts/verify-batterie.mjs) (qui alimente la carte, décharge, jauge du vrai élément en Chromium, câblage de sim.mts ; 19 contrôles, contre-épreuve 8 échecs). Tous dans `verify:all` ; contre-épreuves par `--ancien=<réf>`.
+5. ⏳ **Nouveau composant « Pile / batterie »** (AA ×4, LiPo 3,7 V, CR2032, 9 V ; tension qui baisse avec la charge) : aucun dessin dans `Composants2D.svg` — à dessiner par Frank (groupe `pile` et son interne ; un dessin par modèle ?), la simulation (capacité, décharge, alimentation de la carte) est prête à le recevoir.
+6. ⏳ Non comptés dans la consommation : moteurs, servos et modules branchés sur les rails de la CARTE (seulement les LED), et la surtension d'une batterie sur 5V / VSYS. Veille idle/ADC comptée comme éveillée (une Uno en idle consomme presque autant).
+7. ⏳ Traductions avant publication : `Board current`, `Charge used`, `{0}: charge`, `{0}: battery life`, `{0} is empty: the board switched off after {1} of program.`, `Capacity (mAh)` ; aide EN/ES/ZH (USAGE « Consommation de la carte », fiche powerbank).
+8. ℹ️ À tester chez Frank en F5 (compilation et firmware absents du conteneur) : `consommation-uno`, `consommation-pico` — courbes au traceur, jauge, arrêt à vide (1 mAh ≈ 1 min 35 s de programme sur Uno à 38,5 mA de moyenne, ≈ 5 min 20 s sur Pico à 11 mA).
+
+---
+
 # v2026.9.7.178
 1. ✅ **Choix de langue du README centré, entre deux barres** (« l'option pour changer de langue (les 3 pays) doit apparaitre centrée avec une barre au-dessus et en dessous »). [README.md](README.md), [README.en.md](README.en.md), [README.es.md](README.es.md), [README.zh-CN.md](README.zh-CN.md) : `---`, bloc `<div align="center">` (liens Markdown gardés : vsce les réécrit pour le Marketplace), `---`.
-2. ⬜ Points 1 et 2 de [roadmap.md](roadmap.md) (consommation en temps réel, batterie) : choix de conception demandés à Frank.
+2. ✅ Points 1 et 2 de [roadmap.md](roadmap.md) : lot 179.
 
 ---
 

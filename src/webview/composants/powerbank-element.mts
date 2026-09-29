@@ -5,9 +5,11 @@
 // GND : sortie régulée, traitée comme une alim de laboratoire (kind 'psu',
 // model.mts) mais tension FIXE — pas de bouton, pas de simControl.
 //
-// LED1..LED4 (jauge de charge du dessin) : blanches avec halo, allumées TOUTES
-// ENSEMBLE tant que la simulation tourne (Frank : « des LED blanches (avec
-// halo) qui s'allument à la simulation ») — pas de niveau de charge simulé.
+// LED1..LED4 (jauge de charge du dessin) : blanches avec halo, allumées tant
+// que la simulation tourne (Frank : « des LED blanches (avec halo) qui
+// s'allument à la simulation »). Depuis v2026.9.7.179 la batterie a une
+// capacité et se vide (sim.mts) : la jauge montre la charge restante, une LED
+// par quart entamé — plus aucune quand elle est vide.
 import drawing from './externe/Powerbank.svg';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -38,6 +40,21 @@ export class PowerbankElement extends HTMLElement {
 
   private root: ShadowRoot;
   private rendered = false;
+  private chargeValue = 1;
+
+  /** Charge restante (0 à 1), posée par la simulation à chaque image. */
+  get charge(): number {
+    return this.chargeValue;
+  }
+  set charge(v: number) {
+    const c = Math.max(0, Math.min(1, Number.isFinite(v) ? v : 1));
+    if (c === this.chargeValue) return;
+    this.chargeValue = c;
+    if (this.rendered) this.updateLeds();
+  }
+
+  /** Tension de sortie imposée par la simulation (0 = vide) ; absente = nominale. */
+  volts: number | undefined = undefined;
 
   constructor() {
     super();
@@ -49,7 +66,10 @@ export class PowerbankElement extends HTMLElement {
   }
 
   attributeChangedCallback(name: string): void {
-    if (name === 'simulating' && this.rendered) this.updateLeds();
+    if (name !== 'simulating') return;
+    // Nouveau lancement : la batterie repart pleine.
+    if (this.hasAttribute('simulating')) this.chargeValue = 1;
+    if (this.rendered) this.updateLeds();
   }
 
   private render(): void {
@@ -112,8 +132,11 @@ export class PowerbankElement extends HTMLElement {
   }
 
   private updateLeds(): void {
-    const on = this.hasAttribute('simulating');
-    for (const id of LED_IDS) {
+    const simule = this.hasAttribute('simulating');
+    // Une LED par quart de charge entamé : 100 % → 4, 30 % → 2, 0 → aucune.
+    const allumees = simule ? Math.ceil(this.chargeValue * LED_IDS.length - 1e-9) : 0;
+    for (const [i, id] of LED_IDS.entries()) {
+      const on = i < allumees;
       const led = this.root.querySelector(`#${id}`) as SVGElement | null;
       const glow = this.root.querySelector(`[data-glow-for="${id}"]`) as SVGElement | null;
       led?.setAttribute('style', on ? LED_ON_STYLE : LED_OFF_STYLE);
