@@ -10,6 +10,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Modification
 
+- **Analyseur logique : sans déclenchement, un décodage pose la vue sur la première trame.** Elle n'en bouge plus pendant la capture, au lieu de courir après la fin d'un bus qui parle sans arrêt (DS18B20 lu en boucle). Rien n'est enregistré dans le projet : régler un déclenchement reprend la main.
 - **Les bits 1-Wire de l'analyseur vont d'un créneau au suivant** : avec la case `Bits`, chaque bit occupe tout son slot, jusqu'au creux du bit suivant, sans trou entre deux bits. Le dernier bit d'une salve garde les 60 µs de la norme.
 
 ### Correction

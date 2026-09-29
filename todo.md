@@ -10,6 +10,18 @@
 
 ---
 
+# v2026.9.6.173
+1. ✅ **Sans déclenchement, le décodage pose la vue sur la première trame** (« Pendant la capture, avec ds18b20-pico2 […] la courbe se décale tout le temps et pareil avec la version uno », puis « Traite le cas sans déclenchement » — option « Déclencher sur la trame »).
+    1. Cause : ds18b20-pico2 n'enregistre pas de déclenchement, ds18b20-uno n'a pas de sonde du tout. Sans déclenchement, la vue suit la fin de la capture, calée sur le DERNIER front reçu : un DS18B20 interrogé en boucle fait sauter la fenêtre à chaque salve. ds18b20-pico, qui enregistre « Début de trame », tenait en place.
+    2. [analyseur-capture.mts](src/webview/analyseur-capture.mts) : déclenchement `choisi` (bouton T, projet) et `implicite` = début de trame de la voie de données du premier décodage complet, calculé dans `reglerDecodages`. En vigueur : le choisi, sinon l'implicite. Un décodage posé, retiré ou changé de voie réarme (`armer()`, commun avec `reglerDeclenchement`). `reglageDeclenchement` ne rend que le choisi : rien d'enregistré, bouton T inchangé.
+    3. Banc nouveau [verify-analyseur-sans-declenchement.mjs](scripts/verify-analyseur-sans-declenchement.mjs) (`npm run verify:analyseur-sans-declenchement`, port 9437, dans `verify:all`) : vraie page, trafic DallasTemperature (conversion sondée) versé à 60 salves/s. A : décodage 1-Wire sans T → vue posée sur le premier RESET, fenêtre et image du tracé identiques de 200 ms à 3 s, aucun déclenchement enregistré. B (témoin) : sans décodage, la vue suit toujours la fin. 9 contrôles, `--ancien` : 3 échecs (fenêtre en suivi, 28 images différentes). Chromium du conteneur trouvé par le banc (`CHROME_PATH` ou `/opt/pw-browsers/chromium`).
+    4. Aide FR [sonde-logique.md](docs/fr/composants/sonde-logique.md) : paragraphe « Sans déclenchement, un décodage en tient lieu » ; « sans déclenchement ni décodage » pour le suivi de la fin.
+2. ℹ️ Défaut « courbe qui se décale AVEC un déclenchement » : non reproduit (banc à la vraie page, 1-Wire Pico et Uno, trame / front descendant, profondeurs 5 k et 60 k, rechargement en plein run) ; Frank ne le reproduit plus non plus. Abandonné à sa demande.
+3. ✅ Typecheck et construction propres. Les 24 bancs de l'analyseur verts, joués avec le Chromium du conteneur (`onewire-e2e` sauté : firmware absent).
+4. ⏳ Traductions avant publication : aide EN, ES, ZH de la sonde logique (paragraphe du déclenchement implicite). Aucune chaîne d'interface nouvelle.
+
+---
+
 # v2026.9.6.172
 1. ✅ **Espagnol et chinois simplifié** (« traduit tout en espagnole et chinois, rajoute l'option au readme »).
     1. Interface : [i18n-es.mts](src/webview/i18n-es.mts) et [i18n-zh.mts](src/webview/i18n-zh.mts) (662 clés, mêmes que le FR), branchés dans `DICTS` ([i18n.mts](src/webview/i18n.mts)) ; `l10n/bundle.l10n.es.json` et `bundle.l10n.zh-cn.json` (271 clés) ; `package.nls.es.json` et `package.nls.zh-cn.json` (47 clés). Virgule décimale et CSV en `;` aussi en espagnol ([quantity.mts](src/webview/quantity.mts), [plotter.mts](src/webview/plotter.mts)).

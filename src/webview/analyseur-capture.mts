@@ -156,7 +156,22 @@ export class AnalyseurCapture {
    */
   private parPin = new Map<string, VoieCapture[]>();
 
-  private declenchement: Declenchement | null = null;
+  /** Déclenchement réglé par l'élève (bouton T) : le seul enregistré dans le projet. */
+  private choisi: Declenchement | null = null;
+  /**
+   * Déclenchement IMPLICITE (v2026.9.6.173) : sans déclenchement réglé, le
+   * premier décodage complet déclenche sur son début de trame. Sans lui, la vue
+   * suivait la fin de la capture et se décalait à chaque salve — sur un bus qui
+   * parle sans arrêt (DS18B20), la courbe ne tenait jamais en place (Frank,
+   * 28/09 : « Traite le cas sans déclenchement »). Jamais enregistré : c'est
+   * la conséquence du décodage, pas un réglage.
+   */
+  private implicite: Declenchement | null = null;
+
+  /** Déclenchement en vigueur : celui de l'élève, sinon celui du décodage. */
+  private get declenchement(): Declenchement | null {
+    return this.choisi ?? this.implicite;
+  }
   /** Instant du front de déclenchement, ou null tant qu'il n'est pas survenu. */
   private tDeclenche: number | null = null;
   /** Vrai quand la capture est armée mais attend encore son front. */
@@ -221,7 +236,7 @@ export class AnalyseurCapture {
     if (p === this.profondeurMax) return;
     this.profondeurMax = p;
     if (this.plein) {
-      this.reglerDeclenchement(this.declenchement);
+      this.reglerDeclenchement(this.choisi);
       return;
     }
     // Toutes les voies, même une fois la capture pleine en cours de route :
@@ -426,9 +441,14 @@ export class AnalyseurCapture {
    * figée pour toujours — plus aucun front ne peut y entrer.
    */
   reglerDeclenchement(d: Declenchement | null): void {
-    this.declenchement = d;
+    this.choisi = d;
+    this.armer();
+  }
+
+  /** Réarme sur le déclenchement en vigueur, à partir de maintenant. */
+  private armer(): void {
     this.tDeclenche = null;
-    this.armee = d !== null;
+    this.armee = this.declenchement !== null;
     // Armé en plein run : seuls les fronts À VENIR comptent.
     this.armeDepuis = this.luJusqua = this.tVu > 0 ? this.tVu : -Infinity;
     if (this.plein) this.aVider = true;
@@ -597,7 +617,16 @@ export class AnalyseurCapture {
   reglerDecodages(reglages: ReglageDecodage[]): void {
     const trame = this.declenchement?.sens === 'trame';
     const avant = trame ? JSON.stringify(this.reglageTrame() ?? null) : '';
+    const impliciteAvant = JSON.stringify(this.implicite);
     this.decodages = reglages.map((r) => ({ ...r }));
+    const premier = this.decodages.find((r) => typeof r.donnees === 'number' && reglageComplet(r));
+    this.implicite = premier ? { voie: premier.donnees!, sens: 'trame' } : null;
+    // Sans déclenchement réglé, un décodage posé, retiré ou changé de voie
+    // réarme la capture sur le nouveau début de trame.
+    if (!this.choisi && JSON.stringify(this.implicite) !== impliciteAvant) {
+      this.armer();
+      return;
+    }
     if (trame && JSON.stringify(this.reglageTrame() ?? null) !== avant) this.recaler();
   }
 
@@ -661,8 +690,9 @@ export class AnalyseurCapture {
     return vu === (d.sens === 'rising' ? 1 : 0);
   }
 
+  /** Déclenchement réglé par l'élève (le menu T, le projet) : jamais l'implicite. */
   get reglageDeclenchement(): Declenchement | null {
-    return this.declenchement;
+    return this.choisi;
   }
 
   /** Nouveau run : tout est oublié, les voies restent déclarées. */

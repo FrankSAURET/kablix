@@ -64,7 +64,7 @@ Le projet, lui, garde les **réglages** de l'instrument (déclenchement, décoda
 
 Comme un analyseur du commerce, l'instrument a une **mémoire bornée** : la liste **Profondeur** de la barre fixe le nombre de fronts gardés **par voie** — `5 k`, `15 k`, `60 k` (par défaut), `250 k` ou `1 M`. Les deux plus petites servent à isoler un passage court sans garder des secondes de signal. Pendant la mesure, chaque choix affiche entre parenthèses la **durée qu'il couvre** (`60 k (≈ 6 s)`), estimée sur la voie la plus active : un bus DMX ou une horloge rapide remplit la mémoire bien plus vite qu'une LED qui clignote. Plus profond veut dire plus long, mais aussi plus lourd pour l'onglet.
 
-Sans déclenchement, la capture garde les **derniers** fronts : les plus anciens sortent au fur et à mesure, l'écran suit la fin. Avec un déclenchement, elle garde un dixième de la profondeur **avant** le front de déclenchement et remplit le reste **après** lui ; une fois pleine, elle s'arrête, et la barre dit la **durée de signal gardée** et la profondeur : `Capture pleine : 8,3 s gardées (60 k fronts par voie)`. Relancée, une capture pleine garde la même durée tant que le signal ne change pas d'allure.
+Sans déclenchement ni décodage, la capture garde les **derniers** fronts : les plus anciens sortent au fur et à mesure, l'écran suit la fin. Avec un déclenchement, elle garde un dixième de la profondeur **avant** le front de déclenchement et remplit le reste **après** lui ; une fois pleine, elle s'arrête, et la barre dit la **durée de signal gardée** et la profondeur : `Capture pleine : 8,3 s gardées (60 k fronts par voie)`. Relancée, une capture pleine garde la même durée tant que le signal ne change pas d'allure.
 
 Changer la profondeur pendant la simulation s'applique aussitôt : sur une capture pleine, une nouvelle acquisition démarre. Simulation arrêtée, le choix attend le prochain lancement.
 
@@ -86,7 +86,7 @@ L'image garde les couleurs du thème et son fond, les noms des voies, les décod
 
 ## Le déclenchement
 
-Le menu **T** sous le nom d'une voie : choisissez le **sens** — front *montant* ou *descendant*. La capture reste alors **en attente** jusqu'au premier front de ce type, puis se **fige sur lui** : l'instant 0 de la règle devient ce front, et tout se lit en avance ou en retard par rapport à lui. Sans déclenchement, la règle part de l'instant du lancement de la simulation.
+Le menu **T** sous le nom d'une voie : choisissez le **sens** — front *montant* ou *descendant*. La capture reste alors **en attente** jusqu'au premier front de ce type, puis se **fige sur lui** : l'instant 0 de la règle devient ce front, et tout se lit en avance ou en retard par rapport à lui. Sans déclenchement ni décodage, la règle part de l'instant du lancement de la simulation.
 
 Changer de réglage **réarme** l'attente, tout comme le bouton **↻ Relancer la capture** : une capture pleine repart alors pour une nouvelle acquisition.
 
@@ -101,6 +101,8 @@ Sur une voie qui porte les données d'un autre décodage, le menu propose **Déb
 - **DHT11 / DHT22** : la demande du maître.
 
 Le déclenchement lit le décodage tel qu'il est réglé : changer ses voies ou sa vitesse relance la recherche. Le bouton montre alors un trait suivi d'un créneau.
+
+**Sans déclenchement, un décodage en tient lieu.** Dès qu'un décodage est posé et qu'aucun **T** n'est réglé, la capture se comporte comme sur **Début de trame** de la voie de données du premier décodage : la vue se pose sur la première trame et **n'en bouge plus**, au lieu de courir après la fin d'un bus qui parle sans arrêt (un DS18B20 interrogé en boucle). Ce déclenchement n'est pas enregistré dans le projet et le bouton **T** garde son aspect : régler un **T** reprend la main, retirer le décodage rend le suivi de la fin.
 
 ## Le décodage
 
