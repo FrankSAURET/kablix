@@ -39,3 +39,4 @@
 - [Zones à expliquer](zones-a-expliquer.md) — sujets où Frank a dit « explique » (dépendances npm) : détailler un cran de plus.
 - [kablix.ico intouchable](kablix-icone-ico-intouchable.md) — refait par Frank le 26/09/2026, icône des .projix : ne plus jamais le modifier ni le régénérer.
 - [CHANGELOG par thème](changelog-par-theme.md) — dans chaque partie (Nouveauté/Modification/Correction), les entrées d'un même thème se suivent, sans sous-titre.
+- [En ligne : finir par la commande de mise à jour locale](cloud-finir-par-commande-maj.md) — session cloud : TOUJOURS terminer la réponse par `git fetch` / `checkout` / `pull` de la branche, en dernier.
