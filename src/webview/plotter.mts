@@ -65,6 +65,8 @@ export class Plotter {
   private tooltipEl = document.getElementById('plotter-tooltip') as HTMLDivElement;
 
   private series = new Map<string, PlotSeries>();
+  /** Une série non silencieuse a déjà ouvert le panneau depuis start(). */
+  private bruyanteVue = false;
   private t0 = performance.now(); // origine des temps affichés (départ du run)
   private running = false;
   private frozen = false; // ⏸ d'affichage : la collecte continue
@@ -143,6 +145,7 @@ export class Plotter {
   clear(): void {
     for (const s of this.series.values()) s.chip.remove();
     this.series.clear();
+    this.bruyanteVue = false;
     this.lineBuf = '';
     this.atLineStart = true;
     if (this.holdTimer !== undefined) clearTimeout(this.holdTimer);
@@ -205,8 +208,8 @@ export class Plotter {
    * volts par l'appelant). Tracé en escalier ; une valeur inchangée n'ajoute
    * aucun point (le prolongement jusqu'à « maintenant » est fait au dessin).
    */
-  probe(name: string, value: number, unit = 'V'): void {
-    this.push(name, value, unit, 'step');
+  probe(name: string, value: number, unit = 'V', silencieuse = false): void {
+    this.push(name, value, unit, 'step', silencieuse);
   }
 
   /** Ligne candidate abandonnée : son texte est rendu à la console. */
@@ -234,12 +237,19 @@ export class Plotter {
     return true;
   }
 
-  private push(name: string, value: number, unit: string, mode: 'line' | 'step'): void {
+  /**
+   * `silencieuse` : la série n'ouvre pas le panneau (courbes de consommation,
+   * présentes à chaque lancement) ; la première série NON silencieuse l'ouvre.
+   */
+  private push(name: string, value: number, unit: string, mode: 'line' | 'step', silencieuse = false): void {
     let s = this.series.get(name);
     if (!s) {
       s = this.createSeries(name, unit, mode);
       this.series.set(name, s);
-      if (this.series.size === 1) this.onFirstData?.();
+      if (!silencieuse && !this.bruyanteVue) {
+        this.bruyanteVue = true;
+        this.onFirstData?.();
+      }
       this.updateEmptyState();
     }
     const now = performance.now();

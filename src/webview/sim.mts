@@ -68,6 +68,7 @@ import './composants/custom-part.mjs';
 
 import { initLocale, t } from './i18n.mjs';
 import { Plotter } from './plotter.mjs';
+import { CompteurConsommation } from './consommation.mjs';
 import { Editor, KABLIX_BADGE, type PaletteState } from './diagram/editor.mjs';
 import { partDef, boardFamily, isPicoBoard, isBoardId, mcuPinRole, pca9685Address, controlMax, PARAM_ATTR_PREFIX, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { compileExpr } from './diagram/expr.mjs';
@@ -438,6 +439,11 @@ let sevenSegStable = new Map<string, { shown: number[]; pending: number[]; pendi
 // LED grillées pendant ce run (résistance série trop faible → sur-courant) :
 // l'état est définitif jusqu'au prochain lancement (la LED est « remplacée »).
 const burnedLeds = new Set<string>();
+// Consommation de la carte (feuille de route n° 1) : courant fourni par la carte
+// à ce qu'elle alimente, cumulé pendant une image (LED sur ses broches ou ses
+// rails), puis intégré dans le temps simulé avec son propre courant.
+let courantChargesA = 0;
+const compteurConso = new CompteurConsommation();
 // PCA9685 (carte 16 servos) grillés pendant ce run : surtension du bornier V+
 // (> 5,5 V). Définitif jusqu'au prochain lancement (carte « remplacée »).
 const burnedPcas = new Set<string>();
@@ -2271,6 +2277,7 @@ function reportBoardOvervoltage(): void {
 
 function refreshVisualsInner(): void {
   if (!engine) return;
+  courantChargesA = 0;
   stepCapacitors();
   reportBoardOvervoltage();
   reportRelayFaults();
@@ -2330,6 +2337,9 @@ function refreshVisualsInner(): void {
           const elec = ledElectrical(circ.ohms, vs, part.attrs?.color);
           if (elec.overCurrent) burnedLeds.add(part.id);
           else ledLumFactor.set(part.id, elec.lum);
+          // Alimentée par la carte (pas par une alim de laboratoire) : son
+          // courant, au prorata du rapport cyclique, sort de la carte.
+          if (circ.supplyVolts === null && !elec.overCurrent) courantChargesA += elec.amps * (duty ?? 1);
         }
         if (burnedLeds.has(part.id)) {
           markBurned(part.id, el, true, BURN_NOTE.led);
@@ -2371,6 +2381,7 @@ function refreshVisualsInner(): void {
             burnedLeds.add(part.id);
             return 0;
           }
+          courantChargesA += elec.amps * raw;
           return raw * elec.lum;
         };
         const red = level('R', 'red', chan(s.red, bind?.r));
@@ -2832,6 +2843,21 @@ function refreshVisualsInner(): void {
   // Seconde passe : les sorties PCA9685 priment sur l'état « hors-net » des cibles.
   applyPca9685();
   applyAraignee();
+  majConsommation();
+}
+
+/**
+ * Courant de la carte et charge consommée, tracés au traceur (feuille de
+ * route n° 1). Deux courbes « silencieuses » : elles n'ouvrent pas le panneau
+ * toutes seules — chaque lancement le ferait sinon —, elles attendent qu'on le
+ * regarde. Arrondies au dixième de mA et au millième de mAh : le tracé en
+ * escalier n'ajoute alors un point que quand la valeur bouge vraiment.
+ */
+function majConsommation(): void {
+  if (!engine?.simulatedMs) return;
+  const m = compteurConso.pas(board, engine.simulatedMs(), engine.sleepMs?.() ?? 0, courantChargesA);
+  plotter.probe(t('Board current'), Math.round(m.courantA * 10_000) / 10, 'mA', true);
+  plotter.probe(t('Charge used'), Math.round(m.chargeAh * 1_000_000) / 1000, 'mAh', true);
 }
 
 /**
@@ -4533,6 +4559,7 @@ function startRun(): void {
     };
   }
   plotter.start(); // nouvelles courbes à chaque run (comme la console)
+  compteurConso.reinitialiser();
   // Pont réseau Pico W : le moteur publie les requêtes, l'hôte fait le vrai
   // fetch et renvoie la réponse (message 'netResponse').
   if (engine.onNetRequest !== undefined) {

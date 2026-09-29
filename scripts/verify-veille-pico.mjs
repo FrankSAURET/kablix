@@ -25,8 +25,11 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const ANCIEN = process.argv.includes('--ancien');
-if (ANCIEN) console.log('(contre-épreuve : rp-chip.mts en version HEAD)');
+// `--ancien` : sources de HEAD ; `--ancien=<réf>` : d'une autre version (ex. HEAD~1).
+const ANCIEN_ARG = process.argv.find((a) => a.startsWith('--ancien'));
+const ANCIEN = !!ANCIEN_ARG;
+const REF = ANCIEN_ARG?.includes('=') ? ANCIEN_ARG.split('=')[1] : 'HEAD';
+if (ANCIEN) console.log(`(contre-épreuve : rp-chip.mts en version ${REF})`);
 const tmp = mkdtempSync(join(tmpdir(), 'kablix-veille-pico-'));
 const out = join(tmp, 'rp-chip.mjs');
 await esbuild.build({
@@ -37,7 +40,7 @@ await esbuild.build({
 		setup(b) {
 			b.onLoad({ filter: /[\\/]engines[\\/]rp-chip\.mts$/ }, (args) => {
 				if (!ANCIEN) return undefined;
-				const contents = execFileSync('git', ['show', 'HEAD:src/webview/engines/rp-chip.mts'], { cwd: root, encoding: 'utf8' });
+				const contents = execFileSync('git', ['show', `${REF}:src/webview/engines/rp-chip.mts`], { cwd: root, encoding: 'utf8' });
 				return { contents, loader: 'ts', resolveDir: dirname(args.path) };
 			});
 		},
