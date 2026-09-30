@@ -1,7 +1,6 @@
 # À faire
 1. Analyseur logique :
     1. Une zone qui  ne peut pas afficher son décodage et le texte qui est dessus à cause du zoom doit l'afficher de cette façon : Message total : "0xF0 SEARCH ROM", si pas la place message partiel : "0xF0" et dans la bulle de survol "SEARCH ROM". Pour tous les protocoles.
-1. Le système robot arraignée est alimenté pas la batterie externe
 1. batterie life ne dois pas osciller (par exemple quand la led s'allume) mais être une moyenne
 1. Le traceur série doit  montrer des échelles différents (une par courbe) de la couleur de la courbe
 1. Les pertes joules sont elles prisent en compte ? 
@@ -19,6 +18,12 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.8.183
+1. ✅ **Robot araignée alimenté par une batterie implicite** (« rien à câbler, batterie implicite » — le robot reste `pinless`, aucun fil possible) : nouvelle fonction `majBatterieAraignee()` dans [sim.mts](src/webview/sim.mts), appelée à côté de `majBatteries()`. Mêmes défauts que le Power bank de bibliothèque (5000 mAh, 5 V, rendement boost 85 %, constantes `ARAIGNEE_*`), jauge/tension/autonomie sondées au traceur comme une vraie PSU — jamais reliée à `alimentationDeLaCarte()`, jamais de coupure du reste du schéma. Courant forfaitaire 0,5 A (Pico W éveillée + PCA9685 + 8 servos dont la moitié en mouvement en moyenne) : consommation détaillée par composant reste à faire (point 6 ci-dessous).
+2. ℹ️ Consommation des servos/PCA9685 par composant (pas seulement l'araignée) : rien dans `consommation.mts` aujourd'hui, hors périmètre de ce lot — voir point 6 « tous les composants participent-ils ».
 
 ---
 

@@ -2864,6 +2864,7 @@ function majConsommation(): void {
   plotter.probe(t('Board current'), Math.round(m.courantA * 10_000) / 10, 'mA', true);
   plotter.probe(t('Charge used'), Math.round(m.chargeAh * 1_000_000) / 1000, 'mAh', true);
   majBatteries(m.courantA, m.dtMs);
+  majBatterieAraignee(m.dtMs);
 }
 
 /**
@@ -2900,6 +2901,18 @@ function refusAlimentation(): string | null {
 // la capacité utile en Ah à 5 V se réduit d'autant (conservation de l'énergie).
 const RENDEMENT_BOOST_POWERBANK = 0.85;
 const TENSION_CELLULE_LIION = 3.7;
+
+// Batterie IMPLICITE de l'araignée (v2026.9.8) : le robot reste `pinless`,
+// rien à câbler, mais elle se décharge pour de vrai, comme un Power bank
+// standard (mêmes défauts 5000 mAh / 5 V / boost 85 %) — jamais reliée au
+// reste du schéma (pas d'`alimentationDeLaCarte`, pas de coupure du montage).
+// Courant forfaitaire (pas de modèle par charge, cf. todo « tous les
+// composants participent-ils » ⏳) : Pico W éveillée (23 mA) + PCA9685
+// (~10 mA) + 8 servos SG90 dont la moitié en mouvement en moyenne (~150 mA
+// pièce) ≈ 0,5 A en fonctionnement.
+const ARAIGNEE_CAPACITY_MAH = 5000;
+const ARAIGNEE_VOLTAGE = 5;
+const ARAIGNEE_COURANT_A = 0.5;
 
 function majBatteries(courantCarteA: number, dtMs: number): void {
   const alim = alimentationDeLaCarte(editor.diagram);
@@ -2967,6 +2980,26 @@ function majBatteries(courantCarteA: number, dtMs: number): void {
     stopRun();
     setStatus(msg);
     return;
+  }
+}
+
+/**
+ * Batterie implicite de l'araignée : se décharge de sa propre consommation
+ * forfaitaire (constantes ARAIGNEE_*), jamais reliée au reste du schéma —
+ * pas de `alimentationDeLaCarte`, pas de coupure du montage quand elle est
+ * vide. Même jauge/tension/autonomie sondées au traceur que les vraies PSU.
+ */
+function majBatterieAraignee(dtMs: number): void {
+  const capaciteAh = Math.max(0.001,
+    (ARAIGNEE_CAPACITY_MAH / 1000 * TENSION_CELLULE_LIION * RENDEMENT_BOOST_POWERBANK) / ARAIGNEE_VOLTAGE);
+  for (const part of editor.diagram.parts) {
+    if (partDef(part.type).kind !== 'araignee') continue;
+    const avantAh = chargesBatteries.get(part.id) ?? capaciteAh;
+    const restantAh = decharger(avantAh, avantAh > 0 ? ARAIGNEE_COURANT_A : 0, dtMs);
+    chargesBatteries.set(part.id, restantAh);
+    plotter.probe(t('{0}: charge', part.id), Math.round((restantAh / capaciteAh) * 1000) / 10, '%', true);
+    const h = autonomieH(restantAh, ARAIGNEE_COURANT_A);
+    if (Number.isFinite(h)) plotter.probe(t('{0}: battery life', part.id), Math.round(h * 100) / 100, 'h', true);
   }
 }
 
