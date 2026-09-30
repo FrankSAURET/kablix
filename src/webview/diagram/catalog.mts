@@ -1247,7 +1247,9 @@ export const CATALOG: readonly PartDef[] = [
     // `capacity` (mAh, v2026.9.7.179) : la batterie se vide au rythme de ce
     // qu'elle alimente, carte comprise quand elle la fait tourner ; vide, sa
     // sortie se coupe (jauge LED1..4 du dessin, sim.mts).
-    attrs: { voltage: '5', maxcurrent: '2', capacity: '10000' },
+    // Défauts Frank (v2026.9.8) : 5000 mAh Li-ion, sortie 5 V 2,1 A max
+    // (10,5 W) — capacité utile réduite par le rendement du boost (sim.mts).
+    attrs: { voltage: '5', maxcurrent: '2.1', capacity: '5000' },
     props: [
       { attr: 'maxcurrent', label: 'Max current supplied (A)', kind: 'number', min: 0.1, max: 10, step: 0.1 },
       { attr: 'capacity', label: 'Capacity (mAh)', kind: 'number', min: 1, max: 50000, step: 1 },
@@ -1455,9 +1457,11 @@ export function partCategory(def: PartDef): string {
   // Composants rangés par type quand le `kind` ne suffit pas à les classer.
   if (def.type === 'dht22' || def.type === 'dht11' || def.type === 'hcsr04') return 'Sensors';
   if (def.type === 'keypad') return 'Controls';
-  // Batterie portable (kind 'psu' comme l'alim de laboratoire, mais ce n'est
-  // pas un appareil de mesure) : rangée avec les modules divers.
-  if (def.type === 'powerbank') return 'Misc';
+  // Batterie portable et piles de bibliothèque (kind 'psu' comme l'alim de
+  // laboratoire, mais ce n'est pas un appareil de mesure) : catégorie dédiée
+  // (Frank, v2026.9.8).
+  if (def.type === 'powerbank' || def.type === 'pile-4aa' || def.type === 'pile-9v'
+    || def.type === 'pile-cr2032' || def.type === 'batterie-lipo') return 'Batteries';
   // Générateur BF : son `kind` est 'analog-source' (comme une photorésistance),
   // mais c'est un APPAREIL de la salle de TP, pas un capteur — il se range avec
   // l'alim, le multimètre, l'oscilloscope et la sonde (Frank, v2026.9.4.90).
@@ -1531,7 +1535,8 @@ export const CATEGORY_ORDER: readonly string[] = [
   'Controls',
   'Sensors',
   'Actuators',
-  'Systems', // « Système » : ensembles assemblés (patte, araignée)
+  'Systems', // « Systèmes » : ensembles assemblés (patte, araignée)
+  'Batteries', // « Piles / Batteries » : powerbank + piles de bibliothèque
   'Instruments',
   'Misc',
   'Integrated circuits', // « Circuits intégrés » : toujours en dernier (Frank, v2026.7.254)

@@ -1,6 +1,16 @@
 # À faire
 1. Analyseur logique :
     1. Une zone qui  ne peut pas afficher son décodage et le texte qui est dessus à cause du zoom doit l'afficher de cette façon : Message total : "0xF0 SEARCH ROM", si pas la place message partiel : "0xF0" et dans la bulle de survol "SEARCH ROM". Pour tous les protocoles.
+1. Le système robot arraignée est alimenté pas la batterie externe
+1. batterie life ne dois pas osciller (par exemple quand la led s'allume) mais être une moyenne
+1. Le traceur série doit  montrer des échelles différents (une par courbe) de la couleur de la courbe
+1. Les pertes joules sont elles prisent en compte ? 
+1. Tous les composant participent il à la consommation débitée par la batterie ?
+1. alerte si la charge passe en dessous de 15%
+1. Si on fait une symétrie horizontale, les écritures doivent rester lisibles
+1. Affichage de la durée de vie avec j h min si on dépasse 24h - h min si on dépasse 60 min
+1. La pile alcaline 9 v qui alimente la pico pi devrait la détruire (animation  explosion)
+1. Toutes les piles et batteries sont validées
 ## fait
 
 
@@ -9,6 +19,14 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.7.182
+1. ✅ **Catégorie « Piles / Batteries »** (« pourquoi les batteries ont l'option exporter et ne sont pas dans la bibliothèque distante ? » → recherche : elles y sont déjà, avec le badge « expérimental » — normal tant que non validées ; le bouton ⇩ est l'export LOCAL d'un composant fait maison, mécanisme séparé, sans rapport avec `_sources.json`). Nouvelle catégorie de palette `Batteries` pour `powerbank`, `pile-4aa`, `pile-9v`, `pile-cr2032`, `batterie-lipo` (`category` dans [_sources.json](kablix_components/_sources.json), `partCategory()`/`CATEGORY_ORDER` dans [catalog.mts](src/webview/diagram/catalog.mts)) ; libellé FR « Piles / Batteries » et correction « Système » → « Systèmes » ([i18n.mts](src/webview/i18n.mts)). `build-kompix.mjs` + `build-components-index.mjs` relancés.
+2. ✅ **Batterie externe (Power bank)** : défauts 5000 mAh, 5 V, 2,1 A max (10,5 W) ; perte du convertisseur boost prise en compte (rendement 85 %, confirmé par Frank) — capacité déclarée en mAh côté cellule Li-ion 3,7 V, capacité utile en Ah à 5 V réduite d'autant (`RENDEMENT_BOOST_POWERBANK`, [sim.mts](src/webview/sim.mts) `majBatteries()`). Les piles de bibliothèque (tension qui baisse avec la charge) ne sont pas concernées, seule la sortie régulée fixe de la powerbank passe par un boost.
+3. ✅ Correctif banc [verify-batterie.mjs](scripts/verify-batterie.mjs) : les regex sur `sim.mts` cassaient sur les fins de ligne CRLF du fichier réel sur disque (défaut préexistant, confirmé par contre-épreuve `--ancien=HEAD` en échec AVANT ce lot) — `\n}\n` → `\r?\n}\r?\n`.
+4. ⏳ Traductions (ES/ZH) : libellé « Piles / Batteries », « Systèmes ».
 
 ---
 

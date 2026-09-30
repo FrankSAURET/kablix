@@ -166,14 +166,14 @@ const pre = document.createElement('pre'); pre.id = 'm'; pre.textContent = JSON.
 // --- 4. Câblage dans sim.mts --------------------------------------------------------
 console.log('4. sim.mts');
 const sim = readFileSync(join(ROOT, 'src/webview/sim.mts'), 'utf8');
-const bloc = sim.match(/function majBatteries\([\s\S]*?\n}\n/)?.[0] ?? '';
+const bloc = sim.match(/function majBatteries\([\s\S]*?\r?\n}\r?\n/)?.[0] ?? '';
 check(/alimentationDeLaCarte\(editor\.diagram\)/.test(bloc) && /psuLoadAmps\(/.test(bloc) && /decharger\(/.test(bloc),
 	'la batterie se vide de ses charges ET de la carte quand elle l’alimente');
 check(/const sortie = restantAh <= 0 \? 0/.test(bloc) && /el\.volts = battery \|\| restantAh <= 0 \? sortie : undefined/.test(bloc),
 	'vide : sa sortie se coupe (tension 0) ; une pile publie sa tension qui baisse');
 check(/PLAGES_ENTREE\[alim!?\.broche\]/.test(bloc) && /dropped to \{1\} V: the board switched off/.test(bloc),
 	'pile qui passe sous le seuil de l’entrée en route : la carte s’éteint');
-const refus = sim.match(/function refusAlimentation\([\s\S]*?\n}\n/)?.[0] ?? '';
+const refus = sim.match(/function refusAlimentation\([\s\S]*?\r?\n}\r?\n/)?.[0] ?? '';
 check(/tensionBatterie\(battery, 1\)/.test(refus) && /The board does not start/.test(refus),
 	'pile hors plage au lancement : la carte refuse de démarrer, avec un message');
 check(/const refus = refusAlimentation\(\);\s*if \(refus\) \{\s*setStatus\(refus\);\s*return;/.test(sim),

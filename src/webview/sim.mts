@@ -2894,6 +2894,13 @@ function refusAlimentation(): string | null {
     part.id, nombre(volts), alim.broche, nombre(plage.min), nombre(plage.max));
 }
 
+// Power bank : `capacity` (mAh) est l'étiquette commerciale, celle de la
+// cellule Li-ion interne à 3,7 V — pas la capacité utile en 5 V. Le
+// convertisseur boost qui régule la sortie a un rendement (Frank : 85 %) ;
+// la capacité utile en Ah à 5 V se réduit d'autant (conservation de l'énergie).
+const RENDEMENT_BOOST_POWERBANK = 0.85;
+const TENSION_CELLULE_LIION = 3.7;
+
 function majBatteries(courantCarteA: number, dtMs: number): void {
   const alim = alimentationDeLaCarte(editor.diagram);
   const nombre = (v: number): string => v.toLocaleString(locale(), { maximumFractionDigits: 1 });
@@ -2905,9 +2912,14 @@ function majBatteries(courantCarteA: number, dtMs: number): void {
     const attrs = { ...def.attrs, ...part.attrs };
     const capacite = attrs.capacity ?? attrs[`${PARAM_ATTR_PREFIX}capacity`];
     if (capacite === undefined) continue;
-    const capaciteAh = Math.max(0.001, Number(capacite) / 1000 || 0.001);
     const battery = def.custom?.battery;
     const nominale = Number(attrs.voltage ?? 5) || 5;
+    // Power bank : capacité déclarée côté cellule 3,7 V → capacité utile en Ah
+    // à la tension de sortie, réduite par le rendement du boost.
+    const capaciteAh = part.type === 'powerbank'
+      ? Math.max(0.001,
+        (Number(capacite) / 1000 * TENSION_CELLULE_LIION * RENDEMENT_BOOST_POWERBANK) / nominale || 0.001)
+      : Math.max(0.001, Number(capacite) / 1000 || 0.001);
     // Tension au début de la tranche : une pile baisse avec sa charge, le
     // Power bank tient ses 5 V régulés jusqu'au bout.
     const avantAh = chargesBatteries.get(part.id) ?? capaciteAh;

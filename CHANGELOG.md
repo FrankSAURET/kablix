@@ -10,7 +10,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **La mise en veille compte** : `sleep_cpu()` ou *LowPower* sur Arduino (power-down, power-save, standby), `machine.lightsleep()` sur Pico. `delay()` et `time.sleep()` laissent la puce éveillée, comme en vrai.
 - **Le Power bank a une capacité et se vide** : il alimente la carte par 5V, VSYS ou VBUS, sa jauge suit la charge, le traceur montre sa charge et son autonomie. Vide, il éteint la carte et la barre d'état dit au bout de combien de temps.
 - **Tests `consommation-uno` et `consommation-pico`** : une carte qui alterne veille et réveil, sur une batterie d'1 mAh.
-- **Piles dans la bibliothèque** : 4 × AA, 9 V, CR2032 et LiPo 1S, à installer depuis **⚙ Gérer les composants**. Capacité réglable, tension qui baisse avec la charge (courbe au traceur).
+- **Piles dans la bibliothèque** : 4 × AA, 9 V, CR2032 et LiPo 1S, à installer depuis **⚙ Gérer les composants**. Capacité réglable, tension qui baisse avec la charge (courbe au traceur). Elles ont leur propre catégorie dans la palette, **Piles / Batteries**, avec le Power bank.
+- **Le Power bank tient compte de son convertisseur** : sa capacité par défaut passe à 5000 mAh (une vraie batterie externe Li-ion 5 V / 2,1 A), et se vide un peu plus vite que le courant délivré ne le laisse penser — la conversion de tension a une perte.
 - **Tests `autonomie-uno` et `autonomie-pico`** : un nœud de mesure sur pile, avec ou sans veille profonde, pour comparer l'autonomie au traceur.
 - **Une alimentation inadaptée est refusée** : hors de la plage de l'entrée (VIN 6,2 à 20 V, 5V 4,5 à 5,5 V, VSYS et VBUS 1,8 à 5,5 V), la carte ne démarre pas et la barre d'état dit pourquoi. Une CR2032 ne fait pas tourner une Uno, une LiPo ne passe pas le régulateur de VIN. Une pile qui s'use sous le seuil éteint la carte en route.
 

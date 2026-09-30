@@ -661,7 +661,7 @@
       "version": "2026.9.1",
       "author": "Frank Sauret",
       "kind": "psu",
-      "category": "Misc",
+      "category": "Batteries",
       "pinRoles": { "V+": "+", "GND": "-" },
       "attrs": { "voltage": "6.4" },
       "params": [
@@ -678,7 +678,7 @@
       "version": "2026.9.1",
       "author": "Frank Sauret",
       "kind": "psu",
-      "category": "Misc",
+      "category": "Batteries",
       "pinRoles": { "V+": "+", "GND": "-" },
       "attrs": { "voltage": "9.5" },
       "params": [
@@ -695,7 +695,7 @@
       "version": "2026.9.1",
       "author": "Frank Sauret",
       "kind": "psu",
-      "category": "Misc",
+      "category": "Batteries",
       "pinRoles": { "V+": "+", "GND": "-" },
       "attrs": { "voltage": "3" },
       "params": [
@@ -712,7 +712,7 @@
       "version": "2026.9.1",
       "author": "Frank Sauret",
       "kind": "psu",
-      "category": "Misc",
+      "category": "Batteries",
       "pinRoles": { "V+": "+", "GND": "-" },
       "attrs": { "voltage": "4.2" },
       "params": [
