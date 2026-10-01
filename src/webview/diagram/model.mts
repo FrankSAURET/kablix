@@ -449,7 +449,7 @@ const ENTREES_CARTE = ['VIN', 'VSYS', 'VBUS', '5V'];
  * et s'éteint quand une batterie se vide. Sans elle, la carte est alimentée par
  * l'USB, comme toujours. Rend la première trouvée (une seule carte par schéma).
  */
-export function alimentationDeLaCarte(diagram: Diagram): { psuId: string; broche: string } | null {
+export function alimentationDeLaCarte(diagram: Diagram): { psuId: string; broche: string; boardPartId: string } | null {
   const carte = mcuParts(diagram)[0]?.part;
   if (!carte) return null;
   const { nets } = resistiveGraph(diagram);
@@ -462,7 +462,7 @@ export function alimentationDeLaCarte(diagram: Diagram): { psuId: string; broche
     if (!massesCarte.has(nets.netOf({ partId: psu.id, pin: psuMoins(psu) }))) continue;
     const vplus = nets.netOf({ partId: psu.id, pin: psuPlus(psu) });
     for (const broche of ENTREES_CARTE) {
-      if (nets.netOf({ partId: carte.id, pin: broche }) === vplus) return { psuId: psu.id, broche };
+      if (nets.netOf({ partId: carte.id, pin: broche }) === vplus) return { psuId: psu.id, broche, boardPartId: carte.id };
     }
   }
   return null;

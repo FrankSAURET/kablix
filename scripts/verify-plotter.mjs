@@ -73,6 +73,13 @@ try {
   p.probe('A0', 1.25); // valeur inchangée : aucun point ajouté
   p.probe('A0', 2.5);  // changement : marche d'escalier (2 points)
 
+  // --- Durée de vie (Frank, todo : « j h min si >24h, h min si >60min ») ----
+  p.probe('bat1: battery life', 0.5, 'h', true);   // 30 min : reste en heures brutes
+  p.probe('bat2: battery life', 1.5, 'h', true);   // 1 h 30 : « h min »
+  p.probe('bat3: battery life', 30, 'h', true);    // 30 h : « j h min »
+  const S0 = [...p.series.values()];
+  const dureeParNom = (nom) => S0.find((s) => s.name === nom)?.valueEl.textContent;
+
   out.firstData = firstData;
   out.emptyAfter = !document.getElementById('plotter-empty').hidden;
   const S = [...p.series.values()];
@@ -104,6 +111,9 @@ try {
     for (let i = 3; i < img.length; i += 4) if (img[i] > 0) painted++;
     out.painted = painted;
     out.canvasSize = cv.width + 'x' + cv.height;
+    out.duree30min = dureeParNom('bat1: battery life');
+    out.duree1h30 = dureeParNom('bat2: battery life');
+    out.duree30h = dureeParNom('bat3: battery life');
     document.getElementById('result').textContent = JSON.stringify(out);
   }, 800);
 } catch (e) { document.getElementById('result').textContent = 'ERR:' + (e && e.stack || e); }
@@ -170,9 +180,14 @@ check('auto-affichage déclenché une fois', res.firstData === 1, String(res.fir
 check('message « en attente » masqué après données', res.emptyBefore === true && res.emptyAfter === false, `${res.emptyBefore}/${res.emptyAfter}`);
 
 // --- Légende / CSV / rendu -------------------------------------------------------
-check('4 puces de légende', res.chips === 4, String(res.chips));
+check('7 puces de légende (4 + 3 sondes de durée)', res.chips === 7, String(res.chips));
 check('clic sur puce : série masquée + estompée', res.chipOff === true, String(res.chipOff));
-check('CSV : en-tête + 7 lignes de mesures', res.csvHead === 'time_s,name,value,unit' && res.csvLines === 8, `${res.csvHead} / ${res.csvLines}`);
+
+// --- Durée de vie (j h min) -------------------------------------------------
+check('durée 30 min : heures brutes, pas de « h min »', res.duree30min === '0.5 h', res.duree30min);
+check('durée 1 h 30 : « h min »', res.duree1h30 === '1 h 30 min', res.duree1h30);
+check('durée 30 h : « j h min »', res.duree30h === '1 j 6 h 00 min', res.duree30h);
+check('CSV : en-tête + 10 lignes de mesures', res.csvHead === 'time_s,name,value,unit' && res.csvLines === 11, `${res.csvHead} / ${res.csvLines}`);
 check('canvas peint (grille + courbes)', res.painted > 500, `${res.painted} px (${res.canvasSize})`);
 
 // --- Nom des sondes internes : « ADC0 (GP26) », toutes cartes ---------------------

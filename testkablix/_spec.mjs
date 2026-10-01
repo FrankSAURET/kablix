@@ -3933,7 +3933,7 @@ void loop() {
     { type: 'pile-4aa', broche: 'VSYS', demarre: false,
       note: '6,4 V sur VSYS : la Pico refuse de demarrer (il faut 1,8 a 5,5 V).' },
     { type: 'pile-9v', broche: 'VSYS', demarre: false,
-      note: '9,5 V sur VSYS : la Pico refuse de demarrer (il faut 1,8 a 5,5 V).' },
+      note: '9,5 V sur VSYS (il faut 1,8 a 5,5 V) : hors plage, comme un refus au demarrage -- en simulation reelle (sim.mts) la carte demarre et grille, VSYS n\'a pas de regulateur protecteur.' },
     { type: 'pile-cr2032', broche: 'VSYS', demarre: true,
       note: "3 V sur VSYS : la Pico tourne jusqu'a ce que la pile soit vide." },
     { type: 'batterie-lipo', broche: 'VSYS', demarre: true,

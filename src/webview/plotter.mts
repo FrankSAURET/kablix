@@ -371,6 +371,28 @@ export class Plotter {
     return n.toLocaleString(lang, { maximumFractionDigits: digits });
   }
 
+  /**
+   * Valeur + unité pour un affichage PONCTUEL (légende, info-bulle) — pas pour
+   * l'axe gradué, où une graduation régulière reste plus lisible en nombre
+   * simple. Une durée en heures (Frank, todo : « affichage de la durée de vie
+   * avec j h min si on dépasse 24h, h min si on dépasse 60 min ») se lit mieux
+   * décomposée ; en dessous de 60 min, la valeur brute en heures suffit.
+   */
+  private fmtValeur(v: number, unit: string, digits: number): string {
+    if (unit === 'h' && Number.isFinite(v)) {
+      const totalMin = Math.round(v * 60);
+      if (totalMin >= 60) {
+        const j = Math.floor(totalMin / 1440);
+        const h = Math.floor((totalMin % 1440) / 60);
+        const min = totalMin % 60;
+        return j > 0
+          ? `${j} j ${h} h ${String(min).padStart(2, '0')} min`
+          : `${h} h ${String(min).padStart(2, '0')} min`;
+      }
+    }
+    return `${this.fmt(v, digits)}${unit ? ` ${unit}` : ''}`;
+  }
+
   private draw(): void {
     if (this.section.hidden) return;
     const dpr = window.devicePixelRatio || 1;
@@ -396,8 +418,15 @@ export class Plotter {
     const tEnd = this.running && !this.frozen ? performance.now() : this.freezeT;
     const tStart = tEnd - windowMs;
 
-    // Marges : place pour les graduations Y à gauche et X en bas.
-    const padL = 44;
+    // Marges : une colonne de graduations par courbe VISIBLE, à gauche (Frank,
+    // todo : « échelles différentes, une par courbe, de la couleur de la
+    // courbe ») — un mélange volts/mA sur une échelle unique tassait la plus
+    // petite des deux contre l'axe. Chaque série garde donc sa PROPRE plage Y,
+    // affichée dans SA couleur ; seule la hauteur de tracé (0..plotH) leur est
+    // commune. Au moins une colonne (échelle neutre) si rien n'est visible.
+    const visibles = [...this.series.values()].filter((s) => s.visible);
+    const COL_W = 38;
+    const padL = 6 + Math.max(1, visibles.length) * COL_W;
     const padR = 8;
     const padT = 8;
     const padB = 18;
@@ -405,56 +434,52 @@ export class Plotter {
     const plotH = h - padT - padB;
     if (plotW <= 0 || plotH <= 0) return;
 
-    // Étendue Y automatique sur les points visibles de la fenêtre.
-    let yMin = Infinity;
-    let yMax = -Infinity;
-    for (const s of this.series.values()) {
-      if (!s.visible) continue;
+    /** Plage Y d'une série (ses points dans la fenêtre, + la valeur tenue). */
+    const rangeOf = (s: PlotSeries): { min: number; max: number } => {
+      let min = Infinity;
+      let max = -Infinity;
       for (const p of s.pts) {
         if (p.t < tStart - 1000 || p.t > tEnd) continue;
-        if (p.v < yMin) yMin = p.v;
-        if (p.v > yMax) yMax = p.v;
+        if (p.v < min) min = p.v;
+        if (p.v > max) max = p.v;
       }
-      // La valeur tenue d'une sonde compte aussi (série sans point récent).
       const last = s.pts[s.pts.length - 1];
       if (s.mode === 'step' && last && last.t <= tEnd) {
-        if (last.v < yMin) yMin = last.v;
-        if (last.v > yMax) yMax = last.v;
+        if (last.v < min) min = last.v;
+        if (last.v > max) max = last.v;
       }
-    }
-    if (!Number.isFinite(yMin)) {
-      yMin = 0;
-      yMax = 1;
-    }
-    if (yMax - yMin < 1e-9) {
-      yMin -= 0.5;
-      yMax += 0.5;
-    }
-    const pad = (yMax - yMin) * 0.08;
-    yMin -= pad;
-    yMax += pad;
-
+      if (!Number.isFinite(min)) {
+        min = 0;
+        max = 1;
+      }
+      if (max - min < 1e-9) {
+        min -= 0.5;
+        max += 0.5;
+      }
+      const pad = (max - min) * 0.08;
+      return { min: min - pad, max: max + pad };
+    };
+    const ranges = new Map<string, { min: number; max: number }>();
+    for (const s of visibles) ranges.set(s.name, rangeOf(s));
+    const yOf = (s: PlotSeries, v: number): number => {
+      const r = ranges.get(s.name) ?? { min: 0, max: 1 };
+      return padT + (1 - (v - r.min) / (r.max - r.min)) * plotH;
+    };
     const xOf = (tms: number): number => padL + ((tms - tStart) / windowMs) * plotW;
-    const yOf = (v: number): number => padT + (1 - (v - yMin) / (yMax - yMin)) * plotH;
 
-    // Grille discrète + graduations. Axe X en secondes depuis le départ du run.
+    // Grille : lignes horizontales neutres (repère commun), pas liées à une
+    // échelle précise puisqu'il y en a plusieurs. Axe X en secondes.
     ctx.font = font;
     ctx.strokeStyle = fg;
     ctx.fillStyle = fg;
-    const yStep = this.niceStep((yMax - yMin) / 4);
-    ctx.globalAlpha = 1;
-    for (let v = Math.ceil(yMin / yStep) * yStep; v <= yMax; v += yStep) {
-      const y = yOf(v);
-      ctx.globalAlpha = 0.1;
+    ctx.globalAlpha = 0.1;
+    for (let k = 1; k < 4; k++) {
+      const y = padT + (k / 4) * plotH;
       ctx.beginPath();
       ctx.moveTo(padL, y);
       ctx.lineTo(w - padR, y);
       ctx.lineWidth = 1;
       ctx.stroke();
-      ctx.globalAlpha = 0.65;
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(this.fmt(v), padL - 5, y);
     }
     const xStepMs = this.niceStep(windowMs / 5);
     for (let tm = Math.ceil(tStart / xStepMs) * xStepMs; tm <= tEnd; tm += xStepMs) {
@@ -469,17 +494,37 @@ export class Plotter {
       ctx.textBaseline = 'top';
       ctx.fillText(`${this.fmt((tm - this.t0) / 1000, 1)} s`, x, h - padB + 4);
     }
-    // Unité commune à toutes les séries visibles : affichée en haut de l'axe Y.
-    const units = new Set([...this.series.values()].filter((s) => s.visible).map((s) => s.unit));
-    if (units.size === 1) {
-      const unit = [...units][0];
-      if (unit) {
+    // Une colonne de graduations par courbe visible, dans SA couleur, chacune
+    // à sa propre échelle — l'unité suit, sous la dernière graduation du haut.
+    ctx.textBaseline = 'middle';
+    visibles.forEach((s, i) => {
+      const r = ranges.get(s.name)!;
+      const colRight = padL - 5 - i * COL_W;
+      const yStep = this.niceStep((r.max - r.min) / 4);
+      ctx.strokeStyle = this.colorOf(s);
+      ctx.fillStyle = this.colorOf(s);
+      ctx.textAlign = 'right';
+      let premiere = true;
+      for (let v = Math.ceil(r.min / yStep) * yStep; v <= r.max; v += yStep) {
+        const y = yOf(s, v);
         ctx.globalAlpha = 0.65;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-        ctx.fillText(unit, 2, padT);
+        ctx.fillText(this.fmt(v), colRight, y);
+        if (premiere) {
+          ctx.textBaseline = 'bottom';
+          ctx.globalAlpha = 0.5;
+          if (s.unit) ctx.fillText(s.unit, colRight, y - 8);
+          ctx.textBaseline = 'middle';
+          premiere = false;
+        }
       }
-    }
+      // Trait vertical court sous la colonne : relie la couleur à sa courbe.
+      ctx.globalAlpha = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(colRight + 2, padT);
+      ctx.lineTo(colRight + 2, padT + plotH);
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
     ctx.globalAlpha = 1;
 
     // Courbes : traits de 2 px, jonctions arrondies. Les sondes (escalier) sont
@@ -488,8 +533,8 @@ export class Plotter {
     ctx.beginPath();
     ctx.rect(padL, padT, plotW, plotH);
     ctx.clip();
-    for (const s of this.series.values()) {
-      if (!s.visible || s.pts.length === 0) continue;
+    for (const s of visibles) {
+      if (s.pts.length === 0) continue;
       ctx.strokeStyle = this.colorOf(s);
       ctx.lineWidth = 2;
       ctx.lineJoin = 'round';
@@ -499,7 +544,7 @@ export class Plotter {
       for (const p of s.pts) {
         if (p.t > tEnd) break;
         const x = xOf(p.t);
-        const y = yOf(p.v);
+        const y = yOf(s, p.v);
         if (!started) {
           ctx.moveTo(x, y);
           started = true;
@@ -510,12 +555,12 @@ export class Plotter {
       const last = s.pts[s.pts.length - 1]!;
       if (s.mode === 'step' && last.t < tEnd) {
         // Valeur tenue jusqu'à maintenant.
-        if (!started) ctx.moveTo(xOf(tStart), yOf(last.v));
-        ctx.lineTo(xOf(tEnd), yOf(last.v));
+        if (!started) ctx.moveTo(xOf(tStart), yOf(s, last.v));
+        ctx.lineTo(xOf(tEnd), yOf(s, last.v));
       }
       ctx.stroke();
       // Valeur courante dans la puce de légende (texte en encre normale).
-      s.valueEl.textContent = `${this.fmt(last.v, 3)}${s.unit ? ` ${s.unit}` : ''}`;
+      s.valueEl.textContent = this.fmtValeur(last.v, s.unit, 3);
     }
     ctx.restore();
 
@@ -564,7 +609,7 @@ export class Plotter {
       const v = s.pts[lo]!.v;
       const esc = s.name.replace(/&/g, '&amp;').replace(/</g, '&lt;');
       rows.push(
-        `<div><span class="plotter__dot" style="background:${this.colorOf(s)}"></span>${esc} : ${this.fmt(v, 3)}${s.unit ? ` ${s.unit}` : ''}</div>`
+        `<div><span class="plotter__dot" style="background:${this.colorOf(s)}"></span>${esc} : ${this.fmtValeur(v, s.unit, 3)}</div>`
       );
     }
     if (rows.length <= 1) {

@@ -26,9 +26,10 @@ Ouvrir chaque projet, lancer la simulation. La carte ne démarre pas, rien au mo
 | `pile-cr2032-uno` | `The board does not start: Bat1 gives 3 V on 5V, which needs 4,5 to 5,5 V.` |
 | `batterie-lipo-uno` | `The board does not start: Bat1 gives 4,2 V on VIN, which needs 6,2 to 20 V.` |
 | `pile-4aa-pico` | `The board does not start: Bat1 gives 6,4 V on VSYS, which needs 1,8 to 5,5 V.` |
-| `pile-9v-pico` | `The board does not start: Bat1 gives 9,5 V on VSYS, which needs 1,8 to 5,5 V.` |
 
 Contre-essai : dans `pile-cr2032-uno`, débrancher le fil `-` de la pile, relancer. La masse n'est plus commune : la carte reste sur l'USB et **démarre**.
+
+`pile-9v-pico` est un cas à part, voir section 6 : VSYS n'a pas de régulateur protecteur, la pile 9 V ne fait pas refuser la carte, elle la détruit.
 
 ## 2. Extinction en route
 
@@ -79,6 +80,16 @@ Leçon : `time.sleep()` n'est pas une veille, la puce reste éveillée. `lightsl
 | `consommation-pico` | Power bank sur VSYS : idem, beaucoup plus long |
 | `consommation-uno` modifié : fil `V+` déplacé de 5V vers **VIN** | Refus : `Bat1 gives 5 V on VIN, which needs 6,2 to 20 V.` |
 | `powerbank-uno` | Inchangé : PCA9685 + servo, jauge LED qui suit la charge |
+
+## 6. Pile 9 V sur VSYS : destruction, pas refus
+
+VIN et 5V ont un régulateur qui encaisse le surplus (d'où le simple refus de démarrer, section 1) ; VSYS/VBUS d'une Pico n'en ont pas, le surplus passe jusqu'au silicium.
+
+| Projet | Attendu |
+|---|---|
+| `pile-9v-pico` | La carte démarre, puis est détruite dès la première image : message `board destroyed — Bat1 gave 9,5 V on VSYS, which takes at most 5,5 V.`, simulation arrêtée. Le composant Pico affiche son étiquette de défaut (grillé). |
+
+Contre-essai : relancer sans rien changer — la carte reste détruite pour tout nouveau lancement tant que la pile 9 V est câblée sur VSYS (seul un changement du schéma corrige le défaut).
 
 ## 6. À signaler
 

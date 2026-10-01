@@ -68,7 +68,7 @@ import './composants/custom-part.mjs';
 
 import { initLocale, locale, t } from './i18n.mjs';
 import { Plotter } from './plotter.mjs';
-import { CompteurConsommation, decharger, autonomieH, tensionBatterie, PLAGES_ENTREE } from './consommation.mjs';
+import { CompteurConsommation, LisseurCourant, decharger, autonomieH, tensionBatterie, PLAGES_ENTREE, ENTREES_NON_PROTEGEES, COURANT_FORFAITAIRE_A } from './consommation.mjs';
 import { Editor, KABLIX_BADGE, type PaletteState } from './diagram/editor.mjs';
 import { partDef, boardFamily, isPicoBoard, isBoardId, mcuPinRole, pca9685Address, controlMax, PARAM_ATTR_PREFIX, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
 import { compileExpr } from './diagram/expr.mjs';
@@ -447,6 +447,19 @@ let courantChargesA = 0;
 const compteurConso = new CompteurConsommation();
 /** Charge restante (Ah) de chaque batterie du schéma, depuis le lancement. */
 const chargesBatteries = new Map<string, number>();
+/**
+ * Courant lissé de chaque batterie, pour « battery life » seulement (la
+ * décharge réelle reste au courant instantané) : une LED qui s'allume ne doit
+ * pas faire sauter l'autonomie affichée.
+ */
+const lisseursBatteries = new Map<string, LisseurCourant>();
+/**
+ * Batteries déjà signalées sous 15 % ce lancement-ci (Frank, todo : « alerte
+ * si la charge passe en dessous de 15% »). Un `Set`, pas un booléen : le
+ * message ne part qu'au FRANC franchissement du seuil, jamais à chaque frame
+ * tant que la charge reste basse.
+ */
+const alerteesChargeBasse = new Set<string>();
 /** La carte a déjà tourné sur sa batterie ce lancement-ci (refus au démarrage ou extinction). */
 let carteDemarree = false;
 // PCA9685 (carte 16 servos) grillés pendant ce run : surtension du bornier V+
@@ -477,6 +490,7 @@ const BURN_NOTE = {
   driver: 'This transistor was destroyed: a motor is a coil, and cutting its current sends back a surge. A flyback diode across the motor absorbs it — it is not optional.',
   ic: 'This chip was destroyed: it was fed above the maximum supply voltage of its family. The family printed on the package sets that limit.',
   board: 'This board was destroyed: one of its pins was fed above {0} V. A Pico runs on 3.3 V and its GPIOs are NOT 5 V tolerant — a 5 V sensor or a generator wired straight to a pin destroys it. Use a voltage divider or a level shifter.',
+  boardBattery: 'This board was destroyed: {0} gave {1} V on {2}, which takes at most {3} V. A 9 V battery on VSYS/VBUS has no regulator to protect it.',
 } as const;
 /** Composants actuellement encadrés parce que grillés → texte de l'étiquette. */
 const burnNotes = new Map<string, string>();
@@ -506,6 +520,9 @@ function markBurned(
 // Facteur de luminosité par LED (résistance trop forte → LED sombre), mémorisé
 // à la dernière frame où la LED conduisait.
 const ledLumFactor = new Map<string, number>();
+// Dernier angle connu de chaque servo : sert à détecter s'il est EN MOUVEMENT
+// (courant forfaitaire plus fort) ou à l'arrêt, d'une frame à l'autre.
+const servoAnglePrecedent = new Map<string, number>();
 // Charge des condensateurs : tension actuelle (V) de chaque armature chaude,
 // intégrée frame par frame en TEMPS SIMULÉ (cf. stepCapacitors).
 const capVolts = new Map<string, number>();
@@ -2409,6 +2426,7 @@ function refreshVisualsInner(): void {
         const on = toggling || buzzerOn(editor.diagram, part.id, read);
         if (def.custom) el.active = on;
         else el.hasSignal = on;
+        if (on) courantChargesA += COURANT_FORFAITAIRE_A.buzzer;
         if (on) {
           // Fréquence d'après la largeur de l'impulsion haute (signal carré de
           // tone()/PWM : période = 2 × largeur haute → f = 1e6 / (2 × largeur)).
@@ -2674,11 +2692,21 @@ function refreshVisualsInner(): void {
         const pin = servoTargets.get(part.id);
         if (!pin) break;
         const us = engine.readPulseUs?.(pin) ?? 0;
+        let angle: number;
         if (us > 0) {
-          el.angle = servoAngleUs(us, part.attrs);
+          angle = servoAngleUs(us, part.attrs);
         } else {
-          el.angle = engine.readDigital(pin) ? 90 : 0;
+          angle = engine.readDigital(pin) ? 90 : 0;
         }
+        // En mouvement (angle différent du dernier relevé) : le moteur tire
+        // bien plus qu'à l'arrêt, asservissement seul.
+        const precedent = servoAnglePrecedent.get(part.id);
+        courantChargesA +=
+          precedent !== undefined && Math.abs(angle - precedent) > 0.5
+            ? COURANT_FORFAITAIRE_A.servoMouvement
+            : COURANT_FORFAITAIRE_A.servoRepos;
+        servoAnglePrecedent.set(part.id, angle);
+        el.angle = angle;
         break;
       }
       case 'patte': {
@@ -2748,6 +2776,7 @@ function refreshVisualsInner(): void {
             ? dev.text
             : null;
         if (lines) {
+          courantChargesA += COURANT_FORFAITAIRE_A.ecran;
           // `bind(el)` : méthode extraite sans son `this` (même piège que setPixel).
           const setLcd = (
             el.setLcd as
@@ -2768,6 +2797,7 @@ function refreshVisualsInner(): void {
         // simulé est dans spiOledDevices, pas i2cDevices.
         const dev = part.attrs?.pins === 'spi' ? spiOledDevices.get(part.id) : i2cDevices.get(part.id);
         if (dev instanceof Ssd1306Device) {
+          courantChargesA += COURANT_FORFAITAIRE_A.ecran;
           renderOled(el as unknown as { imageData?: ImageData; redraw?: () => void }, dev);
         }
         break;
@@ -2776,6 +2806,7 @@ function refreshVisualsInner(): void {
         // Écran OLED SPI : tampon décodé du bus SPI → image.
         const dev = spiOledDevices.get(part.id);
         if (dev) {
+          courantChargesA += COURANT_FORFAITAIRE_A.ecran;
           renderOled(el as unknown as { imageData?: ImageData; redraw?: () => void }, dev);
         }
         break;
@@ -2784,6 +2815,7 @@ function refreshVisualsInner(): void {
         // Écran TFT couleur ILI9341 : image RGBA → canvas de l'élément (dessin natif).
         const dev = spiTftDevices.get(part.id);
         if (dev) {
+          courantChargesA += COURANT_FORFAITAIRE_A.ecran;
           renderTft(el as unknown as { canvas?: HTMLCanvasElement | null }, dev);
         }
         break;
@@ -2796,6 +2828,8 @@ function refreshVisualsInner(): void {
         const t = neopixelTargets.get(part.id);
         const all = t ? engine.readNeopixel?.(t.pin) ?? [] : [];
         const colors = t ? all.slice(t.offset, t.offset + t.count) : [];
+        // Chaque LED tire au prorata de sa luminosité (255 = plein courant).
+        for (const c of colors) courantChargesA += COURANT_FORFAITAIRE_A.neopixelParLed * (Math.max(c.r, c.g, c.b) / 255);
         renderNeopixel(part.type, el, colors, part.attrs);
         break;
       }
@@ -2811,6 +2845,19 @@ function refreshVisualsInner(): void {
           el.ledPower = true;
         }
         break;
+    }
+    // Capteurs actifs sans rendu propre dans ce commutateur (le fork du
+    // composant fait son propre rendu) : ils tirent quand même leur courant du
+    // rail de la carte tant qu'ils sont câblés — comparateur/puce du module
+    // toujours sous tension, pas seulement pendant une mesure.
+    if (
+      def.kind === 'ultrasonic' ||
+      def.kind === 'hall' ||
+      def.kind === 'ao-do-sensor' ||
+      def.kind === 'onewire-temp' ||
+      def.kind === 'i2c-pwm'
+    ) {
+      courantChargesA += COURANT_FORFAITAIRE_A.capteurActif;
     }
     } catch (err) {
       console.error('refreshVisuals', part.type, err);
@@ -2890,6 +2937,11 @@ function refusAlimentation(): string | null {
   const battery = def.custom?.battery;
   const volts = battery ? tensionBatterie(battery, 1) : Number(attrs.voltage ?? 5) || 5;
   if (volts >= plage.min && volts <= plage.max) return null;
+  // Sur-tension sur une entrée SANS régulateur protecteur (VSYS/VBUS) : pas de
+  // refus ici, la carte démarre et grille — majBatteries() s'en charge (Frank,
+  // todo : « la pile 9 V devrait détruire la carte », pas juste l'empêcher
+  // de démarrer comme sur VIN/5V, protégées par leur régulateur).
+  if (volts > plage.max && ENTREES_NON_PROTEGEES.has(alim.broche)) return null;
   const nombre = (v: number): string => v.toLocaleString(locale(), { maximumFractionDigits: 1 });
   return t('The board does not start: {0} gives {1} V on {2}, which needs {3} to {4} V.',
     part.id, nombre(volts), alim.broche, nombre(plage.min), nombre(plage.max));
@@ -2952,8 +3004,20 @@ function majBatteries(courantCarteA: number, dtMs: number): void {
     }
     plotter.probe(t('{0}: charge', part.id), Math.round((restantAh / capaciteAh) * 1000) / 10, '%', true);
     if (battery) plotter.probe(t('{0}: voltage', part.id), Math.round(sortie * 100) / 100, 'V', true);
-    const h = autonomieH(restantAh, courantA);
+    let lisseur = lisseursBatteries.get(part.id);
+    if (!lisseur) lisseursBatteries.set(part.id, (lisseur = new LisseurCourant()));
+    const h = autonomieH(restantAh, lisseur.pas(courantA, dtMs));
     if (Number.isFinite(h)) plotter.probe(t('{0}: battery life', part.id), Math.round(h * 100) / 100, 'h', true);
+    // Alerte charge basse : une seule fois par franchissement du seuil, la
+    // batterie vide (restantAh <= 0) a déjà son propre message plus bas.
+    if (restantAh > 0 && restantAh / capaciteAh < 0.15) {
+      if (!alerteesChargeBasse.has(part.id)) {
+        alerteesChargeBasse.add(part.id);
+        setStatus(t('{0}: battery is running low ({1} %)', part.id, Math.round((restantAh / capaciteAh) * 1000) / 10));
+      }
+    } else {
+      alerteesChargeBasse.delete(part.id);
+    }
     if (!alimenteLaCarte || !engine) continue;
     if (restantAh <= 0) {
       const duree = formatDureeProgramme(engine.simulatedMs?.() ?? 0);
@@ -2971,6 +3035,23 @@ function majBatteries(courantCarteA: number, dtMs: number): void {
     if (sortie >= plage.min && sortie <= plage.max) {
       carteDemarree = true;
       continue;
+    }
+    // Sur-tension : contrairement au sous-tension (la carte refuse juste de
+    // démarrer, ou s'éteint proprement une fois lancée), une entrée SANS
+    // régulateur (VSYS/VBUS d'une Pico) laisse passer le surplus jusqu'au
+    // silicium — une pile 9 V dessus grille la carte pour de bon, comme en
+    // salle de TP (Frank, todo : « devrait la détruire »).
+    if (sortie > plage.max) {
+      const boardEl = editor.elementOf(alim!.boardPartId);
+      burnedBoards.add(alim!.boardPartId);
+      if (boardEl) {
+        markBurned(alim!.boardPartId, boardEl, true, BURN_NOTE.boardBattery,
+          part.id, nombre(sortie), alim!.broche, nombre(plage.max));
+      }
+      stopRun();
+      setStatus(t('{0}: board destroyed — {1} gave {2} V on {3}, which takes at most {4} V.',
+        alim!.boardPartId, part.id, nombre(sortie), alim!.broche, nombre(plage.max)));
+      return;
     }
     const msg = !carteDemarree
       ? t('The board does not start: {0} gives {1} V on {2}, which needs {3} to {4} V.',
@@ -3000,6 +3081,14 @@ function majBatterieAraignee(dtMs: number): void {
     plotter.probe(t('{0}: charge', part.id), Math.round((restantAh / capaciteAh) * 1000) / 10, '%', true);
     const h = autonomieH(restantAh, ARAIGNEE_COURANT_A);
     if (Number.isFinite(h)) plotter.probe(t('{0}: battery life', part.id), Math.round(h * 100) / 100, 'h', true);
+    if (restantAh > 0 && restantAh / capaciteAh < 0.15) {
+      if (!alerteesChargeBasse.has(part.id)) {
+        alerteesChargeBasse.add(part.id);
+        setStatus(t('{0}: battery is running low ({1} %)', part.id, Math.round((restantAh / capaciteAh) * 1000) / 10));
+      }
+    } else {
+      alerteesChargeBasse.delete(part.id);
+    }
   }
 }
 
@@ -4719,6 +4808,8 @@ function startRun(): void {
   plotter.start(); // nouvelles courbes à chaque run (comme la console)
   compteurConso.reinitialiser();
   chargesBatteries.clear();
+  lisseursBatteries.clear();
+  alerteesChargeBasse.clear();
   carteDemarree = false;
   // Pont réseau Pico W : le moteur publie les requêtes, l'hôte fait le vrai
   // fetch et renvoie la réponse (message 'netResponse').

@@ -1,15 +1,4 @@
 # À faire
-1. Analyseur logique :
-    1. Une zone qui  ne peut pas afficher son décodage et le texte qui est dessus à cause du zoom doit l'afficher de cette façon : Message total : "0xF0 SEARCH ROM", si pas la place message partiel : "0xF0" et dans la bulle de survol "SEARCH ROM". Pour tous les protocoles.
-1. batterie life ne dois pas osciller (par exemple quand la led s'allume) mais être une moyenne
-1. Le traceur série doit  montrer des échelles différents (une par courbe) de la couleur de la courbe
-1. Les pertes joules sont elles prisent en compte ? 
-1. Tous les composant participent il à la consommation débitée par la batterie ?
-1. alerte si la charge passe en dessous de 15%
-1. Si on fait une symétrie horizontale, les écritures doivent rester lisibles
-1. Affichage de la durée de vie avec j h min si on dépasse 24h - h min si on dépasse 60 min
-1. La pile alcaline 9 v qui alimente la pico pi devrait la détruire (animation  explosion)
-1. Toutes les piles et batteries sont validées
 ## fait
 
 
@@ -18,6 +7,17 @@
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.9.184
+1. ✅ **Alerte charge basse** (« alerte si la charge passe en dessous de 15 % ») : `Set` `alerteesChargeBasse` dans [sim.mts](src/webview/sim.mts), message une seule fois au franc franchissement du seuil (Power bank et batterie implicite de l'araignée), ré-armée si la charge remonte, remise à plat à chaque lancement.
+2. ✅ **Symétrie horizontale : écritures lisibles** (« les écritures doivent rester lisibles ») : le miroir CSS posé sur `.part__body` (`scale(-1,1)`/`scale(1,-1)`) retournait aussi les `<text>`/`<tspan>` gravés dans le SVG — contre-miroir local par texte dans `unmirrorTexts()` ([editor.mts](src/webview/diagram/editor.mts)), appliqué à chaque retournement, générique à tout composant. Banc [verify-flip.mjs](scripts/verify-flip.mjs) étendu (déterminant de la matrice d'un `<text>`, contre-épreuve concluante).
+3. ✅ **Durée de vie en j/h/min** (« affichage avec j h min si >24h, h min si >60min ») : `fmtValeur()` dans [plotter.mts](src/webview/plotter.mts), appliqué à la légende et à l'info-bulle de la courbe « battery life » (l'axe gradué garde un nombre simple, plus lisible en graduation régulière). Banc [verify-plotter.mjs](scripts/verify-plotter.mjs) étendu (3 sondes de durée, contre-épreuve concluante).
+4. ✅ **Pile 9 V sur VSYS/VBUS : destruction de la carte** (« devrait la détruire ») : nouvel ensemble `ENTREES_NON_PROTEGEES` ([consommation.mts](src/webview/consommation.mts)) — VSYS/VBUS n'ont pas de régulateur protecteur, contrairement à VIN/5V. `refusAlimentation()` ne refuse plus le démarrage pour une sur-tension sur ces broches : la carte démarre et `majBatteries()` la détruit (`markBurned`, `burnedBoards`, message « board destroyed », arrêt de la simulation). `alimentationDeLaCarte()` ([model.mts](src/webview/diagram/model.mts)) expose désormais `boardPartId`. Scénario [scenario-piles.md](testkablix/scenario-piles.md) et note de `_spec.mjs` corrigés (pile-9v-pico ne « refuse » plus, elle grille). Banc [verify-batterie.mjs](scripts/verify-batterie.mjs) étendu, contre-épreuve concluante.
+5. ✅ **Catégorie « Piles / Batteries » au téléchargement** : vérifié de bout en bout (`_sources.json` → `.kompix` → `index.json` → `kompixLibrary.ts` → palette) — déjà correct depuis la v182, rien à corriger.
+6. ✅ **Piles et batteries validées** : retrait de `"experimental": true` pour `pile-4aa`, `pile-9v`, `pile-cr2032`, `batterie-lipo` dans [_sources.json](kablix_components/_sources.json), version montée à 2026.9.9. `build-kompix.mjs` + `build-components-index.mjs` relancés, `verify:kompix` à 43/43 (« 0 composant(s) à l'essai »).
+7. ⏳ Traductions ES/ZH des piles/batteries (demandées par Frank) : reportées avant publication, règle globale « jamais au fil de l'eau ».
 
 ---
 

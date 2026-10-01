@@ -32,6 +32,30 @@ export const COURANT_CARTE: Record<BoardId, { eveilleeA: number; veilleA: number
   pico2w: { eveilleeA: 0.024, veilleA: 0.0014 },
 };
 
+/**
+ * Courant forfaitaire (A) des composants ACTIFS câblés sur le rail de la
+ * carte, quand ils fonctionnent (Frank, todo : « tous les composants
+ * participent-ils à la consommation débitée par la batterie ? » — non, seules
+ * les LED l'étaient). ORDRES DE GRANDEUR datasheet typiques, PAS mesurés en
+ * salle de TP — à ajuster si Frank a des valeurs précises. Un servo/moteur
+ * derrière une alim de laboratoire (fan, motor) n'entre PAS ici : son courant
+ * est déjà compté côté PSU, jamais côté carte.
+ */
+export const COURANT_FORFAITAIRE_A = {
+  /** Buzzer actif (piezo), en train de sonner. */
+  buzzer: 0.025,
+  /** Servo SG90-like, EN MOUVEMENT (à l'arrêt il ne tire quasi rien). */
+  servoMouvement: 0.12,
+  /** Servo à l'arrêt, asservissement au repos. */
+  servoRepos: 0.006,
+  /** Une LED WS2812/NeoPixel allumée, pleine luminosité. */
+  neopixelParLed: 0.02,
+  /** Écran I²C/SPI (LCD, OLED, TFT) allumé. */
+  ecran: 0.02,
+  /** Capteur actif (ultrason, RFID, 1-Wire, hall, ao/do) qui mesure. */
+  capteurActif: 0.003,
+} as const;
+
 /** Ce que rend une tranche : courant moyen et charge cumulée depuis le départ. */
 export interface MesureConsommation {
   /** Courant moyen sur la tranche, en ampères (carte + charges). */
@@ -97,6 +121,33 @@ export function autonomieH(restantAh: number, courantA: number): number {
 }
 
 /**
+ * Constante de temps du lissage de « battery life » (temps simulé) : le
+ * courant instantané saute dès qu'une LED s'allume ou s'éteint, l'autonomie
+ * affichée oscillait avec lui (Frank, todo). Une moyenne glissante exponentielle
+ * l'amortit sans retarder les grosses variations de plus de quelques secondes.
+ */
+const LISSAGE_AUTONOMIE_MS = 5000;
+
+/**
+ * Moyenne glissante exponentielle d'un courant, dans le temps SIMULÉ : chaque
+ * batterie a la sienne (une LED sur l'une ne doit pas lisser l'autonomie d'une
+ * autre). `dtMs` nul ou négatif (pause, premier pas) ne fait qu'initialiser.
+ */
+export class LisseurCourant {
+  private moyenneA: number | null = null;
+
+  pas(courantA: number, dtMs: number): number {
+    if (this.moyenneA === null || !(dtMs > 0)) {
+      this.moyenneA = courantA;
+      return this.moyenneA;
+    }
+    const alpha = 1 - Math.exp(-dtMs / LISSAGE_AUTONOMIE_MS);
+    this.moyenneA += (courantA - this.moyenneA) * alpha;
+    return this.moyenneA;
+  }
+}
+
+/**
  * Tension d'une pile qui se vide (v2026.9.7.180) : droite de `full` (pleine)
  * à `empty` (vide). Une vraie courbe a un plateau puis chute ; la droite suffit
  * à la leçon — la tension baisse, et sous le seuil de la carte, elle s'éteint.
@@ -121,3 +172,11 @@ export const PLAGES_ENTREE: Record<string, { min: number; max: number }> = {
   VSYS: { min: 1.8, max: 5.5 },
   VBUS: { min: 1.8, max: 5.5 },
 };
+
+/**
+ * Entrées SANS régulateur protecteur entre la broche et le silicium
+ * (Frank, todo : « la pile 9 V sur la Pico devrait la détruire »). Une
+ * sur-tension dessus grille la carte pour de bon — contrairement à VIN/5V,
+ * où un régulateur encaisse le surplus et fait juste refuser le démarrage.
+ */
+export const ENTREES_NON_PROTEGEES = new Set(['VSYS', 'VBUS']);

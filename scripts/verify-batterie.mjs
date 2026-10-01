@@ -101,7 +101,7 @@ if (typeof tensionBatterie !== 'function' || !PLAGES_ENTREE) {
 	check(!dansPlage(3.0, '5V') && !dansPlage(3.0, 'VIN'), 'CR2032 (3 V) sur une Uno : refusée sur 5V comme sur VIN');
 	check(!dansPlage(4.2, 'VIN'), 'LiPo (4,2 V) sur VIN : refusée');
 	check(dansPlage(4.2, 'VSYS') && dansPlage(3.0, 'VSYS') && dansPlage(2.0, 'VSYS'), 'LiPo et CR2032 sur VSYS : acceptées jusqu’à vide');
-	check(!dansPlage(9.5, 'VSYS') && !dansPlage(6.4, 'VSYS'), '9 V et 4 × AA sur VSYS : refusées');
+	check(!dansPlage(9.5, 'VSYS') && !dansPlage(6.4, 'VSYS'), '9 V et 4 × AA sur VSYS : hors plage');
 	check(dansPlage(6.4, 'VIN') && !dansPlage(6.1, 'VIN'), '4 × AA sur VIN : démarre à 6,4 V, s’éteint sous 6,2 V');
 }
 const { model: m2, catalog: c2 } = await (async () => {
@@ -176,6 +176,10 @@ check(/PLAGES_ENTREE\[alim!?\.broche\]/.test(bloc) && /dropped to \{1\} V: the b
 const refus = sim.match(/function refusAlimentation\([\s\S]*?\r?\n}\r?\n/)?.[0] ?? '';
 check(/tensionBatterie\(battery, 1\)/.test(refus) && /The board does not start/.test(refus),
 	'pile hors plage au lancement : la carte refuse de démarrer, avec un message');
+check(/ENTREES_NON_PROTEGEES\.has\(alim\.broche\)\) return null/.test(refus),
+	'sur-tension sur VSYS/VBUS (pas de régulateur) : PAS de refus au lancement — la carte démarre et grille');
+check(/sortie > plage\.max/.test(bloc) && /burnedBoards\.add\(alim!\.boardPartId\)/.test(bloc) && /markBurned\(alim!\.boardPartId/.test(bloc) && /stopRun\(\)/.test(bloc),
+	'sur-tension en cours de route (pile 9 V sur VSYS) : la carte est détruite (markBurned), la simulation s’arrête');
 check(/const refus = refusAlimentation\(\);\s*if \(refus\) \{\s*setStatus\(refus\);\s*return;/.test(sim),
 	'le refus tombe AVANT la création du moteur');
 check(/if \(!alimenteLaCarte \|\| !engine\) continue;\s*if \(restantAh <= 0\) \{/.test(bloc) && /stopRun\(\)/.test(bloc), 'vide alors qu’elle alimente la carte : la simulation s’arrête');

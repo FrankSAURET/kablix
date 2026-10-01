@@ -18,6 +18,7 @@ const CACHE = join(ROOT, 'node_modules', '.cache-flip');
 const entry = `
 import { Editor } from '../../src/webview/diagram/editor.mjs';
 import '../../src/webview/composants/diode-element.mjs';
+import '../../src/webview/composants/dip-switch-8-element.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
 const ok = (name, cond, detail = '') => checks.push({ name, ok: !!cond, detail: String(detail) });
@@ -87,6 +88,37 @@ async function run() {
 	ok('diode 45° + miroir H : ordonnées gardées, écart horizontal inversé',
 		near(diagH.A.y, diag.A.y) && near(diagH.K.y, diag.K.y)
 		&& near(diagH.A.x - diagH.K.x, diag.K.x - diag.A.x), fmt(diag) + ' → ' + fmt(diagH));
+
+	// --- 4. Texte gravé sur le dessin (todo Frank : « si on fait une symétrie
+	// horizontale, les écritures doivent rester lisibles ») : le miroir global
+	// du composant ne doit pas se propager aux <text> de son SVG interne — leur
+	// matrice écran doit rester un déterminant POSITIF (pas de miroir net),
+	// quel que soit flipH/flipV.
+	const part2 = editor.addPart('dip-switch', 400, 200);
+	await wait(80);
+	const detTexte = () => {
+		const cont = [...document.querySelectorAll('.part')].pop();
+		const el = cont.querySelector('.part__body > *');
+		const txt = el?.shadowRoot?.querySelector('text');
+		if (!txt) return null;
+		const m = txt.getScreenCTM();
+		return m ? m.a * m.d - m.b * m.c : null;
+	};
+	const setFlip = async (flipH, flipV) => {
+		part2.flipH = flipH;
+		part2.flipV = flipV;
+		editor.rerenderPart(part2.id);
+		await wait(60);
+		return detTexte();
+	};
+	const dNone = await setFlip(false, false);
+	const dH = await setFlip(true, false);
+	const dV = await setFlip(false, true);
+	const dHV = await setFlip(true, true);
+	ok('texte du dessin lisible (déterminant > 0) sans miroir', dNone !== null && dNone > 0, dNone);
+	ok('texte du dessin lisible après miroir H', dH !== null && dH > 0, dH);
+	ok('texte du dessin lisible après miroir V', dV !== null && dV > 0, dV);
+	ok('texte du dessin lisible après miroir H+V', dHV !== null && dHV > 0, dHV);
 
 	const out = document.createElement('pre');
 	out.id = 'measures';

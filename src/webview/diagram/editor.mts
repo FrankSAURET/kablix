@@ -3023,6 +3023,29 @@ export class Editor {
     body.style.transform = tf.join(' ');
     const head = body.parentElement?.querySelector('.part__head') as HTMLDivElement | null;
     if (head) this.positionHead(part, head, body);
+    this.unmirrorTexts(body, sx, sy);
+  }
+
+  /**
+   * Contre-miroir des textes du dessin (Frank, todo : « si on fait une
+   * symétrie horizontale, les écritures doivent rester lisibles ») : le
+   * `scale(-1,1)`/`scale(1,-1)` posé sur `.part__body` retourne tout, texte
+   * gravé sur le composant compris (noms de broches, touches de clavier…).
+   * On reretourne chaque `<text>` SUR LUI-MÊME pour annuler l'effet local,
+   * sans toucher sa position (héritée du miroir global du composant).
+   */
+  private unmirrorTexts(body: HTMLDivElement, sx: number, sy: number): void {
+    const el = body.firstElementChild as (WokwiElement & { shadowRoot?: ShadowRoot | null }) | null;
+    const root = el?.shadowRoot;
+    if (!root) return;
+    const texts = root.querySelectorAll('text, tspan');
+    const scale = sx === -1 || sy === -1 ? `scale(${sx}, ${sy})` : '';
+    for (const node of texts) {
+      if (!(node instanceof SVGElement)) continue;
+      node.style.transformBox = 'fill-box';
+      node.style.transformOrigin = 'center';
+      node.style.transform = scale;
+    }
   }
 
   /** Identifiants des composants ciblés par rotation/retournement (sélection multiple ou simple). */

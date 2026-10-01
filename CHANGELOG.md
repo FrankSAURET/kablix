@@ -15,10 +15,18 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Le robot araignée a sa propre batterie** : elle se vide de sa consommation (Pico W, PCA9685, servos), comme un Power bank — rien à câbler, elle n'alimente que le robot.
 - **Tests `autonomie-uno` et `autonomie-pico`** : un nœud de mesure sur pile, avec ou sans veille profonde, pour comparer l'autonomie au traceur.
 - **Une alimentation inadaptée est refusée** : hors de la plage de l'entrée (VIN 6,2 à 20 V, 5V 4,5 à 5,5 V, VSYS et VBUS 1,8 à 5,5 V), la carte ne démarre pas et la barre d'état dit pourquoi. Une CR2032 ne fait pas tourner une Uno, une LiPo ne passe pas le régulateur de VIN. Une pile qui s'use sous le seuil éteint la carte en route.
+- **Une pile 9 V grille la Pico** : VSYS et VBUS n'ont pas de régulateur protecteur, contrairement à VIN et 5V — une pile 9 V dessus détruit la carte pour de bon au lieu de simplement refuser de démarrer.
+- **Alerte de charge basse** : sous 15 % de charge restante, le Power bank ou la batterie du robot araignée le signale dans la barre d'état.
+- **Piles et batteries de bibliothèque validées** : 4 × AA, 9 V, CR2032, LiPo 1S et le Power bank quittent le statut expérimental.
 
 ### Modification
 
 - **L'atelier et l'analyseur logique s'ouvrent plus légers** : seules les traductions de la langue de VS Code sont chargées, et non plus celles des quatre langues.
+
+### Correction
+
+- **Symétrie horizontale** : les écritures gravées sur un composant (noms de broches, touches…) restaient inversées après un retournement, même quand le composant lui-même redevenait lisible.
+- **Durée de vie d'une pile au traceur** : affichée en jours, heures et minutes au-delà d'une heure, plutôt qu'en heures décimales.
 
 ## 2026.9.7 (29 septembre 2026)
 
