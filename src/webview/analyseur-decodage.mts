@@ -1180,6 +1180,9 @@ function decoderOneWire(voies: VoieCapture[], r: ReglageDecodage): Annotation[] 
         t0: tOctet,
         t1: finBit,
         texte: nom ? `${octet(acc, r.base)} ${nom}` : octet(acc, r.base),
+        // Repli quand le nom ne tient pas (Frank, 30/09) : l'octet seul, « 0xF0 »
+        // plutôt que rien — le nom complet reste en bulle de survol.
+        court: nom ? octet(acc, r.base) : undefined,
         nature: commande ? 'commande' : 'donnee',
       });
       bits = 0;

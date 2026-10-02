@@ -436,8 +436,21 @@ export class AnalyseurVue {
   private zonesMarqueurs: ZoneMarqueur[] = [];
   /** Boutons de rappel qui servent (un groupe dont les deux sont garés n'en a pas). */
   private zonesRappel: Array<Omit<ZoneMarqueur, 'm'> & { g: GroupeMarqueurs }> = [];
+  /**
+   * Annotations écrites TRONQUÉES (ni `texte` ni `court` ne tenaient en entier) :
+   * le message complet passe en bulle de survol, sinon il disparaîtrait tant
+   * qu'on n'a pas zoomé (Frank, 30/09 : « le texte qui est dessus à cause du
+   * zoom doit l'afficher » partiellement, complet au survol).
+   */
+  private zonesAnnotTronquees: Array<{ x: number; y: number; w: number; h: number; complet: string }> = [];
 
   constructor(private readonly canvas: HTMLCanvasElement) {}
+
+  /** Texte complet d'une annotation tronquée sous ce point, ou null. */
+  annotationA(x: number, y: number): string | null {
+    const z = this.zonesAnnotTronquees.find((z) => x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h);
+    return z?.complet ?? null;
+  }
 
   /** Groupe dont le bouton de rappel est sous le point, s'il sert ; sinon null. */
   rappelA(x: number, y: number): GroupeMarqueurs | null {
@@ -524,6 +537,7 @@ export class AnalyseurVue {
     this.zones = [];
     this.zonesMarqueurs = [];
     this.zonesRappel = [];
+    this.zonesAnnotTronquees = [];
     this.peindre(ctx, e, w, h);
   }
 
@@ -1115,6 +1129,19 @@ export class AnalyseurVue {
       if (a.court !== undefined && largeurTexte(a.court) + 4 <= place) return a.court;
       return null;
     };
+    /**
+     * Repli quand même ni `texte` ni `court` ne tiennent : le plus complet des
+     * deux, tronqué au « … » (Frank, 30/09 : afficher un message partiel plutôt
+     * que rien, le complet restant lisible en bulle de survol). Sous la largeur
+     * d'un seul caractère + « … », rien ne vaut mieux qu'un tronçon illisible.
+     */
+    const texteTronque = (a: Annotation, place: number): string | null => {
+      if (place < largeurTexte('…') + 4) return null;
+      const source = a.court ?? a.texte;
+      let t = source;
+      while (t.length > 1 && largeurTexte(`${t}…`) + 4 > place) t = t.slice(0, -1);
+      return t.length > 0 ? `${t}…` : null;
+    };
     const baseTexte = (piste: number, ligne: number): number => yDe(piste, ligne) + (ANNOT_H - 3) / 2;
 
     // INDEX. Une vue dézoomée sur une capture pleine porte 150 000 annotations
@@ -1260,12 +1287,24 @@ export class AnalyseurVue {
       trait.push(col + 0.5, y);
       // Champ doublé par un résumé à écrire : c'est le résumé qui parle.
       if (couvert(cle, a)) continue;
+      if (g < (occupe.get(cle) ?? -Infinity)) continue;
       const texte = texteQuiTient(a, d - g);
-      if (texte !== null && g >= (occupe.get(cle) ?? -Infinity)) {
+      if (texte !== null) {
         ctx.fillStyle = fg;
         ctx.fillText(texte, (g + d) / 2, baseTexte(piste, ligne));
         occupe.set(cle, d);
         ajouterA(ecrits, cle, [g, d] as [number, number]);
+        continue;
+      }
+      // Ni le long ni le court ne tiennent : un tronçon « … » plutôt que rien,
+      // le message complet passant en bulle de survol (point 1 du todo).
+      const partiel = texteTronque(a, d - g);
+      if (partiel !== null) {
+        ctx.fillStyle = fg;
+        ctx.fillText(partiel, (g + d) / 2, baseTexte(piste, ligne));
+        occupe.set(cle, d);
+        ajouterA(ecrits, cle, [g, d] as [number, number]);
+        this.zonesAnnotTronquees.push({ x: g, y, w: d - g, h: ANNOT_H - 3, complet: a.texte });
       }
     }
     for (const [c, trait] of traits) {
@@ -1299,16 +1338,22 @@ export class AnalyseurVue {
         limite = Math.min(limite, this.xDe(lp[k]!.t0, e.fenetre, w));
         break;
       }
-      const texte = texteQuiTient(r, limite - g);
-      if (texte === null) continue;
-      const fin = g + largeurTexte(texte) + 4;
+      const place = limite - g;
+      const texte = texteQuiTient(r, place);
+      const partiel = texte === null ? texteTronque(r, place) : null;
+      const ecrit = texte ?? partiel;
+      if (ecrit === null) continue;
+      const fin = g + largeurTexte(ecrit) + 4;
       const l = ecrits.get(cle) ?? [];
       const k = premierEcritApres(l, g);
       if (k < l.length && l[k]![0] < fin) continue;
       ctx.fillStyle = fg;
-      ctx.fillText(texte, g + 2, baseTexte(piste, ligne));
+      ctx.fillText(ecrit, g + 2, baseTexte(piste, ligne));
       l.splice(k, 0, [g, fin]);
       ecrits.set(cle, l);
+      if (partiel !== null) {
+        this.zonesAnnotTronquees.push({ x: g, y: yDe(piste, ligne), w: fin - g, h: ANNOT_H - 3, complet: r.texte });
+      }
     }
     ctx.restore();
   }

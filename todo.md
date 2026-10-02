@@ -1,4 +1,24 @@
 # À faire
+1. Rajoute un lien view online en haut du changelog
+1. J'ai plein de composants qui apparaissent dans installé dans le gestionnaire des composants. Quand je le supprime ils reviennent (ou d'autre) tous en version 1.2.3. Je pense que ce sont des reliquats de tes tests. Rajoute une fonction qui les vides à chaque livraison.
+1. il faut linéariser les courbes de  charge, life, charge used et vlotage des batteries et piles
+1. Avec les batteries, la durée d'affichage du traceur série n'est plus adaptée, rajoute une saisie possible en h min  s
+1. Pareil pour l'accélération de la simulation, rajoute une possibilité de saisir une accélération supérieure à 500 %
+1. Si on accélére la simulation, les graduation  de temps du traceur série doivent refléter l'accélération pour une durée qui reflète le "réel" de la simulation
+1. Les batteries et piles sont toujours notés comme expérimental- à supprimer
+1. La destruction de la carte pico pi alimentée par une pile 9 v doit montrer l'explosion et le message doit être comme les autres sur le montage en non dans la barre d'état
+1. Une batterie ou pile en court circuit doit exploser avec un message de danger et provoque l'ouverture systématique d'une page (modale. La fermeture ne sera possible qu'aprés un temps de lecture imposé) de mise en garde sur les piles et batteries qui reprend les points suivant :
+    1. court circuit -> incendie, explosion, brûlure
+    1. Sens des piles dans un holder = court circuit,
+    1. Qualité du chargeur
+    1. ne pas charger pendant qu'on dort
+    1. ne pas charger sur une surface inflammable
+    1. ne pas mélanger les piles neuvent et usagées
+    1. protéger les piles et batteries des températures extrêmes
+    1. ne pas utiliser une pile ou batterie déformée
+    1. ne pas jeter à la poubelle
+Tu mets en forme, de façon brève mais tout doit y être
+    1. 
 ## fait
 
 

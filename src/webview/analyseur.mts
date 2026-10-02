@@ -1835,6 +1835,12 @@ canvas.addEventListener('pointermove', (ev) => {
   const surRappel = marqueurPris === null ? vue.rappelA(souris.x, souris.y) : null;
   const surMarqueur = marqueurPris === null ? vue.marqueurA(souris.x, souris.y) : null;
   const bouton = marqueurPris === null && !surRappel && surMarqueur === null ? vue.boutonA(souris.x, souris.y) : null;
+  // Décodage tronqué par le zoom (« 0xF0 » au lieu de « 0xF0 SEARCH ROM ») :
+  // le message complet en bulle (Frank, 30/09, point 1 du todo).
+  const surAnnotation =
+    marqueurPris === null && !surRappel && surMarqueur === null && !bouton
+      ? vue.annotationA(souris.x, souris.y)
+      : null;
   canvas.style.cursor =
     marqueurPris !== null || surMarqueur !== null ? 'ew-resize' : surRappel || bouton ? 'pointer' : '';
   // Aucune bulle pendant un glissé : elle suivrait le marqueur sans rien dire.
@@ -1846,7 +1852,9 @@ canvas.addEventListener('pointermove', (ev) => {
         ? bulleMarqueur(surMarqueur)
         : bouton
           ? bulleBouton(bouton)
-          : '';
+          : surAnnotation
+            ? surAnnotation
+            : '';
   dessiner();
 });
 canvas.addEventListener('pointerleave', () => {
