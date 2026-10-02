@@ -1,5 +1,4 @@
 # À faire
-1. Rajoute un lien view online en haut du changelog
 1. J'ai plein de composants qui apparaissent dans installé dans le gestionnaire des composants. Quand je le supprime ils reviennent (ou d'autre) tous en version 1.2.3. Je pense que ce sont des reliquats de tes tests. Rajoute une fonction qui les vides à chaque livraison.
 1. il faut linéariser les courbes de  charge, life, charge used et vlotage des batteries et piles
 1. Avec les batteries, la durée d'affichage du traceur série n'est plus adaptée, rajoute une saisie possible en h min  s
@@ -27,6 +26,11 @@ Tu mets en forme, de façon brève mais tout doit y être
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.8.185
+1. ✅ **Lien « View online » en haut du CHANGELOG** : [CHANGELOG.md](CHANGELOG.md) renvoie à la version rendue sur GitHub (`blob/main/CHANGELOG.md`), en français et en anglais. Aucune chaîne traduite à ajouter.
 
 ---
 
