@@ -1,5 +1,4 @@
 # À faire
-1. il faut linéariser les courbes de  charge, life, charge used et vlotage des batteries et piles
 1. Avec les batteries, la durée d'affichage du traceur série n'est plus adaptée, rajoute une saisie possible en h min  s
 1. Pareil pour l'accélération de la simulation, rajoute une possibilité de saisir une accélération supérieure à 500 %
 1. Si on accélére la simulation, les graduation  de temps du traceur série doivent refléter l'accélération pour une durée qui reflète le "réel" de la simulation
@@ -25,6 +24,12 @@ Tu mets en forme, de façon brève mais tout doit y être
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.8.187
+1. ✅ **Courbes de batterie linéarisées** (« linéariser les courbes de charge, life, charge used et voltage ») : cause = ces sondes étaient tracées en ESCALIER (mode `step` du traceur, fait pour des valeurs qui tiennent). [plotter.mts](src/webview/plotter.mts) : `probe(..., mode)` accepte `'line'` ; [sim.mts](src/webview/sim.mts) pose `'line'` sur `Charge used`, `{0}: charge`, `{0}: voltage`, `{0}: battery life` (Power bank, piles, araignée). `Board current` reste en escalier (courant qui change par paliers).
+2. ✅ Banc [verify-plotter.mjs](scripts/verify-plotter.mjs) : +1 contrôle (mode ligne, 3 points sans marche), comptes de puces et de lignes CSV réaccordés. Contre-épreuve sans le correctif de `plotter.mts` : 3 échecs (dont le nouveau). Banc lancé avec `CHROME_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome`. `verify:batterie` vert.
 
 ---
 

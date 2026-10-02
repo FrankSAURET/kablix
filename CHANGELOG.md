@@ -23,6 +23,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Modification
 
+- **Courbes de batterie en droites** : charge, tension, autonomie et charge consommée se tracent en lignes continues au traceur, et non plus en escalier.
 - **L'atelier et l'analyseur logique s'ouvrent plus légers** : seules les traductions de la langue de VS Code sont chargées, et non plus celles des quatre langues.
 
 ### Correction

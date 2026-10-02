@@ -2909,7 +2909,7 @@ function majConsommation(): void {
   if (!engine?.simulatedMs) return;
   const m = compteurConso.pas(board, engine.simulatedMs(), engine.sleepMs?.() ?? 0, courantChargesA);
   plotter.probe(t('Board current'), Math.round(m.courantA * 10_000) / 10, 'mA', true);
-  plotter.probe(t('Charge used'), Math.round(m.chargeAh * 1_000_000) / 1000, 'mAh', true);
+  plotter.probe(t('Charge used'), Math.round(m.chargeAh * 1_000_000) / 1000, 'mAh', true, 'line');
   majBatteries(m.courantA, m.dtMs);
   majBatterieAraignee(m.dtMs);
 }
@@ -3002,12 +3002,12 @@ function majBatteries(courantCarteA: number, dtMs: number): void {
       // tombe à 0 et ce que la batterie alimente directement s'éteint avec elle.
       el.volts = battery || restantAh <= 0 ? sortie : undefined;
     }
-    plotter.probe(t('{0}: charge', part.id), Math.round((restantAh / capaciteAh) * 1000) / 10, '%', true);
-    if (battery) plotter.probe(t('{0}: voltage', part.id), Math.round(sortie * 100) / 100, 'V', true);
+    plotter.probe(t('{0}: charge', part.id), Math.round((restantAh / capaciteAh) * 1000) / 10, '%', true, 'line');
+    if (battery) plotter.probe(t('{0}: voltage', part.id), Math.round(sortie * 100) / 100, 'V', true, 'line');
     let lisseur = lisseursBatteries.get(part.id);
     if (!lisseur) lisseursBatteries.set(part.id, (lisseur = new LisseurCourant()));
     const h = autonomieH(restantAh, lisseur.pas(courantA, dtMs));
-    if (Number.isFinite(h)) plotter.probe(t('{0}: battery life', part.id), Math.round(h * 100) / 100, 'h', true);
+    if (Number.isFinite(h)) plotter.probe(t('{0}: battery life', part.id), Math.round(h * 100) / 100, 'h', true, 'line');
     // Alerte charge basse : une seule fois par franchissement du seuil, la
     // batterie vide (restantAh <= 0) a déjà son propre message plus bas.
     if (restantAh > 0 && restantAh / capaciteAh < 0.15) {
@@ -3078,9 +3078,9 @@ function majBatterieAraignee(dtMs: number): void {
     const avantAh = chargesBatteries.get(part.id) ?? capaciteAh;
     const restantAh = decharger(avantAh, avantAh > 0 ? ARAIGNEE_COURANT_A : 0, dtMs);
     chargesBatteries.set(part.id, restantAh);
-    plotter.probe(t('{0}: charge', part.id), Math.round((restantAh / capaciteAh) * 1000) / 10, '%', true);
+    plotter.probe(t('{0}: charge', part.id), Math.round((restantAh / capaciteAh) * 1000) / 10, '%', true, 'line');
     const h = autonomieH(restantAh, ARAIGNEE_COURANT_A);
-    if (Number.isFinite(h)) plotter.probe(t('{0}: battery life', part.id), Math.round(h * 100) / 100, 'h', true);
+    if (Number.isFinite(h)) plotter.probe(t('{0}: battery life', part.id), Math.round(h * 100) / 100, 'h', true, 'line');
     if (restantAh > 0 && restantAh / capaciteAh < 0.15) {
       if (!alerteesChargeBasse.has(part.id)) {
         alerteesChargeBasse.add(part.id);

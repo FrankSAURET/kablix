@@ -73,6 +73,11 @@ try {
   p.probe('A0', 1.25); // valeur inchangée : aucun point ajouté
   p.probe('A0', 2.5);  // changement : marche d'escalier (2 points)
 
+  // --- Grandeur continue (Frank, 02/10 : « linéariser les courbes » de pile) --
+  p.probe('bat9: charge', 100, '%', true, 'line');
+  p.probe('bat9: charge', 100, '%', true, 'line'); // même valeur : le point est gardé (droite)
+  p.probe('bat9: charge', 99.9, '%', true, 'line');
+
   // --- Durée de vie (Frank, todo : « j h min si >24h, h min si >60min ») ----
   p.probe('bat1: battery life', 0.5, 'h', true);   // 30 min : reste en heures brutes
   p.probe('bat2: battery life', 1.5, 'h', true);   // 1 h 30 : « h min »
@@ -175,19 +180,20 @@ const by = Object.fromEntries((res.series ?? []).map((s) => [s.name, s]));
 check('série temp (ligne) : 2 points, dernier 24,5', by.temp && by.temp.mode === 'line' && by.temp.n === 2 && by.temp.last === 24.5, JSON.stringify(by.temp));
 check('série u : unité V, valeur 3', by.u && by.u.unit === 'V' && by.u.last === 3, JSON.stringify(by.u));
 check('série ts : horodatage ignoré, valeur 7', by.ts && by.ts.last === 7, JSON.stringify(by.ts));
+check('pile (droite) : mode ligne, 3 points sans marche d\'escalier', by['bat9: charge'] && by['bat9: charge'].mode === 'line' && by['bat9: charge'].n === 3 && by['bat9: charge'].last === 99.9, JSON.stringify(by['bat9: charge']));
 check('sonde A0 (escalier) : 3 points (valeur tenue dédupliquée), dernier 2,5', by.A0 && by.A0.mode === 'step' && by.A0.n === 3 && by.A0.last === 2.5, JSON.stringify(by.A0));
 check('auto-affichage déclenché une fois', res.firstData === 1, String(res.firstData));
 check('message « en attente » masqué après données', res.emptyBefore === true && res.emptyAfter === false, `${res.emptyBefore}/${res.emptyAfter}`);
 
 // --- Légende / CSV / rendu -------------------------------------------------------
-check('7 puces de légende (4 + 3 sondes de durée)', res.chips === 7, String(res.chips));
+check('8 puces de légende (4 + 3 sondes de durée + 1 pile)', res.chips === 8, String(res.chips));
 check('clic sur puce : série masquée + estompée', res.chipOff === true, String(res.chipOff));
 
 // --- Durée de vie (j h min) -------------------------------------------------
 check('durée 30 min : heures brutes, pas de « h min »', res.duree30min === '0.5 h', res.duree30min);
 check('durée 1 h 30 : « h min »', res.duree1h30 === '1 h 30 min', res.duree1h30);
 check('durée 30 h : « j h min »', res.duree30h === '1 j 6 h 00 min', res.duree30h);
-check('CSV : en-tête + 10 lignes de mesures', res.csvHead === 'time_s,name,value,unit' && res.csvLines === 11, `${res.csvHead} / ${res.csvLines}`);
+check('CSV : en-tête + 13 lignes de mesures', res.csvHead === 'time_s,name,value,unit' && res.csvLines === 14, `${res.csvHead} / ${res.csvLines}`);
 check('canvas peint (grille + courbes)', res.painted > 500, `${res.painted} px (${res.canvasSize})`);
 
 // --- Nom des sondes internes : « ADC0 (GP26) », toutes cartes ---------------------

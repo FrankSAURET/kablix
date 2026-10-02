@@ -207,9 +207,13 @@ export class Plotter {
    * Sonde interne : valeur posée sur une broche analogique (déjà convertie en
    * volts par l'appelant). Tracé en escalier ; une valeur inchangée n'ajoute
    * aucun point (le prolongement jusqu'à « maintenant » est fait au dessin).
+   *
+   * `mode: 'line'` pour une grandeur qui varie en continu (charge d'une pile,
+   * autonomie, charge consommée) : elle se trace en droite entre deux points,
+   * non en marches (Frank, 02/10 : « linéariser les courbes »).
    */
-  probe(name: string, value: number, unit = 'V', silencieuse = false): void {
-    this.push(name, value, unit, 'step', silencieuse);
+  probe(name: string, value: number, unit = 'V', silencieuse = false, mode: 'line' | 'step' = 'step'): void {
+    this.push(name, value, unit, mode, silencieuse);
   }
 
   /** Ligne candidate abandonnée : son texte est rendu à la console. */
