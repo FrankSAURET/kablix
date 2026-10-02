@@ -2,7 +2,7 @@
   "name": "kablix",
   "displayName": "Kablix",
   "version": "2026.9.7",
-  "buildNumber": 185,
+  "buildNumber": 186,
   "description": "%kablix.description%",
   "publisher": "electropol-fr",
   "author": {
@@ -411,6 +411,7 @@
     "verify:reouverture": "node scripts/verify-reouverture.mjs",
     "verify:multimetre": "node scripts/verify-multimetre.mjs",
     "verify:oscillo": "node scripts/verify-oscillo.mjs",
+    "vider-reliquats": "node scripts/vider-reliquats.mjs",
     "verify:analyseur": "node scripts/verify-analyseur.mjs",
     "verify:analyseur-rendu": "node scripts/verify-analyseur-rendu.mjs",
     "verify:analyseur-dht-vue": "node scripts/verify-analyseur-dht-vue.mjs",

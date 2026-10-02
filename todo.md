@@ -1,5 +1,4 @@
 # À faire
-1. J'ai plein de composants qui apparaissent dans installé dans le gestionnaire des composants. Quand je le supprime ils reviennent (ou d'autre) tous en version 1.2.3. Je pense que ce sont des reliquats de tes tests. Rajoute une fonction qui les vides à chaque livraison.
 1. il faut linéariser les courbes de  charge, life, charge used et vlotage des batteries et piles
 1. Avec les batteries, la durée d'affichage du traceur série n'est plus adaptée, rajoute une saisie possible en h min  s
 1. Pareil pour l'accélération de la simulation, rajoute une possibilité de saisir une accélération supérieure à 500 %
@@ -26,6 +25,12 @@ Tu mets en forme, de façon brève mais tout doit y être
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.8.186
+1. ✅ **Reliquats de test vidés à chaque livraison** (« plein de composants installés, tous en 1.2.3 »). Nouveau [vider-reliquats.mjs](scripts/vider-reliquats.mjs) (`npm run vider-reliquats`, `--simule`, `--dossier=`) : retire de la bibliothèque installée (emplacements standard VS Code / Insiders / VSCodium, ou `$KABLIX_COMPONENTS`) les entrées d'index en version `1.2.3` ou nommées `test-*` et leur `.kompix` ; les composants du dépôt officiel ne sont jamais touchés ; dossier absent = rien à faire. Appelé par [livre.md](.claude/commands/livre.md) après la construction. Essayé sur un dossier factice (simulation, retrait, officiel `ds18b20` en 1.2.3 conservé).
+2. ℹ️ La cause n'est PAS trouvée : `verify-kompix.mjs` écrit dans `node_modules/.cache-verify-kompix`, pas dans ta bibliothèque. D'où viennent les 1.2.3 de ton poste (et pourquoi ils reviennent après suppression) reste à établir : lance `node scripts/vider-reliquats.mjs --simule` chez toi pour voir ce qu'il trouve.
 
 ---
 
