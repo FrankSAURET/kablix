@@ -31,6 +31,7 @@ const SKELETON = `
     <span>📈 Plotter</span>
     <span class="serial__head-actions">
       <select id="plotter-window"></select>
+      <input id="plotter-window-custom" type="text" hidden />
       <button id="plotter-pause"></button>
       <button id="plotter-csv">CSV</button>
       <button id="clear-plotter">Clear</button>
@@ -119,6 +120,27 @@ try {
     out.duree30min = dureeParNom('bat1: battery life');
     out.duree1h30 = dureeParNom('bat2: battery life');
     out.duree30h = dureeParNom('bat3: battery life');
+
+    // --- Horloge simulée et fenêtre saisie en h min s (Frank, 02/10) ----------
+    let faux = 1000;
+    p.setClock(() => faux);
+    p.start();
+    out.t0Horloge = p.t0;
+    p.probe('x', 1, 'u', true, 'line');
+    faux = 1000 + 7200000; // 2 h SIMULÉES plus tard
+    p.probe('x', 2, 'u', true, 'line');
+    p.windowSelect.value = 'custom';
+    p.windowSelect.dispatchEvent(new Event('change'));
+    out.saisieVisible = !p.windowInput.hidden;
+    p.windowInput.value = '1h30';
+    p.windowInput.dispatchEvent(new Event('change'));
+    out.fenetre1h30 = p.windowMs();
+    out.saisieRelue = p.windowInput.value;
+    p.windowInput.value = 'n importe quoi';
+    p.windowInput.dispatchEvent(new Event('change'));
+    out.fenetreIllisible = p.windowMs();
+    out.graduation = p.fmtTemps(1000 + 5400000, 1);
+    out.pointsX = [...p.series.values()].find((s) => s.name === 'x').pts.map((q) => q.t - p.t0);
     document.getElementById('result').textContent = JSON.stringify(out);
   }, 800);
 } catch (e) { document.getElementById('result').textContent = 'ERR:' + (e && e.stack || e); }
@@ -194,6 +216,13 @@ check('durée 30 min : heures brutes, pas de « h min »', res.duree30min === '0
 check('durée 1 h 30 : « h min »', res.duree1h30 === '1 h 30 min', res.duree1h30);
 check('durée 30 h : « j h min »', res.duree30h === '1 j 6 h 00 min', res.duree30h);
 check('CSV : en-tête + 13 lignes de mesures', res.csvHead === 'time_s,name,value,unit' && res.csvLines === 14, `${res.csvHead} / ${res.csvLines}`);
+check('horloge simulée : l\'origine du run est celle de l\'horloge posée', res.t0Horloge === 1000, String(res.t0Horloge));
+check('horloge simulée : les points portent le temps simulé (0 puis 2 h)', JSON.stringify(res.pointsX) === '[0,7200000]', JSON.stringify(res.pointsX));
+check('fenêtre « Custom » : le champ de saisie apparaît', res.saisieVisible === true);
+check('fenêtre saisie « 1h30 » = 5400 s', res.fenetre1h30 === 5400000, String(res.fenetre1h30));
+check('fenêtre saisie : le champ se réécrit « 1 h 30 min »', res.saisieRelue === '1 h 30 min', res.saisieRelue);
+check('fenêtre saisie illisible : on garde la dernière durée valable', res.fenetreIllisible === 5400000, String(res.fenetreIllisible));
+check('graduation à 1 h 30 du départ : « 1 h 30 min »', res.graduation === '1 h 30 min', res.graduation);
 check('canvas peint (grille + courbes)', res.painted > 500, `${res.painted} px (${res.canvasSize})`);
 
 // --- Nom des sondes internes : « ADC0 (GP26) », toutes cartes ---------------------
@@ -204,6 +233,24 @@ check('sim : la sonde est nommée par probeLabel, pas par la broche brute',
   /plotter\.probe\(probeLabel\(board, pin\)/.test(sim));
 check('sim : la forme du nom est « ADC<n> (<broche>) »',
   /return adc === undefined \? pin : `ADC\$\{adc\} \(\$\{pin\}\)`;/.test(sim));
+
+// --- Durées saisies : « 1h30 », « 2 h 15 min 10 s », « 1:30:00 »… ----------------
+const dureeFile = join(SCRATCH, 'duree.bundle.mjs');
+buildSync({
+  entryPoints: [join(ROOT, 'src', 'webview', 'duree.mts')],
+  outfile: dureeFile, bundle: true, platform: 'node', format: 'esm', absWorkingDir: ROOT,
+});
+const { analyserDuree, formaterDuree, pasDeTemps } = await import(pathToFileURL(dureeFile).href);
+for (const [texte, attendu] of [
+  ['90', 90], ['90 s', 90], ['45min', 2700], ['1h30', 5400], ['1 h 30 min', 5400],
+  ['2h15m10s', 8110], ['1:30:00', 5400], ['1:30', 90], ['1,5', 1.5],
+  ['', null], ['0', null], ['abc', null], ['30min2h', null],
+]) {
+  check(`durée saisie « ${texte} » → ${attendu}`, analyserDuree(texte) === attendu, String(analyserDuree(texte)));
+}
+check('durée écrite : 150 s → « 2 min 30 s »', formaterDuree(150) === '2 min 30 s', formaterDuree(150));
+check('durée écrite : 3900 s → « 1 h 05 min »', formaterDuree(3900) === '1 h 05 min', formaterDuree(3900));
+check('graduation de temps : 2 h sur 5 cases → pas de 30 min', pasDeTemps(1440) === 1800, String(pasDeTemps(1440)));
 
 const catalogFile = join(SCRATCH, 'catalog.bundle.mjs');
 buildSync({

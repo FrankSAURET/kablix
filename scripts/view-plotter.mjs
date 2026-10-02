@@ -42,6 +42,7 @@ const skeleton = `
     <span>📈 Traceur</span>
     <span class="serial__head-actions" style="display:inline-flex;gap:.35rem">
       <select id="plotter-window" class="plotter__window"></select>
+      <input id="plotter-window-custom" class="plotter__window" type="text" hidden />
       <button id="plotter-pause"></button>
       <button id="plotter-csv">CSV</button>
       <button id="clear-plotter">Effacer</button>

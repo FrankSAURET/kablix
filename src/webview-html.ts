@@ -195,6 +195,7 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
           <span class="canvas-controls__speed" title="${l10n.t('Simulation speed')}">
             <img id="speed-face" class="canvas-controls__speed-face" src="${lapinIconUri}" alt="" aria-hidden="true" />
             <select id="speed" class="canvas-controls__speed-select" title="${l10n.t('Simulation speed')}">
+              <option value="custom" data-icon="${aigleIconUri}">✎ ${l10n.t('Custom…')}</option>
               <option value="5" data-icon="${aigleIconUri}">🦅 500 %</option>
               <option value="2" data-icon="${guepardIconUri}">🐆 200 %</option>
               <option value="1" selected data-icon="${lapinIconUri}">🐇 100 %</option>
@@ -202,6 +203,7 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
               <option value="0.01" data-icon="${escargotIconUri}">🐌 1 %</option>
             </select>
           </span>
+          <input id="speed-custom" class="canvas-controls__speed-custom" type="number" min="1" max="10000" step="1" value="1000" hidden title="${l10n.t('Simulation speed in % (1 to 10000)')}" />
           <button id="repl" class="canvas-controls__btn canvas-controls__btn--repl" hidden title="${l10n.t('Start an interactive MicroPython REPL (no script)')}">REPL</button>
           <button id="toggle-serial" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Show/hide the serial monitor')}"><img class="canvas-controls__icon" src="${serialMonitorUri}" alt="${l10n.t('Show/hide the serial monitor')}" /></button>
           <button id="toggle-plotter" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Show/hide the plotter (curves)')}"><img class="canvas-controls__icon" src="${plotterIconUri}" alt="${l10n.t('Show/hide the plotter (curves)')}" /></button>
@@ -314,6 +316,7 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
         <span><img class="plotter__head-icon" src="${plotterIconUri}" alt="" /> ${l10n.t('Plotter')}</span>
         <span class="serial__head-actions">
           <select id="plotter-window" class="plotter__window" title="${l10n.t('Time window')}"></select>
+          <input id="plotter-window-custom" class="plotter__window plotter__window-custom" type="text" size="9" hidden spellcheck="false" aria-label="${l10n.t('Time window')}" />
           <button id="plotter-pause"></button>
           <button id="plotter-csv" title="${l10n.t('Export the measurements (CSV)')}">CSV</button>
           <button id="clear-plotter">${l10n.t('Clear')}</button>

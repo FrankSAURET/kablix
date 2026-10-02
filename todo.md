@@ -1,7 +1,4 @@
 # À faire
-1. Avec les batteries, la durée d'affichage du traceur série n'est plus adaptée, rajoute une saisie possible en h min  s
-1. Pareil pour l'accélération de la simulation, rajoute une possibilité de saisir une accélération supérieure à 500 %
-1. Si on accélére la simulation, les graduation  de temps du traceur série doivent refléter l'accélération pour une durée qui reflète le "réel" de la simulation
 1. Les batteries et piles sont toujours notés comme expérimental- à supprimer
 1. La destruction de la carte pico pi alimentée par une pile 9 v doit montrer l'explosion et le message doit être comme les autres sur le montage en non dans la barre d'état
 1. Une batterie ou pile en court circuit doit exploser avec un message de danger et provoque l'ouverture systématique d'une page (modale. La fermeture ne sera possible qu'aprés un temps de lecture imposé) de mise en garde sur les piles et batteries qui reprend les points suivant :
@@ -24,6 +21,15 @@ Tu mets en forme, de façon brève mais tout doit y être
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.8.188
+1. ✅ **Fenêtre du traceur saisie en h min s** : option « Custom… » de la liste, champ qui accepte `1h30`, `45 min`, `2 h 15 min 10 s`, `1:30:00`, `90` (secondes) ; illisible → dernière durée valable. Nouveau [duree.mts](src/webview/duree.mts) (`analyserDuree`, `formaterDuree`, `pasDeTemps`). La purge des points suit la fenêtre (plus de plafond à 65 s).
+2. ✅ **Vitesse libre** : entrée « ✎ Custom… » du sélecteur de vitesse + champ en % (1 à 10 000 ; le moteur plafonne déjà à ×100 et à ce que la machine permet), `vitesseChoisie()` dans [sim.mts](src/webview/sim.mts), bandeau de simulation à jour.
+3. ✅ **Graduations en temps simulé** : le traceur prend l'horloge du moteur (`setClock`, `simulatedMs()`) — accéléré, l'axe dit la durée du montage ; graduations rondes en h/min/s depuis le départ du run ; le CSV porte aussi le temps simulé. Moteur sans `simulatedMs` : temps réel comme avant.
+4. ✅ Banc [verify-plotter.mjs](scripts/verify-plotter.mjs) : +20 contrôles (analyse des durées, horloge simulée, fenêtre saisie, graduation), lancé avec `CHROME_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome` ; contre-épreuve : échoue sans le nouveau traceur. Pas de banc à vraie souris sur le sélecteur de vitesse (à essayer chez toi). Aide FR ([USAGE.md](docs/fr/USAGE.md)).
+5. ⏳ Traductions avant publication : `Custom…`, `Time window, for example 1h30 or 45 min or 90 s`, `Simulation speed in % (1 to 10000)` (l10n es/fr/zh) ; docs EN/ES/ZH (USAGE).
 
 ---
 

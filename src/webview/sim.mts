@@ -251,6 +251,20 @@ const debugTitleBtn = document.getElementById('debug-title') as HTMLButtonElemen
 const debugHiddenEl = document.getElementById('debug-hidden') as HTMLDivElement;
 const statusEl = document.getElementById('status') as HTMLSpanElement;
 const simSpeedEl = document.getElementById('sim-speed') as HTMLSpanElement;
+const speedCustom = document.getElementById('speed-custom') as HTMLInputElement;
+/**
+ * Vitesse demandée, en fraction de 1 (1 = 100 %). L'entrée « ✎ » de la liste
+ * laisse taper un pourcentage libre de 1 à 10 000 % (Frank, 02/10 : « une
+ * accélération supérieure à 500 % » pour voir une pile se vider) ; le moteur
+ * plafonne de toute façon à ce que la machine permet.
+ */
+function vitesseChoisie(): number {
+  if (speedSelect.value === 'custom') {
+    const pc = Number(speedCustom.value);
+    return Number.isFinite(pc) && pc > 0 ? Math.min(Math.max(pc, 1), 10_000) / 100 : 1;
+  }
+  return Number(speedSelect.value) || 1;
+}
 // Compteurs du canvas (haut-droite, sous la barre d'outils) : temps écoulé et
 // vitesse réelle, visibles pendant toute la simulation.
 const simGaugeEl = document.getElementById('sim-gauge') as HTMLDivElement;
@@ -312,7 +326,7 @@ simBanner.hidden = true;
  * annoncé dans le bandeau, et seulement s'il diffère du temps réel.
  */
 function simBannerText(): string {
-  const vitesse = Number(speedSelect.value) || 1;
+  const vitesse = vitesseChoisie();
   if (vitesse === 1) return t('⚠ Simulation running: editing is disabled.');
   const pc = vitesse >= 1 ? String(vitesse * 100) : String(Math.round(vitesse * 100 * 100) / 100);
   return t('⚠ Simulation running (speed {0} %): editing is disabled.', pc);
@@ -710,6 +724,19 @@ function setSerialVisible(visible: boolean, persist = true): void {
 
 // --- Traceur de courbes (télémétrie `>nom:valeur` + sondes analogiques) -------
 const plotter = new Plotter();
+// Le traceur compte en temps SIMULÉ : accéléré, ses graduations disent la durée
+// du montage et non celle de l'écran (Frank, 02/10). Après l'arrêt le moteur
+// n'existe plus : on garde le dernier instant connu. Un moteur sans
+// `simulatedMs` ne change rien (temps réel, comme avant).
+{
+  let dernierSimule: number | null = null;
+  plotter.setClock(() => {
+    const ms = engine?.simulatedMs?.();
+    if (ms !== undefined) dernierSimule = ms;
+    else if (engine === null && dernierSimule !== null) return dernierSimule;
+    return ms ?? performance.now();
+  });
+}
 
 /**
  * Nom d'une sonde interne dans le traceur : « ADC0 (GP26) ». Le CANAL du
@@ -1077,7 +1104,7 @@ function updateSpeedBadge(): void {
   // dépasse le temps réel sur un sketch chargé, et un badge « ralentie » allumé
   // en permanence dès qu'on demande 500 % ne dirait rien de l'état du schéma.
   // Le badge reste donc la sentinelle du TEMPS RÉEL : plafonné à 1×.
-  const wanted = Math.min(Number(speedSelect.value) || 1, 1);
+  const wanted = Math.min(vitesseChoisie(), 1);
   // Une horloge de moteur cassée rend NaN (ou l'infini), et `NaN < seuil` est
   // FAUX : le badge se taisait alors sur les cartes les plus lentes — exactement
   // celles qu'il devait dénoncer. C'est ce qui est arrivé au Pico 2 jusqu'à la
@@ -4705,11 +4732,17 @@ function updateSpeedFace(): void {
 }
 updateSpeedFace();
 
-speedSelect.addEventListener('change', () => {
-  engine?.setSpeed(Number(speedSelect.value) || 1);
+function appliquerVitesse(): void {
+  speedCustom.hidden = speedSelect.value !== 'custom';
+  engine?.setSpeed(vitesseChoisie());
   updateSpeedFace();
   if (!simBanner.hidden) simBanner.textContent = simBannerText(); // le bandeau annonce la vitesse
   resetSpeedBadge(); // le régime change : la mesure repart d'une fenêtre neuve
+}
+speedSelect.addEventListener('change', appliquerVitesse);
+speedCustom.addEventListener('change', appliquerVitesse);
+speedCustom.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') appliquerVitesse();
 });
 
 // --- Cycle de vie de la simulation -------------------------------------------
@@ -4816,7 +4849,7 @@ function startRun(): void {
   if (engine.onNetRequest !== undefined) {
     engine.onNetRequest = (req) => vscode.postMessage({ type: 'net', request: req });
   }
-  engine.setSpeed(Number(speedSelect.value) || 1);
+  engine.setSpeed(vitesseChoisie());
   engine.setBreakpoints?.(breakpoints);
   sevenSegLatch = new Map(); // nouveau run : les chiffres mémorisés repartent à zéro
   sevenSegStable = new Map();

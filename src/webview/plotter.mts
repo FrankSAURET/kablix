@@ -4,8 +4,9 @@
 // sur sa broche via setAnalog, tracée sans une ligne de code dans le sketch.
 // Canvas 2D maison, aucune dépendance, entièrement hors-ligne.
 import { t } from './i18n.mjs';
+import { analyserDuree, formaterDuree, pasDeTemps } from './duree.mjs';
 
-/** Point de mesure : instant (performance.now, ms) + valeur. */
+/** Point de mesure : instant (horloge du traceur, ms) + valeur. */
 interface PlotPoint {
   t: number;
   v: number;
@@ -48,16 +49,30 @@ const TELEM_PREFIX = /^>[^:\s>|§]*(?::[^\r\n]*)?$/;
 const HOLD_FLUSH_MS = 500;
 
 const MAX_HOLD_CHARS = 300;
-const MAX_KEEP_MS = 65_000; // fenêtre max 60 s + marge de continuité
+/** Marge gardée en plus de la fenêtre pour la continuité de la courbe. */
+const MARGE_KEEP_MS = 5_000;
 
 /** Options de fenêtre glissante proposées (secondes). */
 const WINDOWS_S = [5, 10, 30, 60];
+/** Valeur de l'option « durée saisie » de la liste des fenêtres. */
+const FENETRE_SAISIE = 'custom';
 
 export class Plotter {
   private section = document.getElementById('plotter-section') as HTMLElement;
   private canvas = document.getElementById('plotter-canvas') as HTMLCanvasElement;
   private legendEl = document.getElementById('plotter-legend') as HTMLDivElement;
   private windowSelect = document.getElementById('plotter-window') as HTMLSelectElement;
+  /** Saisie d'une fenêtre libre (h min s), visible quand « Custom » est choisi. */
+  private windowInput = document.getElementById('plotter-window-custom') as HTMLInputElement;
+  /** Fenêtre saisie, en secondes. */
+  private fenetreSaisieS = 3600;
+  /**
+   * Horloge du traceur, en ms. Par défaut le temps réel ; l'hôte la remplace par
+   * le temps SIMULÉ (Frank, 02/10 : « si on accélère la simulation, les
+   * graduations de temps doivent refléter l'accélération ») — à 500 %, une
+   * seconde d'écran vaut cinq secondes de montage.
+   */
+  private horloge: () => number = () => performance.now();
   private pauseBtn = document.getElementById('plotter-pause') as HTMLButtonElement;
   private csvBtn = document.getElementById('plotter-csv') as HTMLButtonElement;
   private clearBtn = document.getElementById('clear-plotter') as HTMLButtonElement;
@@ -67,7 +82,7 @@ export class Plotter {
   private series = new Map<string, PlotSeries>();
   /** Une série non silencieuse a déjà ouvert le panneau depuis start(). */
   private bruyanteVue = false;
-  private t0 = performance.now(); // origine des temps affichés (départ du run)
+  private t0 = 0; // origine des temps affichés (départ du run)
   private running = false;
   private frozen = false; // ⏸ d'affichage : la collecte continue
   private freezeT = 0; // borne droite figée (pause ou arrêt)
@@ -94,7 +109,29 @@ export class Plotter {
       if (s === 10) opt.selected = true;
       this.windowSelect.appendChild(opt);
     }
-    this.windowSelect.addEventListener('change', () => this.requestDraw());
+    const opt = document.createElement('option');
+    opt.value = FENETRE_SAISIE;
+    opt.textContent = t('Custom…');
+    this.windowSelect.appendChild(opt);
+    this.windowSelect.addEventListener('change', () => {
+      this.majSaisieFenetre();
+      this.requestDraw();
+    });
+    this.windowInput.title = t('Time window, for example 1h30 or 45 min or 90 s');
+    // Saisie validée à Entrée ou en quittant le champ ; texte illisible = on
+    // revient à la dernière durée valable plutôt que de figer le traceur.
+    const valider = (): void => {
+      const s = analyserDuree(this.windowInput.value);
+      if (s !== null) this.fenetreSaisieS = s;
+      this.windowInput.value = formaterDuree(this.fenetreSaisieS, 0, window.KABLIX_LANG ?? 'en');
+      this.majSaisieFenetre();
+      this.requestDraw();
+    };
+    this.windowInput.addEventListener('change', valider);
+    this.windowInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') valider();
+    });
+    this.majSaisieFenetre();
     this.pauseBtn.addEventListener('click', () => this.toggleFrozen());
     this.clearBtn.addEventListener('click', () => this.clear());
     this.csvBtn.addEventListener('click', () => this.onExportCsv?.(this.toCsv()));
@@ -119,12 +156,37 @@ export class Plotter {
     this.updateEmptyState();
   }
 
+  /** Remplace l'horloge (temps simulé) ; à appeler avant `start()`. */
+  setClock(horloge: () => number): void {
+    this.horloge = horloge;
+  }
+
+  /** Fenêtre affichée, en ms. */
+  private windowMs(): number {
+    if (this.windowSelect.value === FENETRE_SAISIE) return this.fenetreSaisieS * 1000;
+    return (Number(this.windowSelect.value) || 10) * 1000;
+  }
+
+  /** Le champ de saisie n'est visible que pour l'option « Custom ». */
+  private majSaisieFenetre(): void {
+    const saisie = this.windowSelect.value === FENETRE_SAISIE;
+    this.windowInput.hidden = !saisie;
+    if (saisie && this.windowInput.value === '') {
+      this.windowInput.value = formaterDuree(this.fenetreSaisieS, 0, window.KABLIX_LANG ?? 'en');
+    }
+  }
+
+  /** Instant écrit sur un axe ou une info-bulle, en durée depuis le départ du run. */
+  private fmtTemps(tm: number, decimales: number): string {
+    return formaterDuree((tm - this.t0) / 1000, decimales, window.KABLIX_LANG ?? 'en');
+  }
+
   // --- Cycle de vie --------------------------------------------------------
 
   /** Nouveau run : données effacées, origine des temps remise à zéro. */
   start(): void {
     this.clear();
-    this.t0 = performance.now();
+    this.t0 = this.horloge();
     this.running = true;
     this.frozen = false;
     this.updatePauseBtn();
@@ -133,7 +195,7 @@ export class Plotter {
 
   /** Fin de simulation : les courbes restent affichées pour analyse. */
   stop(): void {
-    if (this.running) this.freezeT = performance.now();
+    if (this.running) this.freezeT = this.horloge();
     this.running = false;
     this.stopLoop();
     this.flushHold();
@@ -256,7 +318,7 @@ export class Plotter {
       }
       this.updateEmptyState();
     }
-    const now = performance.now();
+    const now = this.horloge();
     const last = s.pts[s.pts.length - 1];
     if (s.mode === 'step') {
       if (last && last.v === value) return; // valeur tenue : rien à mémoriser
@@ -266,7 +328,7 @@ export class Plotter {
     s.pts.push({ t: now, v: value });
     // Purge du passé hors fenêtre — en gardant un point avant la coupe pour que
     // la courbe entre par le bord gauche sans trou.
-    const cutoff = now - MAX_KEEP_MS;
+    const cutoff = now - (this.windowMs() + MARGE_KEEP_MS);
     if (s.pts.length > 2 && s.pts[0]!.t < cutoff) {
       let i = 0;
       while (i < s.pts.length && s.pts[i]!.t < cutoff) i++;
@@ -317,7 +379,7 @@ export class Plotter {
 
   private toggleFrozen(): void {
     this.frozen = !this.frozen;
-    if (this.frozen) this.freezeT = performance.now();
+    if (this.frozen) this.freezeT = this.horloge();
     else if (this.running) this.startLoop();
     this.updatePauseBtn();
     this.requestDraw();
@@ -418,8 +480,8 @@ export class Plotter {
 
     // Bornes temporelles : fenêtre glissante qui suit « maintenant », figée en
     // pause d'affichage ou à l'arrêt de la simulation.
-    const windowMs = (Number(this.windowSelect.value) || 10) * 1000;
-    const tEnd = this.running && !this.frozen ? performance.now() : this.freezeT;
+    const windowMs = this.windowMs();
+    const tEnd = this.running && !this.frozen ? this.horloge() : this.freezeT;
     const tStart = tEnd - windowMs;
 
     // Marges : une colonne de graduations par courbe VISIBLE, à gauche (Frank,
@@ -485,8 +547,9 @@ export class Plotter {
       ctx.lineWidth = 1;
       ctx.stroke();
     }
-    const xStepMs = this.niceStep(windowMs / 5);
-    for (let tm = Math.ceil(tStart / xStepMs) * xStepMs; tm <= tEnd; tm += xStepMs) {
+    const xStepMs = pasDeTemps(windowMs / 5000) * 1000;
+    // Graduations rondes en temps DEPUIS le départ du run (« 30 s », « 1 min »).
+    for (let tm = this.t0 + Math.ceil((tStart - this.t0) / xStepMs) * xStepMs; tm <= tEnd; tm += xStepMs) {
       const x = xOf(tm);
       ctx.globalAlpha = 0.1;
       ctx.beginPath();
@@ -496,7 +559,7 @@ export class Plotter {
       ctx.globalAlpha = 0.65;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillText(`${this.fmt((tm - this.t0) / 1000, 1)} s`, x, h - padB + 4);
+      ctx.fillText(this.fmtTemps(tm, 1), x, h - padB + 4);
     }
     // Une colonne de graduations par courbe visible, dans SA couleur, chacune
     // à sa propre échelle — l'unité suit, sous la dernière graduation du haut.
@@ -598,7 +661,7 @@ export class Plotter {
     ctx.stroke();
     ctx.globalAlpha = 1;
 
-    const rows: string[] = [`<div class="plotter__tooltip-time">${this.fmt((tm - this.t0) / 1000, 2)} s</div>`];
+    const rows: string[] = [`<div class="plotter__tooltip-time">${this.fmtTemps(tm, 2)}</div>`];
     for (const s of this.series.values()) {
       if (!s.visible || s.pts.length === 0) continue;
       // Dernier point antérieur ou égal à l'instant pointé (recherche binaire).

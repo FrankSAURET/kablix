@@ -94,7 +94,7 @@
   - **■ arrêter**
   - **⏸ pause/reprendre**
   - **pas à pas**
-  - le sélecteur de **vitesse**, un animal par réglage : 🦅 500 %, 🐆 200 %, 🐇 100 % (temps réel), 🐢 10 %, 🐌 1 %. L'accéléré est un **souhait** : la simulation va aussi vite qu'elle peut, jamais plus.
+  - le sélecteur de **vitesse**, un animal par réglage : 🦅 500 %, 🐆 200 %, 🐇 100 % (temps réel), 🐢 10 %, 🐌 1 %, ou ✎ **Personnalisé** (tape un pourcentage de 1 à 10 000 %, pour voir une pile se vider en quelques minutes). L'accéléré est un **souhait** : la simulation va aussi vite qu'elle peut, jamais plus.
   - **REPL** : pour Pico uniquement, affiche la console python traditionnelle (n'apparaît que si la carte posée est un Pico)
   - **moniteur série / console**
   - **Traceur** de courbes
@@ -415,7 +415,7 @@ Exemples d'émission :
 
 Commandes du panneau :
 
-- **Fenêtre** : durée affichée (5, 10, 30 ou 60 s), fenêtre glissante qui suit le temps réel.
+- **Fenêtre** : durée affichée (5, 10, 30 ou 60 s, ou **Personnalisé** : tape une durée comme `1h30`, `45 min` ou `2 h 15 min 10 s`), fenêtre glissante. Le temps des graduations est le temps **simulé** du montage : en accéléré, une seconde d'écran en vaut plusieurs. Le sélecteur de vitesse propose aussi ✎ pour taper un pourcentage libre.
 - **⏸ / ▶** : fige l'affichage ; la collecte continue en arrière-plan.
 - **Puces de légende** : clic pour masquer/afficher une courbe ; la valeur courante y est affichée en direct.
 - **Survol** : réticule + info-bulle avec la valeur de chaque courbe à l'instant pointé.
