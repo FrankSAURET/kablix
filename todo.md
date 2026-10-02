@@ -10,6 +10,13 @@
 
 ---
 
+# v2026.9.8.191
+1. ✅ **« Battery life » : sauts périodiques** (Frank, courbe de `consommation-pico` : bond vers 84 j puis retombée vers 10 j, plateau, en boucle). Cause : pendant une attente du programme, le moteur saute le temps simulé puis fait une sieste (≤ 40 ms réels, [pico.mts](src/webview/engines/pico.mts)) ; `simulatedMs` ne bouge pas et chaque image donne `dt = 0`. `LisseurCourant.pas()` ([consommation.mts](src/webview/consommation.mts)) traitait `dt ≤ 0` comme une initialisation : la moyenne prenait le dernier courant mesuré, le lissage de 5 s était écrasé à chaque image. Maintenant : seule la première tranche initialise, une tranche vide ne touche plus la moyenne.
+2. ✅ Banc [verify-batterie.mjs](scripts/verify-batterie.mjs) : +2 contrôles du lisseur ; sans le correctif : les 2 échouent. ℹ️ 2 échecs déjà présents avant ce lot (« APRÈS stopRun », regex sur `\n` : probable souci de fins de ligne CRLF), non touchés.
+3. ⬜ À revoir à l'œil sur `consommation-pico` : courbe lisse, sans bond.
+
+---
+
 # v2026.9.8.190
 1. ✅ **Pile ou batterie en court-circuit** (« doit exploser avec un message de danger et provoque l'ouverture systématique d'une page modale, fermeture après un temps de lecture imposé »).
     1. [model.mts](src/webview/diagram/model.mts) `psuCourtCircuit()` : chemin de moins de 0,5 Ω du V+ à une masse, sans diode (même critère que le « fil direct = 99 A » de `psuLoadAmps`). [sim.mts](src/webview/sim.mts) `majBatteries()` : à chaque image, pour toute pile / batterie non vide (Power bank compris) → `stopRun()`, PUIS `markBurned` (explosion + cadre rouge + explication sur le montage, rien dans la barre d'état), PUIS la mise en garde.

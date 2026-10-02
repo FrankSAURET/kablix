@@ -99,6 +99,15 @@ if (typeof decharger !== 'function') {
 	check(Math.abs(autonomieH(10, 0.046) - 217.39) < 0.01, 'autonomie : 10 Ah à 46 mA → 217 h (une Uno sur Power bank)');
 	check(Math.abs(autonomieH(0.22, 0.0013) - 169.2) < 0.1, 'autonomie : CR2032 (220 mAh) à 1,3 mA → 169 h (une Pico en lightsleep)');
 	check(autonomieH(1, 0) === Infinity, 'rien ne débite : autonomie infinie');
+	// Lisseur : une tranche vide (sieste du moteur) ne doit pas écraser la moyenne.
+	const { LisseurCourant } = await charger('src/webview/consommation.mts', 'conso-lisseur.mjs');
+	const l = new LisseurCourant();
+	l.pas(0.021, 0);
+	for (let i = 0; i < 100; i++) l.pas(0.021, 16);
+	const avant = l.pas(0.021, 16);
+	const apres = l.pas(0.0013, 0);
+	check(apres === avant, 'lisseur : tranche vide (dt = 0) → la moyenne ne bouge pas', `${avant} → ${apres}`);
+	check(l.pas(0.0013, 2000) > 0.0013 * 1.5, 'lisseur : une tranche de 2 s en veille ne ramène pas la moyenne tout de suite à 1,3 mA');
 }
 
 // --- 2 bis. Piles de bibliothèque (v2026.9.7.180) ----------------------------------

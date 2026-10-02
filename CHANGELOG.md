@@ -34,6 +34,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - **Symétrie horizontale** : les écritures gravées sur un composant (noms de broches, touches…) restaient inversées après un retournement, même quand le composant lui-même redevenait lisible.
 - **Durée de vie d'une pile au traceur** : affichée en jours, heures et minutes au-delà d'une heure, plutôt qu'en heures décimales.
+- **Durée de vie d'une pile : plus de sauts** : pendant les attentes du programme, la courbe bondissait vers le haut puis retombait. Elle est maintenant lissée comme prévu.
 
 ## 2026.9.7 (29 septembre 2026)
 

@@ -137,10 +137,14 @@ export class LisseurCourant {
   private moyenneA: number | null = null;
 
   pas(courantA: number, dtMs: number): number {
-    if (this.moyenneA === null || !(dtMs > 0)) {
+    if (this.moyenneA === null) {
       this.moyenneA = courantA;
       return this.moyenneA;
     }
+    // Tranche vide (pause, sieste du moteur en avance sur le réel) : le temps
+    // simulé n'a pas avancé, la moyenne ne bouge pas. La réinitialiser sur le
+    // dernier courant mesuré écrasait le lissage à chaque image de sieste.
+    if (!(dtMs > 0)) return this.moyenneA;
     const alpha = 1 - Math.exp(-dtMs / LISSAGE_AUTONOMIE_MS);
     this.moyenneA += (courantA - this.moyenneA) * alpha;
     return this.moyenneA;
