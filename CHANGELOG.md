@@ -29,6 +29,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Correction
 
+- **Carte détruite par une pile 9 V** : l'explosion et l'explication restent affichées sur le montage après l'arrêt de la simulation, au lieu de disparaître en ne laissant qu'un message dans la barre d'état.
+
 - **Symétrie horizontale** : les écritures gravées sur un composant (noms de broches, touches…) restaient inversées après un retournement, même quand le composant lui-même redevenait lisible.
 - **Durée de vie d'une pile au traceur** : affichée en jours, heures et minutes au-delà d'une heure, plutôt qu'en heures décimales.
 

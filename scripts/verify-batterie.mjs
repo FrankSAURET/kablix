@@ -178,8 +178,15 @@ check(/tensionBatterie\(battery, 1\)/.test(refus) && /The board does not start/.
 	'pile hors plage au lancement : la carte refuse de démarrer, avec un message');
 check(/ENTREES_NON_PROTEGEES\.has\(alim\.broche\)\) return null/.test(refus),
 	'sur-tension sur VSYS/VBUS (pas de régulateur) : PAS de refus au lancement — la carte démarre et grille');
-check(/sortie > plage\.max/.test(bloc) && /burnedBoards\.add\(alim!\.boardPartId\)/.test(bloc) && /markBurned\(alim!\.boardPartId/.test(bloc) && /stopRun\(\)/.test(bloc),
+check(/sortie > plage\.max/.test(bloc) && /burnedBoards\.add\(alim!\.boardPartId\)/.test(bloc) && /markBurned\(boardId/.test(bloc) && /stopRun\(\)/.test(bloc),
 	'sur-tension en cours de route (pile 9 V sur VSYS) : la carte est détruite (markBurned), la simulation s’arrête');
+// Frank (02/10) : la carte détruite doit MONTRER l'explosion et son message sur le
+// montage, pas dans la barre d'état. stopRun() remet les composants à neuf et
+// vide les cadres de défaut : le marquage vient donc APRÈS l'arrêt.
+const surtension = bloc.match(/if \(sortie > plage\.max\) \{[\s\S]*?\n    \}\n/)?.[0] ?? '';
+check(surtension.indexOf('stopRun()') > 0 && surtension.indexOf('stopRun()') < surtension.indexOf('markBurned('),
+	'carte détruite : le marquage « grillé » (explosion + cadre + message) est posé APRÈS stopRun');
+check(!/setStatus\(/.test(surtension), 'carte détruite : rien dans la barre d’état, le message est sur le montage');
 check(/const refus = refusAlimentation\(\);\s*if \(refus\) \{\s*setStatus\(refus\);\s*return;/.test(sim),
 	'le refus tombe AVANT la création du moteur');
 check(/if \(!alimenteLaCarte \|\| !engine\) continue;\s*if \(restantAh <= 0\) \{/.test(bloc) && /stopRun\(\)/.test(bloc), 'vide alors qu’elle alimente la carte : la simulation s’arrête');

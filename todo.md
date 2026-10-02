@@ -1,6 +1,4 @@
 # À faire
-1. Les batteries et piles sont toujours notés comme expérimental- à supprimer
-1. La destruction de la carte pico pi alimentée par une pile 9 v doit montrer l'explosion et le message doit être comme les autres sur le montage en non dans la barre d'état
 1. Une batterie ou pile en court circuit doit exploser avec un message de danger et provoque l'ouverture systématique d'une page (modale. La fermeture ne sera possible qu'aprés un temps de lecture imposé) de mise en garde sur les piles et batteries qui reprend les points suivant :
     1. court circuit -> incendie, explosion, brûlure
     1. Sens des piles dans un holder = court circuit,
@@ -21,6 +19,12 @@ Tu mets en forme, de façon brève mais tout doit y être
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.8.189
+1. ✅ **Piles et batteries « expérimental »** : déjà retiré en .184 (`_sources.json`, `.kompix` en 2026.9.9, `index.json`, README : plus aucun drapeau). Ce que tu vois vient de TES copies installées (le gestionnaire lit le drapeau dans le fichier installé) : mets à jour les quatre piles dans le gestionnaire (⬆ nouvelle version 2026.9.9), ou supprime-les puis réinstalle.
+2. ✅ **Pico détruite par une pile 9 V : explosion et message sur le montage** (« doit montrer l'explosion, message comme les autres, pas dans la barre d'état »). Cause : [sim.mts](src/webview/sim.mts) `majBatteries()` posait `markBurned` PUIS appelait `stopRun()`, qui remet les composants à neuf (`resetVisuals`) et vide les cadres de défaut — l'explosion et l'explication disparaissaient aussitôt, il ne restait que la barre d'état. Le marquage est maintenant posé APRÈS l'arrêt, sur la carte redessinée ; plus de message dans la barre d'état. Banc [verify-batterie.mjs](scripts/verify-batterie.mjs) : +2 contrôles (ordre `stopRun` → `markBurned`, pas de `setStatus`) ; sans le correctif : échec. ⬜ À voir à l'œil chez toi (pas de banc de rendu).
 
 ---
 

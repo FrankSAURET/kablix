@@ -3069,15 +3069,20 @@ function majBatteries(courantCarteA: number, dtMs: number): void {
     // silicium — une pile 9 V dessus grille la carte pour de bon, comme en
     // salle de TP (Frank, todo : « devrait la détruire »).
     if (sortie > plage.max) {
-      const boardEl = editor.elementOf(alim!.boardPartId);
       burnedBoards.add(alim!.boardPartId);
+      // La carte est morte : la simulation s'arrête. C'est `stopRun` qui remet
+      // les composants à neuf (resetVisuals) et vide les cadres de défaut : le
+      // marquage « grillé » se pose donc APRÈS, sur la carte redessinée — sans
+      // quoi ni l'explosion ni l'explication n'apparaissaient (Frank, 02/10 :
+      // « montrer l'explosion, le message sur le montage, pas dans la barre
+      // d'état »). Il tient jusqu'au prochain lancement.
+      const boardId = alim!.boardPartId;
+      stopRun();
+      const boardEl = editor.elementOf(boardId);
       if (boardEl) {
-        markBurned(alim!.boardPartId, boardEl, true, BURN_NOTE.boardBattery,
+        markBurned(boardId, boardEl, true, BURN_NOTE.boardBattery,
           part.id, nombre(sortie), alim!.broche, nombre(plage.max));
       }
-      stopRun();
-      setStatus(t('{0}: board destroyed — {1} gave {2} V on {3}, which takes at most {4} V.',
-        alim!.boardPartId, part.id, nombre(sortie), alim!.broche, nombre(plage.max)));
       return;
     }
     const msg = !carteDemarree
