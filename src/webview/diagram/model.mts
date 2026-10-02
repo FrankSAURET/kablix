@@ -1105,6 +1105,26 @@ const PSU_SHORT_AMPS = 99;
 const PSU_SERVO_AMPS = 0.2;
 
 /**
+ * L'alim (ou la pile) `psuId` est-elle en COURT-CIRCUIT : un chemin de moins de
+ * 0,5 Ω de son V+ à une masse, sans diode ni LED en travers ? C'est le même
+ * critère que le « fil direct = 99 A » de `psuLoadAmps`, rendu seul pour que
+ * sim.mts puisse faire exploser une pile (Frank, 02/10).
+ */
+export function psuCourtCircuit(
+  diagram: Diagram,
+  psuId: string,
+  liveOhms?: (part: Part) => number | null
+): boolean {
+  const { nets, adj, gndNets } = resistiveGraph(diagram, liveOhms);
+  const psu = diagram.parts.find((p) => p.id === psuId);
+  const vplus = nets.netOf({ partId: psuId, pin: psu ? psuPlus(psu) : 'V+' });
+  if (gndNets.has(vplus)) return true;
+  const viaDiode = { drop: 0 };
+  const bridge = minOhmsPath(vplus, gndNets, adj, undefined, viaDiode);
+  return bridge !== null && !(viaDiode.drop > 0) && bridge <= 0.5;
+}
+
+/**
  * Courant total (A) débité par l'alim de laboratoire `psuId` réglée sur `volts`
  * — approximation pédagogique, les consommateurs comptés sont :
  *  - le pont résistif le plus direct V+ → masse (I = V/R ; fil direct = 99 A) ;

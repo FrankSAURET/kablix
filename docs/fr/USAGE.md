@@ -460,6 +460,8 @@ Chaque entrée de carte a sa plage de tension :
 
 Hors plage au lancement, **la carte refuse de démarrer** et la barre d'état dit pourquoi : une CR2032 (3 V) ne fait pas tourner une Uno, une LiPo (4,2 V) ne passe pas le régulateur de VIN, une pile de 9 V grillerait le VSYS d'une Pico. Une pile qui s'use peut aussi passer **sous** le seuil en route : la carte s'éteint alors, et la barre d'état dit au bout de combien de temps de programme (4 × AA sur VIN, sous 6,2 V).
 
+**Court-circuit d'une pile ou d'une batterie** (son + relié à son − sans rien entre les deux) : elle **explose**, la simulation s'arrête, et une **page de mise en garde** s'ouvre à chaque fois. Elle rappelle les règles de sécurité des piles et batteries (court-circuit, piles à l'envers dans un holder, chargeur, charge sans surveillance, surface inflammable, piles neuves et usagées mélangées, températures extrêmes, pile déformée, collecte). Elle recouvre le montage et ne se ferme qu'après 15 secondes de lecture. De même, une pile de 9 V sur VSYS détruit la carte : l'explosion et l'explication restent sur le montage.
+
 ### Éclairage DMX512
 
 Kablix simule une **ligne DMX512** de bout en bout : le programme envoie la trame, le décodeur la lit, et le **projecteur s'allume vraiment** à la couleur demandée.

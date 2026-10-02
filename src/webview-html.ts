@@ -332,6 +332,29 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
     </section>
   </main>
 
+  <!-- Mise en garde « piles et batteries » : s'ouvre à chaque court-circuit de
+       pile (Frank, 02/10). Modale : le bouton ne s'active qu'après un temps de
+       lecture imposé (sim.mts, ouvrirMiseEnGardePiles). -->
+  <div id="battery-warning" class="battery-warning" role="alertdialog" aria-modal="true" aria-labelledby="battery-warning-title" hidden>
+    <div class="battery-warning__box">
+      <h2 id="battery-warning-title" class="battery-warning__title">⚠ ${l10n.t('Danger: battery short circuit')}</h2>
+      <p id="battery-warning-cause" class="battery-warning__cause"></p>
+      <p>${l10n.t('In real life a short-circuited cell or battery heats up in seconds: fire, explosion, severe burns. Rules to follow with cells and batteries:')}</p>
+      <ul class="battery-warning__list">
+        <li>${l10n.t('A short circuit means fire, explosion and burns.')}</li>
+        <li>${l10n.t('Cells put in a holder the wrong way round make a short circuit.')}</li>
+        <li>${l10n.t('Use a good-quality charger that suits the battery.')}</li>
+        <li>${l10n.t('Never charge while you sleep.')}</li>
+        <li>${l10n.t('Never charge on a flammable surface.')}</li>
+        <li>${l10n.t('Never mix new and used cells.')}</li>
+        <li>${l10n.t('Protect cells and batteries from extreme temperatures.')}</li>
+        <li>${l10n.t('Never use a swollen or damaged cell or battery.')}</li>
+        <li>${l10n.t('Never throw them in the bin: take them to a collection point.')}</li>
+      </ul>
+      <button id="battery-warning-close" class="battery-warning__close" disabled></button>
+    </div>
+  </div>
+
   <script nonce="${nonce}">window.KABLIX_LANG = ${JSON.stringify(vscode.env.language)};
 window.KABLIX_NONCE = ${JSON.stringify(nonce)};
 window.KABLIX_PINOUT_BASE = ${JSON.stringify(pinoutBase.toString())};

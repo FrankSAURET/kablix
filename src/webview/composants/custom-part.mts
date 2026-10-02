@@ -16,6 +16,8 @@ import {
   type PartDef,
 } from '../diagram/catalog.mjs';
 import { shieldOption, type ShieldSwitch } from '../diagram/shield.mjs';
+import { render } from 'lit';
+import { boumOverlay } from './utils/boum.mjs';
 import { simControlStyles } from './utils/sim-control-styles.mjs';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -74,6 +76,37 @@ export class CustomPartElement extends HTMLElement {
   set switchOn(v: boolean) {
     this.switchOnRaw = v;
     this.applyMove();
+  }
+
+  private _burned = false;
+  /** Conteneur de l'explosion « Boum » (pile ou batterie en court-circuit). */
+  private boumHost: HTMLElement | null = null;
+
+  /** Composant détruit : affiche l'explosion (piloté par sim.mts). */
+  get burned(): boolean {
+    return this._burned;
+  }
+
+  set burned(v: boolean) {
+    const on = !!v;
+    if (on === this._burned) return;
+    this._burned = on;
+    this.updateBoum();
+  }
+
+  /**
+   * Monte/démonte l'overlay d'explosion. L'hôte est recréé à la demande : un
+   * changement de définition remplace le contenu du cadre et l'emporterait.
+   */
+  private updateBoum(): void {
+    if (this._burned) {
+      if (!this.boumHost) this.boumHost = document.createElement('span');
+      if (this.boumHost.parentNode !== this.wrapper) this.wrapper.appendChild(this.boumHost);
+      render(boumOverlay(90), this.boumHost);
+    } else if (this.boumHost) {
+      render(null, this.boumHost);
+      this.boumHost.remove();
+    }
   }
 
   private controlValueRaw = 0;

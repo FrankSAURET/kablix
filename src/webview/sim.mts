@@ -81,6 +81,7 @@ import {
   ledPowerCircuit,
   ledElectrical,
   psuLoadAmps,
+  psuCourtCircuit,
   alimentationDeLaCarte,
   pca9685PowerState,
   rgbSeriesOhms,
@@ -504,6 +505,7 @@ const BURN_NOTE = {
   driver: 'This transistor was destroyed: a motor is a coil, and cutting its current sends back a surge. A flyback diode across the motor absorbs it — it is not optional.',
   ic: 'This chip was destroyed: it was fed above the maximum supply voltage of its family. The family printed on the package sets that limit.',
   board: 'This board was destroyed: one of its pins was fed above {0} V. A Pico runs on 3.3 V and its GPIOs are NOT 5 V tolerant — a 5 V sensor or a generator wired straight to a pin destroys it. Use a voltage divider or a level shifter.',
+  batteryShort: 'This battery was destroyed: its + is wired straight to its − (short circuit). A real one would have heated up in seconds, then caught fire or exploded.',
   boardBattery: 'This board was destroyed: {0} gave {1} V on {2}, which takes at most {3} V. A 9 V battery on VSYS/VBUS has no regulator to protect it.',
 } as const;
 /** Composants actuellement encadrés parce que grillés → texte de l'étiquette. */
@@ -2993,6 +2995,51 @@ const ARAIGNEE_CAPACITY_MAH = 5000;
 const ARAIGNEE_VOLTAGE = 5;
 const ARAIGNEE_COURANT_A = 0.5;
 
+/** Temps de lecture imposé avant de pouvoir fermer la mise en garde, en secondes. */
+const MISE_EN_GARDE_LECTURE_S = 15;
+let miseEnGardeTimer: ReturnType<typeof setInterval> | undefined;
+/** Garde le clavier hors du montage tant que la mise en garde est ouverte. */
+const bloquerClavier = (e: KeyboardEvent): void => {
+  if (e.key === 'Tab') return;
+  e.preventDefault();
+  e.stopPropagation();
+};
+
+/**
+ * Page de mise en garde « piles et batteries », ouverte à CHAQUE court-circuit
+ * de pile (Frank, 02/10). Modale : elle recouvre le montage et son bouton ne
+ * s'active qu'après `MISE_EN_GARDE_LECTURE_S` secondes de lecture.
+ */
+function ouvrirMiseEnGardePiles(batterieId: string): void {
+  const fenetre = document.getElementById('battery-warning');
+  const cause = document.getElementById('battery-warning-cause');
+  const bouton = document.getElementById('battery-warning-close') as HTMLButtonElement | null;
+  if (!fenetre || !cause || !bouton) return;
+  cause.textContent = t('{0} was short-circuited: its + is wired straight to its −.', batterieId);
+  fenetre.hidden = false;
+  document.addEventListener('keydown', bloquerClavier, true);
+  clearInterval(miseEnGardeTimer);
+  let reste = MISE_EN_GARDE_LECTURE_S;
+  const majBouton = (): void => {
+    bouton.disabled = reste > 0;
+    bouton.textContent = reste > 0 ? t('Please read ({0} s)', reste) : t('I have read this');
+  };
+  majBouton();
+  miseEnGardeTimer = setInterval(() => {
+    reste -= 1;
+    majBouton();
+    if (reste <= 0) {
+      clearInterval(miseEnGardeTimer);
+      bouton.focus();
+    }
+  }, 1000);
+  bouton.onclick = () => {
+    if (reste > 0) return;
+    fenetre.hidden = true;
+    document.removeEventListener('keydown', bloquerClavier, true);
+  };
+}
+
 function majBatteries(courantCarteA: number, dtMs: number): void {
   const alim = alimentationDeLaCarte(editor.diagram);
   const nombre = (v: number): string => v.toLocaleString(locale(), { maximumFractionDigits: 1 });
@@ -3016,6 +3063,17 @@ function majBatteries(courantCarteA: number, dtMs: number): void {
     // Power bank tient ses 5 V régulés jusqu'au bout.
     const avantAh = chargesBatteries.get(part.id) ?? capaciteAh;
     const volts = avantAh <= 0 ? 0 : battery ? tensionBatterie(battery, avantAh / capaciteAh) : nominale;
+    // Court-circuit : la pile explose, la simulation s'arrête, la mise en garde
+    // s'ouvre (Frank, 02/10). Comme pour la carte détruite, le marquage « grillé »
+    // vient APRÈS stopRun, qui remet les composants à neuf.
+    if (avantAh > 0 && psuCourtCircuit(editor.diagram, part.id, liveVariableOhms)) {
+      const batterieId = part.id;
+      stopRun();
+      const el = editor.elementOf(batterieId);
+      if (el) markBurned(batterieId, el, true, BURN_NOTE.batteryShort);
+      ouvrirMiseEnGardePiles(batterieId);
+      return;
+    }
     const alimenteLaCarte = alim?.psuId === part.id;
     const courantA = (volts > 0 ? psuLoadAmps(editor.diagram, part.id, volts, liveVariableOhms) : 0)
       + (alimenteLaCarte ? courantCarteA : 0);

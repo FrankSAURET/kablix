@@ -8,6 +8,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Nouveauté
 
+- **Pile ou batterie en court-circuit : elle explose, et une mise en garde s'ouvre** : la simulation s'arrête, la pile (ou le Power bank) explose sur le montage, et une page de mise en garde sur les piles et batteries recouvre l'écran à chaque fois ; elle ne se ferme qu'après 15 secondes de lecture.
 - **Traceur : fenêtre et vitesse libres** : la fenêtre se tape en heures, minutes, secondes (`1h30`), la vitesse de simulation se tape en % (jusqu'à 10 000 %), et les graduations de temps du traceur suivent le temps simulé du montage, accélération comprise. De quoi suivre une pile qui se vide.
 - **Consommation de la carte au traceur** : deux courbes à chaque lancement, sans une ligne de code — le courant de la carte (mA) et la charge consommée (mAh). C'est la carte réelle qui est mesurée : une Uno endormie garde 31 mA, une Pico en `lightsleep()` descend à 1,3 mA.
 - **La mise en veille compte** : `sleep_cpu()` ou *LowPower* sur Arduino (power-down, power-save, standby), `machine.lightsleep()` sur Pico. `delay()` et `time.sleep()` laissent la puce éveillée, comme en vrai.

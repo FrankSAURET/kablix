@@ -1,16 +1,4 @@
 # À faire
-1. Une batterie ou pile en court circuit doit exploser avec un message de danger et provoque l'ouverture systématique d'une page (modale. La fermeture ne sera possible qu'aprés un temps de lecture imposé) de mise en garde sur les piles et batteries qui reprend les points suivant :
-    1. court circuit -> incendie, explosion, brûlure
-    1. Sens des piles dans un holder = court circuit,
-    1. Qualité du chargeur
-    1. ne pas charger pendant qu'on dort
-    1. ne pas charger sur une surface inflammable
-    1. ne pas mélanger les piles neuvent et usagées
-    1. protéger les piles et batteries des températures extrêmes
-    1. ne pas utiliser une pile ou batterie déformée
-    1. ne pas jeter à la poubelle
-Tu mets en forme, de façon brève mais tout doit y être
-    1. 
 ## fait
 
 
@@ -19,6 +7,17 @@ Tu mets en forme, de façon brève mais tout doit y être
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.8.190
+1. ✅ **Pile ou batterie en court-circuit** (« doit exploser avec un message de danger et provoque l'ouverture systématique d'une page modale, fermeture après un temps de lecture imposé »).
+    1. [model.mts](src/webview/diagram/model.mts) `psuCourtCircuit()` : chemin de moins de 0,5 Ω du V+ à une masse, sans diode (même critère que le « fil direct = 99 A » de `psuLoadAmps`). [sim.mts](src/webview/sim.mts) `majBatteries()` : à chaque image, pour toute pile / batterie non vide (Power bank compris) → `stopRun()`, PUIS `markBurned` (explosion + cadre rouge + explication sur le montage, rien dans la barre d'état), PUIS la mise en garde.
+    2. Explosion : [powerbank-element.mts](src/webview/composants/powerbank-element.mts) et [custom-part.mts](src/webview/composants/custom-part.mts) (piles de bibliothèque) acceptent `burned` et montrent le « Boum » (120 / 90 px).
+    3. Mise en garde : modale `#battery-warning` ([webview-html.ts](src/webview-html.ts), [styles.css](media/styles.css)), `ouvrirMiseEnGardePiles()` : s'ouvre à CHAQUE court-circuit, recouvre le montage, clavier bloqué, bouton inactif 15 s (`MISE_EN_GARDE_LECTURE_S`) avec décompte, puis « J'ai lu ». Les 9 points de Frank y sont, formulés brièvement.
+2. ✅ Bancs : [verify-batterie.mjs](scripts/verify-batterie.mjs) (+16 : 5 cas du modèle, ordre arrêt → marquage, délai de lecture, les 9 points ; sans le correctif : 8 échecs) et [verify-boum.mjs](scripts/verify-boum.mjs) (+3 : Power bank 120 px, pile de bibliothèque, disparition ; sans le correctif : 2 échecs ; accepte `CHROME_PATH`). Aide FR ([USAGE.md](docs/fr/USAGE.md)).
+3. ⬜ Pas de banc à vraie souris de la modale (décompte, fermeture) : à essayer chez toi (fil direct entre + et − d'une pile). Délai de 15 s à ajuster à ta convenance.
+4. ⏳ Traductions avant publication (l10n es/fr/zh) : `Danger: battery short circuit`, `In real life a short-circuited cell…`, les 9 règles, `{0} was short-circuited: its + is wired straight to its −.`, `Please read ({0} s)`, `I have read this`, `This battery was destroyed: …` ; doc EN/ES/ZH (USAGE). **Sans elles, la mise en garde s'affiche en anglais chez toi.**
 
 ---
 

@@ -10,7 +10,9 @@
 // s'allument à la simulation »). Depuis v2026.9.7.179 la batterie a une
 // capacité et se vide (sim.mts) : la jauge montre la charge restante, une LED
 // par quart entamé — plus aucune quand elle est vide.
+import { render } from 'lit';
 import drawing from './externe/Powerbank.svg';
+import { boumOverlay } from './utils/boum.mjs';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -56,6 +58,26 @@ export class PowerbankElement extends HTMLElement {
   /** Tension de sortie imposée par la simulation (0 = vide) ; absente = nominale. */
   volts: number | undefined = undefined;
 
+  private _burned = false;
+  /** Conteneur de l'explosion « Boum » (batterie en court-circuit). */
+  private boumHost: HTMLElement | null = null;
+
+  /** Batterie détruite (court-circuit) : affiche l'explosion. */
+  set burned(v: boolean) {
+    const on = !!v;
+    if (on === this._burned) return;
+    this._burned = on;
+    this.updateBoum();
+  }
+  get burned(): boolean {
+    return this._burned;
+  }
+
+  private updateBoum(): void {
+    if (!this.boumHost) return;
+    render(this._burned ? boumOverlay(120) : null, this.boumHost);
+  }
+
   constructor() {
     super();
     this.root = this.attachShadow({ mode: 'open' });
@@ -76,6 +98,8 @@ export class PowerbankElement extends HTMLElement {
     this.rendered = true;
     const wrap = document.createElement('div');
     wrap.style.lineHeight = '0';
+    // `position: relative` requis par boumOverlay (span centré en absolu).
+    wrap.style.position = 'relative';
 
     const svg = document.createElementNS(SVG_NS, 'svg');
     svg.setAttribute('xmlns', SVG_NS);
@@ -94,9 +118,12 @@ export class PowerbankElement extends HTMLElement {
     }
 
     wrap.appendChild(svg);
+    this.boumHost = document.createElement('span');
+    wrap.appendChild(this.boumHost);
     this.root.replaceChildren(wrap);
     this.prepareLeds();
     this.updateLeds();
+    this.updateBoum();
   }
 
   /**

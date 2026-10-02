@@ -25,6 +25,8 @@ import '${SRC}/composants/led-element.mjs';
 import '${SRC}/composants/7segment-element.mjs';
 import '${SRC}/composants/led-bar-graph-element.mjs';
 import '${SRC}/composants/resistor-element.mjs';
+import '${SRC}/composants/powerbank-element.mjs';
+import { CustomPartElement } from '${SRC}/composants/custom-part.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function run() {
   const editor = new Editor(
@@ -90,7 +92,28 @@ async function run() {
 
   // v228 : le feu est un WebP animé inliné en data URI (plus le dessin Boum.svg).
   const img = boumOf(led.id)?.querySelector('img');
+  // Pile / batterie en court-circuit (Frank, 02/10) : le Power bank et les piles de
+  // bibliothèque (CustomPartElement) montrent l'explosion à leur tour.
+  const pb = editor.addPart('powerbank', 100, 500);
+  await wait(80);
+  const pbEl = editor.rendered.get(pb.id).el;
+  pbEl.burned = true;
+  await wait(50);
+  const pbBoum = pbEl.shadowRoot.querySelector('[class^="boum-"]');
+  if (pbBoum) pbBoum.style.animation = 'none';
+  const pile = new CustomPartElement();
+  document.body.appendChild(pile);
+  pile.burned = true;
+  await wait(50);
+  const pileBoum = pile.shadowRoot.querySelector('[class^="boum-"]');
+  const pileFrame = pile.shadowRoot.querySelector('.frame');
+  const pileEnCadre = !!pileBoum && pileFrame.contains(pileBoum);
+  pile.burned = false;
+  await wait(50);
   const res = {
+    pbSize: pbBoum ? Math.round(pbBoum.getBoundingClientRect().width) : null,
+    pileBoum: pileEnCadre,
+    pileGone: !pile.shadowRoot.querySelector('[class^="boum-"]'),
     fireIsWebp: !!img && img.src.startsWith('data:image/webp;base64,'),
     fireBytes: img ? img.src.length : 0,
     ledSize: sizeOf(led.id), segSize: sizeOf(seg.id), barSize: sizeOf(bar.id),
@@ -109,7 +132,7 @@ const css = existsSync(join(ROOT, 'media/styles.css')) ? readFileSync(join(ROOT,
 writeFileSync(join(CACHE, 'p.html'), `<!doctype html><meta charset=utf8><style>${css}</style>
 <div id="canvas" style="position:absolute;inset:0;overflow:hidden"><div id="palette"></div><svg id="wires" class="wires"></svg></div>
 <div id="inspector"></div><script>${b.outputFiles[0].text}</script>`);
-const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
+const chrome = [process.env.CHROME_PATH, 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].filter(Boolean).find(existsSync);
 let failures = 0;
 const check = (label, ok) => { console.log(`${ok ? '✅' : '❌'} ${label}`); if (!ok) failures++; };
 if (!chrome) {
@@ -129,6 +152,9 @@ if (!chrome) {
   check('résistance rp1 (10 W, ailettes) : explosion ≈ 70 px', r && r.rP1Size >= 62 && r.rP1Size <= 78);
   check('résistance rp2 (10 W, céramique) : explosion ≈ 55 px', r && r.rP2Size >= 48 && r.rP2Size <= 62);
   check('résistance : l\'explosion grandit avec le boîtier', r && r.rP1Size > r.rP2Size && r.rP2Size > r.rFilmSize);
+  check('Power bank en court-circuit : explosion ≈ 120 px', r && r.pbSize >= 110 && r.pbSize <= 130);
+  check('pile de bibliothèque (CustomPartElement) : explosion dans son cadre', r && r.pileBoum);
+  check('pile dégrillée : l\'explosion disparaît', r && r.pileGone);
   check('overlay STABLE si re-render à valeurs inchangées (fix sim.mts v158)', r && r.overlayStableOnResilentRerender);
   check('contre-épreuve : re-render à array neuve RECRÉE l\'overlay (bug d\'origine)', r && r.oldBehaviorRecreates);
   // v195 : l'explosion passe par-dessus TOUT (les fils la recouvraient).

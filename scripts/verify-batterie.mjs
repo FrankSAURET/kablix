@@ -73,6 +73,20 @@ check(qui(schema('pico', 'VSYS', 'GND'))?.broche === 'VSYS', 'Pico : V+ sur VSYS
 check(qui(schema('uno', '5V', 'GND.1', false)) === null, 'masse non reliée : la carte reste sur l’USB');
 check(qui(schema('uno', '13', 'GND.1')) === null, 'V+ sur une broche d’entrée/sortie : ce n’est pas une alimentation');
 
+// Court-circuit d'une pile (Frank, 02/10) : V+ relié à la masse sans rien entre les deux.
+const { psuCourtCircuit } = await charger('src/webview/diagram/model.mts', 'model-cc.mjs');
+const cc = (d) => (typeof psuCourtCircuit === 'function' ? psuCourtCircuit(d, 'pb1') : undefined);
+check(cc({ parts: [PB], wires: [W('w1', { partId: 'pb1', pin: 'V+' }, { partId: 'pb1', pin: 'GND' })] }) === true,
+	'fil direct V+ → GND : court-circuit');
+check(cc({ parts: [PB], wires: [] }) === false, 'pile seule : pas de court-circuit');
+check(cc(schema('uno', '5V', 'GND.1')) === false, 'pile qui alimente une carte (V+ sur 5V, GND sur GND) : pas de court-circuit');
+check(cc({ parts: [PB, { id: 'r1', type: 'resistor', x: 0, y: 0, attrs: { value: '220' } }], wires: [
+	W('w1', { partId: 'pb1', pin: 'V+' }, { partId: 'r1', pin: '1' }), W('w2', { partId: 'r1', pin: '2' }, { partId: 'pb1', pin: 'GND' })] }) === false,
+	'pile sur une résistance de 220 Ω : une charge, pas un court-circuit');
+check(cc({ parts: [PB, { id: 'r1', type: 'resistor', x: 0, y: 0, attrs: { value: '0' } }], wires: [
+	W('w1', { partId: 'pb1', pin: 'V+' }, { partId: 'r1', pin: '1' }), W('w2', { partId: 'r1', pin: '2' }, { partId: 'pb1', pin: 'GND' })] }) === true,
+	'pile sur une résistance de 0 Ω : court-circuit');
+
 // --- 2. Décharge et autonomie ---------------------------------------------------
 console.log('2. Décharge et autonomie');
 const { decharger, autonomieH } = await charger('src/webview/consommation.mts', 'conso.mjs');
@@ -187,6 +201,21 @@ const surtension = bloc.match(/if \(sortie > plage\.max\) \{[\s\S]*?\n    \}\n/)
 check(surtension.indexOf('stopRun()') > 0 && surtension.indexOf('stopRun()') < surtension.indexOf('markBurned('),
 	'carte détruite : le marquage « grillé » (explosion + cadre + message) est posé APRÈS stopRun');
 check(!/setStatus\(/.test(surtension), 'carte détruite : rien dans la barre d’état, le message est sur le montage');
+check(/psuCourtCircuit\(editor\.diagram, part\.id/.test(bloc) && /ouvrirMiseEnGardePiles\(/.test(bloc),
+	'pile en court-circuit : détectée en route, la mise en garde s’ouvre');
+const cour = bloc.match(/if \(avantAh > 0 && psuCourtCircuit[\s\S]*?\n    \}\n/)?.[0] ?? '';
+check(cour.indexOf('stopRun()') > 0 && cour.indexOf('stopRun()') < cour.indexOf('markBurned(') && !/setStatus\(/.test(cour),
+	'court-circuit : explosion et cadre posés APRÈS stopRun, rien dans la barre d’état');
+const mise = sim.match(/function ouvrirMiseEnGardePiles\([\s\S]*?\r?\n}\r?\n/)?.[0] ?? '';
+check(/MISE_EN_GARDE_LECTURE_S = 15/.test(sim) && /bouton\.disabled = reste > 0/.test(mise) && /if \(reste > 0\) return;/.test(mise),
+	'mise en garde : bouton inactif pendant le temps de lecture imposé (15 s), fermeture refusée avant');
+const html = readFileSync(join(ROOT, 'src', 'webview-html.ts'), 'utf8');
+for (const [point, motif] of [['court-circuit', /A short circuit means fire/], ['sens dans le holder', /in a holder the wrong way round/],
+	['chargeur', /good-quality charger/], ['ne pas charger en dormant', /charge while you sleep/], ['surface inflammable', /flammable surface/],
+	['piles neuves et usagées', /mix new and used/], ['températures extrêmes', /extreme temperatures/], ['pile déformée', /swollen or damaged/],
+	['poubelle', /throw them in the bin/]]) {
+	check(motif.test(html), `mise en garde : le point « ${point} » y est`);
+}
 check(/const refus = refusAlimentation\(\);\s*if \(refus\) \{\s*setStatus\(refus\);\s*return;/.test(sim),
 	'le refus tombe AVANT la création du moteur');
 check(/if \(!alimenteLaCarte \|\| !engine\) continue;\s*if \(restantAh <= 0\) \{/.test(bloc) && /stopRun\(\)/.test(bloc), 'vide alors qu’elle alimente la carte : la simulation s’arrête');

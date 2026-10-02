@@ -3368,3 +3368,57 @@ body.vscode-light .inspector__ref--nouveau {
   font-style: normal;
   opacity: 0.9;
 }
+
+/* Mise en garde « piles et batteries » : modale plein écran, le bouton de
+   fermeture n'est actif qu'après le temps de lecture imposé. */
+.battery-warning {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.7);
+}
+.battery-warning[hidden] {
+  display: none;
+}
+.battery-warning__box {
+  max-width: 34rem;
+  max-height: 100%;
+  overflow: auto;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  border: 2px solid var(--vscode-errorForeground, #ff5b5b);
+  background: var(--vscode-editor-background, #1e1e1e);
+  color: var(--vscode-foreground, #ccc);
+}
+.battery-warning__title {
+  margin: 0 0 0.5rem;
+  color: var(--vscode-errorForeground, #ff5b5b);
+  font-size: 1.15rem;
+}
+.battery-warning__cause {
+  font-weight: bold;
+}
+.battery-warning__list {
+  margin: 0.5rem 0 1rem;
+  padding-left: 1.25rem;
+}
+.battery-warning__list li {
+  margin: 0.2rem 0;
+}
+.battery-warning__close {
+  font: inherit;
+  padding: 0.3rem 0.9rem;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #fff);
+  cursor: pointer;
+}
+.battery-warning__close:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
