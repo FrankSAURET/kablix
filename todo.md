@@ -1,17 +1,5 @@
 # À faire
-1. Actuellement si pas de carte ou pas de code : pas de simulation. Change ça.
-1. Pour le message battery short circuit : saute une ligne aprés sever burns.
-    - Mets en valeur (gras et couleur) "Rules to folow with cells en batteries:" et cahnge le messahe pour "Règle à suivre impérativement quand on utilise des piles et des batteries"
-1. sur les courbes de l'analyseur logique  : 
-Un zoom trop serré ne laisse plus une zone muette :
-1-Wire : 0xF0 SEARCH ROM se replie sur 0xF0, et la bulle de survol donne SEARCH ROM. E
-I²C : adr 0x48 W se replie sur 0x48, et la bulle donne le texte entier.
-Sans place même pour l'octet : la bulle donne le texte entier.
-Autres protocoles : ils avaient déjà un repli. La bulle s'applique à tous.
 
-Ca a disparu. Pas de bulle de survol.
-1. Deux échecs existaient déjà avant ce lot dans verify-batterie : « APRÈS stopRun ». Je ne les ai pas touchés. Leur cause est probablement les fins de ligne CRLF, mais je ne l'ai pas vérifié.
-Corrige ce pb.
 ## fait
 
 
@@ -20,6 +8,16 @@ Corrige ce pb.
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.8.192
+1. ✅ **Simulation sans code** (« si pas de carte ou pas de code : pas de simulation »). Cause : sans fichier choisi ni éditeur actif, [panel.ts](src/panel.ts) `compileActiveFile` s'arrêtait sur « no active file to compile ». Maintenant l'hôte envoie `runBlank`, et [sim.mts](src/webview/sim.mts) `lancerSansProgramme()` lance le montage sur un programme vide ([vide.mts](src/webview/programs/vide.mts) : `rjmp .-2` sur AVR, `b .` en RAM sur Pico). Un fichier de projet INTROUVABLE garde son message d'erreur. Sans carte posée sur le schéma, le lancement ne bloquait déjà plus rien (seul le code manquait). [rp-chip.mts](src/webview/engines/rp-chip.mts) : `chargerRam` du RP2350 démarre directement sur la table de vecteurs (le bootrom simulé butait sur `BXNS` : toute image RAM plantait le Pico 2, même le programme de démo).
+2. ✅ **Mise en garde des piles** : titre « Règle à suivre impérativement quand on utilise des piles et des batteries » (FR : entrée ajoutée à `bundle.l10n.fr.json` sur ta demande explicite, les autres langues attendent), en gras et en couleur, sur sa ligne.
+3. ✅ **Analyseur logique : bulle de survol revenue**. Cause : seule l'annotation TRONQUÉE (« 0xF… ») avait sa zone de bulle ; le repli court (« 0xF0 ») et le cas « rien d'écrit » n'en avaient pas. [analyseur-vue.mts](src/webview/analyseur-vue.mts) : toute annotation écrite autrement qu'en entier a sa bulle (annotations et résumés).
+4. ✅ **verify-batterie « APRÈS stopRun »** : regex sur `\n` seul, aveugle aux fins de ligne CRLF de ta machine Windows. Passées en `\r?\n` ; vérifié en convertissant `sim.mts` en CRLF.
+5. ✅ Bancs : [verify-sans-programme.mjs](scripts/verify-sans-programme.mjs) (+10, programmes vides sur Uno / Pico / Pico 2 et chemin hôte → page) et [verify-analyseur-bulle.mjs](scripts/verify-analyseur-bulle.mjs) (+6) ; contre-épreuve : le second échoue 3 contrôles sur l'ancien code, le premier ne compile même plus. ⬜ Bulle à revoir à l'œil (bulle native du navigateur, pas de banc à vraie souris) ; ▶ sans fichier à essayer chez toi.
+6. ⏳ Traductions avant publication : `Running without a program…`, `In real life a short-circuited cell or battery heats up in seconds: fire, explosion, severe burns.` (phrase raccourcie), `Rules to follow without exception when using cells and batteries` (es/zh ; fr déjà fait) ; `Kablix: no active file to compile.` n'est plus utilisée.
 
 ---
 

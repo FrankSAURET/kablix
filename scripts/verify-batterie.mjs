@@ -206,13 +206,13 @@ check(/sortie > plage\.max/.test(bloc) && /burnedBoards\.add\(alim!\.boardPartId
 // Frank (02/10) : la carte détruite doit MONTRER l'explosion et son message sur le
 // montage, pas dans la barre d'état. stopRun() remet les composants à neuf et
 // vide les cadres de défaut : le marquage vient donc APRÈS l'arrêt.
-const surtension = bloc.match(/if \(sortie > plage\.max\) \{[\s\S]*?\n    \}\n/)?.[0] ?? '';
+const surtension = bloc.match(/if \(sortie > plage\.max\) \{[\s\S]*?\r?\n    \}\r?\n/)?.[0] ?? '';
 check(surtension.indexOf('stopRun()') > 0 && surtension.indexOf('stopRun()') < surtension.indexOf('markBurned('),
 	'carte détruite : le marquage « grillé » (explosion + cadre + message) est posé APRÈS stopRun');
 check(!/setStatus\(/.test(surtension), 'carte détruite : rien dans la barre d’état, le message est sur le montage');
 check(/psuCourtCircuit\(editor\.diagram, part\.id/.test(bloc) && /ouvrirMiseEnGardePiles\(/.test(bloc),
 	'pile en court-circuit : détectée en route, la mise en garde s’ouvre');
-const cour = bloc.match(/if \(avantAh > 0 && psuCourtCircuit[\s\S]*?\n    \}\n/)?.[0] ?? '';
+const cour = bloc.match(/if \(avantAh > 0 && psuCourtCircuit[\s\S]*?\r?\n    \}\r?\n/)?.[0] ?? '';
 check(cour.indexOf('stopRun()') > 0 && cour.indexOf('stopRun()') < cour.indexOf('markBurned(') && !/setStatus\(/.test(cour),
 	'court-circuit : explosion et cadre posés APRÈS stopRun, rien dans la barre d’état');
 const mise = sim.match(/function ouvrirMiseEnGardePiles\([\s\S]*?\r?\n}\r?\n/)?.[0] ?? '';

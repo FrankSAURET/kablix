@@ -22,9 +22,11 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Une pile 9 V grille la Pico** : VSYS et VBUS n'ont pas de régulateur protecteur, contrairement à VIN et 5V — une pile 9 V dessus détruit la carte pour de bon au lieu de simplement refuser de démarrer.
 - **Alerte de charge basse** : sous 15 % de charge restante, le Power bank ou la batterie du robot araignée le signale dans la barre d'état.
 - **Piles et batteries de bibliothèque validées** : 4 × AA, 9 V, CR2032, LiPo 1S et le Power bank quittent le statut expérimental.
+- **Simulation sans code** : ▶ lance le montage même sans fichier de code ni éditeur ouvert. Le microcontrôleur tourne à vide, le reste (alimentations, piles, multimètre, composants passifs) se simule. Sans carte posée sur le schéma, la simulation démarre aussi.
 
 ### Modification
 
+- **Mise en garde sur les piles** : la règle à suivre est écrite en gras et en couleur, sur sa propre ligne, sous l'avertissement de danger. En français : « Règle à suivre impérativement quand on utilise des piles et des batteries ».
 - **Courbes de batterie en droites** : charge, tension, autonomie et charge consommée se tracent en lignes continues au traceur, et non plus en escalier.
 - **L'atelier et l'analyseur logique s'ouvrent plus légers** : seules les traductions de la langue de VS Code sont chargées, et non plus celles des quatre langues.
 
@@ -35,6 +37,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Symétrie horizontale** : les écritures gravées sur un composant (noms de broches, touches…) restaient inversées après un retournement, même quand le composant lui-même redevenait lisible.
 - **Durée de vie d'une pile au traceur** : affichée en jours, heures et minutes au-delà d'une heure, plutôt qu'en heures décimales.
 - **Durée de vie d'une pile : plus de sauts** : pendant les attentes du programme, la courbe bondissait vers le haut puis retombait. Elle est maintenant lissée comme prévu.
+- **Analyseur logique : la bulle de survol revient** : un décodage replié (`0xF0` pour `0xF0 SEARCH ROM`, `0x48` pour `adr 0x48 W`) ou sans place pour s'écrire donne son texte entier au survol, pour tous les protocoles.
 
 ## 2026.9.7 (29 septembre 2026)
 

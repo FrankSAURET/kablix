@@ -18,7 +18,6 @@
 import { RP2040, USBCDC, GPIOPinState } from 'rp2040js';
 import { RP2350 } from '../../../vendor/rp2350js/src/rp2350.js';
 import { USBCDC as USBCDC2350 } from '../../../vendor/rp2350js/src/usb/cdc.js';
-import { setupVectoredRamBoot } from '../../../vendor/rp2350js/src/utils/load-firmware.js';
 import { bootromB1 } from './bootrom-b1.mjs';
 import type { FlashSegment } from './types.mjs';
 
@@ -617,11 +616,17 @@ class Rp2350Chip implements PicoChip {
 
   chargerRam(image: Uint8Array): void {
     this.puce.sram.set(image, 0);
-    // Le bootrom du RP2350 ne regarde pas la SRAM de lui-même : il faut lui
-    // laisser la poignée de main « vectored boot » dans les scratch du
-    // watchdog, sinon il part chercher un IMAGE_DEF en flash et n'en trouve pas.
-    setupVectoredRamBoot(this.puce, RAM_START, 0x40000);
+    // Départ DIRECT sur la table de vecteurs de l'image (comme `chargerRam` du
+    // RP2040) : le bootrom A2 simulé bute sur BXNS (instruction non gérée) dès
+    // qu'on lui demande le « vectored boot ». Le cœur 1 reste en attente, comme
+    // le bootrom le ferait. (Frank, 02/10 : programme vide du lancement sans code.)
     this.puce.reset();
+    const vecteurs = new DataView(image.buffer, image.byteOffset, image.byteLength);
+    const coeur0 = this.puce.core[0] as unknown as { VTOR: number; SP: number; PC: number };
+    coeur0.VTOR = RAM_START;
+    coeur0.SP = vecteurs.getUint32(0, true);
+    coeur0.PC = vecteurs.getUint32(4, true) & ~1;
+    this.puce.core[1].waiting = true;
   }
 
   chargerFlash(segments: FlashSegment[]): void {

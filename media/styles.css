@@ -3402,6 +3402,12 @@ body.vscode-light .inspector__ref--nouveau {
 .battery-warning__cause {
   font-weight: bold;
 }
+.battery-warning__rules {
+  margin: 0.75rem 0 0;
+  font-weight: bold;
+  font-size: 1.05rem;
+  color: var(--vscode-editorWarning-foreground, #ffb300);
+}
 .battery-warning__list {
   margin: 0.5rem 0 1rem;
   padding-left: 1.25rem;

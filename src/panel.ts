@@ -751,7 +751,11 @@ export class SimulatorPanel {
     }
     doc ??= vscode.window.activeTextEditor?.document;
     if (!doc) {
-      vscode.window.showWarningMessage(l10n.t('Kablix: no active file to compile.'));
+      // Ni fichier choisi ni éditeur actif : on simule quand même le montage
+      // (alimentations, piles, instruments…), avec un microcontrôleur à vide
+      // (Frank, 02/10 : « si pas de carte ou pas de code : pas de simulation.
+      // Change ça »).
+      this.post({ type: 'runBlank' });
       return;
     }
     await doc.save();

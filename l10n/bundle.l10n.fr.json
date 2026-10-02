@@ -269,5 +269,6 @@
   "Kablix: curves copied to the clipboard as SVG.": "Kablix : courbes copiées au presse-papier en SVG.",
   "SVG pictures": "Images SVG",
   "Export the logic analyzer curves (SVG)": "Exporter les courbes de l'analyseur logique (SVG)",
-  "Reopen the logic analyzer": "Rouvrir l'analyseur logique"
+  "Reopen the logic analyzer": "Rouvrir l'analyseur logique",
+  "Rules to follow without exception when using cells and batteries": "Règle à suivre impérativement quand on utilise des piles et des batteries"
 }

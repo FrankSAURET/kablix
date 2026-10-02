@@ -1289,23 +1289,26 @@ export class AnalyseurVue {
       if (couvert(cle, a)) continue;
       if (g < (occupe.get(cle) ?? -Infinity)) continue;
       const texte = texteQuiTient(a, d - g);
+      // Tout texte écrit autrement qu'en entier (repli court, tronqué, ou RIEN
+      // faute de place) se lit en entier dans la bulle de survol.
+      const zone = { x: g, y, w: Math.max(2, d - g), h: ANNOT_H - 3, complet: a.texte };
       if (texte !== null) {
         ctx.fillStyle = fg;
         ctx.fillText(texte, (g + d) / 2, baseTexte(piste, ligne));
         occupe.set(cle, d);
         ajouterA(ecrits, cle, [g, d] as [number, number]);
+        if (texte !== a.texte) this.zonesAnnotTronquees.push(zone);
         continue;
       }
-      // Ni le long ni le court ne tiennent : un tronçon « … » plutôt que rien,
-      // le message complet passant en bulle de survol (point 1 du todo).
+      // Ni le long ni le court ne tiennent : un tronçon « … » plutôt que rien.
       const partiel = texteTronque(a, d - g);
       if (partiel !== null) {
         ctx.fillStyle = fg;
         ctx.fillText(partiel, (g + d) / 2, baseTexte(piste, ligne));
         occupe.set(cle, d);
         ajouterA(ecrits, cle, [g, d] as [number, number]);
-        this.zonesAnnotTronquees.push({ x: g, y, w: d - g, h: ANNOT_H - 3, complet: a.texte });
       }
+      this.zonesAnnotTronquees.push(zone);
     }
     for (const [c, trait] of traits) {
       ctx.strokeStyle = c;
@@ -1342,7 +1345,10 @@ export class AnalyseurVue {
       const texte = texteQuiTient(r, place);
       const partiel = texte === null ? texteTronque(r, place) : null;
       const ecrit = texte ?? partiel;
-      if (ecrit === null) continue;
+      if (ecrit === null) {
+        if (place > 2) this.zonesAnnotTronquees.push({ x: g, y: yDe(piste, ligne), w: place, h: ANNOT_H - 3, complet: r.texte });
+        continue;
+      }
       const fin = g + largeurTexte(ecrit) + 4;
       const l = ecrits.get(cle) ?? [];
       const k = premierEcritApres(l, g);
@@ -1351,7 +1357,7 @@ export class AnalyseurVue {
       ctx.fillText(ecrit, g + 2, baseTexte(piste, ligne));
       l.splice(k, 0, [g, fin]);
       ecrits.set(cle, l);
-      if (partiel !== null) {
+      if (ecrit !== r.texte) {
         this.zonesAnnotTronquees.push({ x: g, y: yDe(piste, ligne), w: fin - g, h: ANNOT_H - 3, complet: r.texte });
       }
     }

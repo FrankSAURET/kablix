@@ -187,6 +187,7 @@ import type {
 } from './engines/types.mjs';
 import { clampAirTemp, DEFAULT_AIR_TEMP_C } from './engines/ultrasonic.mjs';
 import { UNO_DEMO } from './programs/uno-demo.mjs';
+import { AVR_VIDE, PICO_VIDE } from './programs/vide.mjs';
 import { PICO_BLINK } from './programs/pico-blink.mjs';
 import { defaultVarBase, formatVarValue, type VarBase } from './varbase.mjs';
 import { wrapBehaviorModule, BEHAVIOR_REGISTRY } from './behavior-wrapper.mjs';
@@ -5198,6 +5199,20 @@ function requestRun(): void {
 }
 
 /**
+ * Simulation SANS code (Frank, 02/10) : la carte tourne à vide, le reste du
+ * montage — alimentations, piles, multimètre, composants passifs — se simule.
+ * `programLoaded` reste faux : le prochain ▶ avec un fichier recompile.
+ */
+function lancerSansProgramme(): void {
+  unoProgram = AVR_VIDE;
+  unoDebugInfo = null;
+  picoProgram = { kind: 'ram', image: PICO_VIDE };
+  programLoaded = false;
+  startRun();
+  if (engine) setStatus(t('Running without a program…'));
+}
+
+/**
  * Bouton REPL : démarre le firmware MicroPython seul (aucun script à
  * injecter) — le raw REPL n'est jamais engagé côté moteur, le moniteur série
  * devient un vrai REPL interactif où l'on tape directement des commandes.
@@ -5800,6 +5815,11 @@ window.addEventListener('message', (event: MessageEvent) => {
         ensureFamilyForPayload('pico');
       }
       startRun();
+      break;
+    case 'runBlank':
+      // Aucun code à lancer (ni fichier choisi, ni éditeur actif) : le montage
+      // se simule quand même, le microcontrôleur tourne à vide.
+      lancerSansProgramme();
       break;
     case 'runCached':
       // Source inchangé depuis la dernière compilation : on relance le binaire
