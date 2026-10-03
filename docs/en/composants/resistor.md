@@ -19,6 +19,10 @@ Fixed resistor. Limits current (LED) or forms a divider / pull-up / pull-down.
 | `orientation` | Mounting: `h` horizontal (lying flat) or `v` vertical (standing) | `h` |
 | `angle` | Orientation (0/90/180/270°) | 0 |
 
+## It heats up, then it burns
+
+The simulation computes the power each resistor **really dissipates** (`P = R × I²`, averaged over the duty cycle in PWM). Once it passes **half** of what the package admits (`power` property), the body turns **red** and gets a glow, stronger and stronger up to the limit. It is a "dissipated / admissible power" indicator, not a detailed thermal model: a ¼ W resistor dissipating 0.2 W is already quite red, a 10 W one in the same circuit stays cold. Beyond the limit, it explodes. It cools down when the simulation stops.
+
 ## Usage
 
 - Non-polarized: the two terminals are equivalent.

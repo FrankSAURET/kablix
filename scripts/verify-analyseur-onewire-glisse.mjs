@@ -281,7 +281,7 @@ if (!chrome) {
 			for (const p of vu) if (p.quoi === 'texte' && / bits$/.test(p.t)) e.push(`« ${p.t} » à x ${fmt(p.x)}`);
 			const peints = octetsPeints(vu);
 			for (const p of peints) {
-				if (!REFERENCE.some((a) => a.texte === p.t && Math.abs(milieu(a, f) - p.x) <= 1.5)) e.push(`« ${p.t} » à x ${fmt(p.x)} n’est pas dans la capture`);
+				if (!REFERENCE.some((a) => (a.texte === p.t || a.court === p.t) && Math.abs(milieu(a, f) - p.x) <= 1.5)) e.push(`« ${p.t} » à x ${fmt(p.x)} n’est pas dans la capture`);
 			}
 			for (const a of REFERENCE) {
 				if (xDe(a.t0, f) < X_MIN + 1 || xDe(a.t1, f) > xMax() - 1) continue;

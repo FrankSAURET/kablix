@@ -339,7 +339,7 @@ check(
 );
 check(
   'le badge compare au ralenti VOLONTAIRE (menu 🐢), pas à 1×',
-  /const wanted = Math\.min\(Number\(speedSelect\.value\) \|\| 1, 1\);/.test(sim)
+  /const wanted = Math\.min\(vitesseChoisie\(\), 1\);/.test(sim)
     && /ratio < SPEED_WARN \* wanted/.test(sim),
 );
 // Trois gardes, une seule leçon : une horloge de moteur cassée doit se VOIR.
@@ -507,16 +507,16 @@ check('le badge a son style (et reste masqué par défaut)', /\.sim-speed \{/.te
     && /t\('⚠ Simulation running \(speed \{0\} %\): editing is disabled\.'/.test(sim),
     'rien à l\'écran ne rappelait qu\'on tourne au ralenti');
   check('changer de vitesse en pleine simulation réécrit le bandeau',
-    /speedSelect\.addEventListener\('change'[\s\S]{0,320}simBanner\.textContent = simBannerText\(\)/.test(sim));
+    /function appliquerVitesse\(\)[\s\S]{0,320}simBanner\.textContent = simBannerText\(\)/.test(sim) && /speedSelect\.addEventListener\('change', appliquerVitesse\)/.test(sim));
   check('changer de vitesse repart d\'une fenêtre de mesure neuve',
-    /speedSelect\.addEventListener\('change'[\s\S]{0,400}resetSpeedBadge\(\)/.test(sim),
+    /function appliquerVitesse\(\)[\s\S]{0,400}resetSpeedBadge\(\)/.test(sim),
     'sinon la fenêtre à cheval sur deux régimes ferait clignoter le badge');
   check('le badge reste la sentinelle du TEMPS RÉEL (accéléré plafonné à 1×)',
-    /const wanted = Math\.min\(Number\(speedSelect\.value\) \|\| 1, 1\);/.test(sim),
+    /const wanted = Math\.min\(vitesseChoisie\(\), 1\);/.test(sim),
     'à 500 % demandés, le badge « ralentie » resterait allumé en permanence');
   check('la face du bouton reprend l\'animal de l\'option choisie',
     /id="speed-face"/.test(html) && /function updateSpeedFace\(\)/.test(sim)
-    && /speedSelect\.addEventListener\('change'[\s\S]{0,160}updateSpeedFace\(\)/.test(sim));
+    && /function appliquerVitesse\(\)[\s\S]{0,160}updateSpeedFace\(\)/.test(sim));
   // --- Les animaux sont les DESSINS de Frank, pas des emoji (v2026.8.3) ------
   // Frank les a ajoutés à sa planche media/icones.svg : le bouton doit les
   // porter, l'emoji ne servant plus qu'à la liste native (qui ne sait afficher

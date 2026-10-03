@@ -1333,6 +1333,102 @@ export const ES: Record<string, string> = {
     'Personalizado…',
   'Time window, for example 1h30 or 45 min or 90 s':
     'Ventana de tiempo, por ejemplo 1h30, 45 min o 90 s',
+  'Code check':
+    'Revisión del código',
+  'Line {0}: analogWrite on pin {1}, which has no PWM':
+    'Línea {0}: analogWrite en el pin {1}, que no tiene PWM',
+  'analogWrite only works on the PWM pins (2 to 13 and 44 to 46). Elsewhere the pin only goes fully high or fully low, never in between.':
+    'analogWrite solo funciona en los pines PWM (2 a 13 y 44 a 46). En los demás, el pin solo pasa a nivel alto o bajo completo, nunca a un valor intermedio.',
+  'analogWrite only works on the PWM pins (3, 5, 6, 9, 10, 11 on this board). Elsewhere the pin only goes fully high or fully low, never in between.':
+    'analogWrite solo funciona en los pines PWM (3, 5, 6, 9, 10, 11 en esta placa). En los demás, el pin solo pasa a nivel alto o bajo completo, nunca a un valor intermedio.',
+  'Line {0}: pin {1} is read but pinMode() is never called on it':
+    'Línea {0}: el pin {1} se lee pero nunca se llama a pinMode() sobre él',
+  'This pin is read but never declared: add pinMode(pin, INPUT) or INPUT_PULLUP in setup(). It works by luck on an AVR board, not on every board.':
+    'Este pin se lee pero nunca se declara: añada pinMode(pin, INPUT) o INPUT_PULLUP en setup(). Funciona por suerte en una placa AVR, no en todas.',
+  'Line {0}: pin {1} is read but nothing is wired to it':
+    'Línea {0}: el pin {1} se lee pero no hay nada conectado',
+  'The code reads this pin but nothing is connected to it: it floats and reads random values. Wire a sensor or a button to it, or enable the internal pull-up.':
+    'El código lee este pin pero no hay nada conectado: queda flotante y lee valores aleatorios. Conecte un sensor o un pulsador, o active la resistencia pull-up interna.',
+  'Line {0}: pin {1} is driven but nothing is wired to it':
+    'Línea {0}: el pin {1} se controla pero no hay nada conectado',
+  'The code drives this pin but nothing is connected to it, so nothing will react. Wire the component to this pin, or fix the pin number in the code.':
+    'El código controla este pin pero no hay nada conectado, así que nada reaccionará. Conecte el componente a este pin o corrija el número de pin en el código.',
+  'Pin {0} is wired to this component but the code never uses it':
+    'El pin {0} está conectado a este componente pero el código nunca lo usa',
+  'This component is wired to a pin that the code never uses, so it will do nothing. Use the pin in the code, or move the wire.':
+    'Este componente está conectado a un pin que el código nunca usa, así que no hará nada. Use el pin en el código o cambie el cable de sitio.',
+  'Line {0}: the program is stuck waiting for pin {1}':
+    'Línea {0}: el programa se queda bloqueado esperando al pin {1}',
+  'This loop does nothing but wait for the pin to change: while it lasts, the program can do nothing else. Use an interrupt (attachInterrupt / pin.irq) so the program stays free.':
+    'Este bucle solo espera a que el pin cambie: mientras dure, el programa no puede hacer nada más. Use una interrupción (attachInterrupt / pin.irq) para que el programa quede libre.',
+  'Badge earned':
+    'Insignia obtenida',
+  'Achievements':
+    'Logros',
+  'Proof of mastery':
+    'Prueba de dominio',
+  'Effort and process':
+    'Esfuerzo y proceso',
+  'Ohm\'s law':
+    'Ley de Ohm',
+  'You lit an LED with the right series resistor on your first run, without destroying anything.':
+    'Encendió un LED con la resistencia en serie correcta en su primera ejecución, sin destruir nada.',
+  'Bus mastered':
+    'Bus dominado',
+  'You decoded a real I²C frame with the logic analyzer: the address and the acknowledge are readable.':
+    'Decodificó una trama I²C real con el analizador lógico: la dirección y el acuse de recibo se leen.',
+  'No waiting':
+    'Sin esperar',
+  'Your circuit blinks without a single delay(): you keep time with millis() or a timer, so the program stays free.':
+    'Su circuito parpadea sin un solo delay(): mide el tiempo con millis() o un temporizador, y el programa queda libre.',
+  'Interrupt':
+    'Interrupción',
+  'An input was handled by an interrupt (attachInterrupt, pin.irq) instead of a waiting loop.':
+    'Una entrada se trató con una interrupción (attachInterrupt, pin.irq) en lugar de un bucle de espera.',
+  'Frugal':
+    'Frugal',
+  'Your circuit averages less than 1 mA: sleeping between two jobs is how a coin cell lasts years.':
+    'Su circuito consume menos de 1 mA de media: dormir entre dos tareas es lo que permite que una pila de botón dure años.',
+  'The right rating':
+    'El calibre adecuado',
+  'A motor runs through a transistor with nothing saturating, burning or collapsing: you sized the power stage.':
+    'Un motor funciona a través de un transistor sin que nada sature, se queme o se hunda: dimensionó bien la etapa de potencia.',
+  'Three protocols':
+    'Tres protocolos',
+  'You ran I²C, SPI and a serial link, each in a different project.':
+    'Ejecutó I²C, SPI y un enlace serie, cada uno en un proyecto distinto.',
+  'First puff of smoke':
+    'Primera nube de humo',
+  'Your first burned component. Everybody gets one: the mistake is a tool, and the explanation on the frame is the lesson.':
+    'Su primer componente quemado. A todos nos pasa: el error es una herramienta y la explicación del recuadro es la lección.',
+  'Twice is better':
+    'Mejor dos veces',
+  'A circuit burned, then the same project ran cleanly: you fixed it.':
+    'Un circuito se quemó y después el mismo proyecto funcionó sin problemas: lo corrigió.',
+  'Fault hunter':
+    'Cazador de fallos',
+  'Three different faults fixed in the same session.':
+    'Tres fallos distintos corregidos en la misma sesión.',
+  'Step by step':
+    'Paso a paso',
+  'A breakpoint set and ten steps executed: you read your program instead of guessing.':
+    'Un punto de interrupción puesto y diez pasos ejecutados: leyó su programa en lugar de adivinar.',
+  'With the instrument':
+    'Con el instrumento',
+  'You measured with a multimeter or an oscilloscope before changing the circuit.':
+    'Midió con un multímetro o un osciloscopio antes de modificar el circuito.',
+  'Persevering':
+    'Perseverante',
+  'Five simulation runs of the same project in one day.':
+    'Cinco ejecuciones de simulación del mismo proyecto en un día.',
+  'Neatly done':
+    'En limpio',
+  'A diagram of more than ten components where every wire is clean: right angles, nothing crossing a part.':
+    'Un esquema de más de diez componentes donde todos los cables están limpios: ángulos rectos y nada que cruce una pieza.',
+  'Documented':
+    'Documentado',
+  'A project carrying at least three text labels: whoever opens it understands it.':
+    'Un proyecto con al menos tres etiquetas de texto: quien lo abre lo entiende.',
   'Board current':
     'Corriente de la placa',
   'Charge used':

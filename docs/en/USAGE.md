@@ -27,7 +27,9 @@
    6. [Serial monitor](#serial-monitor)
    7. [Plotter](#plotter)
    8. [Board consumption](#board-consumption)
-   9. [DMX512 lighting](#dmx512-lighting)
+   9. [Checking the code against the diagram](#checking-the-code-against-the-diagram)
+   10. [Achievements (badges)](#achievements-badges)
+   11. [DMX512 lighting](#dmx512-lighting)
 5. [Exporting the part list (CSV bill of materials)](#exporting-the-part-list-csv-bill-of-materials)
 6. [Exporting the diagram as SVG](#exporting-the-diagram-as-svg)
 7. [Creating your own parts](#creating-your-own-parts)
@@ -99,6 +101,7 @@
   - **serial monitor / console**
   - **Plotter**
   - **reopen the logic analyzer**: only appears when the analyzer tab has been closed while a clip is still on the diagram. A click reopens it with its last measurement.
+  - **🏅 achievements**: the list of badges ([Achievements](#achievements-badges)).
   - **fault explanations**: the red frame and the yellow label put on a faulty part. On by default; the button hides them when they get in the way of reading the diagram.
 
   The logic analyzer has **no button to open it**: the [logic probe](composants/sonde-logique.md) is what triggers it. Drop at least one clip on a pin, start the simulation, and its tab opens on its own, to be placed next to the diagram. Without a clip, nothing opens — the analyzer would have nothing to show. The toolbar button only reopens a closed tab.
@@ -461,6 +464,60 @@ Each board input has its voltage range:
 Out of range at start, **the board refuses to start** and the status bar says why: a CR2032 (3 V) does not run an Uno, a LiPo (4.2 V) does not get through the VIN regulator, a 9 V battery would fry a Pico's VSYS. A wearing battery can also drop **below** the threshold on the way: the board then switches off, and the status bar says after how long of program (4 × AA on VIN, under 6.2 V).
 
 **Short circuit of a cell or battery** (its + wired to its − with nothing in between): it **explodes**, the simulation stops, and a **warning page** opens every time. It recalls the safety rules for cells and batteries (short circuit, cells the wrong way round in a holder, charger, unattended charging, flammable surface, new and used cells mixed, extreme temperatures, deformed cell, collection). It covers the circuit and only closes after 15 seconds of reading. Likewise, a 9 V battery on VSYS destroys the board: the explosion and the explanation stay on the circuit.
+
+### Checking the code against the diagram
+
+On ▶, Kablix reads your code **against the diagram**: no compiler can say "you read pin 2 but nothing is wired to it", Kablix can. A finding **never stops** the simulation: the board (or the part concerned) gets a red frame with a label that explains, and the console lists one line per finding with its line number.
+
+| Finding | When it appears |
+| ------- | --------------- |
+| `analogWrite` on a pin without PWM | Arduino: the pin is not PWM (Uno/Nano: 3, 5, 6, 9, 10, 11; Mega: 2 to 13 and 44 to 46). |
+| Pin read without `pinMode` | Arduino: `digitalRead` on a pin that `setup()` never declares. |
+| Pin read, nothing wired | The pin is read (`digitalRead`, `analogRead`, `attachInterrupt`, `Pin.IN`, `ADC`) but no wire reaches it and no internal pull is enabled. |
+| Pin driven, nothing wired | The pin is written (`digitalWrite`, `analogWrite`, `Pin.OUT`) with nothing at the end. The board LED (D13, GP25) and the serial link are excepted. |
+| Pin wired, never used | A part is wired to a pin that the code never uses. The red frame is on that part. |
+
+**When in doubt, Kablix stays silent**: computed pin number (loop, array), reassigned variable, third-party library (`Servo`, `Wire`, `dht`…), shield, wire to a breadboard… the check concerned is skipped. A warning only appears when it is certain.
+
+The **`kablix.lintCode`** setting (on by default) turns this check off.
+
+#### Traps seen while running
+
+- **Floating pin**: an input read with nothing wired to it (the "Pin read, nothing wired" finding) **oscillates at random**, like a real floating pin. Wire a button with its resistor, or enable `INPUT_PULLUP` / `Pin.PULL_UP`.
+- **Blocking loop**: `while (digitalRead(2) == LOW);` (or `while b.value() == 0: pass` in MicroPython). If, for **3 simulated seconds**, the awaited pin stays at the level that holds the loop and nothing else moves (no driven pin, no serial output, no sleep), the board gets a red frame: the program does nothing but wait. **Interrupts** (`attachInterrupt`, `pin.irq`) leave the program free.
+
+Only a loop with an **empty body** is examined, and only when the pin number is readable in the code.
+
+### Achievements (badges)
+
+The **🏅** button in the simulation bar opens the list of achievements. A badge is only awarded for a **fact measurable in the simulation**: never for time spent in front of the screen. Each one says what it attests. A banner appears on the diagram when you earn one. Badges follow the student **from one project to the next** (they are kept in the extension's data, not in the `.projix`).
+
+**Proof of mastery** (awarded once)
+
+| Badge | What triggers it |
+| ----- | ---------------- |
+| **Ohm's law** | An LED lit with a series resistor, on the **first** run of the project, with nothing destroyed. |
+| **Bus mastered** | An **I²C** frame decoded by the logic analyzer, address and acknowledge readable. |
+| **No waiting** | Code with no `delay()` / `sleep()` but `millis()` or a timer, and at least 6 pin changes seen. |
+| **Interrupt** | `attachInterrupt` (or `pin.irq`) set **and** triggered by a real edge on the wired pin. |
+| **Frugal** | Board average current under 1 mA, measured over 10 seconds of program (deep sleep). |
+| **The right rating** | A motor running through a transistor for 3 seconds, with nothing burned and no fault. |
+| **Three protocols** | I²C, SPI and a serial link, **each in a different project**. |
+
+**Effort and process** (how you work, not the result)
+
+| Badge | What triggers it |
+| ----- | ---------------- |
+| **First puff of smoke** | Your first burned component. Everybody gets one: the mistake is a tool. |
+| **Twice is better** | A project that burned, then the same project running 5 seconds with nothing destroyed. |
+| **Fault hunter** | Three different faults (code check, burned part, motor fault) fixed from one run to the next of the same project. |
+| **Step by step** | A breakpoint set and ten steps executed. |
+| **With the instrument** | A measurement of at least 3 seconds with a wired multimeter or oscilloscope, **then** a change to the circuit. |
+| **Persevering** | Five runs of the same project on the same day. |
+| **Neatly done** | More than ten components and **every** wire clean (horizontal and vertical segments, four bends at most). |
+| **Documented** | At least three text labels on the sheet. |
+
+A badge is judged on what **Kablix saw running**: when in doubt (unreadable code, third-party library…), it is not awarded.
 
 ### DMX512 lighting
 

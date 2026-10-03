@@ -1333,6 +1333,102 @@ export const ZH: Record<string, string> = {
     '自定义…',
   'Time window, for example 1h30 or 45 min or 90 s':
     '时间窗口，例如 1h30、45 min 或 90 s',
+  'Code check':
+    '代码检查',
+  'Line {0}: analogWrite on pin {1}, which has no PWM':
+    '第 {0} 行：对没有 PWM 的引脚 {1} 使用了 analogWrite',
+  'analogWrite only works on the PWM pins (2 to 13 and 44 to 46). Elsewhere the pin only goes fully high or fully low, never in between.':
+    'analogWrite 只能用于 PWM 引脚（2 到 13 以及 44 到 46）。其他引脚只会输出完全的高电平或低电平，不会有中间值。',
+  'analogWrite only works on the PWM pins (3, 5, 6, 9, 10, 11 on this board). Elsewhere the pin only goes fully high or fully low, never in between.':
+    'analogWrite 只能用于 PWM 引脚（此开发板上为 3、5、6、9、10、11）。其他引脚只会输出完全的高电平或低电平，不会有中间值。',
+  'Line {0}: pin {1} is read but pinMode() is never called on it':
+    '第 {0} 行：引脚 {1} 被读取，但从未对它调用 pinMode()',
+  'This pin is read but never declared: add pinMode(pin, INPUT) or INPUT_PULLUP in setup(). It works by luck on an AVR board, not on every board.':
+    '该引脚被读取但从未声明：请在 setup() 中添加 pinMode(引脚, INPUT) 或 INPUT_PULLUP。在 AVR 开发板上只是碰巧能用，并非所有开发板都行。',
+  'Line {0}: pin {1} is read but nothing is wired to it':
+    '第 {0} 行：引脚 {1} 被读取，但没有连接任何东西',
+  'The code reads this pin but nothing is connected to it: it floats and reads random values. Wire a sensor or a button to it, or enable the internal pull-up.':
+    '代码读取该引脚，但没有连接任何东西：它处于悬空状态，读到的是随机值。请接上传感器或按钮，或启用内部上拉电阻。',
+  'Line {0}: pin {1} is driven but nothing is wired to it':
+    '第 {0} 行：引脚 {1} 被驱动，但没有连接任何东西',
+  'The code drives this pin but nothing is connected to it, so nothing will react. Wire the component to this pin, or fix the pin number in the code.':
+    '代码驱动该引脚，但没有连接任何东西，所以不会有任何反应。请把元件接到这个引脚，或修正代码中的引脚编号。',
+  'Pin {0} is wired to this component but the code never uses it':
+    '引脚 {0} 已接到此元件，但代码从未使用它',
+  'This component is wired to a pin that the code never uses, so it will do nothing. Use the pin in the code, or move the wire.':
+    '此元件接在代码从未使用的引脚上，因此不会有任何动作。请在代码中使用该引脚，或移动导线。',
+  'Line {0}: the program is stuck waiting for pin {1}':
+    '第 {0} 行：程序卡在等待引脚 {1}',
+  'This loop does nothing but wait for the pin to change: while it lasts, the program can do nothing else. Use an interrupt (attachInterrupt / pin.irq) so the program stays free.':
+    '这个循环只是在等待引脚变化：在此期间程序什么也做不了。请使用中断（attachInterrupt / pin.irq），让程序保持空闲。',
+  'Badge earned':
+    '获得徽章',
+  'Achievements':
+    '成就',
+  'Proof of mastery':
+    '能力证明',
+  'Effort and process':
+    '努力与过程',
+  'Ohm\'s law':
+    '欧姆定律',
+  'You lit an LED with the right series resistor on your first run, without destroying anything.':
+    '第一次运行就用合适的串联电阻点亮了 LED，没有损坏任何东西。',
+  'Bus mastered':
+    '总线达人',
+  'You decoded a real I²C frame with the logic analyzer: the address and the acknowledge are readable.':
+    '你用逻辑分析仪解码了一帧真实的 I²C 数据：地址和应答都清晰可读。',
+  'No waiting':
+    '不再等待',
+  'Your circuit blinks without a single delay(): you keep time with millis() or a timer, so the program stays free.':
+    '你的电路不用任何 delay() 就能闪烁：用 millis() 或定时器计时，程序保持空闲。',
+  'Interrupt':
+    '中断',
+  'An input was handled by an interrupt (attachInterrupt, pin.irq) instead of a waiting loop.':
+    '输入由中断（attachInterrupt、pin.irq）处理，而不是等待循环。',
+  'Frugal':
+    '节能',
+  'Your circuit averages less than 1 mA: sleeping between two jobs is how a coin cell lasts years.':
+    '你的电路平均电流低于 1 mA：在两次工作之间休眠，纽扣电池才能用上好几年。',
+  'The right rating':
+    '选对规格',
+  'A motor runs through a transistor with nothing saturating, burning or collapsing: you sized the power stage.':
+    '电机通过晶体管运转，没有任何元件饱和、烧毁或电压崩溃：功率级选得合适。',
+  'Three protocols':
+    '三种协议',
+  'You ran I²C, SPI and a serial link, each in a different project.':
+    '你分别在不同的项目中运行了 I²C、SPI 和串口通信。',
+  'First puff of smoke':
+    '第一缕青烟',
+  'Your first burned component. Everybody gets one: the mistake is a tool, and the explanation on the frame is the lesson.':
+    '你的第一个烧坏的元件。人人都会遇到：错误是一种工具，红框上的说明就是教训。',
+  'Twice is better':
+    '再试一次更好',
+  'A circuit burned, then the same project ran cleanly: you fixed it.':
+    '电路烧坏之后，同一个项目顺利运行：你把它修好了。',
+  'Fault hunter':
+    '故障猎手',
+  'Three different faults fixed in the same session.':
+    '在同一次操作中修复了三种不同的故障。',
+  'Step by step':
+    '单步调试',
+  'A breakpoint set and ten steps executed: you read your program instead of guessing.':
+    '设置了断点并执行了十步：你是在读程序，而不是在猜。',
+  'With the instrument':
+    '用仪器测量',
+  'You measured with a multimeter or an oscilloscope before changing the circuit.':
+    '修改电路之前，你先用万用表或示波器进行了测量。',
+  'Persevering':
+    '持之以恒',
+  'Five simulation runs of the same project in one day.':
+    '同一天内对同一个项目运行了五次仿真。',
+  'Neatly done':
+    '整洁',
+  'A diagram of more than ten components where every wire is clean: right angles, nothing crossing a part.':
+    '超过十个元件的原理图，所有导线都整洁：直角走线，没有穿过任何元件。',
+  'Documented':
+    '有文档',
+  'A project carrying at least three text labels: whoever opens it understands it.':
+    '项目中至少有三个文字标签：打开它的人能看懂。',
   'Board current':
     '开发板电流',
   'Charge used':

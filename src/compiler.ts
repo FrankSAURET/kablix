@@ -480,7 +480,7 @@ export function isSourceError(output: string): boolean {
 export function firstErrorLine(output: string): string | undefined {
   for (const raw of output.split(/\r?\n/)) {
     const m = DIAG_LINE.exec(raw);
-    if (m) return `${basename(m[1].trim())}:${m[2]} : ${m[4].trim()}`;
+    if (m) return `${m[1].trim().split(/[\\/]/).pop()}:${m[2]} : ${m[4].trim()}`;
   }
   return undefined;
 }

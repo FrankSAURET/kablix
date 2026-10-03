@@ -8,6 +8,17 @@
 
 ---
 
+# v2026.10.0.203
+1. ✅ **Bancs rouges soldés** (« Règle tout ce qui est rouge ») : `verify:all` entièrement vert dans le conteneur avec Chrome.
+    1. **Traductions des lots .198 à .201** (demandées par Frank, donc faites avant publication) : relecture du code, pièges, 15 badges (titres et phrases), panneau, annonce, `Achievements` — FR / ES / ZH (`i18n*.mts`, bundles l10n, `package.nls.*` `kablix.config.lintCode`) ; aide EN : relecture du code, pièges, Succès, bouton 🏅, fiche résistance (échauffement).
+    2. **Banc périmé** `verify-simspeed` : suivait l'ancien code du menu de vitesse (`vitesseChoisie()`, `appliquerVitesse`).
+    3. **Banc** `verify-analyseur-onewire-glisse` : accepte aussi la forme courte (`court`) d'un octet, que la vue écrit quand le texte long ne tient pas (dépend de la police).
+    4. **Banc** `verify-creator-ui` : `ProgramFiles` absent hors Windows.
+    5. **Correction** [compiler.ts](src/compiler.ts) `firstErrorLine` : le nom de fichier d'une erreur gcc est extrait aussi bien d'un chemin Windows (`\`) que Linux (`/`), quelle que soit la machine.
+2. ⏳ Reste à traduire en EN/ES/ZH : rien de ces lots.
+
+---
+
 # v2026.10.0.202
 1. ✅ **Bancs à Chrome jouables dans le conteneur cloud** (demande de Frank) : 112 bancs cherchaient Chrome aux seuls chemins Windows ; ils lisent maintenant `CHROME_PATH`, puis `/opt/pw-browsers/chromium`, avant les chemins Windows. Sans effet sur le PC de Frank. `CHROME_PATH=/opt/pw-browsers/chromium npm run verify:all` : 14 bancs de plus se jouent (souris, analyseur, panneaux…) ; restent rouges ici : `compiler`, `creator-ui` (registre Windows), `simspeed`, `analyseur-onewire-glisse` (1 contrôle), plus `i18n` et `help-bars` (traductions ⏳, attendu).
 2. ✅ [CLAUDE.md](CLAUDE.md) : la consigne « bancs à vraie souris » mentionne le conteneur.

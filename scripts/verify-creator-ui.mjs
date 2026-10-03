@@ -396,6 +396,7 @@ rows.push({
 		d.parseShellCommandExe('C:\\Program Files\\App\\mon app.exe %1')
 			=== 'C:\\Program Files\\App\\mon app.exe',
 		'coupé au premier espace');
+	process.env.ProgramFiles ??= 'C:\\Program Files'; // absent hors Windows (conteneur Linux)
 	push('détection : REG_EXPAND_SZ développé',
 		d.parseShellCommandExe('"%ProgramFiles%\\Inkscape\\bin\\inkscape.exe" "%1"')
 			=== `${process.env.ProgramFiles}\\Inkscape\\bin\\inkscape.exe`,

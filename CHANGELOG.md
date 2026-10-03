@@ -30,6 +30,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Correction
 
+**Compilation**
+
+- Le résumé de la première erreur du compilateur affiche le bon nom de fichier quel que soit le style du chemin (Windows ou Linux).
+
 ## 2026.10.0 (3 octobre 2026)
 
 ### Nouveauté
