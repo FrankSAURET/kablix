@@ -1326,4 +1326,49 @@ export const ES: Record<string, string> = {
     'El transistor de mando no puede dejar pasar suficiente corriente',
   'This transistor saturates: it only passes gain × base current, less than the motor draws, so the motor stays stalled. Lower the base resistor to drive more base current, or use a transistor with more gain.':
     'Este transistor se satura: solo deja pasar ganancia × corriente de base, menos de lo que pide el motor, así que el motor queda bloqueado. Baje la resistencia de base para inyectar más corriente de base, o use un transistor de mayor ganancia.',
+  // Lot de traduction avant publication 2026.9.8
+  'Capacity (mAh)':
+    'Capacidad (mAh)',
+  'Custom…':
+    'Personalizado…',
+  'Time window, for example 1h30 or 45 min or 90 s':
+    'Ventana de tiempo, por ejemplo 1h30, 45 min o 90 s',
+  'Board current':
+    'Corriente de la placa',
+  'Charge used':
+    'Carga consumida',
+  'The board does not start: {0} gives {1} V on {2}, which needs {3} to {4} V.':
+    'La placa no arranca: {0} da {1} V en {2}, que necesita de {3} a {4} V.',
+  '{0} was short-circuited: its + is wired straight to its −.':
+    '{0} está en cortocircuito: su + está conectado directamente a su −.',
+  'Please read ({0} s)':
+    'Lea con atención ({0} s)',
+  'I have read this':
+    'He leído esto',
+  '{0}: charge':
+    '{0}: carga',
+  '{0}: voltage':
+    '{0}: tensión',
+  '{0}: battery life':
+    '{0}: autonomía',
+  '{0}: battery is running low ({1} %)':
+    '{0}: carga baja ({1} %)',
+  '{0} is empty: the board switched off after {1} of program.':
+    '{0} está vacía: la placa se apagó tras {1} de programa.',
+  '{0} dropped to {1} V: the board switched off after {2} of program ({3} needs at least {4} V).':
+    '{0} bajó a {1} V: la placa se apagó tras {2} de programa ({3} necesita al menos {4} V).',
+  'Running without a program…':
+    'Ejecutando sin programa…',
+  'This board was destroyed: one of its pins was fed above {0} V. A Pico runs on 3.3 V and its GPIOs are NOT 5 V tolerant — a 5 V sensor or a generator wired straight to a pin destroys it. Use a voltage divider or a level shifter.':
+    'Esta placa se destruyó: uno de sus pines recibió más de {0} V. Una Pico funciona a 3,3 V y sus GPIO NO toleran 5 V: un sensor de 5 V o un generador conectado directamente a un pin la destruye. Use un divisor de tensión o un adaptador de nivel.',
+  'This battery was destroyed: its + is wired straight to its − (short circuit). A real one would have heated up in seconds, then caught fire or exploded.':
+    'Esta batería se destruyó: su + está conectado directamente a su − (cortocircuito). Una real se habría calentado en segundos y luego se habría incendiado o explotado.',
+  'This board was destroyed: {0} gave {1} V on {2}, which takes at most {3} V. A 9 V battery on VSYS/VBUS has no regulator to protect it.':
+    'Esta placa se destruyó: {0} dio {1} V en {2}, que admite como máximo {3} V. Una batería de 9 V en VSYS/VBUS no tiene regulador que la proteja.',
+  'Batteries':
+    'Pilas / Baterías',
+  'Vgs(th) max (V)':
+    'Vgs(th) máx (V)',
+  'Max power (W)':
+    'Potencia máx (W)',
 };

@@ -19,7 +19,7 @@ Composant de bibliothèque : il s'installe par le gestionnaire de composants, il
 |-------|--------|----------|
 | Uno, Nano, Mega | **VIN** (6,2 à 20 V) | Démarre, s'arrête quand la tension passe sous **6,2 V** |
 | Uno, Nano, Mega | **5V** (4,5 à 5,5 V) | Refusé : 9,5 V, c'est trop |
-| Pico | **VSYS** ou **VBUS** (1,8 à 5,5 V) | Refusé : 9,5 V, c'est trop |
+| Pico | **VSYS** ou **VBUS** (1,8 à 5,5 V) | **La carte grille** : ces entrées n'ont pas de régulateur pour encaisser 9,5 V |
 
 Une pile 9 V a peu de réserve : une Uno qui tire 46 mA la vide en une dizaine d'heures.
 

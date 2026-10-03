@@ -4,36 +4,74 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 [Voir en ligne](https://github.com/FrankSAURET/kablix/blob/main/CHANGELOG.md) · [View online](https://github.com/FrankSAURET/kablix/blob/main/CHANGELOG.md)
 
-## 2026.9.8 (prochaine publication)
+## 2026.9.8 (3 octobre 2026)
 
 ### Nouveauté
 
-- **Pile ou batterie en court-circuit : elle explose, et une mise en garde s'ouvre** : la simulation s'arrête, la pile (ou le Power bank) explose sur le montage, et une page de mise en garde sur les piles et batteries recouvre l'écran à chaque fois ; elle ne se ferme qu'après 15 secondes de lecture.
-- **Traceur : fenêtre et vitesse libres** : la fenêtre se tape en heures, minutes, secondes (`1h30`), la vitesse de simulation se tape en % (jusqu'à 10 000 %), et les graduations de temps du traceur suivent le temps simulé du montage, accélération comprise. De quoi suivre une pile qui se vide.
-- **Consommation de la carte au traceur** : deux courbes à chaque lancement, sans une ligne de code — le courant de la carte (mA) et la charge consommée (mAh). C'est la carte réelle qui est mesurée : une Uno endormie garde 31 mA, une Pico en `lightsleep()` descend à 1,3 mA.
-- **La mise en veille d'un µc est prise en compte** : `sleep_cpu()` ou *LowPower* sur Arduino (power-down, power-save, standby), `machine.lightsleep()` sur Pico. `delay()` et `time.sleep()` laissent la puce éveillée, comme en vrai.
-- **Le Power bank a une capacité et se vide** : il alimente la carte par 5V, VSYS ou VBUS, sa jauge suit la charge, le traceur montre sa charge et son autonomie. Vide, il éteint la carte et la barre d'état dit au bout de combien de temps.
-- **Tests `consommation-uno` et `consommation-pico**` : une carte qui alterne veille et réveil, sur une batterie d'1 mAh.
-- **Piles dans la bibliothèque** : 4 × AA, 9 V, CR2032 et LiPo 1S, à installer depuis **⚙ Gérer les composants**. Capacité réglable, tension qui baisse avec la charge (courbe au traceur). Elles ont leur propre catégorie dans la palette, **Piles / Batteries**, avec le Power bank.
-- **Le Power bank tient compte de son convertisseur** : sa capacité par défaut passe à 5000 mAh (une vraie batterie externe Li-ion 5 V / 2,1 A), et se vide un peu plus vite que le courant délivré ne le laisse penser — la conversion de tension a une perte.
-- **Le robot araignée a sa propre batterie** : elle se vide de sa consommation (Pico W, PCA9685, servos), comme un Power bank — rien à câbler, elle n'alimente que le robot.
-- **Tests `autonomie-uno` et `autonomie-pico**` : un nœud de mesure sur pile, avec ou sans veille profonde, pour comparer l'autonomie au traceur.
-- **Une alimentation inadaptée est refusée** : hors de la plage de l'entrée (VIN 6,2 à 20 V, 5V 4,5 à 5,5 V, VSYS et VBUS 1,8 à 5,5 V), la carte ne démarre pas et la barre d'état dit pourquoi. Une CR2032 ne fait pas tourner une Uno, une LiPo ne passe pas le régulateur de VIN. Une pile qui s'use sous le seuil éteint la carte en route.
-- **Une pile 9 V grille la Pico** : VSYS et VBUS n'ont pas de régulateur protecteur, contrairement à VIN et 5V — une pile 9 V dessus détruit la carte pour de bon au lieu de simplement refuser de démarrer.
+**Piles, batteries et autonomie**
+
+- **Piles dans la bibliothèque** : 4 × AA, 9 V, CR2032 et LiPo 1S, à installer depuis **⚙ Gérer les composants**. Capacité réglable, tension qui baisse avec la charge (courbe au traceur). Elles ont leur propre catégorie dans la palette, **Piles / Batteries**, avec le Power bank. Elles sont validées : plus de statut expérimental.
+- **Le Power bank a une capacité et se vide** : il alimente la carte par 5V, VSYS ou VBUS, sa jauge suit la charge, le traceur montre sa charge et son autonomie. Vide, il éteint la carte et la barre d'état dit au bout de combien de temps. Sa capacité par défaut est de 5000 mAh (une vraie batterie externe Li-ion 5 V / 2,1 A), et il se vide un peu plus vite que le courant délivré ne le laisse penser : la conversion de tension a une perte.
+- **Le robot araignée a sa propre batterie** : elle se vide de sa consommation (Pico W, PCA9685, servos), comme un Power bank. Rien à câbler, elle n'alimente que le robot.
 - **Alerte de charge basse** : sous 15 % de charge restante, le Power bank ou la batterie du robot araignée le signale dans la barre d'état.
-- **Piles et batteries de bibliothèque validées** : 4 × AA, 9 V, CR2032, LiPo 1S et le Power bank quittent le statut expérimental.
+- **Une alimentation inadaptée est refusée** : hors de la plage de l'entrée (VIN 6,2 à 20 V, 5V 4,5 à 5,5 V, VSYS et VBUS 1,8 à 5,5 V), la carte ne démarre pas et la barre d'état dit pourquoi. Une CR2032 ne fait pas tourner une Uno, une LiPo ne passe pas le régulateur de VIN. Une pile qui s'use sous le seuil éteint la carte en route.
+- **Une pile 9 V grille la Pico** : VSYS et VBUS n'ont pas de régulateur protecteur, contrairement à VIN et 5V. Une pile 9 V dessus détruit la carte pour de bon au lieu de simplement refuser de démarrer.
+- **Pile ou batterie en court-circuit : elle explose, et une mise en garde s'ouvre** : la simulation s'arrête, la pile (ou le Power bank) explose sur le montage, et une page de mise en garde sur les piles et batteries recouvre l'écran à chaque fois ; elle ne se ferme qu'après 15 secondes de lecture.
+- **Tests `autonomie-uno` et `autonomie-pico`** : un nœud de mesure sur pile, avec ou sans veille profonde, pour comparer l'autonomie au traceur.
+
+**Consommation et veille**
+
+- **Consommation de la carte au traceur** : deux courbes à chaque lancement, sans une ligne de code : le courant de la carte (mA) et la charge consommée (mAh). C'est la carte réelle qui est mesurée : une Uno endormie garde 31 mA, une Pico en `lightsleep()` descend à 1,3 mA.
+- **La mise en veille d'un µc est prise en compte** : `sleep_cpu()` ou *LowPower* sur Arduino (power-down, power-save, standby), `machine.lightsleep()` sur Pico. `delay()` et `time.sleep()` laissent la puce éveillée, comme en vrai.
+- **Tests `consommation-uno` et `consommation-pico`** : une carte qui alterne veille et réveil, sur une batterie d'1 mAh.
+
+**Traceur**
+
+- **Fenêtre et vitesse libres** : la fenêtre se tape en heures, minutes, secondes (`1h30`), la vitesse de simulation se tape en % (jusqu'à 10 000 %), et les graduations de temps du traceur suivent le temps simulé du montage, accélération comprise. De quoi suivre une pile qui se vide.
+
+**Simulation**
+
 - **Simulation sans code** : ▶ lance le montage même sans fichier de code ni éditeur ouvert. Le microcontrôleur tourne à vide, le reste (alimentations, piles, multimètre, composants passifs) se simule. Sans carte posée sur le schéma, la simulation démarre aussi.
+
+**Composants**
+
 - **Trois MOSFET « niveau logique »** : IRL540N (100 V, 0,044 Ω, 30 A), IRLZ34N (55 V, 0,035 Ω, 30 A) et IRL1004 (40 V, 0,0065 Ω, 130 A), en TO-220, Vgs(th) maximal 2 V. Ils s'ouvrent sous les 3,3 V d'une sortie de Pico, là où l'IRF530 (3,5 V) reste bloqué.
 
 ### Modification
 
+**Transistors**
+
+- **Vgs(th) max et puissance maximale** : la liste du sélecteur et la ligne du modèle posé donnent la tension de seuil de grille maximale (MOSFET) et la puissance maximale dissipée (tous), avec une propriété « Puissance max » à régler. Le BS170 passe à 3 V et l'IRF530 à 4 V, valeurs maximales de leurs fiches.
+
+**Gestionnaire de composants**
+
+- **« Béta » remplace « expérimental »** sur la pastille des composants pas encore validés.
+
+**Chargement**
+
 - **L'atelier et l'analyseur logique s'ouvrent plus légers** : seules les traductions de la langue de VS Code sont chargées, et non plus celles des quatre langues.
-- **Transistors : Vgs(th) max et Pmax** : la liste du sélecteur et la ligne du modèle posé donnent la tension de seuil de grille maximale (MOSFET) et la puissance maximale dissipée (tous), avec une propriété « Puissance max » à régler. Le BS170 passe à 3 V et l'IRF530 à 4 V, valeurs maximales de leurs fiches.
 
 ### Correction
 
+**Piles et consommation**
+
+- **« Battery life » ne saute plus** : la courbe d'autonomie bondissait périodiquement (de 10 à 84 jours sur un programme alternant veille et réveil). Le lissage du courant s'allonge maintenant avec le temps simulé et reste stable.
+- **Une pile posée seule n'affiche plus de consommation de carte** : sans carte sur le schéma, plus de courbes « courant de la carte » ni « charge consommée ».
+- **Une pile explosée peut être recâblée** : son marquage « grillé » (cadre rouge, explosion) s'efface dès qu'un fil ou une pièce change, et au lancement suivant.
+- **La mise en garde des piles** se termine par deux points, avant la règle à suivre.
+
+**Affichage et analyseur logique**
+
 - **Symétrie horizontale** : les écritures gravées sur un composant (noms de broches, touches…) restaient inversées après un retournement, même quand le composant lui-même redevenait lisible.
 - **Analyseur logique : la bulle de survol revient** : un décodage replié (`0xF0` pour `0xF0 SEARCH ROM`, `0x48` pour `adr 0x48 W`) ou sans place pour s'écrire donne son texte entier au survol, pour tous les protocoles.
+
+**Traductions**
+
+- **Piles, traceur et mise en garde dans toutes les langues** : les messages des piles et batteries (mise en garde, explosion, refus d'alimentation, charge basse), les courbes de consommation du traceur et la saisie libre de la fenêtre et de la vitesse sortaient en anglais. Ils sont traduits en français, espagnol et chinois, ainsi que la fiche du Power bank, celle des transistors et les fiches des quatre piles de la bibliothèque (mettez-les à jour depuis **⚙ Gérer les composants**).
+
+**Pico 2**
+
+- **Un programme chargé en mémoire vive ne plante plus la Pico 2**, programme de démonstration compris.
 
 ## 2026.9.7 (29 septembre 2026)
 

@@ -270,5 +270,18 @@
   "SVG pictures": "Images SVG",
   "Export the logic analyzer curves (SVG)": "Exporter les courbes de l'analyseur logique (SVG)",
   "Reopen the logic analyzer": "Rouvrir l'analyseur logique",
-  "Rules to follow without exception when using cells and batteries:": "Règle à suivre impérativement quand on utilise des piles et des batteries\u00a0:"
+  "Rules to follow without exception when using cells and batteries:": "Règle à suivre impérativement quand on utilise des piles et des batteries\u00a0:",
+  "Custom…": "Personnalisé…",
+  "Simulation speed in % (1 to 10000)": "Vitesse de simulation en % (de 1 à 10000)",
+  "Danger: battery short circuit": "Danger : court-circuit d'une pile",
+  "In real life a short-circuited cell or battery heats up in seconds: fire, explosion, severe burns.": "En vrai, une pile ou une batterie en court-circuit chauffe en quelques secondes : incendie, explosion, brûlures graves.",
+  "A short circuit means fire, explosion and burns.": "Un court-circuit, c'est un incendie, une explosion et des brûlures.",
+  "Cells put in a holder the wrong way round make a short circuit.": "Des piles mises à l'envers dans leur support font un court-circuit.",
+  "Use a good-quality charger that suits the battery.": "Utilisez un chargeur de bonne qualité, adapté à la batterie.",
+  "Never charge while you sleep.": "Ne chargez jamais pendant que vous dormez.",
+  "Never charge on a flammable surface.": "Ne chargez jamais sur une surface inflammable.",
+  "Never mix new and used cells.": "Ne mélangez jamais des piles neuves et des piles usagées.",
+  "Protect cells and batteries from extreme temperatures.": "Protégez les piles et les batteries des températures extrêmes.",
+  "Never use a swollen or damaged cell or battery.": "N'utilisez jamais une pile ou une batterie gonflée ou abîmée.",
+  "Never throw them in the bin: take them to a collection point.": "Ne les jetez jamais à la poubelle : apportez-les à un point de collecte."
 }

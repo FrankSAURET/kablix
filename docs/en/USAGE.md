@@ -26,7 +26,8 @@
    5. [Debugging](#debugging)
    6. [Serial monitor](#serial-monitor)
    7. [Plotter](#plotter)
-   8. [DMX512 lighting](#dmx512-lighting)
+   8. [Board consumption](#board-consumption)
+   9. [DMX512 lighting](#dmx512-lighting)
 5. [Exporting the part list (CSV bill of materials)](#exporting-the-part-list-csv-bill-of-materials)
 6. [Exporting the diagram as SVG](#exporting-the-diagram-as-svg)
 7. [Creating your own parts](#creating-your-own-parts)
@@ -93,7 +94,7 @@
   - **■ stop**
   - **⏸ pause/resume**
   - **step**
-  - the **speed** selector, one animal per setting: 🦅 500 %, 🐆 200 %, 🐇 100 % (real time), 🐢 10 %, 🐌 1 %. Speeding up is a **wish**: the simulation runs as fast as it can, never faster.
+  - the **speed** selector, one animal per setting: 🦅 500 %, 🐆 200 %, 🐇 100 % (real time), 🐢 10 %, 🐌 1 %, or ✎ **Custom** (type a percentage from 1 to 10,000 %, to watch a battery drain in a few minutes). Speeding up is a **wish**: the simulation runs as fast as it can, never faster.
   - **REPL**: for Pico only, shows the traditional Python console (it only appears when the board on the canvas is a Pico)
   - **serial monitor / console**
   - **Plotter**
@@ -414,7 +415,7 @@ Emission examples:
 
 Panel controls:
 
-- **Window**: displayed duration (5, 10, 30 or 60 s), sliding window following real time.
+- **Window**: displayed duration (5, 10, 30 or 60 s, or **Custom**: type a duration such as `1h30`, `45 min` or `2 h 15 min 10 s`), sliding window. The time on the graduations is the **simulated** time of the circuit: when sped up, one second on screen is worth several. The speed selector also offers ✎ to type a free percentage.
 - **⏸ / ▶**: freezes the display; collection continues in the background.
 - **Legend chips**: click to hide/show a curve; the current value is shown live on it.
 - **Hover**: crosshair + tooltip with the value of every curve at the pointed instant.
@@ -422,6 +423,44 @@ Panel controls:
 - **Clear**: empties the curves.
 
 When the simulation stops, the curves stay displayed for analysis.
+
+### Board consumption
+
+Each time you start, the plotter shows two curves **without a single line of code**: **`Board current`** (mA) and **`Charge used`** (mAh, accumulated since the start). They do not open the panel by themselves: they wait for you to look at it.
+
+What is measured is the **real board**, not the chip alone: its microcontroller, but also its regulator, its USB chip and its ON LED — plus the current it supplies to whatever it powers (LEDs driven by its pins or wired to its 5V / 3V3 rails).
+
+| Board | Awake | Deep sleep |
+| ----- | ----- | ---------- |
+| Uno | 46 mA | 31 mA |
+| Nano | 19 mA | 7 mA |
+| Mega | 72 mA | 47 mA |
+| Pico, Pico 2 | 21-22 mA | 1.3 mA |
+| Pico W, Pico 2 W | 23-24 mA | 1.4 mA |
+
+*Orders of magnitude of real boards at rest, powered at 5 V.* The lesson is in the gap: a sleeping Uno keeps two thirds of its consumption, a Pico loses 95 %.
+
+**What counts as deep sleep** — the real sleep instructions, as on the chip:
+
+- **Arduino**: `sleep_cpu()` (`avr/sleep.h`) or a library such as *LowPower*, in **power-down**, **power-save** or **standby** mode. The core really stops until the interrupt that wakes it: the **watchdog** (`WDT`), an external interrupt (`INT0`, `INT1`, pin change) — and Timer 2 in power-save. *Idle* mode wakes on the slightest interrupt (the one from `millis()` every millisecond) and does not count as deep sleep.
+- **Pico**: `machine.lightsleep(ms)` (and `deepsleep`).
+- **Do not count**: `delay()`, `time.sleep()` — the real chip stays awake during these waits, and so does its consumption.
+
+To measure a **battery life**, have the board powered by a battery: see the [Power bank](composants/powerbank.md) sheet.
+
+**Library batteries** — **4 × AA**, **9 V**, **CR2032** and **LiPo 1S** are installed through **⚙ Manage parts**. **+** and **−** pins, capacity adjustable in the inspector. Their voltage **drops with the charge** (4 × AA: 6.4 V new, 4.4 V used): the plotter shows `Bat1: voltage` in addition to the charge and the battery life.
+
+Each board input has its voltage range:
+
+| Input | Accepted range |
+| ----- | -------------- |
+| **VIN** (Uno, Nano, Mega) | 6.2 to 20 V |
+| **5V** (Uno, Nano, Mega) | 4.5 to 5.5 V |
+| **VSYS**, **VBUS** (Pico) | 1.8 to 5.5 V |
+
+Out of range at start, **the board refuses to start** and the status bar says why: a CR2032 (3 V) does not run an Uno, a LiPo (4.2 V) does not get through the VIN regulator, a 9 V battery would fry a Pico's VSYS. A wearing battery can also drop **below** the threshold on the way: the board then switches off, and the status bar says after how long of program (4 × AA on VIN, under 6.2 V).
+
+**Short circuit of a cell or battery** (its + wired to its − with nothing in between): it **explodes**, the simulation stops, and a **warning page** opens every time. It recalls the safety rules for cells and batteries (short circuit, cells the wrong way round in a holder, charger, unattended charging, flammable surface, new and used cells mixed, extreme temperatures, deformed cell, collection). It covers the circuit and only closes after 15 seconds of reading. Likewise, a 9 V battery on VSYS destroys the board: the explosion and the explanation stay on the circuit.
 
 ### DMX512 lighting
 
@@ -528,7 +567,7 @@ The **⚙ Manage components** button, at the bottom of the palette (or the **Kab
 
 > 📦 The illustrated list of what the official repository offers is in [kablix_components/README.md](../../kablix_components/README.md).
 
-A card may carry the **Experimental** mention (a badge and a dashed frame): the part is published and it works, but it is not settled yet — its drawing, its pins or its simulation may change from one version to the next. Nothing stops you from using it; just expect to have to bring it up to date.
+A card may carry the **Beta** mention (a badge and a dashed frame): the part is published and it works, but it is not settled yet — its drawing, its pins or its simulation may change from one version to the next. Nothing stops you from using it; just expect to have to bring it up to date.
 
 You select cards with a click, then **Download** installs and **Delete** uninstalls. Deleting asks for confirmation, erases the `.kompix` file from the library and removes the part from the palette **and** from open diagrams. It is final: reinstalling goes through the original repository, or through a `.kompix` exported beforehand (**⇩**).
 

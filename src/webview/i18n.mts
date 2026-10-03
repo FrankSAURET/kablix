@@ -870,6 +870,45 @@ const FR: Record<string, string> = {
     'Le transistor de commande ne peut pas passer assez de courant',
   'This transistor saturates: it only passes gain × base current, less than the motor draws, so the motor stays stalled. Lower the base resistor to drive more base current, or use a transistor with more gain.':
     'Ce transistor sature : il ne passe que gain × courant de base, moins que ce que le moteur demande, donc le moteur reste bloqué. Baissez la résistance de base pour envoyer plus de courant de base, ou prenez un transistor de plus grand gain.',
+  // Lot de traduction avant publication 2026.9.8
+  'Capacity (mAh)':
+    'Capacité (mAh)',
+  'Custom…':
+    'Personnalisé…',
+  'Time window, for example 1h30 or 45 min or 90 s':
+    'Fenêtre de temps, par exemple 1h30, 45 min ou 90 s',
+  'Board current':
+    'Courant de la carte',
+  'Charge used':
+    'Charge consommée',
+  'The board does not start: {0} gives {1} V on {2}, which needs {3} to {4} V.':
+    'La carte ne démarre pas : {0} donne {1} V sur {2}, qui demande de {3} à {4} V.',
+  '{0} was short-circuited: its + is wired straight to its −.':
+    '{0} est en court-circuit : son + est relié directement à son −.',
+  'Please read ({0} s)':
+    'Lisez attentivement ({0} s)',
+  'I have read this':
+    'J\'ai lu',
+  '{0}: charge':
+    '{0} : charge',
+  '{0}: voltage':
+    '{0} : tension',
+  '{0}: battery life':
+    '{0} : autonomie',
+  '{0}: battery is running low ({1} %)':
+    '{0} : charge faible ({1} %)',
+  '{0} is empty: the board switched off after {1} of program.':
+    '{0} est vide : la carte s\'est éteinte après {1} de programme.',
+  '{0} dropped to {1} V: the board switched off after {2} of program ({3} needs at least {4} V).':
+    '{0} est tombée à {1} V : la carte s\'est éteinte après {2} de programme ({3} demande au moins {4} V).',
+  'Running without a program…':
+    'Exécution sans programme…',
+  'This board was destroyed: one of its pins was fed above {0} V. A Pico runs on 3.3 V and its GPIOs are NOT 5 V tolerant — a 5 V sensor or a generator wired straight to a pin destroys it. Use a voltage divider or a level shifter.':
+    'Cette carte a été détruite : une de ses broches a reçu plus de {0} V. Une Pico fonctionne en 3,3 V et ses GPIO ne tolèrent PAS le 5 V : un capteur 5 V ou un générateur relié directement à une broche la détruit. Utilisez un pont diviseur ou un adaptateur de niveau.',
+  'This battery was destroyed: its + is wired straight to its − (short circuit). A real one would have heated up in seconds, then caught fire or exploded.':
+    'Cette pile a été détruite : son + est relié directement à son − (court-circuit). Une vraie pile aurait chauffé en quelques secondes, puis pris feu ou explosé.',
+  'This board was destroyed: {0} gave {1} V on {2}, which takes at most {3} V. A 9 V battery on VSYS/VBUS has no regulator to protect it.':
+    'Cette carte a été détruite : {0} a donné {1} V sur {2}, qui accepte {3} V au plus. Une pile 9 V sur VSYS/VBUS n\'a aucun régulateur pour la protéger.',
 };
 
 // `zh` : chinois simplifié (VS Code : zh-cn). zh-tw retombe aussi dessus.

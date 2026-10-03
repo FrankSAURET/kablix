@@ -26,7 +26,8 @@
    5. [Depuración](#depuración)
    6. [Monitor serie](#monitor-serie)
    7. [Trazador](#trazador)
-   8. [Iluminación DMX512](#iluminación-dmx512)
+   8. [Consumo de la placa](#consumo-de-la-placa)
+   9. [Iluminación DMX512](#iluminación-dmx512)
 5. [Exportar la lista de componentes (nomenclatura CSV)](#exportar-la-lista-de-componentes-nomenclatura-csv)
 6. [Exportar el esquema en SVG](#exportar-el-esquema-en-svg)
 7. [Crear sus propios componentes](#crear-sus-propios-componentes)
@@ -93,7 +94,7 @@
   - **■ detener**
   - **⏸ pausa/reanudar**
   - **paso a paso**
-  - el selector de **velocidad**, un animal por ajuste: 🦅 500 %, 🐆 200 %, 🐇 100 % (tiempo real), 🐢 10 %, 🐌 1 %. Acelerar es un **deseo**: la simulación va tan deprisa como puede, nunca más.
+  - el selector de **velocidad**, un animal por ajuste: 🦅 500 %, 🐆 200 %, 🐇 100 % (tiempo real), 🐢 10 %, 🐌 1 %, o ✎ **Personalizado** (escriba un porcentaje de 1 a 10 000 %, para ver una pila agotarse en unos minutos). Acelerar es un **deseo**: la simulación va tan deprisa como puede, nunca más.
   - **REPL**: solo para el Pico, muestra la consola Python tradicional (solo aparece cuando la placa del lienzo es un Pico)
   - **monitor serie / consola**
   - **Trazador**
@@ -414,7 +415,7 @@ Ejemplos de emisión:
 
 Controles del panel:
 
-- **Ventana**: duración mostrada (5, 10, 30 o 60 s), ventana deslizante que sigue el tiempo real.
+- **Ventana**: duración mostrada (5, 10, 30 o 60 s, o **Personalizado**: escriba una duración como `1h30`, `45 min` o `2 h 15 min 10 s`), ventana deslizante. El tiempo de las graduaciones es el tiempo **simulado** del montaje: al acelerar, un segundo en pantalla equivale a varios. El selector de velocidad ofrece también ✎ para escribir un porcentaje libre.
 - **⏸ / ▶**: congela la visualización; la recogida continúa en segundo plano.
 - **Pastillas de la leyenda**: clic para ocultar/mostrar una curva; el valor actual se muestra en vivo sobre ella.
 - **Pasar el ratón**: retícula + información con el valor de cada curva en el instante señalado.
@@ -422,6 +423,44 @@ Controles del panel:
 - **Borrar**: vacía las curvas.
 
 Cuando se detiene la simulación, las curvas siguen mostradas para analizarlas.
+
+### Consumo de la placa
+
+En cada arranque, el trazador muestra dos curvas **sin una sola línea de código**: **`Corriente de la placa`** (mA) y **`Carga consumida`** (mAh, acumulada desde el arranque). No abren el panel por sí solas: esperan a que usted lo mire.
+
+Lo que se mide es la **placa real**, no solo el chip: su microcontrolador, pero también su regulador, su chip USB y su LED ON — más la corriente que suministra a lo que alimenta (LED controlados por sus pines o conectados a sus raíles 5V / 3V3).
+
+| Placa | Despierta | En reposo profundo |
+| ----- | --------- | ------------------ |
+| Uno | 46 mA | 31 mA |
+| Nano | 19 mA | 7 mA |
+| Mega | 72 mA | 47 mA |
+| Pico, Pico 2 | 21-22 mA | 1,3 mA |
+| Pico W, Pico 2 W | 23-24 mA | 1,4 mA |
+
+*Órdenes de magnitud de placas reales en reposo, alimentadas a 5 V.* La lección está en la diferencia: una Uno dormida conserva dos tercios de su consumo, una Pico pierde el 95 %.
+
+**Qué cuenta como reposo profundo** — las instrucciones de suspensión reales, como en el chip:
+
+- **Arduino**: `sleep_cpu()` (`avr/sleep.h`) o una biblioteca como *LowPower*, en modo **power-down**, **power-save** o **standby**. El núcleo se detiene de verdad hasta la interrupción que lo despierta: el **perro guardián** (`WDT`), una interrupción externa (`INT0`, `INT1`, cambio de pin) — y el Timer 2 en power-save. El modo *idle* se despierta con la menor interrupción (la de `millis()` cada milisegundo) y no cuenta como reposo profundo.
+- **Pico**: `machine.lightsleep(ms)` (y `deepsleep`).
+- **No cuentan**: `delay()`, `time.sleep()` — el chip real sigue despierto durante estas esperas, y su consumo también.
+
+Para medir una **autonomía**, haga que la placa se alimente con una batería: vea la ficha de la [Batería externa (Power bank)](composants/powerbank.md).
+
+**Pilas de la biblioteca** — **4 × AA**, **9 V**, **CR2032** y **LiPo 1S** se instalan con **⚙ Gestionar componentes**. Patas **+** y **−**, capacidad ajustable en el inspector. Su tensión **baja con la carga** (4 × AA: 6,4 V nuevas, 4,4 V gastadas): el trazador muestra `Bat1: tensión` además de la carga y la autonomía.
+
+Cada entrada de la placa tiene su rango de tensión:
+
+| Entrada | Rango aceptado |
+| ------- | -------------- |
+| **VIN** (Uno, Nano, Mega) | 6,2 a 20 V |
+| **5V** (Uno, Nano, Mega) | 4,5 a 5,5 V |
+| **VSYS**, **VBUS** (Pico) | 1,8 a 5,5 V |
+
+Fuera de rango al arrancar, **la placa se niega a arrancar** y la barra de estado dice por qué: una CR2032 (3 V) no hace funcionar una Uno, una LiPo (4,2 V) no pasa el regulador de VIN, una pila de 9 V quemaría el VSYS de una Pico. Una pila que se gasta también puede caer **por debajo** del umbral por el camino: la placa se apaga entonces, y la barra de estado dice tras cuánto tiempo de programa (4 × AA en VIN, por debajo de 6,2 V).
+
+**Cortocircuito de una pila o batería** (su + unido a su − sin nada entre los dos): **explota**, la simulación se detiene y se abre una **página de advertencia** cada vez. Recuerda las reglas de seguridad de pilas y baterías (cortocircuito, pilas al revés en un portapilas, cargador, carga sin vigilancia, superficie inflamable, pilas nuevas y usadas mezcladas, temperaturas extremas, pila deformada, recogida). Cubre el montaje y solo se cierra tras 15 segundos de lectura. Del mismo modo, una pila de 9 V en VSYS destruye la placa: la explosión y la explicación permanecen sobre el montaje.
 
 ### Iluminación DMX512
 
@@ -528,7 +567,7 @@ El botón **⚙ Gestionar los componentes**, al pie de la paleta (o el comando *
 
 > 📦 La lista ilustrada de lo que ofrece el repositorio oficial está en [kablix_components/README.md](../../kablix_components/README.md).
 
-Una tarjeta puede llevar la mención **Experimental** (una insignia y un marco discontinuo): el componente está publicado y funciona, pero aún no está consolidado; su dibujo, sus patas o su simulación pueden cambiar de una versión a otra. Nada le impide usarlo; simplemente prevea tener que actualizarlo.
+Una tarjeta puede llevar la mención **Beta** (una insignia y un marco discontinuo): el componente está publicado y funciona, pero aún no está consolidado; su dibujo, sus patas o su simulación pueden cambiar de una versión a otra. Nada le impide usarlo; simplemente prevea tener que actualizarlo.
 
 Las tarjetas se seleccionan con un clic; luego **Descargar** instala y **Eliminar** desinstala. Eliminar pide confirmación, borra el archivo `.kompix` de la biblioteca y retira el componente de la paleta **y** de los esquemas abiertos. Es definitivo: reinstalar pasa por el repositorio de origen, o por un `.kompix` exportado previamente (**⇩**).
 

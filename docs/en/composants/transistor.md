@@ -29,9 +29,11 @@ Below them, the list of **matching models**: one click sets the reference and th
 | PNP | 2N2907A, 2N3906, 2N4403, 2N5401, BC327, S8550, BC557, BC558, BC640, MPSA92, BD912 |
 | NPN Darlington | BC517 |
 | PNP Darlington | BC516 |
-| N-channel MOSFET | BS170, IRF530 |
+| N-channel MOSFET | BS170, IRF530, IRL540N, IRLZ34N, IRL1004 |
 
-BD911, BD912 and IRF530 come in **TO-220**: a power package, up to 15 A.
+BD911, BD912, IRF530, IRL540N, IRLZ34N and IRL1004 come in **TO-220**: a power package (up to 130 A for the IRL1004).
+
+IRL540N, IRLZ34N and IRL1004 are "logic-level" MOSFETs: maximum Vgs(th) 2 V, they open under the 3.3 V of a Pico (the IRF530, at 3.5 V, would stay blocked).
 
 The last entry of the list is always the **custom model** of the chosen family ("Custom NPN", "Custom N-channel MOSFET"…): the criteria you already set are pre-filled, and **everything stays editable** afterwards — gain or Rds(on), max voltage and current, package marking, electrode assignment.
 

@@ -8,6 +8,20 @@
 
 ---
 
+# v2026.9.8.195
+1. ✅ **CHANGELOG réorganisé par thèmes** (« tu n'as pas tenu compte de la règle du changelog ») : la section 2026.9.8 est rangée en thèmes gras dans Nouveauté / Modification / Correction (Piles, Consommation, Traceur, Simulation, Composants ; Transistors, Gestionnaire, Chargement ; Piles et consommation, Affichage et analyseur, Traductions, Pico 2). Entrées des lots .190 à .194 ajoutées (battery life, pile seule, pile explosée recâblable, Béta, Pico 2 en RAM). Règle inscrite dans [CLAUDE.md](CLAUDE.md) et dans la mémoire du projet.
+2. ✅ **Publication 2026.9.8 préparée** : [package.json](package.json) `version` 2026.9.8, `buildNumber` 195 (lock suit) ; CHANGELOG daté du 3 octobre 2026 ; état du CLAUDE.md.
+3. ✅ **Lot de traduction** : tous les ⏳ de .190 à .194 soldés.
+    1. [i18n.mts](src/webview/i18n.mts) (FR) + [i18n-es.mts](src/webview/i18n-es.mts) + [i18n-zh.mts](src/webview/i18n-zh.mts) : 15 chaînes du traceur, de la consommation, des piles, de la simulation sans code et du refus d'alimentation ; `Capacity (mAh)` ; trois explications de composant grillé jamais traduites (`This board was destroyed…` Pico 5 V, pile en court-circuit, carte sur pile 9 V) ; es/zh : `Batteries`, `Vgs(th) max (V)`, `Max power (W)`.
+    2. `l10n/bundle.l10n.{fr,es,zh-cn}.json` : mise en garde des piles (titre, phrase, 9 règles), `Custom…`, vitesse libre ; es/zh : `Beta` (remplace `Experimental`, retirée) et la règle des piles.
+    3. Aide EN/ES/ZH : USAGE (consommation de la carte, piles, plages d'entrée, court-circuit, vitesse et fenêtre libres, « Béta »), `powerbank.md`, `transistor.md` (trois MOSFET niveau logique).
+    4. Bibliothèque : pile-4aa, pile-9v, pile-cr2032 et batterie-lipo en **2026.10.0** (bloc `l10n` fr/es/zh dans `_sources.json`, fiches en/es/zh). Fiches FR de la 4 × AA et de la 9 V corrigées : sur VSYS/VBUS d'une Pico la carte **grille** (elles disaient « Refusé »). Paquets et index reconstruits ; images d'origine remises (le Chromium du conteneur les redessinait autrement).
+4. ✅ Vérifs : `verify:i18n` 17/17, `verify:docs`, `verify:kompix` 43/43 verts ; typecheck, construction et `verify:all` : voir le message de livraison.
+5. ⏳ **Fiche transistor** (FR/EN/ES/ZH) : la propriété « Puissance max » et le Vgs(th) max (lot .194) n'y sont pas décrits. À ajouter si tu veux.
+6. ⏳ **Reste à Frank** : empaqueter et publier. Publication faite un autre jour : remplacer la date du CHANGELOG. Après publication : état du CLAUDE.md (« dernière version en ligne `2026.9.8` »), ouvrir `## 2026.9.9 (prochaine publication)`.
+
+---
+
 # v2026.9.8.194
 1. ✅ **Pile explosée : recâblage**. Pas reproduit (les broches d'une pile grillée restent atteignables : test de survol Chrome, Power bank et pile de bibliothèque). Cause probable : le marquage « grillé » (cadre rouge, explosion, hissage z=70) restait collé à la pile, sans jamais s'effacer hors d'un nouveau lancement. [sim.mts](src/webview/sim.mts) `pilesExplosees` / `effacerPilesExplosees()` : effacé dès que fils ou pièces changent, et au lancement. Banc verify-batterie (+4 ; sans le correctif : échec). ⬜ À essayer chez toi ; si ça bloque encore, envoie le schéma.
 2. ✅ **Béta à la place d'expérimental** : pastille du gestionnaire (`Beta` / FR `Béta`), aide FR, banc verify-kompix ; clé `Experimental` de es/zh devenue `Beta` : ⏳ avec les traductions. Mémoire du projet mise à jour. Le drapeau `"experimental"` du JSON ne change pas.

@@ -657,7 +657,7 @@
       "type": "pile-4aa",
       "label": "Battery pack 4 × AA",
       "description": "Holder of four AA alkaline cells in series: 6.4 V when new, down to 4.4 V when flat, 2500 mAh. It drains at the pace of what it feeds, the board included. On VIN it is too low for a Uno once below 6.2 V.",
-      "version": "2026.9.9",
+      "version": "2026.10.0",
       "author": "Frank Sauret",
       "kind": "psu",
       "category": "Batteries",
@@ -666,14 +666,37 @@
       "params": [
         { "name": "capacity", "label": "Capacity (mAh)", "value": 2500 }
       ],
-      "battery": { "full": 6.4, "empty": 4.4 }
+      "battery": { "full": 6.4, "empty": 4.4 },
+      "l10n": {
+        "fr": {
+          "label": "Coupleur de 4 piles AA",
+          "description": "Boîtier de quatre piles alcalines AA en série : 6,4 V neuves, 4,4 V usées, 2500 mAh. Elle se vide au rythme de ce qu'elle alimente, la carte comprise. Sur VIN, elle est trop faible pour une Uno dès qu'elle passe sous 6,2 V.",
+          "params": {
+            "capacity": "Capacité (mAh)"
+          }
+        },
+        "es": {
+          "label": "Portapilas de 4 pilas AA",
+          "description": "Portapilas con cuatro pilas alcalinas AA en serie: 6,4 V nuevas, 4,4 V gastadas, 2500 mAh. Se vacía al ritmo de lo que alimenta, la placa incluida. En VIN, es demasiado baja para una Uno en cuanto pasa de 6,2 V hacia abajo.",
+          "params": {
+            "capacity": "Capacidad (mAh)"
+          }
+        },
+        "zh": {
+          "label": "4 节 AA 电池盒",
+          "description": "四节 AA 碱性电池串联的电池盒：新电池 6.4 V，用尽时 4.4 V，2500 mAh。它按所供电对象（包括开发板）的功耗放电。接在 VIN 上，电压一低于 6.2 V，Uno 就无法工作。",
+          "params": {
+            "capacity": "容量 (mAh)"
+          }
+        }
+      }
     },
     {
       "group": "9V",
       "type": "pile-9v",
       "label": "Battery 9 V",
       "description": "9 V alkaline battery (6LR61): 9.5 V when new, down to 6.0 V when flat, 500 mAh. It drains at the pace of what it feeds, the board included.",
-      "version": "2026.9.9",
+      "version": "2026.10.0",
       "author": "Frank Sauret",
       "kind": "psu",
       "category": "Batteries",
@@ -682,14 +705,37 @@
       "params": [
         { "name": "capacity", "label": "Capacity (mAh)", "value": 500 }
       ],
-      "battery": { "full": 9.5, "empty": 6.0 }
+      "battery": { "full": 9.5, "empty": 6.0 },
+      "l10n": {
+        "fr": {
+          "label": "Pile 9 V",
+          "description": "Pile alcaline 9 V (6LR61) : 9,5 V neuve, 6,0 V usée, 500 mAh. Elle se vide au rythme de ce qu'elle alimente, la carte comprise.",
+          "params": {
+            "capacity": "Capacité (mAh)"
+          }
+        },
+        "es": {
+          "label": "Pila de 9 V",
+          "description": "Pila alcalina de 9 V (6LR61): 9,5 V nueva, 6,0 V gastada, 500 mAh. Se vacía al ritmo de lo que alimenta, la placa incluida.",
+          "params": {
+            "capacity": "Capacidad (mAh)"
+          }
+        },
+        "zh": {
+          "label": "9 V 电池",
+          "description": "9 V 碱性电池（6LR61）：新电池 9.5 V，用尽时 6.0 V，500 mAh。它按所供电对象（包括开发板）的功耗放电。",
+          "params": {
+            "capacity": "容量 (mAh)"
+          }
+        }
+      }
     },
     {
       "group": "CR2032",
       "type": "pile-cr2032",
       "label": "Coin cell CR2032",
       "description": "CR2032 lithium coin cell: 3.0 V when new, down to 2.0 V when flat, 220 mAh. Enough for a Pico on VSYS, not for a Uno.",
-      "version": "2026.9.9",
+      "version": "2026.10.0",
       "author": "Frank Sauret",
       "kind": "psu",
       "category": "Batteries",
@@ -698,14 +744,37 @@
       "params": [
         { "name": "capacity", "label": "Capacity (mAh)", "value": 220 }
       ],
-      "battery": { "full": 3.0, "empty": 2.0 }
+      "battery": { "full": 3.0, "empty": 2.0 },
+      "l10n": {
+        "fr": {
+          "label": "Pile bouton CR2032",
+          "description": "Pile bouton au lithium CR2032 : 3,0 V neuve, 2,0 V usée, 220 mAh. Suffisante pour une Pico sur VSYS, pas pour une Uno.",
+          "params": {
+            "capacity": "Capacité (mAh)"
+          }
+        },
+        "es": {
+          "label": "Pila de botón CR2032",
+          "description": "Pila de botón de litio CR2032: 3,0 V nueva, 2,0 V gastada, 220 mAh. Suficiente para una Pico en VSYS, no para una Uno.",
+          "params": {
+            "capacity": "Capacidad (mAh)"
+          }
+        },
+        "zh": {
+          "label": "CR2032 纽扣电池",
+          "description": "CR2032 锂纽扣电池：新电池 3.0 V，用尽时 2.0 V，220 mAh。足够带动接在 VSYS 上的 Pico，带不动 Uno。",
+          "params": {
+            "capacity": "容量 (mAh)"
+          }
+        }
+      }
     },
     {
       "group": "LIPO",
       "type": "batterie-lipo",
       "label": "LiPo battery 1S",
       "description": "Single-cell lithium-polymer battery: 4.2 V when charged, down to 3.0 V when flat, 1000 mAh. Suits a Pico on VSYS; too low for the VIN input of a Uno.",
-      "version": "2026.9.9",
+      "version": "2026.10.0",
       "author": "Frank Sauret",
       "kind": "psu",
       "category": "Batteries",
@@ -714,7 +783,30 @@
       "params": [
         { "name": "capacity", "label": "Capacity (mAh)", "value": 1000 }
       ],
-      "battery": { "full": 4.2, "empty": 3.0 }
+      "battery": { "full": 4.2, "empty": 3.0 },
+      "l10n": {
+        "fr": {
+          "label": "Batterie LiPo 1S",
+          "description": "Batterie lithium-polymère à un élément : 4,2 V chargée, 3,0 V vide, 1000 mAh. Convient à une Pico sur VSYS ; trop faible pour l'entrée VIN d'une Uno.",
+          "params": {
+            "capacity": "Capacité (mAh)"
+          }
+        },
+        "es": {
+          "label": "Batería LiPo 1S",
+          "description": "Batería de polímero de litio de una celda: 4,2 V cargada, 3,0 V vacía, 1000 mAh. Conviene a una Pico en VSYS; demasiado baja para la entrada VIN de una Uno.",
+          "params": {
+            "capacity": "Capacidad (mAh)"
+          }
+        },
+        "zh": {
+          "label": "LiPo 1S 电池",
+          "description": "单节锂聚合物电池：充满时 4.2 V，放空时 3.0 V，1000 mAh。适合接在 VSYS 上的 Pico；对 Uno 的 VIN 输入来说电压太低。",
+          "params": {
+            "capacity": "容量 (mAh)"
+          }
+        }
+      }
     }
   ]
 }

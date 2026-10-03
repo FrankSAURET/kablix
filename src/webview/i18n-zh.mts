@@ -1326,4 +1326,49 @@ export const ZH: Record<string, string> = {
     '驱动三极管无法通过足够的电流',
   'This transistor saturates: it only passes gain × base current, less than the motor draws, so the motor stays stalled. Lower the base resistor to drive more base current, or use a transistor with more gain.':
     '该三极管已饱和：它只能通过 增益 × 基极电流，小于电机所需，因此电机卡住不转。请减小基极电阻以提供更大的基极电流，或换用增益更大的三极管。',
+  // Lot de traduction avant publication 2026.9.8
+  'Capacity (mAh)':
+    '容量 (mAh)',
+  'Custom…':
+    '自定义…',
+  'Time window, for example 1h30 or 45 min or 90 s':
+    '时间窗口，例如 1h30、45 min 或 90 s',
+  'Board current':
+    '开发板电流',
+  'Charge used':
+    '已用电量',
+  'The board does not start: {0} gives {1} V on {2}, which needs {3} to {4} V.':
+    '开发板无法启动：{0} 在 {2} 上提供 {1} V，而它需要 {3} 至 {4} V。',
+  '{0} was short-circuited: its + is wired straight to its −.':
+    '{0} 被短路：它的 + 极直接接到了 − 极。',
+  'Please read ({0} s)':
+    '请仔细阅读（{0} 秒）',
+  'I have read this':
+    '我已阅读',
+  '{0}: charge':
+    '{0}：电量',
+  '{0}: voltage':
+    '{0}：电压',
+  '{0}: battery life':
+    '{0}：续航时间',
+  '{0}: battery is running low ({1} %)':
+    '{0}：电量不足（{1} %）',
+  '{0} is empty: the board switched off after {1} of program.':
+    '{0} 已耗尽：开发板在程序运行 {1} 后关闭。',
+  '{0} dropped to {1} V: the board switched off after {2} of program ({3} needs at least {4} V).':
+    '{0} 降到 {1} V：开发板在程序运行 {2} 后关闭（{3} 至少需要 {4} V）。',
+  'Running without a program…':
+    '无程序运行中…',
+  'This board was destroyed: one of its pins was fed above {0} V. A Pico runs on 3.3 V and its GPIOs are NOT 5 V tolerant — a 5 V sensor or a generator wired straight to a pin destroys it. Use a voltage divider or a level shifter.':
+    '这块板被损坏：它的一个引脚输入电压超过了 {0} V。Pico 工作在 3.3 V，其 GPIO 不耐 5 V——5 V 传感器或信号发生器直接接到引脚上会将其损坏。请使用分压器或电平转换器。',
+  'This battery was destroyed: its + is wired straight to its − (short circuit). A real one would have heated up in seconds, then caught fire or exploded.':
+    '这块电池被损坏：它的 + 极直接接到 − 极（短路）。真实的电池会在几秒内发热，然后起火或爆炸。',
+  'This board was destroyed: {0} gave {1} V on {2}, which takes at most {3} V. A 9 V battery on VSYS/VBUS has no regulator to protect it.':
+    '这块板被损坏：{0} 在 {2} 上提供 {1} V，而它最多只能承受 {3} V。VSYS/VBUS 上的 9 V 电池没有稳压器保护。',
+  'Batteries':
+    '电池',
+  'Vgs(th) max (V)':
+    'Vgs(th) 最大值 (V)',
+  'Max power (W)':
+    '最大功率 (W)',
 };

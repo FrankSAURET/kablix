@@ -29,9 +29,11 @@ Debajo, la lista de **modelos que coinciden**: un clic fija la referencia y el i
 | PNP | 2N2907A, 2N3906, 2N4403, 2N5401, BC327, S8550, BC557, BC558, BC640, MPSA92, BD912 |
 | Darlington NPN | BC517 |
 | Darlington PNP | BC516 |
-| MOSFET de canal N | BS170, IRF530 |
+| MOSFET de canal N | BS170, IRF530, IRL540N, IRLZ34N, IRL1004 |
 
-BD911, BD912 e IRF530 vienen en **TO-220**: un encapsulado de potencia, hasta 15 A.
+BD911, BD912, IRF530, IRL540N, IRLZ34N e IRL1004 vienen en **TO-220**: un encapsulado de potencia (hasta 130 A para el IRL1004).
+
+IRL540N, IRLZ34N e IRL1004 son MOSFET «de nivel lógico»: Vgs(th) máximo de 2 V, se abren con los 3,3 V de una Pico (el IRF530, con 3,5 V, seguiría bloqueado).
 
 La última entrada de la lista es siempre el **modelo personalizado** de la familia elegida («NPN personalizado», «MOSFET de canal N personalizado»…): los criterios ya fijados vienen rellenados, y **todo sigue siendo editable** después — ganancia o Rds(on), tensión y corriente máximas, inscripción del encapsulado, asignación de los electrodos.
 
