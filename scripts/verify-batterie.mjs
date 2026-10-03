@@ -243,5 +243,16 @@ check(/const refus = refusAlimentation\(\);\s*if \(refus\) \{\s*setStatus\(refus
 check(/if \(!alimenteLaCarte \|\| !engine\) continue;\s*if \(restantAh <= 0\) \{/.test(bloc) && /stopRun\(\)/.test(bloc), 'vide alors qu’elle alimente la carte : la simulation s’arrête');
 check(/chargesBatteries\.clear\(\)/.test(sim), 'nouveau lancement : les batteries repartent pleines');
 
+// Pile explosée : on doit pouvoir recâbler (Frank, 03/10). Le marquage « grillé »
+// tient après l'arrêt, mais s'efface dès que les fils ou les pièces changent, et à
+// chaque nouveau lancement.
+check(/pilesExplosees\.add\(batterieId\);\s*filsALExplosion = signatureFils\(\);/.test(sim),
+	'court-circuit : la pile est notée « explosée » avec la signature des fils');
+check(/else if \(pilesExplosees\.size > 0 && signatureFils\(\) !== filsALExplosion\) effacerPilesExplosees\(\)/.test(sim),
+	'on recâble ou on supprime : le marquage de la pile explosée s’efface');
+check(/function effacerPilesExplosees[\s\S]{0,400}markBurned\(id, el[^)]*false\)[\s\S]{0,200}setFaulty\(id, false\)/.test(sim),
+	'effacement : explosion, hissage z=70 et cadre rouge retirés');
+check(/effacerPilesExplosees\(\);\s*burnedBoards\.clear\(\)/.test(sim), 'nouveau lancement : plus de pile marquée explosée');
+
 console.log(echecs ? `\nRESULTAT: ECHEC (${echecs})` : '\nRESULTAT: OK');
 process.exit(echecs ? 1 : 0);

@@ -174,7 +174,7 @@ export class ComponentManagerPanel {
     const downloadedText = l10n.t('downloaded');
     const madeHereText = l10n.t('created here');
     const updateText = l10n.t('Update available');
-    const experimentalText = l10n.t('Experimental');
+    const experimentalText = l10n.t('Beta');
 
     return /* html */ `<!DOCTYPE html>
 <html lang="en">

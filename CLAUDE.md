@@ -30,6 +30,7 @@ Frank dessine TOUT dans deux planches A3 à la racine :
 - Tout nouveau composant : **fiche d'aide obligatoire** en **FR** (`docs/fr/composants/<type>.md`), avec son illustration `docs/img/composants/<type>.webp` produite par `node scripts/_capture-part.mjs <type>` (jamais une capture d'écran à la main). La version EN (`docs/en/…`) **attend la publication** (voir Traductions) ; `npm run verify:docs` compte les fiches et signalera le manque — c'est normal.
 
 #### Règle FORTE : tout composant neuf naît `"experimental": true`
+Dans les textes (pastille, aide, discussion avec Frank), on dit **Béta**, plus « expérimental » (Frank, 03/10/2026). Le drapeau JSON garde son nom `experimental`.
 Un composant n'est **validé que par Frank, explicitement, dans la conversation**. Tant qu'il ne l'a pas dit :
 - `"experimental": true` dans `kablix_components/_sources.json`, juste après `"type"` — **posé dès la création**, jamais ajouté après coup.
 - Ni les tests verts, ni la fiche d'aide, ni le fait que « ça marche » ne valent validation. Livrer un composant sans ce drapeau = erreur.

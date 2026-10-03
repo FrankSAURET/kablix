@@ -3004,6 +3004,30 @@ const ARAIGNEE_COURANT_A = 0.5;
 
 /** Temps de lecture imposé avant de pouvoir fermer la mise en garde, en secondes. */
 const MISE_EN_GARDE_LECTURE_S = 15;
+/**
+ * Piles explosées et signature des fils au moment de l'explosion. Elles restent
+ * « grillées » à l'écran, arrêt compris, pour qu'on voie ce qui s'est passé ;
+ * dès qu'on touche aux fils ou qu'on supprime la pile, le marquage s'efface et
+ * on peut recâbler (Frank, 03/10 : « une fois la pile explosée on ne peut plus
+ * la recabler »).
+ */
+const pilesExplosees = new Set<string>();
+let filsALExplosion = '';
+const signatureFils = (): string =>
+  JSON.stringify(editor.diagram.wires.map((w) => [w.id, w.a, w.b]))
+  + editor.diagram.parts.map((p) => p.id).join(',');
+
+function effacerPilesExplosees(): void {
+  for (const id of pilesExplosees) {
+    const el = editor.elementOf(id);
+    if (el) markBurned(id, el as unknown as Record<string, unknown>, false);
+    else editor.setBurned(id, false);
+    editor.setFaulty(id, false);
+    burnNotes.delete(id);
+  }
+  pilesExplosees.clear();
+}
+
 let miseEnGardeTimer: ReturnType<typeof setInterval> | undefined;
 /** Garde le clavier hors du montage tant que la mise en garde est ouverte. */
 const bloquerClavier = (e: KeyboardEvent): void => {
@@ -3078,6 +3102,8 @@ function majBatteries(courantCarteA: number, dtMs: number): void {
       stopRun();
       const el = editor.elementOf(batterieId);
       if (el) markBurned(batterieId, el, true, BURN_NOTE.batteryShort);
+      pilesExplosees.add(batterieId);
+      filsALExplosion = signatureFils();
       ouvrirMiseEnGardePiles(batterieId);
       return;
     }
@@ -4934,6 +4960,7 @@ function startRun(): void {
   for (const id of burnedIcs) editor.setBurned(id, false);
   for (const id of burnedResistors) editor.setBurned(id, false);
   for (const id of burnedBoards) editor.setBurned(id, false);
+  effacerPilesExplosees();
   burnedBoards.clear(); // carte survoltée « remplacée » à chaque lancement
   burnedIcs.clear(); // circuits intégrés détruits « remplacés » eux aussi
   burnedResistors.clear(); // résistances parties en fumée « remplacées » de même
@@ -5158,6 +5185,7 @@ editor.onChange = () => {
     }
   }
   if (engine) rebind();
+  else if (pilesExplosees.size > 0 && signatureFils() !== filsALExplosion) effacerPilesExplosees();
   // Sondes de l'analyseur : une pince posée, déplacée ou étiquetée doit
   // apparaître dans l'onglet TOUT DE SUITE, simulation ou non. Sans cela
   // l'élève poserait sa pince et ne verrait rien avant le lancement suivant.

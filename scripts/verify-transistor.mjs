@@ -269,9 +269,25 @@ async function run() {
 	ok('MOSFET TO-220 : IRF530 proposé', !!refBtn('IRF530'));
 	ok('MOSFET TO-220 : IRL540N, IRLZ34N, IRL1004 proposés (niveau logique)',
 		!!refBtn('IRL540N') && !!refBtn('IRLZ34N') && !!refBtn('IRL1004'));
+	// Frank, 03/10 : Vgs(th) (valeur MAX de la fiche) et Pmax dans l'affichage.
+	ok('MOSFET : la liste donne Vgs(th) max et Pmax (IRL540N : 2 V, 140 W)',
+		/Vgs\\(th\\) max.2.V/.test(refBtn('IRL540N').textContent) && /Pmax.140.W/.test(refBtn('IRL540N').textContent),
+		refBtn('IRL540N').textContent);
+	ok('MOSFET TO-92 : Pmax en mW (BS170 : 830 mW)', (choisir(1, 'to92'), true) && /Pmax.830.mW/.test(refBtn('BS170').textContent),
+		refBtn('BS170') && refBtn('BS170').textContent);
+	choisir(1, 'to220');
+	await wait(40);
 	refBtn('IRF530').click();
 	await wait(80);
 	const el4 = editor.elementOf(q4.id);
+	{
+		const ligne = [...inspector.querySelectorAll('.inspector__hint')].map((n) => n.textContent).find((t) => /IRF530/.test(t)) || '';
+		ok('pièce posée : la ligne du modèle dit Vgs(th) max 4 V et Pmax 88 W',
+			/Vgs\\(th\\) max.4.V/.test(ligne) && /Pmax.88.W/.test(ligne), ligne);
+		ok('pièce posée : attributs vgsth=4 et pmax=88',
+			(editor.diagram.parts.find((p) => p.id === q4.id).attrs || {}).vgsth === '4'
+			&& (editor.diagram.parts.find((p) => p.id === q4.id).attrs || {}).pmax === '88');
+	}
 	ok('IRF530 : pattes nommées G, D, S (brochage du boîtier)',
 		el4 && el4.pinInfo.map((p) => p.name).join('') === 'GDS',
 		el4 && JSON.stringify(el4.pinInfo.map((p) => p.name)));
@@ -652,7 +668,7 @@ writeFileSync(
 	`<aside id="inspector" class="inspector"></aside></div>` +
 	`<script>${b.outputFiles[0].text}</script></body>`
 );
-const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
+const chrome = [process.env.CHROME_PATH, 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].filter(Boolean).find(existsSync);
 if (!chrome) { console.log('Chrome introuvable — test sauté'); process.exit(0); }
 const dom = execFileSync(
 	chrome,

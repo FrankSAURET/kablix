@@ -1,12 +1,18 @@
 # À faire
-1. Une fois la pile explosée on ne peux plus la recabler
-1. Quand un composant n'est pas validé, tu mettra dorénavant Béta à la place de expérimentale. Garde ça en mémoire.
-1. Dans l'affichage des transistors, rajoute vgsth (en mettant la valeur max) et Pmax
+
 ## fait
 
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.8.194
+1. ✅ **Pile explosée : recâblage**. Pas reproduit (les broches d'une pile grillée restent atteignables : test de survol Chrome, Power bank et pile de bibliothèque). Cause probable : le marquage « grillé » (cadre rouge, explosion, hissage z=70) restait collé à la pile, sans jamais s'effacer hors d'un nouveau lancement. [sim.mts](src/webview/sim.mts) `pilesExplosees` / `effacerPilesExplosees()` : effacé dès que fils ou pièces changent, et au lancement. Banc verify-batterie (+4 ; sans le correctif : échec). ⬜ À essayer chez toi ; si ça bloque encore, envoie le schéma.
+2. ✅ **Béta à la place d'expérimental** : pastille du gestionnaire (`Beta` / FR `Béta`), aide FR, banc verify-kompix ; clé `Experimental` de es/zh devenue `Beta` : ⏳ avec les traductions. Mémoire du projet mise à jour. Le drapeau `"experimental"` du JSON ne change pas.
+3. ✅ **Transistors : Vgs(th) max et Pmax** dans la liste et la ligne du modèle posé ([transistors.mts](src/webview/diagram/transistors.mts) `pmax`, `puissanceTexte`) ; propriété « Max power (W) » ([catalog.mts](src/webview/diagram/catalog.mts)). Pmax = fiches usuelles à 25 °C (TO-92 625 mW, BC54x 500 mW, BC639/640 800 mW, BD911/912 90 W, BS170 830 mW, IRF530 88 W, IRL540N 140 W, IRLZ34N 68 W, IRL1004 200 W). Vgs(th) « valeur max » : BS170 2,1 → 3 V, IRF530 3,5 → 4 V (les trois logiques restent à 2 V). verify-transistor : 190 OK, accepte `CHROME_PATH`, 4 échecs sur l'ancien code. ⬜ Vérifie les valeurs Pmax à ta convenance.
+4. ⏳ Traductions avant publication : `Beta` (es/zh), `Vgs(th) max (V)`, `Max power (W)` (déjà en FR dans i18n.mts).
 
 ---
 

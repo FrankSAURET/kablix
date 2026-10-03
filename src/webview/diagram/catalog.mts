@@ -584,7 +584,7 @@ const TRANSISTOR_PROPS: readonly PropDef[] = [
   { attr: 'vcesat', label: 'Vce(sat) (V)', kind: 'number', min: 0.01, max: 5, step: 0.01, showIf: BIPOLAIRE },
   { attr: 'rdson', label: 'Rds(on) (Ω)', kind: 'number', min: 0.001, max: 100, step: 0.01, showIf: MOS },
   // Au-dessous du seuil, la grille ne fait rien : le canal reste fermé.
-  { attr: 'vgsth', label: 'Vgs(th) (V)', kind: 'number', min: 0.1, max: 10, step: 0.1, showIf: MOS },
+  { attr: 'vgsth', label: 'Vgs(th) max (V)', kind: 'number', min: 0.1, max: 10, step: 0.1, showIf: MOS },
   // Inscription du boîtier : trois lignes visibles d'emblée (une référence tient
   // rarement sur deux), le champ reste libre — chaque ligne saisie est une ligne
   // écrite sur la face plate.
@@ -594,6 +594,7 @@ const TRANSISTOR_PROPS: readonly PropDef[] = [
   { attr: 'vcemax', label: 'Max Vds (V)', kind: 'number', min: 1, max: 1000, step: 1, showIf: MOS },
   { attr: 'icmax', label: 'Max Ic (A)', kind: 'number', min: 0.001, max: 100, suffixes: true, showIf: BIPOLAIRE },
   { attr: 'icmax', label: 'Max Id (A)', kind: 'number', min: 0.001, max: 100, suffixes: true, showIf: MOS },
+  { attr: 'pmax', label: 'Max power (W)', kind: 'number', min: 0.01, max: 1000, suffixes: true },
 ];
 /**
  * Mêmes propriétés, mais réservées aux modèles personnalisés du sélecteur : une

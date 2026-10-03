@@ -31,9 +31,12 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Courbes de batterie en droites** : charge, tension, autonomie et charge consommée se tracent en lignes continues au traceur, et non plus en escalier.
 - **L'atelier et l'analyseur logique s'ouvrent plus légers** : seules les traductions de la langue de VS Code sont chargées, et non plus celles des quatre langues.
 - **Mise en garde sur les piles** : la règle se termine par deux points (« : »), en français comme en anglais.
+- **« Béta » à la place de « Expérimental »** : la pastille des composants pas encore validés de la bibliothèque s'appelle désormais Béta.
+- **Transistors : Vgs(th) max et Pmax** : la liste du sélecteur et la ligne du modèle posé donnent la tension de seuil de grille maximale (MOSFET) et la puissance maximale dissipée (tous), avec une propriété « Puissance max » à régler. Le BS170 passe à 3 V et l'IRF530 à 4 V, valeurs maximales de leurs fiches.
 
 ### Correction
 
+- **Pile explosée : on peut la recâbler** : l'explosion et le cadre rouge restent après l'arrêt, mais disparaissent dès qu'on modifie un fil ou qu'on supprime une pièce, et à chaque nouveau lancement (le hissage devant les fils restait collé à la pile).
 - **Carte détruite par une pile 9 V** : l'explosion et l'explication restent affichées sur le montage après l'arrêt de la simulation, au lieu de disparaître en ne laissant qu'un message dans la barre d'état.
 
 - **Symétrie horizontale** : les écritures gravées sur un composant (noms de broches, touches…) restaient inversées après un retournement, même quand le composant lui-même redevenait lisible.

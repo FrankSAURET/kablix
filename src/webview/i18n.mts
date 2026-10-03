@@ -491,7 +491,8 @@ const FR: Record<string, string> = {
   // même façon en français, seule l'unité entre parenthèses reste à sa place.
   'Vce(sat) (V)': 'Vce(sat) (V)',
   'Rds(on) (Ω)': 'Rds(on) (Ω)',
-  'Vgs(th) (V)': 'Vgs(th) (V)',
+  'Vgs(th) max (V)': 'Vgs(th) max (V)',
+  'Max power (W)': 'Puissance max (W)',
   'Marking': 'Inscription',
   'Max Vce (V)': 'Vce max (V)',
   'Max Ic (A)': 'Ic max (A)',

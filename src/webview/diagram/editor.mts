@@ -39,6 +39,7 @@ import {
   filterTransistors,
   isCustomRef,
   isMosType,
+  puissanceTexte,
   transistorAttrs,
   transistorSummary,
   type TransistorFilter,
@@ -7138,8 +7139,10 @@ export class Editor {
     const mos = isMosType(type);
     const name = custom ? customTransistorName(customRefType(ref)) : ref;
     // Un MOSFET se juge sur sa résistance de passage, un bipolaire sur son gain.
-    const dernier = mos ? `Rds(on) ${part.attrs?.rdson ?? ''} Ω` : `β ${part.attrs?.gain ?? ''}`;
-    line.textContent = `${name} — ${part.attrs?.vcemax ?? ''} V, ${icText}, ${dernier}`;
+    const dernier = mos
+      ? `Rds(on) ${part.attrs?.rdson ?? ''} Ω, Vgs(th) max ${part.attrs?.vgsth ?? ''} V`
+      : `β ${part.attrs?.gain ?? ''}`;
+    line.textContent = `${name} — ${part.attrs?.vcemax ?? ''} V, ${icText}, ${dernier}, Pmax ${puissanceTexte(part.attrs?.pmax)}`;
     this.inspector.appendChild(line);
     // Brochage : il change d'un modèle à l'autre (la famille BC5xx est C-B-E)
     // alors que les NOMS de broches, eux, ne bougent jamais.

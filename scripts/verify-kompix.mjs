@@ -828,8 +828,8 @@ test('la carte d’un composant à l’essai porte la mention, les autres non', 
     ok('une seule carte porte la pastille', pastilles.length === 1, pastilles.length);
     ok('la pastille est sur le composant à l essai',
       cartes[0] && cartes[0].querySelector('.badge-experimental'), cartes.length);
-    ok('la pastille dit Experimental',
-      pastilles[0] && /experimental/i.test(pastilles[0].textContent), pastilles[0] && pastilles[0].textContent);
+    ok('la pastille dit Beta',
+      pastilles[0] && /beta/i.test(pastilles[0].textContent), pastilles[0] && pastilles[0].textContent);
     ok('sa carte se distingue aussi au cadre',
       cartes[0] && cartes[0].classList.contains('experimental'), cartes[0] && cartes[0].className);
     ok('le composant établi n a rien',

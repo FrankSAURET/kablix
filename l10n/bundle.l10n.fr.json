@@ -224,7 +224,7 @@
   "Trust this component": "Faire confiance à ce composant",
   "Run without code": "Exécuter sans le code",
   "Kablix: export failed: {0}": "Kablix : export impossible : {0}",
-  "Experimental": "Expérimental",
+  "Beta": "Béta",
   "Kablix: the simulated Pico W is serving on {0} — open it from a phone on the same network.": "Kablix : le Pico W simulé publie sur {0} — ouvrez-le depuis un téléphone du même réseau.",
   "No folder is open, so there is nothing to set up.": "Aucun dossier n’est ouvert : il n’y a rien à régler.",
   "Install the \"Arduino VS Code IDE\" extension: it is the one that writes the IntelliSense configuration of a sketch.": "Installe l’extension « Arduino VS Code IDE » : c’est elle qui écrit la configuration IntelliSense d’un croquis.",
