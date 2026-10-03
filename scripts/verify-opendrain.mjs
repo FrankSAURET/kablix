@@ -217,7 +217,7 @@ run().catch((e) => {
     `<!doctype html><meta charset=utf8><body style="margin:0;padding:60px">` +
     `<script>${b.outputFiles[0].text}</script></body>`);
   const chrome = [
-    'C:/Program Files/Google/Chrome/Application/chrome.exe',
+    process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe',
     'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
   ].find(existsSync);
   if (!chrome) {

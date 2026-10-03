@@ -340,7 +340,7 @@ console.log('Cadrage des schémas internes :');
     const pre = document.createElement('pre'); pre.id = 'measures';
     pre.textContent = JSON.stringify(out); document.body.appendChild(pre);
   </script></body>`);
-  const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
+  const chrome = [process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe',
     'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
   const dom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox',
     '--window-size=800,600', '--virtual-time-budget=6000', '--dump-dom',

@@ -162,7 +162,7 @@ writeFileSync(
 	`<script>${b.outputFiles[0].text}</script></body>`
 );
 const chrome = [
-	'C:/Program Files/Google/Chrome/Application/chrome.exe',
+	process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe',
 	'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
 ].find(existsSync);
 if (!chrome) { console.log('Chrome introuvable — banc ignoré.'); process.exit(0); }

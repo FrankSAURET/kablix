@@ -124,7 +124,7 @@ const bundle = await esbuild({
 writeFileSync(join(CACHE, 'pont.js'), pont);
 writeFileSync(join(CACHE, 'bundle.js'), bundle.outputFiles[0].text);
 
-const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
+const chrome = [process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe',
 	'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 
 /** Rend la page du mode demandé dans Chrome et rapporte ce qu'on y voit. */

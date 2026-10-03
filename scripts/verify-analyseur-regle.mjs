@@ -136,7 +136,7 @@ const VUES = [
 ];
 const GRAD_H = 22; // analyseur-vue : bande des graduations
 
-const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
+const chrome = [process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe',
 	'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 if (!chrome) {
 	check(false, 'Chrome introuvable — le banc n’a pas pu être joué');

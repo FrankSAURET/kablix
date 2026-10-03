@@ -75,7 +75,7 @@ const page = `<!doctype html><meta charset="utf-8"><title>aide</title><style>
 const f = join(tmp, 'aide.html');
 writeFileSync(f, page);
 
-const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
+const chrome = [process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 const shot = `V:/Temp/claude/c----VS-Code-Extensions-Kablix/e81daf68-8045-4365-bba1-2b6a8c779ccb/scratchpad/aide-${mode}.png`;
 execFileSync(chrome, ['--headless', '--disable-gpu', '--no-sandbox', '--hide-scrollbars', '--virtual-time-budget=6000',
   `--screenshot=${shot}`, '--window-size=1200,1000', `file:///${f.replace(/\\/g, '/')}`], { stdio: 'ignore' });

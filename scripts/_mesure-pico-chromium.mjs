@@ -33,7 +33,7 @@ const CHAUFFE_MS = 6000;
 const FENETRE_MS = 6000;
 
 const CHROME = [
-  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe',
   'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
 ].find((p) => existsSync(p));
 if (!CHROME) { console.log('Chrome introuvable, mesure impossible'); process.exit(0); }

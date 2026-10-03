@@ -126,7 +126,7 @@ const b = await esbuild({
 writeFileSync(join(CACHE, 'p.html'), `<!doctype html><meta charset=utf8><body><script>${b.outputFiles[0].text}</script>`);
 
 const chrome = [
-  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe',
   'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
 ].find(existsSync);
 let failures = 0;

@@ -41,7 +41,7 @@ const b = await esbuild.build({
 writeFileSync(join(CACHE, 'p.html'),
   `<!doctype html><meta charset=utf8><body style="margin:0;background:#fff;white-space:nowrap">` +
   `<script>${b.outputFiles[0].text}</script></body>`);
-const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
+const chrome = [process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe',
   'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 if (!chrome) throw new Error('Chrome introuvable');
 execFileSync(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox', '--virtual-time-budget=3000',

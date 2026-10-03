@@ -97,7 +97,7 @@ writeFileSync(
 	`<script>${b.outputFiles[0].text}</script></body>`
 );
 
-const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
+const chrome = [process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe',
 	'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 if (!chrome) { console.log('Chrome introuvable — test sauté'); process.exit(0); }
 

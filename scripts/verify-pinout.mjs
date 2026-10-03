@@ -270,7 +270,7 @@ writeFileSync(
 	`<script>window.KABLIX_PINOUT_BASE = ${JSON.stringify(posterBase)};</script>` +
 	`<script>${b.outputFiles[0].text}</script></body>`
 );
-const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
+const chrome = [process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 if (!chrome) { console.log('Chrome introuvable — test sauté'); process.exit(0); }
 // --allow-file-access-from-files : le fetch des posters part d'une page file://
 // (dans la webview réelle c'est une URI vscode-webview autorisée par la CSP).

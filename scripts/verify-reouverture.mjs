@@ -140,7 +140,7 @@ html = html.replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, '');
 writeFileSync(join(CACHE, 'p.html'), html);
 
 const chrome = [
-	'C:/Program Files/Google/Chrome/Application/chrome.exe',
+	process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe',
 	'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
 ].find(existsSync);
 if (!chrome) { console.log('Chrome introuvable — test sauté'); process.exit(0); }

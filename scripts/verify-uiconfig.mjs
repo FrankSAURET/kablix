@@ -79,7 +79,7 @@ check('la vue reçoit aussi les réglages à l\'ouverture',
 {
   const css = readFileSync(join(ROOT, 'media/styles.css'), 'utf8');
   const chrome = [
-    'C:/Program Files/Google/Chrome/Application/chrome.exe',
+    process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe',
     'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
   ].find(existsSync);
   if (!chrome) {

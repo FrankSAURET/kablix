@@ -52,6 +52,7 @@ Un **boîtier** (`to92`…) sert à des dizaines de composants : c'est un DESSIN
 ## Gestes de souris — banc à VRAIE souris obligatoire
 Les bancs ordinaires fabriquent leurs événements (`new PointerEvent(...)`), faute d'entrée sous `--dump-dom` : bon pour la logique, **incapable de prouver un geste**. Mesuré : un `preventDefault()` sur `pointerdown` supprime `mousedown`/`click`/**`dblclick`**, et un `pointerdown` porte toujours `detail = 0`. Deux lots (v.71, v.72) ont été livrés verts sur un double-clic mort.
 - Tout geste (double-clic, glisser, clic droit, molette) se vérifie dans [verify-souris.mjs](scripts/verify-souris.mjs) : Chrome headless piloté en CDP brut (`Input.dispatchMouseEvent`, port 9411, pas de puppeteer dans le projet).
+- Dans le conteneur cloud (Linux), Chromium est à `/opt/pw-browsers/chromium` : `CHROME_PATH=/opt/pw-browsers/chromium npm run verify:souris` (les bancs le cherchent aussi tout seul).
 - **Contre-épreuve obligatoire** : `git stash`, relancer le banc — il DOIT échouer sur l'ancien code. Un banc qui passe avant et après ne prouve rien.
 
 ## Traductions — jamais au fil de l'eau

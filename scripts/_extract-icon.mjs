@@ -72,7 +72,7 @@ writeFileSync(probe,
 		defs,
 	});
 	</script></body>`);
-const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe']
+const chrome = [process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe']
 	.find((p) => { try { readFileSync(p); return true; } catch { return false; } });
 const dom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox', '--virtual-time-budget=8000', '--dump-dom', `file:///${probe.replace(/\\/g, '/')}`], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
 const raw = dom.match(/<pre id="out">([\s\S]*?)<\/pre>/);

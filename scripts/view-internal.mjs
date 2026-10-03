@@ -41,6 +41,6 @@ for (const [dig, v] of Object.entries(VARIANTS)) {
 const html = `<!doctype html><meta charset=utf8><body style="margin:0;background:#eee;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;padding:16px">${cells}</body>`;
 const dir = mkdtempSync(join(tmpdir(), 'kx-html-'));
 const hp = join(dir, 'p.html'); writeFileSync(hp, html);
-const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe'].find(existsSync);
+const chrome = [process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe'].find(existsSync);
 execFileSync(chrome, ['--headless=new','--disable-gpu','--no-sandbox','--virtual-time-budget=6000','--window-size=1000,900',`--screenshot=${join(SP,'iw.png').replace(/\\/g,'/')}`,`file:///${hp.replace(/\\/g,'/')}`], { encoding:'utf8', maxBuffer:64*1024*1024 });
 console.log('ok '+join(SP,'iw.png'));

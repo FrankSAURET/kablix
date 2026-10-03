@@ -299,7 +299,7 @@ for (const p of PROJIX) {
 // --- 3. Rendu (Chrome headless, vrai dessin du spot) -------------------------
 console.log('\n--- 3. Rendu : le groupe LED du projecteur prend la couleur ---');
 const chrome = [
-	'C:/Program Files/Google/Chrome/Application/chrome.exe',
+	process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe',
 	'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
 ].find(existsSync);
 if (!chrome) {

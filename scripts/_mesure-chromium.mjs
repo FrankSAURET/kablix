@@ -20,7 +20,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const tmp = mkdtempSync(join(tmpdir(), 'kablix-chromium-'));
 
 const CHROME = [
-  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe',
   'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
 ].find((p) => existsSync(p));
 if (!CHROME) {

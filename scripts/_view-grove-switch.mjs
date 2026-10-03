@@ -25,6 +25,6 @@ for (const lab of ['5v', '3v3']) {
 writeFileSync(join(CACHE, 'sw.mjs'), entry);
 const b = await esbuild({ entryPoints: [join(CACHE, 'sw.mjs')], bundle: true, format: 'iife', write: false, loader: { '.svg': 'text', '.webp': 'dataurl' }, absWorkingDir: ROOT });
 writeFileSync(join(CACHE, 'sw2.html'), `<!doctype html><meta charset=utf-8><body style="margin:0;background:#fff"><script>${b.outputFiles[0].text}</script></body>`);
-const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe'].find(existsSync);
+const chrome = [process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe'].find(existsSync);
 execFileSync(chrome, ['--headless', '--disable-gpu', '--no-sandbox', `--user-data-dir=${process.env.TEMP}\\kbx-chrome`, '--virtual-time-budget=6000', '--window-size=850,360', `--screenshot=${join(CACHE, 'sw2.png')}`, `file:///${join(CACHE, 'sw2.html').replace(/\\/g, '/')}`], { stdio: 'inherit' });
 console.log('ok');

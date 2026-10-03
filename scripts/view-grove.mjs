@@ -59,6 +59,6 @@ writeFileSync(
 	`<aside id="inspector" class="inspector" style="display:none"></aside></div>` +
 	`<script>${b.outputFiles[0].text}</script></body>`
 );
-const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
+const chrome = [process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 execFileSync(chrome, ['--headless', '--disable-gpu', '--no-sandbox', `--user-data-dir=${process.env.TEMP}\\kbx-chrome`, '--virtual-time-budget=10000', '--window-size=840,580', `--screenshot=${join(CACHE, 'view.png')}`, `file:///${join(CACHE, 'v.html').replace(/\\/g, '/')}`], { stdio: 'ignore' });
 console.log('Capture :', join(CACHE, 'view.png'));

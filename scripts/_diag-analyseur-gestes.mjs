@@ -48,7 +48,7 @@ html = html
 const fichierPage = join(tmp, 'onglet.html');
 writeFileSync(fichierPage, html);
 
-const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
+const chrome = [process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe',
 	'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 const profil = join(tmp, 'profil');
 const proc = spawn(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox', '--force-device-scale-factor=1',

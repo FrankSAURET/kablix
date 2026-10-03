@@ -77,7 +77,7 @@ document.getElementById('result').textContent = JSON.stringify(out);
 `;
 const htmlPath = join(SCRATCH, 'clean.html');
 writeFileSync(htmlPath, `<!doctype html><meta charset="utf-8"><body>${bodies}<pre id="result"></pre><script>${script}</script></body>`);
-const cand = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'].filter((c) => existsSync(c));
+const cand = [process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'].filter((c) => existsSync(c));
 const chrome = cand[0];
 const dom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox', '--virtual-time-budget=20000', '--dump-dom', `file:///${htmlPath.replace(/\\/g, '/')}`], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
 const i = dom.indexOf('<pre id="result">'), j = dom.indexOf('</pre>', i);

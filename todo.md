@@ -8,6 +8,12 @@
 
 ---
 
+# v2026.10.0.202
+1. ✅ **Bancs à Chrome jouables dans le conteneur cloud** (demande de Frank) : 112 bancs cherchaient Chrome aux seuls chemins Windows ; ils lisent maintenant `CHROME_PATH`, puis `/opt/pw-browsers/chromium`, avant les chemins Windows. Sans effet sur le PC de Frank. `CHROME_PATH=/opt/pw-browsers/chromium npm run verify:all` : 14 bancs de plus se jouent (souris, analyseur, panneaux…) ; restent rouges ici : `compiler`, `creator-ui` (registre Windows), `simspeed`, `analyseur-onewire-glisse` (1 contrôle), plus `i18n` et `help-bars` (traductions ⏳, attendu).
+2. ✅ [CLAUDE.md](CLAUDE.md) : la consigne « bancs à vraie souris » mentionne le conteneur.
+
+---
+
 # v2026.10.0.201
 1. ✅ **Succès / badges** (feuille de route n°6, choix de Frank : tout sauf « Niveau logique », stockage global, panneau + annonce) : [succes.mts](src/webview/succes.mts) (module pur : 15 badges, `SuiviSucces`, état conservé) ; [sim.mts](src/webview/sim.mts) (`succesLancement` / `succesTick` / `succesArret`, fronts comptés à chaque image, annonce, panneau 🏅) ; [panel.ts](src/panel.ts) (`globalState` `kablix.succes`, message `succesSave`) ; analyseur → hôte → page pour « Bus maîtrisé » ([analyseur.mts](src/webview/analyseur.mts), [analyseur-panel.ts](src/analyseur-panel.ts)) ; [editor.mts](src/webview/diagram/editor.mts) `proprete()` ; interface ([webview-html.ts](src/webview-html.ts), [styles.css](media/styles.css)). `piegesExecution` renvoie aussi les broches en interruption.
 2. ✅ Banc [verify-succes.mjs](scripts/verify-succes.mjs) (76 contrôles, ajouté à `verify:all:serie`) : chaque badge sur son fait et seulement sur lui, « rien pour rien » (une minute devant l'écran : aucun badge), état relu filtré, câblage. Contre-épreuve faite : sans le code, le banc échoue.

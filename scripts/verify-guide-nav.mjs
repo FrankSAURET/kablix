@@ -294,7 +294,7 @@ const fichier = join(tmp, 'guide.html');
 writeFileSync(fichier, page);
 
 const chrome = [
-  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe',
   'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
 ].find((c) => existsSync(c));

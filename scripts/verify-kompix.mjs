@@ -680,7 +680,7 @@ test('la page du gestionnaire sait vraiment parler à l’extension', () => {
 
 test('la page, ouverte dans un vrai navigateur, sélectionne et demande la suppression', () => {
   const chrome = [
-    'C:/Program Files/Google/Chrome/Application/chrome.exe',
+    process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe',
     'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
   ].find(existsSync);
   if (!chrome) {

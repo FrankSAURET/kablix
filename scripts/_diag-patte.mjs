@@ -35,7 +35,7 @@ const bundle = await esbuild({
 const page = join(TMP, 'patte.html');
 writeFileSync(page, `<!doctype html><html><body><script>${bundle.outputFiles[0].text}</script></body></html>`);
 
-const chrome = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
+const chrome = process.env.CHROME_PATH ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const out = execFileSync(chrome, [
   '--headless', '--disable-gpu', '--no-sandbox', '--virtual-time-budget=4000', '--dump-dom',
   `file:///${page.replace(/\\/g, '/')}`,

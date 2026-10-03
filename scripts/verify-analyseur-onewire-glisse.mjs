@@ -178,7 +178,7 @@ console.log(`Référence : ${REFERENCE.length} octets décodés sur toute la cap
 check(!!BE && !!MATCH && REFERENCE.some((a) => a.texte === `0x${SCRATCHPAD[8].toString(16).toUpperCase().padStart(2, '0')}`),
 	'témoin : décodée en entier, la capture nomme 0x55 MATCH ROM et 0xBE READ SCRATCHPAD, CRC compris');
 
-const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
+const chrome = [process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe',
 	'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 if (!chrome) {
 	check(false, 'Chrome introuvable — le banc n’a pas pu être joué');

@@ -109,7 +109,7 @@ writeFileSync(
   `<pre id="measures"></pre>` +
   `<script>${b.outputFiles[0].text}</script></body>`
 );
-const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
+const chrome = [process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 if (!chrome) { console.log('Chrome introuvable'); process.exit(0); }
 const OUT = process.env.KABLIX_OUT ?? CACHE;
 const url = `file:///${join(CACHE, 'p.html').replace(/\\/g, '/')}`;

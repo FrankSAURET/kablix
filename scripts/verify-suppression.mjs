@@ -283,7 +283,7 @@ writeFileSync(
 	`<aside id="inspector" class="inspector"></aside></div>` +
 	`<script>${b.outputFiles[0].text}</script></body>`
 );
-const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
+const chrome = [process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 if (!chrome) { console.log('Chrome introuvable — test sauté'); process.exit(0); }
 const dom = execFileSync(chrome, ['--headless=new', '--disable-gpu', '--no-sandbox', '--virtual-time-budget=40000', '--dump-dom', `file:///${join(CACHE, 'p.html').replace(/\\/g, '/')}`], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
 const m = dom.match(/<pre id="measures"[^>]*>([\s\S]*?)<\/pre>/);

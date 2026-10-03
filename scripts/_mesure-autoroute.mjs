@@ -160,7 +160,7 @@ writeFileSync(
   `<pre id="measures"></pre>` +
   `<script>${b.outputFiles[0].text}</script></body>`
 );
-const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
+const chrome = [process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 if (!chrome) { console.log('Chrome introuvable'); process.exit(0); }
 // Sortie des captures : le temporaire du système, sauf KABLIX_OUT.
 const OUT = process.env.KABLIX_OUT ?? join(tmpdir(), 'kablix-vues');

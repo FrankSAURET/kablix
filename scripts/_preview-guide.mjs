@@ -38,7 +38,7 @@ const html = `<!doctype html><meta charset="utf-8"><style>
 const page = join(tmp, 'guide.html');
 writeFileSync(page, html);
 
-const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe']
+const chrome = [process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe']
   .find((c) => existsSync(c));
 const shot = join(root, `preview-guide-${lang}.png`);
 execFileSync(chrome, [

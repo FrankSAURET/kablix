@@ -77,7 +77,7 @@ writeFileSync(
 	'<!doctype html><meta charset=utf8><body style="margin:0;background:#fff">'
 	+ `<script>${b.outputFiles[0].text}</script></body>`
 );
-const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
+const chrome = [process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 const url = `file:///${join(CACHE, 'p.html').replace(/\\/g, '/')}`;
 const flags = ['--headless=new', '--disable-gpu', '--no-sandbox', '--virtual-time-budget=10000'];
 const dom = execFileSync(chrome, [...flags, '--dump-dom', url], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });

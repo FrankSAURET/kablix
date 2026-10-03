@@ -192,7 +192,7 @@ CanvasRenderingContext2D.prototype.fillText = function (t, x, y, ...r) {
 	const fichierPage = join(tmp, 'onglet.html');
 	writeFileSync(fichierPage, html);
 
-	const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
+	const chrome = [process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe',
 		'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 	if (!chrome) {
 		check(false, 'page : Chrome introuvable — le clic réel n’a pas pu être joué');
