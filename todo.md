@@ -1,4 +1,7 @@
 # À faire
+1. Une fois la pile explosée on ne peux plus la recabler
+1. Quand un composant n'est pas validé, tu mettra dorénavant Béta à la place de expérimentale. Garde ça en mémoire.
+1. Dans l'affichage des transistors, rajoute vgsth (en mettant la valeur max) et Pmax
 ## fait
 
 
