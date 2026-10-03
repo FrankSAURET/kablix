@@ -43,6 +43,8 @@ Le boîtier céramique (`rp2`) écrit **Ω** là où l'aluminium écrit **R** : 
 
 La simulation calcule la puissance que chaque résistance **dissipe vraiment**, au point de fonctionnement du montage : elle ouvre la résistance, mesure la tension à ses deux pattes, en tire le courant qui la traverse, et compte `P = R × I²`. Au-delà de sa propriété `power`, la résistance explose et une étiquette dit pourquoi.
 
+**Avant d'exploser, elle chauffe.** Dès que la puissance dissipée dépasse la **moitié** de ce que le boîtier admet, le corps de la résistance **rougit** et se pare d'un halo, de plus en plus fort jusqu'à la limite. C'est un indicateur « puissance dissipée / puissance admissible », pas une thermique détaillée (ni la durée ni la ventilation ne comptent) : une ¼ W qui dissipe 0,2 W est déjà bien rouge, une 10 W dans le même montage reste froide. Le seuil suit donc la propriété `power`. Au-delà de la limite, elle explose. Une fois la simulation arrêtée, elle refroidit.
+
 Deux conséquences utiles :
 
 - **Une sortie de carte ne peut pas griller une résistance de puissance.** Elle a environ 25 Ω de résistance interne : même avec 4,7 Ω au bout, elle ne débite guère plus de 0,13 W. Pour faire chauffer une 10 W, il faut une alimentation de laboratoire (12 V sur 4,7 Ω = 30 W, elle ne tient pas une seconde).

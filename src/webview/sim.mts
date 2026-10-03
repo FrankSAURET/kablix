@@ -2264,6 +2264,14 @@ function clearCapSamplers(): void {
   capPinState.clear();
 }
 
+/** Les résistances redeviennent froides (arrêt ou nouveau lancement). */
+function refroidirResistances(): void {
+  for (const part of editor.diagram.parts) {
+    const el = editor.elementOf(part.id);
+    if (el && 'heat' in el) el.heat = 0;
+  }
+}
+
 /**
  * Résistances qui chauffent au-delà de leur boîtier. Une résistance ne « voit »
  * pas la tension d'alimentation, elle voit le courant qui la traverse : c'est
@@ -2292,7 +2300,10 @@ function reportResistorFaults(): void {
   for (const p of powers) {
     if (p.over) burnedResistors.add(p.partId);
     const el = editor.elementOf(p.partId);
-    if (el) markBurned(p.partId, el, burnedResistors.has(p.partId), BURN_NOTE.resistor);
+    if (el) {
+      el.heat = p.heat; // coloration progressive avant la destruction
+      markBurned(p.partId, el, burnedResistors.has(p.partId), BURN_NOTE.resistor);
+    }
   }
 }
 
@@ -4964,6 +4975,7 @@ function startRun(): void {
   for (const id of blownDrivers) editor.setBurned(id, false);
   for (const id of burnedIcs) editor.setBurned(id, false);
   for (const id of burnedResistors) editor.setBurned(id, false);
+  refroidirResistances();
   for (const id of burnedBoards) editor.setBurned(id, false);
   effacerPilesExplosees();
   burnedBoards.clear(); // carte survoltée « remplacée » à chaque lancement
@@ -5164,6 +5176,7 @@ function stopPieges(): void {
 }
 
 function stopRun(): void {
+  refroidirResistances();
   stopPieges();
   lintNotes.clear();
   buzzerAudio.stopAll(); // coupe les sons de buzzer

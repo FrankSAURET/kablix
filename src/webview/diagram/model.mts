@@ -1972,6 +1972,20 @@ function openMeter(diagram: Diagram, partId: string): Diagram {
 }
 
 /** Ce que dissipe une résistance du schéma, et ce que son boîtier supporte. */
+/** Part de la puissance admissible à partir de laquelle une résistance commence à chauffer à l'écran. */
+export const HEAT_START = 0.5;
+
+/**
+ * Indicateur d'échauffement 0..1 : « puissance dissipée / puissance admissible »,
+ * rendu progressif entre la moitié de la limite (0) et la limite (1). Ce n'est pas
+ * une thermique fine (le temps et la dissipation ne comptent pas) : c'est un
+ * rapport honnête, celui que l'élève doit apprendre à lire.
+ */
+export function resistorHeat(watts: number, rating: number): number {
+  if (!(rating > 0) || !(watts > 0)) return 0;
+  return Math.min(1, Math.max(0, (watts / rating - HEAT_START) / (1 - HEAT_START)));
+}
+
 export interface ResistorPower {
   partId: string;
   /** Puissance dissipée (W) au point de fonctionnement actuel. */
@@ -1980,6 +1994,8 @@ export interface ResistorPower {
   rating: number;
   /** Vrai dès que la dissipation dépasse ce que le boîtier tient. */
   over: boolean;
+  /** Échauffement 0..1 : 0 sous la moitié de la puissance admissible, 1 à la limite (cf. resistorHeat). */
+  heat: number;
 }
 
 /**
@@ -2037,7 +2053,7 @@ export function resistorPowers(
   return fixes.map((part) => {
     const w = watts.get(part.id) ?? 0;
     const rating = resistorPowerRating(part.attrs);
-    return { partId: part.id, watts: w, rating, over: w > rating };
+    return { partId: part.id, watts: w, rating, over: w > rating, heat: resistorHeat(w, rating) };
   });
 }
 

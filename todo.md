@@ -8,6 +8,15 @@
 
 ---
 
+# v2026.10.0.200
+1. ✅ **Dégradation thermique** (feuille de route n°5) : `resistorHeat` / `HEAT_START` ([model.mts](src/webview/diagram/model.mts)) = (P/Pmax − 0,5) / 0,5 borné à [0, 1] ; `resistorPowers` renvoie `heat` ; [resistor-element.mts](src/webview/composants/resistor-element.mts) : propriété `heat`, corps teinté (`sepia` + `saturate` + `hue-rotate`) et halo croissant, rien une fois grillée ; [sim.mts](src/webview/sim.mts) alimente `heat` à chaque frame et refroidit à l'arrêt / au lancement (`refroidirResistances`). Résistances seulement (choix 4a).
+2. ✅ Banc [verify-chaleur.mjs](scripts/verify-chaleur.mjs) (17 contrôles, ajouté à `verify:all:serie`). Contre-épreuve faite : sur l'ancien code il échoue.
+3. ✅ Fiche d'aide FR [resistor.md](docs/fr/composants/resistor.md) : paragraphe « Avant d'exploser, elle chauffe ».
+4. ⏳ **Traductions** : fiche `resistor.md` EN/ES/ZH.
+5. ⚠️ Rendu (teinte, halo) non vérifié à l'œil : à confirmer par Frank sur une ¼ W à 0,2 W.
+
+---
+
 # v2026.10.0.199
 1. ✅ **Pièges à code** (feuille de route n°4) : [linter.mts](src/webview/linter.mts) `piegesExecution` (boucle d'attente vide sur une broche, Arduino et MicroPython) ; [sim.mts](src/webview/sim.mts) `armerPieges` : la broche en l'air (`read-unwired`) oscille (`setInput` / `setAnalog` aléatoires, 120 ms) ; la boucle bloquante est signalée après 3 s simulées sans mouvement (broche attendue au niveau bloquant, aucune broche pilotée qui bouge, pas de sortie série, pas de veille). Cadre rouge + console + barre d'état, jamais bloquant ; même réglage `kablix.lintCode`.
 2. ✅ Banc [verify-linter.mjs](scripts/verify-linter.mjs) : 73 contrôles (A7 : motifs C++ / Python, doute = rien, câblage). Contre-épreuve faite : `git stash` du code, le banc échoue.

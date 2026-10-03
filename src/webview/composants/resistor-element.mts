@@ -159,6 +159,8 @@ export class ResistorElement extends LitElement {
   declare power: string;
   /** Résistance grillée (puissance dissipée au-delà du boîtier) : montre l'explosion. */
   declare burned: boolean;
+  /** Échauffement 0..1 (puissance dissipée / admissible, dès la moitié) : le corps rougit avant de griller. */
+  declare heat: number;
 
   /** Propriétés réactives lit (remplace les décorateurs @property du code d'origine). */
   static properties = {
@@ -167,6 +169,7 @@ export class ResistorElement extends LitElement {
     rtype: { type: String },
     power: { type: String },
     burned: { type: Boolean },
+    heat: { type: Number },
   };
 
   constructor() {
@@ -176,6 +179,7 @@ export class ResistorElement extends LitElement {
     this.rtype = 'film';
     this.power = '0.25';
     this.burned = false;
+    this.heat = 0;
   }
 
   /** Habillage de puissance en cours, ou null pour la résistance à anneaux. */
@@ -269,8 +273,16 @@ export class ResistorElement extends LitElement {
     // ratio — sans lui, la pose debout serait rétrécie des DEUX côtés (et centrée
     // sur du vide) au lieu d'être écrasée en hauteur seule. Sans effet sur la
     // pose couchée, dont la boîte est celle du dessin.
+    // Zone AVANT la destruction : teinte rouge-orangée et halo croissants. Rien
+    // en dessous de la moitié de la puissance admissible, ni une fois grillée.
+    const k = this.burned ? 0 : Math.min(1, Math.max(0, Number(this.heat) || 0));
+    const chaud =
+      k > 0
+        ? `filter: sepia(${k.toFixed(2)}) saturate(${(1 + 5 * k).toFixed(2)}) hue-rotate(${Math.round(-35 * k)}deg) drop-shadow(0 0 ${(2 + 6 * k).toFixed(1)}px rgba(255,70,0,${(0.3 + 0.6 * k).toFixed(2)}));`
+        : '';
     return html`
       <svg
+        style=${chaud}
         width=${s.w}
         height=${s.h}
         viewBox="0 0 ${s.vb.w} ${s.vb.h}"

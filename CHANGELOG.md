@@ -16,6 +16,11 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Broche en l'air visible** : une entrée lue sans rien de branché oscille au hasard pendant la simulation, comme une vraie broche flottante. L'élève voit le défaut au lieu de le lire.
 - **Boucle bloquante signalée** : `while (digitalRead(2) == LOW);` (ou `while b.value() == 0: pass`) dont la broche reste 3 secondes simulées au niveau qui retient la boucle, sans rien d'autre qui bouge, entoure la carte en rouge et renvoie vers les interruptions. Seules les boucles à corps vide sont examinées.
 
+
+**Résistances**
+
+- **La résistance rougit avant de griller** : dès que la puissance dissipée dépasse la moitié de ce que son boîtier admet, le corps se colore et se pare d'un halo, de plus en plus fort jusqu'à la limite. Le seuil suit la propriété puissance (une ¼ W à 0,2 W est rouge, une 10 W dans le même montage reste froide). Indicateur « puissance dissipée / admissible », pas une thermique détaillée.
+
 ### Modification
 
 ### Correction
