@@ -19,7 +19,7 @@ L'ordre des numéros est celui **choisi par Frank**, pas un classement par inté
 | 1   | [Consommation en temps réel](#1-consommation-énergétique-en-temps-réel)       | ★★★★☆   | **M** | **À faire**                    |
 | 2   | [Batterie et durée de vie](#2-batterie-et-durée-de-vie)                       | ★★★★☆   | **S** | **À faire** après le n°1       |
 | 3   | [Linter électronique](#3-linter-électronique--relire-le-code-face-au-schéma)  | ★★★★★   | **M** | **Fait** (v2026.10.0.198)      |
-| 4   | [Pièges à code](#4-pièges-à-code--les-mauvaises-habitudes)                    | ★★★★☆   | **S** | **À faire** (extension du n°3) |
+| 4   | [Pièges à code](#4-pièges-à-code--les-mauvaises-habitudes)                    | ★★★★☆   | **S** | **Fait** (v2026.10.0.199)      |
 | 5   | [Dégradation thermique](#5-dégradation-thermique-effet-joule-visuel)          | ★★★☆☆   | **S** | Bon rapport, à glisser         |
 | 6   | [Succès / badges](#6-succès-badges)                                           | ★★★☆☆   | **S** | Proposition chiffrée ci-dessous |
 | 7   | [Associer des composants](#7-associer-des-composants-entre-eux)               | ★★★★☆   | **M** | Chiffré ci-dessous             |

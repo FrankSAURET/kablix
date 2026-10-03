@@ -67,7 +67,7 @@ import './composants/araignee-element.mjs';
 import './composants/custom-part.mjs';
 
 import { initLocale, locale, t } from './i18n.mjs';
-import { lint, type LintLang } from './linter.mjs';
+import { lint, piegesExecution, type LintLang } from './linter.mjs';
 import { Plotter } from './plotter.mjs';
 import { CompteurConsommation, LisseurCourant, decharger, autonomieH, tensionBatterie, PLAGES_ENTREE, ENTREES_NON_PROTEGEES, COURANT_FORFAITAIRE_A } from './consommation.mjs';
 import { Editor, KABLIX_BADGE, type PaletteState } from './diagram/editor.mjs';
@@ -609,7 +609,11 @@ function flushSerial(): void {
   serialBuf.flush(serialEl);
 }
 
+/** Compteur de sorties série : un programme qui écrit n'est pas bloqué (pièges à code). */
+let serialActivity = 0;
+
 const appendSerial = (chunk: string): void => {
+  serialActivity++;
   serialBuf.write(chunk);
   if (serialFlushQueued) return;
   serialFlushQueued = true;
@@ -5062,6 +5066,7 @@ function runLinter(): void {
     console.error('linter', err); // le linter ne doit jamais gêner la simulation
     return;
   }
+  armerPieges(constats);
   if (constats.length === 0) return;
   const parPiece = new Map<string, string[]>();
   for (const c of constats) {
@@ -5069,12 +5074,98 @@ function runLinter(): void {
     liste.push(t(c.note));
     parPiece.set(c.partId, liste);
   }
-  for (const [id, notes] of parPiece) editor.setFaulty(id, true, [...new Set(notes)].join('\n'));
+  for (const [id, notes] of parPiece) {
+    lintNotes.set(id, [...new Set(notes)]);
+    editor.setFaulty(id, true, [...new Set(notes)].join('\n'));
+  }
   appendSerial(`\n── ${t('Code check')} ──\n${constats.map((c) => `⚠ ${t(c.message, ...c.args)}`).join('\n')}\n`);
   flashStatus(`⚠ ${t(constats[0].message, ...constats[0].args)}`);
 }
 
+/** Notes déjà portées par chaque cadre rouge du linter (un piège d'exécution s'y ajoute). */
+const lintNotes = new Map<string, string[]>();
+/** Minuteries des pièges à code (broche en l'air, boucle bloquante) : coupées à l'arrêt. */
+let piegesTimers: number[] = [];
+
+/**
+ * Pièges à code (feuille de route n°4) : le linter a vu juste dans le texte, ici
+ * l'EXÉCUTION le rend visible.
+ * - Broche en l'air : certaine d'après le schéma ; on la fait OSCILLER, comme une
+ *   vraie entrée flottante, pour que l'élève voie le défaut au lieu de le lire.
+ * - Boucle bloquante (`while (digitalRead(2) == LOW);`) : le motif est lu dans le
+ *   texte, puis confirmé par l'exécution — la broche attendue reste au niveau qui
+ *   retient la boucle, et rien ne bouge nulle part pendant 3 s simulées.
+ * Aucun des deux n'arrête la simulation, et les deux se taisent au moindre doute.
+ */
+function armerPieges(constats: ReturnType<typeof lint>): void {
+  stopPieges();
+  if (!lintSource) return;
+  // 1. Broches en l'air : bruit sur l'entrée.
+  const enLair = constats.filter((c) => c.rule === 'read-unwired');
+  if (enLair.length > 0) {
+    piegesTimers.push(
+      window.setInterval(() => {
+        if (!engine || engine.paused) return;
+        for (const c of enLair) {
+          if (c.lecture === 'analog') engine.setAnalog(c.pin, Math.random());
+          else engine.setInput(c.pin, Math.random() < 0.5);
+        }
+      }, 120),
+    );
+  }
+  // 2. Boucles bloquantes.
+  let pieges: ReturnType<typeof piegesExecution>;
+  try {
+    pieges = piegesExecution(lintSource.text, lintSource.lang, editor.diagram);
+  } catch (err) {
+    console.error('pièges', err);
+    return;
+  }
+  if (pieges.boucles.length === 0) return;
+  const carte = editor.diagram.parts.find((p) => partDef(p.type).kind === 'mcu');
+  if (!carte) return;
+  const signalees = new Set<number>();
+  let signature = '';
+  let depuisMs = -1;
+  let activiteSerie = serialActivity;
+  piegesTimers.push(
+    window.setInterval(() => {
+      if (!engine || engine.paused || !engine.simulatedMs) return;
+      const maintenant = engine.simulatedMs();
+      const vus = [...new Set(pieges.pilotees)].map((p) => (engine!.readDigital(p) ? '1' : '0')).join('');
+      const attendues = pieges.boucles.map((b) => (engine!.readDigital(b.pin) === b.niveau ? '1' : '0')).join('');
+      const sig = `${vus}|${attendues}|${engine.sleepMs?.() ?? 0}`;
+      if (sig !== signature || activiteSerie !== serialActivity || attendues.indexOf('1') < 0) {
+        signature = sig;
+        activiteSerie = serialActivity;
+        depuisMs = maintenant;
+        return;
+      }
+      if (depuisMs < 0 || maintenant - depuisMs < 3000) return;
+      pieges.boucles.forEach((b, i) => {
+        if (attendues[i] !== '1' || signalees.has(b.line)) return;
+        signalees.add(b.line);
+        const msg = 'Line {0}: the program is stuck waiting for pin {1}';
+        const nom = lintSource!.lang === 'py' ? b.pin : /^\d+$/.test(b.pin) ? `D${b.pin}` : b.pin;
+        const note = 'This loop does nothing but wait for the pin to change: while it lasts, the program can do nothing else. Use an interrupt (attachInterrupt / pin.irq) so the program stays free.';
+        const notes = [...(lintNotes.get(carte.id) ?? []), t(note)];
+        lintNotes.set(carte.id, notes);
+        editor.setFaulty(carte.id, true, notes.join('\n'));
+        appendSerial(`\n── ${t('Code check')} ──\n⚠ ${t(msg, String(b.line), nom)}\n`);
+        flashStatus(`⚠ ${t(msg, String(b.line), nom)}`);
+      });
+    }, 250),
+  );
+}
+
+function stopPieges(): void {
+  for (const id of piegesTimers) window.clearInterval(id);
+  piegesTimers = [];
+}
+
 function stopRun(): void {
+  stopPieges();
+  lintNotes.clear();
   buzzerAudio.stopAll(); // coupe les sons de buzzer
   for (const remove of inputRemovers) remove();
   inputRemovers = [];

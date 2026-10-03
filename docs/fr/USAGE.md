@@ -479,6 +479,15 @@ Au clic sur ▶, Kablix relit votre code **en regard du schéma** : aucun compil
 
 Le réglage **`kablix.lintCode`** (activé par défaut) coupe cette relecture.
 
+#### Pièges à l'exécution
+
+Deux défauts se voient mieux qu'ils ne se lisent : Kablix les **montre** pendant la simulation.
+
+- **Broche en l'air** : une entrée lue sans rien de branché (constat « Broche lue, rien de branché ») se met à **osciller au hasard**, comme une vraie broche flottante. Un bouton qui « s'appuie tout seul » se comprend tout de suite ; câblez un bouton avec sa résistance, ou activez `INPUT_PULLUP` / `Pin.PULL_UP`.
+- **Boucle bloquante** : `while (digitalRead(2) == LOW);` (ou `while b.value() == 0: pass` en MicroPython). Si, pendant **3 secondes simulées**, la broche attendue reste au niveau qui retient la boucle et que rien d'autre ne bouge (aucune broche pilotée, aucun envoi série, pas de veille), la carte est entourée de rouge : le programme ne fait rien d'autre qu'attendre. Les **interruptions** (`attachInterrupt`, `pin.irq`) laissent le programme libre.
+
+Seule une boucle au **corps vide** est examinée, et seulement quand le numéro de broche est lisible dans le code : au moindre doute, Kablix se tait. Même réglage `kablix.lintCode`.
+
 ### Éclairage DMX512
 
 Kablix simule une **ligne DMX512** de bout en bout : le programme envoie la trame, le décodeur la lit, et le **projecteur s'allume vraiment** à la couleur demandée.

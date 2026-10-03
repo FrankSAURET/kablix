@@ -30,6 +30,8 @@ export interface LintFinding {
   args: string[];
   /** Explication longue, affichée dans l'étiquette du cadre rouge. */
   note: string;
+  /** `read-unwired` : lecture numérique ou analogique (sert à faire osciller la broche). */
+  lecture?: 'digital' | 'analog';
 }
 
 // --------------------------------------------------------------------------
@@ -518,6 +520,7 @@ export function lint(source: string, lang: LintLang, diagram: Diagram): LintFind
         pin: u.pin,
         line: u.line,
         partId: carteId,
+        lecture: u.kind === 'analogRead' ? 'analog' : 'digital',
         message: 'Line {0}: pin {1} is read but nothing is wired to it',
         args: [String(u.line), nomCode(u.pin)],
         note: 'The code reads this pin but nothing is connected to it: it floats and reads random values. Wire a sensor or a button to it, or enable the internal pull-up.',
@@ -568,4 +571,68 @@ export function lint(source: string, lang: LintLang, diagram: Diagram): LintFind
     }
   }
   return out;
+}
+
+// --------------------------------------------------------------------------
+// Pièges à l'exécution (feuille de route n°4)
+// --------------------------------------------------------------------------
+
+/** Une attente active : `while (digitalRead(2) == LOW);` — le texte est certain, l'exécution le confirme. */
+export interface BoucleBloquante {
+  pin: string;
+  /** Niveau de la broche pour lequel la boucle tourne (true = haut). */
+  niveau: boolean;
+  line: number;
+}
+
+export interface PiegesExecution {
+  boucles: BoucleBloquante[];
+  /** Broches que le code pilote : si l'une bouge, le programme n'est pas bloqué. */
+  pilotees: string[];
+}
+
+/** Boucle d'attente vide sur la lecture d'une broche (corps `;`, `{}` ou `pass`). */
+export function piegesExecution(source: string, lang: LintLang, diagram: Diagram): PiegesExecution {
+  const vide: PiegesExecution = { boucles: [], pilotees: [] };
+  const schema = lireSchema(diagram);
+  if (!schema.carte) return vide;
+  const board = schema.carte.board;
+  if (isPicoBoard(board) !== (lang === 'py')) return vide;
+  const src = nettoyer(source, lang);
+  const lu = lang === 'cpp' ? lireArduino(source, board) : lirePython(source, board);
+  const cst = constantes(src, lang, board);
+  const boucles: BoucleBloquante[] = [];
+  if (lang === 'cpp') {
+    const motif = /\bwhile\s*\(\s*(!?)\s*digitalRead\s*\(\s*([^()]+?)\s*\)\s*(?:(==|!=)\s*(HIGH|LOW|1|0)\s*)?\)\s*(?:;|\{\s*\})/g;
+    for (const m of src.matchAll(motif)) {
+      const n = resoudre(m[2], 'cpp', board, cst);
+      if (n === null) continue;
+      let niveau = true;
+      if (m[3]) niveau = (m[4] === 'HIGH' || m[4] === '1') === (m[3] === '==');
+      if (m[1] === '!') niveau = !niveau;
+      boucles.push({ pin: nomSchema(board, n), niveau, line: ligneDe(src, m.index) });
+    }
+  } else {
+    // Nom de variable → numéro de broche, d'après `b = Pin(15, Pin.IN)`.
+    const noms = new Map<string, number>();
+    for (const m of src.matchAll(/^([A-Za-z_]\w*)[ \t]*=[ \t]*(?:machine\.)?Pin\s*\(\s*([A-Za-z_]\w*|\d+)\s*,/gm)) {
+      const n = resoudre(m[2], 'py', board, cst);
+      if (n !== null) noms.set(m[1], n);
+    }
+    const motif = /^[ \t]*while[ \t]+(not[ \t]+)?([A-Za-z_]\w*)\.value\(\)[ \t]*(?:(==|!=)[ \t]*([01]|True|False)[ \t]*)?:[ \t]*(?:(?:pass|\.\.\.)[ \t]*$|\n[ \t]+(?:pass|\.\.\.)[ \t]*$)/gm;
+    for (const m of src.matchAll(motif)) {
+      const n = noms.get(m[2]);
+      if (n === undefined) continue;
+      let niveau = true;
+      if (m[3]) niveau = (m[4] === 'True' || m[4] === '1') === (m[3] === '==');
+      if (m[1]) niveau = !niveau;
+      boucles.push({ pin: `GP${n}`, niveau, line: ligneDe(src, m.index) });
+    }
+  }
+  // Un numéro de broche resté inconnu pourrait être piloté ailleurs : on se tait.
+  if (lu.inconnu) return vide;
+  const pilotees = lu.usages
+    .filter((u) => u.kind === 'write' || u.kind === 'analogWrite' || (u.kind === 'pinMode' && u.mode === 'out'))
+    .map((u) => u.pin);
+  return { boucles, pilotees };
 }

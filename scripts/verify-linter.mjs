@@ -32,7 +32,7 @@ await esbuild({
   format: 'esm',
   logLevel: 'silent',
 });
-const { lint } = await import(pathToFileURL(out).href + `?t=${Date.now()}`);
+const { lint, piegesExecution } = await import(pathToFileURL(out).href + `?t=${Date.now()}`);
 
 /** Schéma : une carte + des fils {pin → type de pièce au bout}. */
 const schema = (carte, fils = {}, extra = []) => {
@@ -107,6 +107,28 @@ egal(regles('', 'cpp', schema('uno')), [], 'source vide : rien');
 
 egal(regles('from machine import Pin\nl = Pin(14, Pin.OUT)', 'py', schema('pico', {}, [{ id: 'SD', type: 'sonde-logique', x: 0, y: 0, attrs: { accroche: 'B/GP14' } }])), [], 'pince de sonde posée sur la broche (sans fil) : rien');
 
+
+// ------------------------------------------------------------- A7. pièges à l'exécution (n°4)
+const boucles = (src, lang, d) => piegesExecution(src, lang, d).boucles.map((b) => `${b.pin}:${b.niveau ? 'H' : 'L'}:${b.line}`);
+const B2 = D2('2');
+egal(boucles('void loop(){\n while (digitalRead(2) == LOW);\n}', 'cpp', B2), ['2:L:2'], 'boucle : while (digitalRead(2) == LOW);');
+egal(boucles('void loop(){ while (digitalRead(2) == HIGH) {} }', 'cpp', B2), ['2:H:1'], 'boucle : corps {} vide, niveau haut');
+egal(boucles('void loop(){ while (!digitalRead(2)); }', 'cpp', B2), ['2:L:1'], 'boucle : while (!digitalRead)');
+egal(boucles('void loop(){ while (digitalRead(2) != LOW); }', 'cpp', B2), ['2:H:1'], 'boucle : != LOW');
+egal(boucles('#define BTN 2\nvoid loop(){ while (digitalRead(BTN) == 0); }', 'cpp', B2), ['2:L:2'], 'boucle : broche sous un #define');
+egal(boucles('void loop(){ while (digitalRead(2) == LOW) { n++; } }', 'cpp', B2), [], 'boucle : corps non vide = rien');
+egal(boucles('void loop(){ while (digitalRead(2) == LOW) delay(10); }', 'cpp', B2), [], 'boucle : delay dans le corps = rien');
+egal(boucles('void loop(){ while (digitalRead(p) == LOW); }', 'cpp', B2), [], 'boucle : broche calculée = doute, rien');
+egal(boucles('void loop(){ // while (digitalRead(2) == LOW);\n}', 'cpp', B2), [], 'boucle : en commentaire = rien');
+egal(boucles(py('b = Pin(15, Pin.IN)\nwhile b.value() == 0: pass'), 'py', schema('pico', { GP15: 'pushbutton' })), ['GP15:L:3'], 'py : while b.value() == 0: pass');
+egal(boucles(py('b = Pin(15, Pin.IN)\nwhile not b.value():\n    pass'), 'py', schema('pico', { GP15: 'pushbutton' })), ['GP15:L:3'], 'py : while not b.value(): pass (ligne suivante)');
+egal(boucles(py('b = Pin(15, Pin.IN)\nwhile b.value() == 0:\n    print(1)'), 'py', schema('pico', { GP15: 'pushbutton' })), [], 'py : corps non vide = rien');
+egal(boucles(py('b = Pin(i, Pin.IN)\nwhile b.value(): pass'), 'py', schema('pico', {})), [], 'py : variable de broche inconnue = rien');
+egal(piegesExecution('void setup(){pinMode(8,OUTPUT);} void loop(){ while (digitalRead(2)==LOW); digitalWrite(8,HIGH);}', 'cpp', D2('2', '8')).pilotees, ['8', '8'], 'pilotées : les broches que le code écrit');
+egal(piegesExecution('void loop(){ digitalWrite(i,1); while (digitalRead(2)==LOW); }', 'cpp', B2).boucles, [], 'broche pilotée calculée = doute, rien');
+egal(lint('void setup(){pinMode(2,INPUT);} void loop(){ digitalRead(2); }', 'cpp', schema('uno'))[0]?.lecture, 'digital', 'broche en l\'air : lecture numérique');
+egal(lint('void loop(){ analogRead(A0); }', 'cpp', schema('uno'))[0]?.lecture, 'analog', 'broche en l\'air : lecture analogique');
+
 // ------------------------------------------------------------- A6. zéro faux positif sur testkablix
 // Les projets de testkablix tournent : leur code est correct. Le linter ne doit
 // rien y trouver, sauf la seule vraie trouvaille connue (mesure-pico : le
@@ -147,6 +169,11 @@ check(/case 'lintSource':/.test(sim), 'webview reçoit lintSource');
 check(/type: 'lintSource',\s+text: \['\.ino'/.test(panel), "l'hôte envoie le code avant le lancement");
 check(/lintCode: cfg\.get<boolean>\('lintCode', true\)/.test(panel), 'le réglage descend vers la webview, actif par défaut');
 check(pkg.contributes.configuration.properties['kablix.lintCode']?.default === true, 'kablix.lintCode déclaré, true par défaut');
+
+check(/function armerPieges\(/.test(sim) && /armerPieges\(constats\);/.test(sim), 'runLinter arme les pièges à code');
+check(/engine\.setInput\(c\.pin, Math\.random\(\) < 0\.5\)/.test(sim) && /engine\.setAnalog\(c\.pin, Math\.random\(\)\)/.test(sim), 'la broche en l\'air oscille');
+check(/maintenant - depuisMs < 3000/.test(sim), 'la boucle bloquante attend 3 s simulées');
+check(/function stopPieges\(/.test(sim) && /function stopRun\(\): void \{\s+stopPieges\(\);/.test(sim), 'les minuteries sont coupées à l\'arrêt');
 
 console.log(`verify:linter — ${ok} contrôles OK, ${fails.length} échec(s)`);
 process.exit(fails.length ? 1 : 0);

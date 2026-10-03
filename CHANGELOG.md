@@ -13,6 +13,9 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Le code est relu face au schéma** à chaque ▶ : `analogWrite` sur une broche sans PWM, broche lue sans `pinMode`, broche lue ou pilotée alors que rien n'y est branché, composant câblé sur une broche que le code n'utilise jamais. Fonctionne en Arduino et en MicroPython. Le constat entoure en rouge la carte (ou le composant), avec une étiquette qui explique, et la console cite la ligne. La simulation n'est jamais bloquée. En cas de doute (numéro de broche calculé, bibliothèque tierce, shield, platine), Kablix se tait.
 - **Réglage `kablix.lintCode`** : coupe la relecture (activée par défaut).
 
+- **Broche en l'air visible** : une entrée lue sans rien de branché oscille au hasard pendant la simulation, comme une vraie broche flottante. L'élève voit le défaut au lieu de le lire.
+- **Boucle bloquante signalée** : `while (digitalRead(2) == LOW);` (ou `while b.value() == 0: pass`) dont la broche reste 3 secondes simulées au niveau qui retient la boucle, sans rien d'autre qui bouge, entoure la carte en rouge et renvoie vers les interruptions. Seules les boucles à corps vide sont examinées.
+
 ### Modification
 
 ### Correction
