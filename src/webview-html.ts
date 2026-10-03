@@ -213,6 +213,7 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
                est ouvert, qu'aucune pince n'est posée ou qu'il n'y a rien à
                revoir (cf. majBoutonAnalyseur). -->
           <button id="open-analyseur" class="canvas-controls__btn canvas-controls__btn--icon" hidden title="${l10n.t('Reopen the logic analyzer')}"><img class="canvas-controls__icon" src="${analyseurIconUri}" alt="${l10n.t('Reopen the logic analyzer')}" /></button>
+          <button id="open-succes" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Achievements')}" aria-label="${l10n.t('Achievements')}">🏅</button>
           <button id="toggle-faults" class="canvas-controls__btn canvas-controls__btn--faults canvas-controls__btn--icon is-on" title="${l10n.t('Show/hide the fault explanations')}"><img class="canvas-controls__icon" src="${erreurIconUri}" alt="${l10n.t('Show/hide the fault explanations')}" /></button>
         </div>
         <!-- Barre droite : recentrer/ajuster, réinitialiser, effacer (alignée et de
@@ -247,6 +248,9 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
              deux barres d'outils. Visible pendant la simulation ; clignote sur
              tentative d'édition interdite. -->
         <div id="sim-banner" class="sim-banner" hidden></div>
+        <!-- Succès : annonce d'un badge obtenu, et panneau qui les liste. -->
+        <div id="succes-toast" class="succes-toast" hidden role="status" aria-live="polite"></div>
+        <div id="succes-panel" class="succes-panel" hidden></div>
         <!-- Tâche longue (autoroutage d'un gros schéma) : voile sur le canvas,
              avancement et bouton d'annulation. Le voile prend les clics, le
              schéma ne bouge donc pas pendant le calcul. -->

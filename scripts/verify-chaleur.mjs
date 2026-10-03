@@ -60,7 +60,7 @@ check(/sepia\(/.test(el) && /drop-shadow\(/.test(el), 'le rendu colore le corps 
 check(/this\.burned \? 0 :/.test(el), 'grillée : plus de teinte (l\'explosion prend le relais)');
 check(/heat: resistorHeat\(w, rating\)/.test(mod), 'resistorPowers renvoie `heat`');
 check(/el\.heat = p\.heat;/.test(sim), 'la page alimente `heat` à chaque frame');
-check(/function refroidirResistances\(/.test(sim) && /function stopRun\(\): void \{\s+refroidirResistances\(\);/.test(sim), 'les résistances refroidissent à l\'arrêt');
+check(/function refroidirResistances\(/.test(sim) && /function stopRun\(\): void \{[^}]{0,120}\brefroidirResistances\(\);/.test(sim), 'les résistances refroidissent à l\'arrêt');
 
 console.log(`verify:chaleur — ${ok} contrôles OK, ${fails.length} échec(s)`);
 process.exit(fails.length ? 1 : 0);

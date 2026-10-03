@@ -3428,3 +3428,93 @@ body.vscode-light .inspector__ref--nouveau {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Succès (badges) : annonce à l'obtention, et panneau de la liste. */
+.succes-toast {
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: min(520px, 90%);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font: 12px/1.35 sans-serif;
+  color: #1b1b1b;
+  background: #ffe000;
+  border: 1px solid #b8860b;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+.succes-toast--in {
+  animation: succes-toast-in 0.5s ease-out 1;
+}
+@keyframes succes-toast-in {
+  0% { transform: translateX(-50%) translateY(-20px) scale(0.9); opacity: 0; }
+  60% { transform: translateX(-50%) translateY(4px) scale(1.04); opacity: 1; }
+  100% { transform: translateX(-50%) translateY(0) scale(1); }
+}
+.succes-panel {
+  position: absolute;
+  top: 46px;
+  right: 8px;
+  z-index: 9;
+  width: min(420px, calc(100% - 16px));
+  max-height: calc(100% - 60px);
+  overflow: auto;
+  border-radius: 8px;
+  color: var(--vscode-editor-foreground, #ccc);
+  background: var(--vscode-editorWidget-background, #252526);
+  border: 1px solid var(--vscode-editorWidget-border, #454545);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  font: 12px/1.35 sans-serif;
+}
+.succes-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  position: sticky;
+  top: 0;
+  background: inherit;
+  border-bottom: 1px solid var(--vscode-editorWidget-border, #454545);
+}
+.succes-panel__close {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+}
+.succes-panel__body {
+  padding: 4px 12px 12px;
+}
+.succes-panel__body h4 {
+  margin: 12px 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 11px;
+  opacity: 0.8;
+}
+.succes-item {
+  display: flex;
+  gap: 8px;
+  padding: 6px 0;
+}
+.succes-item--locked {
+  opacity: 0.45;
+}
+.succes-item__icon {
+  font-size: 18px;
+  line-height: 1.2;
+}
+.succes-item__text {
+  opacity: 0.85;
+}
+.succes-item__date {
+  font-size: 11px;
+  opacity: 0.6;
+}

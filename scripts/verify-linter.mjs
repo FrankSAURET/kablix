@@ -173,7 +173,7 @@ check(pkg.contributes.configuration.properties['kablix.lintCode']?.default === t
 check(/function armerPieges\(/.test(sim) && /armerPieges\(constats\);/.test(sim), 'runLinter arme les pièges à code');
 check(/engine\.setInput\(c\.pin, Math\.random\(\) < 0\.5\)/.test(sim) && /engine\.setAnalog\(c\.pin, Math\.random\(\)\)/.test(sim), 'la broche en l\'air oscille');
 check(/maintenant - depuisMs < 3000/.test(sim), 'la boucle bloquante attend 3 s simulées');
-check(/function stopPieges\(/.test(sim) && /function stopRun\(\): void \{\s+stopPieges\(\);/.test(sim), 'les minuteries sont coupées à l\'arrêt');
+check(/function stopPieges\(/.test(sim) && /function stopRun\(\): void \{[^}]{0,120}\bstopPieges\(\);/.test(sim), 'les minuteries sont coupées à l\'arrêt');
 
 console.log(`verify:linter — ${ok} contrôles OK, ${fails.length} échec(s)`);
 process.exit(fails.length ? 1 : 0);

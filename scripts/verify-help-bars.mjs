@@ -96,6 +96,7 @@ const ATTENDU = {
   // C'est toujours la SONDE qui ouvre l'analyseur (v2026.9.4.90) ; ce bouton,
   // revenu le 26/09, ne fait que ROUVRIR un onglet fermé.
   'open-analyseur': [/rouvrir l'analyseur logique/i, /reopen the logic analy[sz]er/i],
+  'open-succes': [/🏅 succès/i, /achievements/i],
   'toggle-faults': [/explications de défaut/i, /fault explanations/i],
   // Barre de dessin
   'internal-toggle': [/schéma interne/i, /internal schematic/i],

@@ -589,11 +589,13 @@ export interface PiegesExecution {
   boucles: BoucleBloquante[];
   /** Broches que le code pilote : si l'une bouge, le programme n'est pas bloqué. */
   pilotees: string[];
+  /** Broches traitées par interruption (`attachInterrupt`, `pin.irq`) — pour le badge « Interruption ». */
+  interruptions: string[];
 }
 
 /** Boucle d'attente vide sur la lecture d'une broche (corps `;`, `{}` ou `pass`). */
 export function piegesExecution(source: string, lang: LintLang, diagram: Diagram): PiegesExecution {
-  const vide: PiegesExecution = { boucles: [], pilotees: [] };
+  const vide: PiegesExecution = { boucles: [], pilotees: [], interruptions: [] };
   const schema = lireSchema(diagram);
   if (!schema.carte) return vide;
   const board = schema.carte.board;
@@ -602,6 +604,7 @@ export function piegesExecution(source: string, lang: LintLang, diagram: Diagram
   const lu = lang === 'cpp' ? lireArduino(source, board) : lirePython(source, board);
   const cst = constantes(src, lang, board);
   const boucles: BoucleBloquante[] = [];
+  const interruptions = lu.usages.filter((u) => u.kind === 'interrupt').map((u) => u.pin);
   if (lang === 'cpp') {
     const motif = /\bwhile\s*\(\s*(!?)\s*digitalRead\s*\(\s*([^()]+?)\s*\)\s*(?:(==|!=)\s*(HIGH|LOW|1|0)\s*)?\)\s*(?:;|\{\s*\})/g;
     for (const m of src.matchAll(motif)) {
@@ -619,6 +622,10 @@ export function piegesExecution(source: string, lang: LintLang, diagram: Diagram
       const n = resoudre(m[2], 'py', board, cst);
       if (n !== null) noms.set(m[1], n);
     }
+    for (const m of src.matchAll(/(?<![\w.])([A-Za-z_]\w*)\.irq\s*\(/g)) {
+      const n = noms.get(m[1]);
+      if (n !== undefined) interruptions.push(`GP${n}`);
+    }
     const motif = /^[ \t]*while[ \t]+(not[ \t]+)?([A-Za-z_]\w*)\.value\(\)[ \t]*(?:(==|!=)[ \t]*([01]|True|False)[ \t]*)?:[ \t]*(?:(?:pass|\.\.\.)[ \t]*$|\n[ \t]+(?:pass|\.\.\.)[ \t]*$)/gm;
     for (const m of src.matchAll(motif)) {
       const n = noms.get(m[2]);
@@ -630,9 +637,9 @@ export function piegesExecution(source: string, lang: LintLang, diagram: Diagram
     }
   }
   // Un numéro de broche resté inconnu pourrait être piloté ailleurs : on se tait.
-  if (lu.inconnu) return vide;
+  if (lu.inconnu) return { ...vide, interruptions };
   const pilotees = lu.usages
     .filter((u) => u.kind === 'write' || u.kind === 'analogWrite' || (u.kind === 'pinMode' && u.mode === 'out'))
     .map((u) => u.pin);
-  return { boucles, pilotees };
+  return { boucles, pilotees, interruptions };
 }

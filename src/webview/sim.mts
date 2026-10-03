@@ -68,6 +68,7 @@ import './composants/custom-part.mjs';
 
 import { initLocale, locale, t } from './i18n.mjs';
 import { lint, piegesExecution, type LintLang } from './linter.mjs';
+import { SUCCES, SuiviSucces, etatValide, etatVierge, type DefSucces, type InfoLancement, type Instantane, type ProtocoleSucces } from './succes.mjs';
 import { Plotter } from './plotter.mjs';
 import { CompteurConsommation, LisseurCourant, decharger, autonomieH, tensionBatterie, PLAGES_ENTREE, ENTREES_NON_PROTEGEES, COURANT_FORFAITAIRE_A } from './consommation.mjs';
 import { Editor, KABLIX_BADGE, type PaletteState } from './diagram/editor.mjs';
@@ -2345,6 +2346,7 @@ function reportBoardOvervoltage(): void {
 
 function refreshVisualsInner(): void {
   if (!engine) return;
+  observerFronts();
   courantChargesA = 0;
   stepCapacitors();
   reportBoardOvervoltage();
@@ -2954,6 +2956,8 @@ function refreshVisualsInner(): void {
 function majConsommation(): void {
   if (!engine?.simulatedMs) return;
   const m = compteurConso.pas(board, engine.simulatedMs(), engine.sleepMs?.() ?? 0, courantChargesA);
+  const simMs = engine.simulatedMs();
+  consoMoyenneA = simMs > 0 ? (m.chargeAh * 3_600_000) / simMs : null;
   // Sans carte posée sur le schéma, il n'y a rien à mesurer : le moteur tourne
   // à vide (simulation sans code) sur un Uno par défaut, dont le courant ne doit
   // ni se tracer ni vider la pile posée seule (Frank, 03/10).
@@ -4829,6 +4833,7 @@ pauseBtn.addEventListener('click', () => {
 
 stepBtn.addEventListener('click', () => {
   engine?.step?.();
+  succes.pas();
   updateDebugButtons();
 });
 
@@ -4913,6 +4918,7 @@ function startRun(): void {
   // Le flux série passe par le traceur : les lignes de télémétrie Teleplot
   // (`>nom:valeur`) sont absorbées et tracées, le reste va à la console.
   engine.onSerial = (chunk) => {
+    if (chunk) serieProgramme = true;
     const rest = plotter.filterSerial(chunk);
     if (rest) appendSerial(rest);
   };
@@ -5058,6 +5064,7 @@ ${detail}
         : t('Running…')
   );
   runLinter();
+  succesLancement();
   // EN DERNIER : un défaut de câblage du robot doit rester lisible dans la barre
   // d'état, il ne serait pas vu s'il partait avant le « Démarrage… ».
   reportAraigneeWiring();
@@ -5079,6 +5086,7 @@ function runLinter(): void {
     return;
   }
   armerPieges(constats);
+  for (const c of constats) defautsVus.add(`lint:${c.rule}`);
   if (constats.length === 0) return;
   const parPiece = new Map<string, string[]>();
   for (const c of constats) {
@@ -5170,12 +5178,243 @@ function armerPieges(constats: ReturnType<typeof lint>): void {
   );
 }
 
+// --------------------------------------------------------------------------
+// Succès (feuille de route n°6)
+// --------------------------------------------------------------------------
+
+const succes = new SuiviSucces(etatVierge(), (def) => annoncerSucces(def));
+/** L'état d'un projet à l'autre est confié à l'hôte : on le reçoit une seule fois. */
+let succesCharge = false;
+let succesTimer = 0;
+let nbPointsArret = 0;
+/** Le programme a écrit sur la liaison série pendant ce lancement. */
+let serieProgramme = false;
+/** Courant moyen de la carte depuis le lancement (A), null tant qu'on ne sait pas. */
+let consoMoyenneA: number | null = null;
+/** Défauts vus pendant ce lancement : `lint:<règle>` et `burn:<type>`. */
+const defautsVus = new Set<string>();
+/** Fronts comptés par broche câblée : niveau précédent, et totaux. */
+let frontsSuivis = new Map<string, boolean>();
+let frontsSortie = 0;
+let frontsInterruption = 0;
+let broches = { pilotees: new Set<string>(), interruptions: new Set<string>() };
+
+function sauverSucces(): void {
+  vscode.postMessage({ type: 'succesSave', etat: succes.etat });
+}
+
+const succesToast = document.getElementById('succes-toast') as HTMLDivElement | null;
+let succesToastTimer = 0;
+
+function annoncerSucces(def: DefSucces): void {
+  sauverSucces();
+  if (!succesToast) return;
+  succesToast.replaceChildren();
+  const titre = document.createElement('strong');
+  titre.textContent = `🏅 ${t('Badge earned')} — ${t(def.titre)}`;
+  const texte = document.createElement('span');
+  texte.textContent = t(def.atteste);
+  succesToast.append(titre, texte);
+  succesToast.hidden = false;
+  succesToast.classList.remove('succes-toast--in');
+  void succesToast.offsetWidth; // relance l'animation
+  succesToast.classList.add('succes-toast--in');
+  window.clearTimeout(succesToastTimer);
+  succesToastTimer = window.setTimeout(() => {
+    succesToast.hidden = true;
+  }, 9000);
+  renderSuccesPanel();
+}
+
+/** Les fronts des broches câblées, comptés à chaque image (un clignotement rapide passerait entre deux relevés). */
+function observerFronts(): void {
+  if (!engine) return;
+  for (const [pin, avant] of frontsSuivis) {
+    const niveau = engine.readDigital(pin);
+    if (niveau === avant) continue;
+    frontsSuivis.set(pin, niveau);
+    if (broches.interruptions.has(pin)) frontsInterruption++;
+    else if (broches.pilotees.has(pin)) frontsSortie++;
+  }
+}
+
+function infoLancement(): InfoLancement {
+  const d = editor.diagram;
+  const kinds = d.parts.map((p) => partDef(p.type).kind);
+  const protocoles = new Set<ProtocoleSucces>();
+  for (const k of kinds) {
+    if (k === 'i2c-lcd' || k === 'i2c-pwm' || k === 'i2c-oled') protocoles.add('i2c');
+    if (k === 'spi-oled' || k === 'spi-tft' || k === 'spi-sd') protocoles.add('spi');
+  }
+  const pro = editor.proprete();
+  const maintenant = new Date();
+  const jour = `${maintenant.getFullYear()}-${String(maintenant.getMonth() + 1).padStart(2, '0')}-${String(maintenant.getDate()).padStart(2, '0')}`;
+  return {
+    projet: currentProjectName ?? 'untitled',
+    jour,
+    source: lintSource?.text ?? null,
+    composants: d.parts.length,
+    etiquettes: d.texts?.length ?? 0,
+    fils: pro.total,
+    filsPropres: pro.propres,
+    protocoles: [...protocoles],
+    transistor: kinds.includes('transistor'),
+  };
+}
+
+function succesLancement(): void {
+  defautsVus.clear();
+  serieProgramme = false;
+  consoMoyenneA = null;
+  frontsSortie = 0;
+  frontsInterruption = 0;
+  // Broches câblées sur la carte : celles dont on compte les fronts.
+  const carte = editor.diagram.parts.find((p) => partDef(p.type).kind === 'mcu');
+  frontsSuivis = new Map();
+  broches = { pilotees: new Set(), interruptions: new Set() };
+  if (carte) {
+    const cablees = new Set<string>();
+    for (const w of editor.diagram.wires) {
+      if (w.a.partId === carte.id) cablees.add(w.a.pin);
+      if (w.b.partId === carte.id) cablees.add(w.b.pin);
+    }
+    const irq = lintSource ? new Set(piegesExecution(lintSource.text, lintSource.lang, editor.diagram).interruptions) : new Set<string>();
+    for (const pin of cablees) {
+      if (irq.has(pin)) broches.interruptions.add(pin);
+      else broches.pilotees.add(pin);
+      frontsSuivis.set(pin, false);
+    }
+  }
+  succes.lancement(infoLancement());
+  succes.pointsArret(nbPointsArret);
+  window.clearInterval(succesTimer);
+  succesTimer = window.setInterval(succesTick, 500);
+}
+
+function succesTick(): void {
+  if (!engine || engine.paused || !engine.simulatedMs) return;
+  const read = (name: string): boolean => engine!.readDigital(name);
+  const grilles = new Set<string>([...burnedLeds, ...burnedResistors, ...burnedBoards, ...burnedMotors, ...burnedCaps, ...burnedIcs, ...burnedPcas, ...blownDrivers]);
+  if (burnedLeds.size > 0) defautsVus.add('burn:led');
+  if (burnedResistors.size > 0) defautsVus.add('burn:resistor');
+  if (burnedBoards.size > 0) defautsVus.add('burn:board');
+  if (burnedMotors.size > 0) defautsVus.add('burn:motor');
+  if (burnedCaps.size > 0) defautsVus.add('burn:capacitor');
+  if (burnedIcs.size > 0) defautsVus.add('burn:ic');
+  if (burnedPcas.size > 0) defautsVus.add('burn:pca');
+  if (blownDrivers.size > 0) defautsVus.add('burn:transistor');
+  let moteurSain = false;
+  for (const st of motorFrame.values()) {
+    if (st.fault !== 'none') defautsVus.add(`motor:${st.fault}`);
+    else if (st.powered && st.speed > 0.05) moteurSain = true;
+  }
+  let ledSaine = false;
+  for (const part of editor.diagram.parts) {
+    if (partDef(part.type).kind !== 'led' || partDef(part.type).custom || burnedLeds.has(part.id)) continue;
+    if (!ledOn(editor.diagram, part.id, read)) continue;
+    const circ = ledPowerCircuit(editor.diagram, part.id, psuLiveVolts);
+    if (circ.ohms !== null && circ.ohms > 0 && (ledLumFactor.get(part.id) ?? 0) > 0.05) ledSaine = true;
+  }
+  const instrument = editor.diagram.parts.some((p) => {
+    const k = partDef(p.type).kind;
+    return (k === 'meter' || k === 'scope') && editor.diagram.wires.some((w) => w.a.partId === p.id || w.b.partId === p.id);
+  });
+  const instantane: Instantane = {
+    tMs: engine.simulatedMs(),
+    ledSaine,
+    grilles: [...grilles],
+    defauts: [...defautsVus],
+    moteurSain,
+    frontsSortie,
+    frontsInterruption,
+    instrument,
+    serie: serieProgramme,
+    courantMoyenA: consoMoyenneA,
+  };
+  succes.tick(instantane);
+  if (succesChange()) sauverSucces();
+}
+
+/** Vrai quand l'état a bougé depuis la dernière sauvegarde (protocoles vus, lancements du jour). */
+let succesEmpreinte = '';
+function succesChange(): boolean {
+  const e = JSON.stringify([succes.etat.protocoles, succes.etat.assidu]);
+  if (e === succesEmpreinte) return false;
+  succesEmpreinte = e;
+  return true;
+}
+
+function succesArret(): void {
+  window.clearInterval(succesTimer);
+  succes.arret();
+  if (succesChange()) sauverSucces();
+}
+
+// Panneau des succès : deux familles, les obtenus en couleur, les autres grisés.
+const succesBtn = document.getElementById('open-succes') as HTMLButtonElement | null;
+const succesPanel = document.getElementById('succes-panel') as HTMLDivElement | null;
+
+function renderSuccesPanel(): void {
+  if (!succesPanel || succesPanel.hidden) return;
+  const obtenus = Object.keys(succes.etat.obtenus).length;
+  const entete = document.createElement('div');
+  entete.className = 'succes-panel__head';
+  const titre = document.createElement('strong');
+  titre.textContent = `🏅 ${t('Achievements')} — ${obtenus}/${SUCCES.length}`;
+  const fermer = document.createElement('button');
+  fermer.className = 'succes-panel__close';
+  fermer.textContent = '✕';
+  fermer.title = t('Close');
+  fermer.addEventListener('click', () => {
+    succesPanel.hidden = true;
+  });
+  entete.append(titre, fermer);
+  const corps = document.createElement('div');
+  corps.className = 'succes-panel__body';
+  for (const famille of ['maitrise', 'effort'] as const) {
+    const h = document.createElement('h4');
+    h.textContent = famille === 'maitrise' ? t('Proof of mastery') : t('Effort and process');
+    corps.append(h);
+    for (const def of SUCCES.filter((s) => s.famille === famille)) {
+      const date = succes.etat.obtenus[def.id];
+      const ligne = document.createElement('div');
+      ligne.className = `succes-item${date === undefined ? ' succes-item--locked' : ''}`;
+      const icone = document.createElement('span');
+      icone.className = 'succes-item__icon';
+      icone.textContent = date === undefined ? '🔒' : '🏅';
+      const txt = document.createElement('div');
+      const nom = document.createElement('strong');
+      nom.textContent = t(def.titre);
+      const att = document.createElement('div');
+      att.className = 'succes-item__text';
+      att.textContent = t(def.atteste);
+      txt.append(nom, att);
+      if (date !== undefined) {
+        const quand = document.createElement('div');
+        quand.className = 'succes-item__date';
+        quand.textContent = new Date(date).toLocaleDateString();
+        txt.append(quand);
+      }
+      ligne.append(icone, txt);
+      corps.append(ligne);
+    }
+  }
+  succesPanel.replaceChildren(entete, corps);
+}
+
+succesBtn?.addEventListener('click', () => {
+  if (!succesPanel) return;
+  succesPanel.hidden = !succesPanel.hidden;
+  renderSuccesPanel();
+});
+
 function stopPieges(): void {
   for (const id of piegesTimers) window.clearInterval(id);
   piegesTimers = [];
 }
 
 function stopRun(): void {
+  succesArret();
   refroidirResistances();
   stopPieges();
   lintNotes.clear();
@@ -5305,6 +5544,7 @@ editor.onChange = () => {
     // qui ramène au même schéma efface bien le point ●.
     const dirty = editor.isDirty();
     setDirty(dirty);
+    if (dirty && !engine) succes.modification(); // « À l'instrument » : on change le montage après avoir mesuré
     // Tient à jour côté hôte le schéma « à enregistrer » (setDirty ne renotifie
     // pas quand l'état dirty ne change pas) — utile si l'onglet est fermé.
     vscode.postMessage({ type: 'syncDiagram', diagram: editor.serialize(), board });
@@ -6019,6 +6259,20 @@ window.addEventListener('message', (event: MessageEvent) => {
       // Repli automatique de la bibliothèque au démarrage de la simulation.
       if (typeof msg.foldLibraryOnRun === 'boolean') foldLibraryOnRun = msg.foldLibraryOnRun;
       if (typeof msg.lintCode === 'boolean') lintEnabled = msg.lintCode;
+      if (!succesCharge) {
+        succesCharge = true; // un seul chargement : les « config » suivants ne doivent rien écraser
+        if (msg.succes !== undefined) {
+          const lu = etatValide(msg.succes);
+          succes.etat.obtenus = lu.obtenus;
+          succes.etat.protocoles = lu.protocoles;
+          succes.etat.assidu = lu.assidu;
+          succesEmpreinte = JSON.stringify([succes.etat.protocoles, succes.etat.assidu]);
+        }
+      }
+      break;
+    case 'succesBus':
+      // L'analyseur (un autre onglet) a décodé une trame lisible.
+      if (typeof msg.protocole === 'string') succes.bus(msg.protocole, true);
       break;
     case 'netResponse':
       // Réponse réseau de l'hôte : réinjectée dans le script (Pico W).
@@ -6028,6 +6282,8 @@ window.addEventListener('message', (event: MessageEvent) => {
       // Points d'arrêt de la gouttière de l'éditeur VS Code (ligne 1-based +
       // condition optionnelle évaluée côté moteur).
       breakpoints = Array.isArray(msg.breakpoints) ? (msg.breakpoints as Breakpoint[]) : [];
+      nbPointsArret = breakpoints.length;
+      succes.pointsArret(nbPointsArret);
       engine?.setBreakpoints?.(breakpoints);
       break;
     case 'svgEdited':

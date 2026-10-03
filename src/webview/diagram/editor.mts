@@ -3841,6 +3841,34 @@ export class Editor {
     for (const r of caps.children) (r as SVGRectElement).style.fill = hex;
   }
 
+  /**
+   * Netteté du câblage, pour le badge « Au propre » : un fil est PROPRE quand il
+   * ne se compose que de segments horizontaux et verticaux (le tracé de
+   * l'autoroutage) et ne fait pas plus de quatre coudes — la définition Kablix
+   * d'un bon fil. Les fils implicites d'une platine ne comptent pas.
+   */
+  proprete(): { total: number; propres: number } {
+    let total = 0;
+    let propres = 0;
+    for (const wire of this.diagram.wires) {
+      if (wire.auto) continue;
+      const a = this.hotspotCenter(wire.a);
+      const b = this.hotspotCenter(wire.b);
+      if (!a || !b) continue;
+      total++;
+      const pts = [a, ...(wire.points ?? []), b];
+      let ortho = true;
+      for (let i = 0; i < pts.length - 1; i++) {
+        if (Math.abs(pts[i].x - pts[i + 1].x) > 1 && Math.abs(pts[i].y - pts[i + 1].y) > 1) {
+          ortho = false;
+          break;
+        }
+      }
+      if (ortho && pts.length - 2 <= 4) propres++;
+    }
+    return { total, propres };
+  }
+
   /** Insère un point de retouche dans le segment le plus proche du clic. */
   private insertWirePoint(wireId: string, at: XY): void {
     const wire = this.diagram.wires.find((w) => w.id === wireId);

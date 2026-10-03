@@ -8,6 +8,16 @@
 
 ---
 
+# v2026.10.0.201
+1. ✅ **Succès / badges** (feuille de route n°6, choix de Frank : tout sauf « Niveau logique », stockage global, panneau + annonce) : [succes.mts](src/webview/succes.mts) (module pur : 15 badges, `SuiviSucces`, état conservé) ; [sim.mts](src/webview/sim.mts) (`succesLancement` / `succesTick` / `succesArret`, fronts comptés à chaque image, annonce, panneau 🏅) ; [panel.ts](src/panel.ts) (`globalState` `kablix.succes`, message `succesSave`) ; analyseur → hôte → page pour « Bus maîtrisé » ([analyseur.mts](src/webview/analyseur.mts), [analyseur-panel.ts](src/analyseur-panel.ts)) ; [editor.mts](src/webview/diagram/editor.mts) `proprete()` ; interface ([webview-html.ts](src/webview-html.ts), [styles.css](media/styles.css)). `piegesExecution` renvoie aussi les broches en interruption.
+2. ✅ Banc [verify-succes.mjs](scripts/verify-succes.mjs) (76 contrôles, ajouté à `verify:all:serie`) : chaque badge sur son fait et seulement sur lui, « rien pour rien » (une minute devant l'écran : aucun badge), état relu filtré, câblage. Contre-épreuve faite : sans le code, le banc échoue.
+3. ✅ Fiche d'aide FR : « Succès (badges) » dans [USAGE.md](docs/fr/USAGE.md).
+4. ⏳ **Traductions** : bullet « 🏅 succès » de la barre de simulation (`verify:help-bars` rouge côté EN en attendant, attendu), titres et phrases des 15 badges ([succes.mts](src/webview/succes.mts)), `Achievements` / `Badge earned` / `Proof of mastery` / `Effort and process`, USAGE EN/ES/ZH. `verify:i18n` rouge en attendant (attendu).
+5. ⬜ **« Niveau logique »** (capteur 5 V lu par un Pico à travers un pont diviseur) : non fait, il faut connaître la tension en amont du pont. À reprendre avec Frank.
+6. ⚠️ Rendu du panneau et de l'annonce non vu à l'œil ; les gestes (clic sur 🏅) ne sont pas prouvés par un banc à vraie souris (Chrome absent du conteneur).
+
+---
+
 # v2026.10.0.200
 1. ✅ **Dégradation thermique** (feuille de route n°5) : `resistorHeat` / `HEAT_START` ([model.mts](src/webview/diagram/model.mts)) = (P/Pmax − 0,5) / 0,5 borné à [0, 1] ; `resistorPowers` renvoie `heat` ; [resistor-element.mts](src/webview/composants/resistor-element.mts) : propriété `heat`, corps teinté (`sepia` + `saturate` + `hue-rotate`) et halo croissant, rien une fois grillée ; [sim.mts](src/webview/sim.mts) alimente `heat` à chaque frame et refroidit à l'arrêt / au lancement (`refroidirResistances`). Résistances seulement (choix 4a).
 2. ✅ Banc [verify-chaleur.mjs](scripts/verify-chaleur.mjs) (17 contrôles, ajouté à `verify:all:serie`). Contre-épreuve faite : sur l'ancien code il échoue.

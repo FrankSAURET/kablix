@@ -8,6 +8,11 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Nouveauté
 
+**Succès (badges)**
+
+- **15 badges** dans un panneau 🏅 (barre de simulation), en deux familles. *Preuve de maîtrise* : Loi d'Ohm, Bus maîtrisé (trame I²C décodée), Sans attendre (pas de `delay()`), Interruption, Économe (moins de 1 mA), Le bon calibre (moteur par transistor), Trois protocoles. *Effort et processus* : Premier nuage de fumée, Deux fois vaut mieux, Chercheur de panne, Au pas à pas, À l'instrument, Persévérant, Au propre, Documenté. Chacun dit ce qu'il atteste ; une annonce s'affiche à l'obtention.
+- **Jamais pour du temps passé** : un badge se décerne sur un fait mesuré dans la simulation. Ils suivent l'élève d'un projet à l'autre.
+
 **Linter électronique**
 
 - **Le code est relu face au schéma** à chaque ▶ : `analogWrite` sur une broche sans PWM, broche lue sans `pinMode`, broche lue ou pilotée alors que rien n'y est branché, composant câblé sur une broche que le code n'utilise jamais. Fonctionne en Arduino et en MicroPython. Le constat entoure en rouge la carte (ou le composant), avec une étiquette qui explique, et la console cite la ligne. La simulation n'est jamais bloquée. En cas de doute (numéro de broche calculé, bibliothèque tierce, shield, platine), Kablix se tait.

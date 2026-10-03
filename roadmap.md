@@ -21,7 +21,7 @@ L'ordre des numéros est celui **choisi par Frank**, pas un classement par inté
 | 3   | [Linter électronique](#3-linter-électronique--relire-le-code-face-au-schéma)  | ★★★★★   | **M** | **Fait** (v2026.10.0.198)      |
 | 4   | [Pièges à code](#4-pièges-à-code--les-mauvaises-habitudes)                    | ★★★★☆   | **S** | **Fait** (v2026.10.0.199)      |
 | 5   | [Dégradation thermique](#5-dégradation-thermique-effet-joule-visuel)          | ★★★☆☆   | **S** | **Fait** (v2026.10.0.200)      |
-| 6   | [Succès / badges](#6-succès-badges)                                           | ★★★☆☆   | **S** | Proposition chiffrée ci-dessous |
+| 6   | [Succès / badges](#6-succès-badges)                                           | ★★★☆☆   | **S** | **Fait** (v2026.10.0.201)      |
 | 7   | [Associer des composants](#7-associer-des-composants-entre-eux)               | ★★★★☆   | **M** | Chiffré ci-dessous             |
 | 8   | [Schéma verrouillé (TP à trous)](#8-schéma-verrouillé--le-tp-à-trous)         | ★★★★★   | **S** | **Le moins cher de la liste**  |
 | 9   | [Notation automatique](#9-notation-automatique-par-assertions)                | ★★★★☆   | **L** | À faire, plus tard             |

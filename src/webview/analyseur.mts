@@ -638,6 +638,14 @@ function calculerAnnotations(): Annotation[] {
   return annotationsEntre(fenetre);
 }
 
+/** Prévient l'hôte (une fois par protocole et par page) : sert au badge « Bus maîtrisé ». */
+const busSignales = new Set<string>();
+function signalerBus(protocole: string): void {
+  if (busSignales.has(protocole)) return;
+  busSignales.add(protocole);
+  vscode?.postMessage({ type: 'analyseurBus', protocole });
+}
+
 /** Décodage d'une fenêtre de temps : la vue, ou la plage d'un export SVG. */
 function annotationsEntre(f: Fenetre): Annotation[] {
   if (decodages.length === 0) return [];
@@ -658,7 +666,10 @@ function annotationsEntre(f: Fenetre): Annotation[] {
     const t0 = repriseDe(r, f.t0 - Math.max(marge, reculNecessaireMs(r.protocole)), t1, siennes);
     // `capture.fenetre` rend déjà les fronts INVERSÉS sur les voies réglées
     // actives-bas : le décodeur lit donc exactement ce que la vue dessine.
-    for (const a of decoderTous(trancheCapture(t0, t1, siennes), [r])) out.push(a);
+    const trames = decoderTous(trancheCapture(t0, t1, siennes), [r]);
+    for (const a of trames) out.push(a);
+    // Badge « Bus maîtrisé » : une trame I²C lisible, adresse et accusé de réception.
+    if (r.protocole === 'i2c' && trames.some((a) => a.trame === true) && trames.some((a) => a.texte === 'ACK' && a.nature === 'controle')) signalerBus('i2c');
   }
   return out.sort((a, b) => a.t0 - b.t0);
 }

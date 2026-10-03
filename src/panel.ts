@@ -272,6 +272,8 @@ const UI_STATE_KEY = 'kablix.uiState';
 const LAST_COLUMN_KEY = 'kablix.lastColumn';
 /** Chemin du dernier .projix ouvert/enregistré (rouvert au démarrage). */
 const LAST_PROJECT_KEY = 'kablix.lastProject';
+/** Succès (badges, protocoles vus, lancements du jour) : suivent l'élève d'un projet à l'autre. */
+const SUCCES_KEY = 'kablix.succes';
 /** ≤ v2026.7.193 : masquages rangés dans l'état global, par programme. Lu en
  *  REPLI uniquement (migration) — les réglages vivent désormais dans le .projix. */
 const HIDDEN_VARS_KEY = 'kablix.hiddenVars';
@@ -1009,6 +1011,8 @@ export class SimulatorPanel {
       showClearDiagram: cfg.get<boolean>('showClearDiagramButton', false),
       foldLibraryOnRun: cfg.get<boolean>('foldLibraryOnRun', true),
       lintCode: cfg.get<boolean>('lintCode', true),
+      // Succès : conservés d'un projet à l'autre, donc dans l'état global de l'extension.
+      succes: this.context.globalState.get<unknown>(SUCCES_KEY),
     });
   }
 
@@ -1698,6 +1702,8 @@ export class SimulatorPanel {
           profondeur: m.profondeur,
         };
       });
+    } else if (m.type === 'analyseurBus') {
+      this.post({ type: 'succesBus', protocole: m.protocole });
     } else if (m.type === 'analyseurExport') {
       void this.exporterMesureAnalyseur(m.plage, m.voies);
     } else if (m.type === 'analyseurSvg') {
@@ -1915,6 +1921,8 @@ export class SimulatorPanel {
     voies?: unknown[];
     salves?: unknown;
     capture?: unknown;
+    /** Succès : état à conserver (badges, protocoles vus, lancements du jour). */
+    etat?: unknown;
   }): void {
     // Toute interaction de la webview marque cette session comme « active » :
     // les commandes globales (Enregistrer, Wokwi…) la ciblent.
@@ -2091,6 +2099,9 @@ export class SimulatorPanel {
           this.pendingDiagram = undefined; // enregistré : plus rien à proposer
         }
         this.updateTitle();
+        break;
+      case 'succesSave':
+        if (msg.etat && typeof msg.etat === 'object') void this.context.globalState.update(SUCCES_KEY, msg.etat);
         break;
       case 'syncDiagram':
         // Schéma tenu à jour tant que le projet est « sale » (fermeture éventuelle).

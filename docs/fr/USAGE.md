@@ -28,7 +28,8 @@
    7. [Traceur de courbes](#traceur-de-courbes)
    8. [Consommation de la carte](#consommation-de-la-carte)
    9. [Relecture du code face au schéma](#relecture-du-code-face-au-schéma)
-   10. [Éclairage DMX512](#éclairage-dmx512)
+   10. [Succès (badges)](#succès-badges)
+   11. [Éclairage DMX512](#éclairage-dmx512)
 5. [Exporter la liste des composants (nomenclature CSV)](#exporter-la-liste-des-composants-nomenclature-csv)
 6. [Exporter le schéma en SVG](#exporter-le-schéma-en-svg)
 7. [Créer ses propres composants](#créer-ses-propres-composants)
@@ -100,6 +101,7 @@
   - **moniteur série / console**
   - **Traceur** de courbes
   - **rouvrir l'analyseur logique** : n'apparaît que si l'onglet de l'analyseur a été fermé alors qu'une pince est toujours posée sur le schéma. Un clic le rouvre avec sa dernière mesure.
+  - **🏅 succès** : la liste des badges ([Succès](#succès-badges)).
   - **explications de défaut** : le cadre rouge et l'étiquette jaune posés sur un composant en défaut. Actif par défaut ; le bouton les masque quand ils gênent la lecture du schéma.
 
   L'analyseur logique n'a **pas de bouton pour s'ouvrir** : c'est la [sonde logique](composants/sonde-logique.md) qui le déclenche. Posez au moins une pince sur une broche, lancez la simulation, et son onglet s'ouvre tout seul, à poser à côté du schéma. Sans pince, rien ne s'ouvre — l'analyseur n'aurait rien à montrer. Le bouton de la barre ne sert qu'à rouvrir un onglet fermé.
@@ -487,6 +489,37 @@ Deux défauts se voient mieux qu'ils ne se lisent : Kablix les **montre** pendan
 - **Boucle bloquante** : `while (digitalRead(2) == LOW);` (ou `while b.value() == 0: pass` en MicroPython). Si, pendant **3 secondes simulées**, la broche attendue reste au niveau qui retient la boucle et que rien d'autre ne bouge (aucune broche pilotée, aucun envoi série, pas de veille), la carte est entourée de rouge : le programme ne fait rien d'autre qu'attendre. Les **interruptions** (`attachInterrupt`, `pin.irq`) laissent le programme libre.
 
 Seule une boucle au **corps vide** est examinée, et seulement quand le numéro de broche est lisible dans le code : au moindre doute, Kablix se tait. Même réglage `kablix.lintCode`.
+
+### Succès (badges)
+
+Le bouton **🏅** de la barre de simulation ouvre la liste des succès. Un badge n'est décerné que sur un **fait mesurable dans la simulation** : jamais pour du temps passé devant l'écran. Chacun dit ce qu'il atteste. À l'obtention, une annonce apparaît sur le schéma. Les badges suivent l'élève **d'un projet à l'autre** (ils sont rangés dans les données de l'extension, pas dans le `.projix`).
+
+**Preuve de maîtrise** (décerné une seule fois)
+
+| Badge | Ce qui le déclenche |
+| ----- | ------------------- |
+| **Loi d'Ohm** | Une LED allumée avec une résistance en série, au **premier** lancement du projet, sans rien de détruit. |
+| **Bus maîtrisé** | Une trame **I²C** décodée par l'analyseur logique, adresse et accusé de réception lisibles. |
+| **Sans attendre** | Un code qui n'emploie aucun `delay()` / `sleep()` mais `millis()` ou un timer, et dont au moins 6 changements d'état de broche ont été vus. |
+| **Interruption** | `attachInterrupt` (ou `pin.irq`) posé **et** déclenché par un vrai front sur la broche câblée. |
+| **Économe** | Courant moyen de la carte sous 1 mA, mesuré sur 10 secondes de programme (la veille profonde). |
+| **Le bon calibre** | Un moteur qui tourne par un transistor pendant 3 secondes, sans rien de grillé ni de défaut. |
+| **Trois protocoles** | I²C, SPI et une liaison série, **chacun dans un projet différent**. |
+
+**Effort et processus** (la manière de travailler, pas le résultat)
+
+| Badge | Ce qui le déclenche |
+| ----- | ------------------- |
+| **Premier nuage de fumée** | Le premier composant grillé. Tout le monde en a un : l'erreur est un outil. |
+| **Deux fois vaut mieux** | Un projet qui a grillé, puis le même projet qui tourne 5 secondes sans rien détruire. |
+| **Chercheur de panne** | Trois défauts différents (relecture du code, composant grillé, moteur en défaut) corrigés d'un lancement à l'autre du même projet. |
+| **Au pas à pas** | Un point d'arrêt posé et dix pas exécutés. |
+| **À l'instrument** | Une mesure d'au moins 3 secondes avec un multimètre ou un oscilloscope câblé, **puis** une modification du montage. |
+| **Persévérant** | Cinq lancements du même projet le même jour. |
+| **Au propre** | Plus de dix composants et **tous** les fils propres (segments horizontaux et verticaux, quatre coudes au plus). |
+| **Documenté** | Au moins trois étiquettes de texte posées sur la feuille. |
+
+Un badge se juge sur ce que **Kablix a vu tourner** : en cas de doute (code illisible, bibliothèque tierce…), il n'est pas décerné.
 
 ### Éclairage DMX512
 

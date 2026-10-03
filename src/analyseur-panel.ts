@@ -80,6 +80,12 @@ export type AnalyseurVersHote =
    * `voies` : les colonnes du CSV, telles que l'onglet les montre (nom affiché,
    * lecture inversée ou non). Absentes : les voies déclarées par l'atelier.
    */
+  /**
+   * Une trame de bus lisible vient d'être décodée (I²C : adresse et accusé de
+   * réception). Rien à garder : l'hôte la relaie au simulateur pour le badge
+   * « Bus maîtrisé ».
+   */
+  | { type: 'analyseurBus'; protocole: string }
   | { type: 'analyseurExport'; plage?: { t1: number; t2: number }; voies?: VoieExport[] }
   /**
    * Les courbes entre M1 et M2, en SVG, à copier dans le presse-papier ou à
