@@ -11,13 +11,13 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Pile ou batterie en court-circuit : elle explose, et une mise en garde s'ouvre** : la simulation s'arrête, la pile (ou le Power bank) explose sur le montage, et une page de mise en garde sur les piles et batteries recouvre l'écran à chaque fois ; elle ne se ferme qu'après 15 secondes de lecture.
 - **Traceur : fenêtre et vitesse libres** : la fenêtre se tape en heures, minutes, secondes (`1h30`), la vitesse de simulation se tape en % (jusqu'à 10 000 %), et les graduations de temps du traceur suivent le temps simulé du montage, accélération comprise. De quoi suivre une pile qui se vide.
 - **Consommation de la carte au traceur** : deux courbes à chaque lancement, sans une ligne de code — le courant de la carte (mA) et la charge consommée (mAh). C'est la carte réelle qui est mesurée : une Uno endormie garde 31 mA, une Pico en `lightsleep()` descend à 1,3 mA.
-- **La mise en veille compte** : `sleep_cpu()` ou *LowPower* sur Arduino (power-down, power-save, standby), `machine.lightsleep()` sur Pico. `delay()` et `time.sleep()` laissent la puce éveillée, comme en vrai.
+- **La mise en veille d'un µc est prise en compte** : `sleep_cpu()` ou *LowPower* sur Arduino (power-down, power-save, standby), `machine.lightsleep()` sur Pico. `delay()` et `time.sleep()` laissent la puce éveillée, comme en vrai.
 - **Le Power bank a une capacité et se vide** : il alimente la carte par 5V, VSYS ou VBUS, sa jauge suit la charge, le traceur montre sa charge et son autonomie. Vide, il éteint la carte et la barre d'état dit au bout de combien de temps.
-- **Tests `consommation-uno` et `consommation-pico`** : une carte qui alterne veille et réveil, sur une batterie d'1 mAh.
+- **Tests `consommation-uno` et `consommation-pico**` : une carte qui alterne veille et réveil, sur une batterie d'1 mAh.
 - **Piles dans la bibliothèque** : 4 × AA, 9 V, CR2032 et LiPo 1S, à installer depuis **⚙ Gérer les composants**. Capacité réglable, tension qui baisse avec la charge (courbe au traceur). Elles ont leur propre catégorie dans la palette, **Piles / Batteries**, avec le Power bank.
 - **Le Power bank tient compte de son convertisseur** : sa capacité par défaut passe à 5000 mAh (une vraie batterie externe Li-ion 5 V / 2,1 A), et se vide un peu plus vite que le courant délivré ne le laisse penser — la conversion de tension a une perte.
 - **Le robot araignée a sa propre batterie** : elle se vide de sa consommation (Pico W, PCA9685, servos), comme un Power bank — rien à câbler, elle n'alimente que le robot.
-- **Tests `autonomie-uno` et `autonomie-pico`** : un nœud de mesure sur pile, avec ou sans veille profonde, pour comparer l'autonomie au traceur.
+- **Tests `autonomie-uno` et `autonomie-pico**` : un nœud de mesure sur pile, avec ou sans veille profonde, pour comparer l'autonomie au traceur.
 - **Une alimentation inadaptée est refusée** : hors de la plage de l'entrée (VIN 6,2 à 20 V, 5V 4,5 à 5,5 V, VSYS et VBUS 1,8 à 5,5 V), la carte ne démarre pas et la barre d'état dit pourquoi. Une CR2032 ne fait pas tourner une Uno, une LiPo ne passe pas le régulateur de VIN. Une pile qui s'use sous le seuil éteint la carte en route.
 - **Une pile 9 V grille la Pico** : VSYS et VBUS n'ont pas de régulateur protecteur, contrairement à VIN et 5V — une pile 9 V dessus détruit la carte pour de bon au lieu de simplement refuser de démarrer.
 - **Alerte de charge basse** : sous 15 % de charge restante, le Power bank ou la batterie du robot araignée le signale dans la barre d'état.
@@ -27,24 +27,13 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Modification
 
-- **Mise en garde sur les piles** : la règle à suivre est écrite en gras et en couleur, sur sa propre ligne, sous l'avertissement de danger. En français : « Règle à suivre impérativement quand on utilise des piles et des batteries ».
-- **Courbes de batterie en droites** : charge, tension, autonomie et charge consommée se tracent en lignes continues au traceur, et non plus en escalier.
 - **L'atelier et l'analyseur logique s'ouvrent plus légers** : seules les traductions de la langue de VS Code sont chargées, et non plus celles des quatre langues.
-- **Mise en garde sur les piles** : la règle se termine par deux points (« : »), en français comme en anglais.
-- **« Béta » à la place de « Expérimental »** : la pastille des composants pas encore validés de la bibliothèque s'appelle désormais Béta.
 - **Transistors : Vgs(th) max et Pmax** : la liste du sélecteur et la ligne du modèle posé donnent la tension de seuil de grille maximale (MOSFET) et la puissance maximale dissipée (tous), avec une propriété « Puissance max » à régler. Le BS170 passe à 3 V et l'IRF530 à 4 V, valeurs maximales de leurs fiches.
 
 ### Correction
 
-- **Pile explosée : on peut la recâbler** : l'explosion et le cadre rouge restent après l'arrêt, mais disparaissent dès qu'on modifie un fil ou qu'on supprime une pièce, et à chaque nouveau lancement (le hissage devant les fils restait collé à la pile).
-- **Carte détruite par une pile 9 V** : l'explosion et l'explication restent affichées sur le montage après l'arrêt de la simulation, au lieu de disparaître en ne laissant qu'un message dans la barre d'état.
-
 - **Symétrie horizontale** : les écritures gravées sur un composant (noms de broches, touches…) restaient inversées après un retournement, même quand le composant lui-même redevenait lisible.
-- **Durée de vie d'une pile au traceur** : affichée en jours, heures et minutes au-delà d'une heure, plutôt qu'en heures décimales.
-- **Durée de vie d'une pile : plus de sauts** : pendant les attentes du programme, la courbe bondissait vers le haut puis retombait. Elle est maintenant lissée comme prévu.
 - **Analyseur logique : la bulle de survol revient** : un décodage replié (`0xF0` pour `0xF0 SEARCH ROM`, `0x48` pour `adr 0x48 W`) ou sans place pour s'écrire donne son texte entier au survol, pour tous les protocoles.
-- **« Battery life » stable** : sur `consommation-pico` (2 s éveillée, 2 s en veille), l'autonomie oscillait de 79 à 84 jours. La fenêtre de lissage grandit maintenant avec la durée du run (jusqu'à 10 minutes) : l'autonomie tend vers celle du courant moyen du programme.
-- **Pile posée seule : plus de consommation de Uno** : sans carte sur le schéma, la simulation à vide ne trace plus « Board current » ni « Charge used » (le Uno par défaut n'est pas sur le schéma).
 
 ## 2026.9.7 (29 septembre 2026)
 
@@ -72,7 +61,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 ### Modification
 
 - **Grove DMX512 (composant 2026.9.2) : une pince posée sur `−` montre le signal inversé**. Cocher « Inverser » sur cette voie la remet à l'endroit pour la décoder.
-- **Grove DMX512 (composant 2026.9.3) : les voies `+` et `−` de l'analyseur affichent `3,7 V` et `1,1 V`**, les tensions de sortie de l'émetteur de ligne SN75176A. La voie `SIG` garde celles de la carte.
+- **Grove DMX512 (composant 2026.9.3) : les voies `+` et `−` de l'analyseur affichent `3,7 V` et `1,1 V**`, les tensions de sortie de l'émetteur de ligne SN75176A. La voie `SIG` garde celles de la carte.
 - **L'export CSV de l'analyseur passe dans le menu ☰ de l'onglet**, à côté de la copie et de l'export SVG. M1 et M2 posés, il ne garde que la mesure comprise entre eux, encadrée par le niveau de chaque voie à M1 et à M2.
 - **L'export CSV donne une colonne par voie**, toutes les pinces comprises, lues comme à l'écran. Chaque front tient sur deux lignes au même instant : un tableur trace des créneaux droits.
 - **Le panneau Variables se replie au lancement quand un analyseur logique s'ouvre**, se déplie à chaque pause du débogage, et se rouvre à l'arrêt.
@@ -104,7 +93,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Le DMX d'un Pico programmé sans bibliothèque se décode canal par canal.** L'analyseur n'y voyait que des pauses et des erreurs de cadrage.
 - **Le décodage 1-Wire nomme la réponse du capteur au `RESET` (`PRÉSENT`).** Elle s'affichait en erreur « 1 bits » juste après le `RESET`.
 - **Le décodage 1-Wire lit juste la réponse du DS18B20.** Ses bits à 0 passaient pour des 1 : la température lue était fausse et le CRC en erreur.
-- **Le décodage 1-Wire nomme les commandes après `SKIP ROM` ou `MATCH ROM`** : `CONVERT T`, `READ SCRATCHPAD`…
+- **Le décodage 1-Wire nomme les commandes après `SKIP ROM` ou `MATCH ROM**` : `CONVERT T`, `READ SCRATCHPAD`…
 - **Le décodage 1-Wire ne change plus quand on fait glisser la courbe.** Dès que le début d'une transaction sortait à gauche, les octets devenaient faux et `READ SCRATCHPAD` disparaissait.
 - **Changer le déclenchement de l'analyseur ne fait plus disparaître la courbe**.
 - **La vue de l'analyseur ne saute plus pendant la capture** quand son onglet s'ouvre avec la simulation : elle se pose sur le déclenchement et y reste.
