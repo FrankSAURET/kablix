@@ -52,6 +52,7 @@ Mi biblioteca de pruebas está disponible aquí: [TestKablix](https://github.com
 - ✅ **Compilación real de código C/C++**
 - ✅ **Monitor serie bidireccional**: salida en directo y un campo de entrada para enviar datos al microcontrolador.
 - ✅ **Trazador**: curvas en directo, y **sondas** colocadas en un pin para ver su tensión
+- ✅ **Pilas, baterías y autonomía**: consumo real de la placa en el trazador (reposo profundo incluido), Power bank que se vacía, pilas 4 × AA, 9 V, CR2032 y LiPo para instalar desde la biblioteca, velocidad de simulación libre hasta 10 000 %. Una pila en cortocircuito explota y abre una página de advertencia.
 - ✅ **Simulación física**: la luminosidad depende de la resistencia en serie, los LED sin resistencia se queman, los servos no arrancan, la alimentación tiene en cuenta la corriente…
 - ✅ **Sensores interactivos**: cursores y botones para llama, gas, sonido, luz, temperatura y movimiento, que controlan en directo la entrada del circuito.
 - ✅ **Instrumentos de medida**: multímetro, osciloscopio, generador de funciones y analizador lógico.
@@ -76,7 +77,8 @@ Mi biblioteca de pruebas está disponible aquí: [TestKablix](https://github.com
 | **Actuadores** (4) | Zumbador · Servomotor · Ventilador · Motor de corriente continua |
 | **Sistemas** (2) | Robot araña · Pata de araña |
 | **Instrumentos de medida** (5) | Fuente de alimentación de laboratorio · Multímetro de sobremesa · Osciloscopio de sobremesa · Generador de funciones · Sonda lógica (analizador lógico, experimental) |
-| **Varios** (3) | Batería externa · Tarjeta microSD (SPI) · Controlador PWM de 16 canales (PCA9685) |
+| **Pilas / Baterías** (1) | Batería externa (más 4 × AA, 9 V, CR2032 y LiPo 1S en la biblioteca descargable) |
+| **Varios** (2) | Tarjeta microSD (SPI) · Controlador PWM de 16 canales (PCA9685) |
 | **Circuitos integrados** (12) | **CMOS 4000**: CD4081 (4 × AND) · CD4071 (4 × OR) · CD4070 (4 × XOR) · CD4011 (4 × NAND) · CD4001 (4 × NOR) · CD40106 (6 × NOT, Schmitt trigger) — **TTL/HC 74**: 74xx08 · 74xx32 · 74xx86 · 74xx00 · 74xx02 · 74xx14 (mismas funciones; la familia elegida fija el rango de alimentación) |
 
 A ellos se suman los **componentes de biblioteca** (`.kompix`), instalados por el gestor o dejados en la carpeta del proyecto, y los **componentes personalizados** dibujados en el creador integrado.

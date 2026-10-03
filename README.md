@@ -62,6 +62,7 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
 - ✅ **Compilation du code réel C/C++**
 - ✅ **Moniteur série bidirectionnel** : sortie temps réel + champ d’envoi vers le microcontrôleur.
 - ✅ **Traceur de courbes** : tracé en direct, plus des **sondes** posées sur une broche pour visualiser sa tension
+- ✅ **Piles, batteries et autonomie** : consommation réelle de la carte au traceur (veille profonde comprise), Power bank qui se vide, piles 4 × AA, 9 V, CR2032 et LiPo à installer depuis la bibliothèque, vitesse de simulation libre jusqu’à 10 000 %. Une pile en court-circuit explose et ouvre une mise en garde.
 - ✅ **Simulation physique** : luminosité selon la résistance série, les LED sans résistance grillent, les servomoteurs ne démarrent pas, l’alimentation tient compte du courant…
 - ✅ **Capteurs interactifs** : curseurs et boutons pour flamme, gaz, son, lumière, température et mouvement, pilotant l’entrée du montage en direct.
 - ✅ **Appareils de mesure** : Multimètre, oscilloscope, GBF et analyseur logique.
@@ -87,7 +88,8 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
 | **Actionneurs** (4)                  | Buzzer · Servomoteur · Ventilateur · Moteur à courant continu                                                                                                                                                                                                                                                 |
 | **Systèmes** (2)                     | Robot araignée · Patte d’araignée                                                                                                                                                                                                                                                                             |
 | **Appareils de mesure** (5)          | Alimentation de laboratoire · Multimètre de table · Oscilloscope de table · Générateur BF · Sonde logique (analyseur logique, expérimental)                                                                                                                                                                     |
-| **Divers** (3)                       | Batterie externe · Carte microSD (SPI) · Pilote PWM 16 canaux (PCA9685)                                                                                                                                                                                                                                       |
+| **Piles / Batteries** (1)            | Batterie externe (plus 4 × AA, 9 V, CR2032 et LiPo 1S dans la bibliothèque téléchargeable) |
+| **Divers** (2)                       | Carte microSD (SPI) · Pilote PWM 16 canaux (PCA9685)                                                                                                                                                                                                                                       |
 | **Circuits intégrés** (12)           | **CMOS 4000** : CD4081 (4 × ET) · CD4071 (4 × OU) · CD4070 (4 × OU exclusif) · CD4011 (4 × NON-ET) · CD4001 (4 × NON-OU) · CD40106 (6 × NON, trigger de Schmitt) — **TTL/HC 74** : 74xx08 · 74xx32 · 74xx86 · 74xx00 · 74xx02 · 74xx14 (mêmes fonctions, la famille choisie décide de la plage d’alimentation) |
 
 À quoi s’ajoutent les **composants de bibliothèque** (`.kompix`), installés par le gestionnaire ou déposés dans le dossier du projet, et les **composants personnalisés** dessinés dans le créateur intégré.

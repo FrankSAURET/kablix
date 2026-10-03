@@ -52,6 +52,7 @@ My test library is available here: [TestKablix](https://github.com/FrankSAURET/k
 - ✅ **Real C/C++ code compilation**
 - ✅ **Two-way serial monitor**: live output plus an input field to send data to the microcontroller.
 - ✅ **Plotter**: live curves, plus **probes** dropped on a pin to watch its voltage
+- ✅ **Batteries and battery life**: real board consumption on the plotter (deep sleep included), a Power bank that drains, 4 × AA, 9 V, CR2032 and LiPo cells to install from the library, free simulation speed up to 10,000 %. A short-circuited cell explodes and opens a warning page.
 - ✅ **Physical simulation**: brightness follows the series resistor, LEDs without a resistor burn out, servos fail to start, the power supply accounts for current…
 - ✅ **Interactive sensors**: sliders and buttons for flame, gas, sound, light, temperature and motion, driving the circuit input live.
 - ✅ **Measuring instruments**: Multimeter, oscilloscope, GBF, and logic analyzer.
@@ -76,7 +77,8 @@ My test library is available here: [TestKablix](https://github.com/FrankSAURET/k
 | **Actuators** (4) | Buzzer · Servo motor · Fan · DC motor |
 | **Systems** (2) | Spider robot · Spider leg |
 | **Measuring instruments** (5) | Bench power supply · Bench multimeter · Bench oscilloscope · Function generator · Logic probe (logic analyzer, experimental) |
-| **Miscellaneous** (3) | Power bank · microSD card (SPI) · 16-channel PWM driver (PCA9685) |
+| **Cells / Batteries** (1) | Power bank (plus 4 × AA, 9 V, CR2032 and LiPo 1S in the downloadable library) |
+| **Miscellaneous** (2) | microSD card (SPI) · 16-channel PWM driver (PCA9685) |
 | **Integrated circuits** (12) | **CMOS 4000**: CD4081 (4 × AND) · CD4071 (4 × OR) · CD4070 (4 × XOR) · CD4011 (4 × NAND) · CD4001 (4 × NOR) · CD40106 (6 × NOT, Schmitt trigger) — **TTL/HC 74**: 74xx08 · 74xx32 · 74xx86 · 74xx00 · 74xx02 · 74xx14 (same functions; the chosen family sets the supply range) |
 
 On top of these come the **library parts** (`.kompix`), installed by the manager or dropped into the project folder, and the **custom parts** drawn in the built-in creator.

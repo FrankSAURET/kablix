@@ -16,9 +16,10 @@
     2. `l10n/bundle.l10n.{fr,es,zh-cn}.json` : mise en garde des piles (titre, phrase, 9 règles), `Custom…`, vitesse libre ; es/zh : `Beta` (remplace `Experimental`, retirée) et la règle des piles.
     3. Aide EN/ES/ZH : USAGE (consommation de la carte, piles, plages d'entrée, court-circuit, vitesse et fenêtre libres, « Béta »), `powerbank.md`, `transistor.md` (trois MOSFET niveau logique).
     4. Bibliothèque : pile-4aa, pile-9v, pile-cr2032 et batterie-lipo en **2026.10.0** (bloc `l10n` fr/es/zh dans `_sources.json`, fiches en/es/zh). Fiches FR de la 4 × AA et de la 9 V corrigées : sur VSYS/VBUS d'une Pico la carte **grille** (elles disaient « Refusé »). Paquets et index reconstruits ; images d'origine remises (le Chromium du conteneur les redessinait autrement).
-4. ✅ Vérifs : `verify:i18n` 17/17, `verify:docs`, `verify:kompix` 43/43 verts ; typecheck, construction et `verify:all` : voir le message de livraison.
-5. ⏳ **Fiche transistor** (FR/EN/ES/ZH) : la propriété « Puissance max » et le Vgs(th) max (lot .194) n'y sont pas décrits. À ajouter si tu veux.
-6. ⏳ **Reste à Frank** : empaqueter et publier. Publication faite un autre jour : remplacer la date du CHANGELOG. Après publication : état du CLAUDE.md (« dernière version en ligne `2026.9.8` »), ouvrir `## 2026.9.9 (prochaine publication)`.
+4. ✅ **README** (FR/EN/ES/ZH) : fonction « Piles, batteries et autonomie », catégorie Piles / Batteries, Divers passé à 2 composants.
+5. ✅ Vérifs : `verify:i18n` 17/17, `verify:docs`, `verify:kompix` 43/43 verts ; typecheck, construction et `verify:all` : voir le message de livraison.
+6. ⏳ **Fiche transistor** (FR/EN/ES/ZH) : la propriété « Puissance max » et le Vgs(th) max (lot .194) n'y sont pas décrits. À ajouter si tu veux.
+7. ⏳ **Reste à Frank** : empaqueter et publier. Publication faite un autre jour : remplacer la date du CHANGELOG. Après publication : état du CLAUDE.md (« dernière version en ligne `2026.9.8` »), ouvrir `## 2026.9.9 (prochaine publication)`.
 
 ---
 
