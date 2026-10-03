@@ -755,12 +755,20 @@ export class SimulatorPanel {
       // (alimentations, piles, instruments…), avec un microcontrôleur à vide
       // (Frank, 02/10 : « si pas de carte ou pas de code : pas de simulation.
       // Change ça »).
+      this.post({ type: 'lintSource', text: null });
       this.post({ type: 'runBlank' });
       return;
     }
     await doc.save();
     const filePath = doc.uri.fsPath;
     const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
+    // Linter électronique : le texte du code part vers la webview AVANT le
+    // lancement (elle le relit face au schéma). Artefacts binaires : rien à relire.
+    this.post({
+      type: 'lintSource',
+      text: ['.ino', '.cpp', '.c', '.py'].includes(ext) ? doc.getText() : null,
+      lang: ext === '.py' ? 'py' : 'cpp',
+    });
 
     // ▶ : si le source n'a pas changé depuis la dernière compilation (même
     // fichier, même date, même carte), inutile de recompiler — on relance le
@@ -834,6 +842,7 @@ export class SimulatorPanel {
    * interactif (bouton « REPL » de la barre de simulation).
    */
   public async startReplMode(): Promise<void> {
+    this.post({ type: 'lintSource', text: null }); // REPL : pas de code à relire
     await this.saveProjectBeforeRun();
     try {
       const firmware = await resolveMicropythonFirmware(
@@ -859,6 +868,7 @@ export class SimulatorPanel {
    * build/ pour le Pico) et le lance dans le simulateur.
    */
   public async loadWorkspaceArtifact(): Promise<void> {
+    this.post({ type: 'lintSource', text: null }); // binaire direct : pas de code à relire
     await this.saveProjectBeforeRun();
     try {
       const board = this.currentBoard;
@@ -998,6 +1008,7 @@ export class SimulatorPanel {
       showResetParts: cfg.get<boolean>('showResetPartsButton', false),
       showClearDiagram: cfg.get<boolean>('showClearDiagramButton', false),
       foldLibraryOnRun: cfg.get<boolean>('foldLibraryOnRun', true),
+      lintCode: cfg.get<boolean>('lintCode', true),
     });
   }
 

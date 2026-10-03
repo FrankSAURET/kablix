@@ -27,7 +27,8 @@
    6. [Moniteur série](#moniteur-série)
    7. [Traceur de courbes](#traceur-de-courbes)
    8. [Consommation de la carte](#consommation-de-la-carte)
-   9. [Éclairage DMX512](#éclairage-dmx512)
+   9. [Relecture du code face au schéma](#relecture-du-code-face-au-schéma)
+   10. [Éclairage DMX512](#éclairage-dmx512)
 5. [Exporter la liste des composants (nomenclature CSV)](#exporter-la-liste-des-composants-nomenclature-csv)
 6. [Exporter le schéma en SVG](#exporter-le-schéma-en-svg)
 7. [Créer ses propres composants](#créer-ses-propres-composants)
@@ -461,6 +462,22 @@ Chaque entrée de carte a sa plage de tension :
 Hors plage au lancement, **la carte refuse de démarrer** et la barre d'état dit pourquoi : une CR2032 (3 V) ne fait pas tourner une Uno, une LiPo (4,2 V) ne passe pas le régulateur de VIN, une pile de 9 V grillerait le VSYS d'une Pico. Une pile qui s'use peut aussi passer **sous** le seuil en route : la carte s'éteint alors, et la barre d'état dit au bout de combien de temps de programme (4 × AA sur VIN, sous 6,2 V).
 
 **Court-circuit d'une pile ou d'une batterie** (son + relié à son − sans rien entre les deux) : elle **explose**, la simulation s'arrête, et une **page de mise en garde** s'ouvre à chaque fois. Elle rappelle les règles de sécurité des piles et batteries (court-circuit, piles à l'envers dans un holder, chargeur, charge sans surveillance, surface inflammable, piles neuves et usagées mélangées, températures extrêmes, pile déformée, collecte). Elle recouvre le montage et ne se ferme qu'après 15 secondes de lecture. De même, une pile de 9 V sur VSYS détruit la carte : l'explosion et l'explication restent sur le montage.
+
+### Relecture du code face au schéma
+
+Au clic sur ▶, Kablix relit votre code **en regard du schéma** : aucun compilateur ne peut dire « vous lisez la broche 2 mais rien n'y est branché », lui le sait. Un constat **n'arrête jamais** la simulation : la carte (ou le composant concerné) est entourée de rouge avec une étiquette qui explique, et la console liste une ligne par constat avec son numéro de ligne.
+
+| Constat | Quand il sort |
+| ------- | ------------- |
+| `analogWrite` sur une broche sans PWM | Arduino : la broche n'est pas PWM (Uno/Nano : 3, 5, 6, 9, 10, 11 ; Mega : 2 à 13 et 44 à 46). |
+| Broche lue sans `pinMode` | Arduino : `digitalRead` sur une broche que `setup()` ne déclare jamais. |
+| Broche lue, rien de branché | La broche est lue (`digitalRead`, `analogRead`, `attachInterrupt`, `Pin.IN`, `ADC`) mais aucun fil n'y arrive et aucun rappel interne n'est activé. |
+| Broche pilotée, rien de branché | La broche est écrite (`digitalWrite`, `analogWrite`, `Pin.OUT`) sans rien au bout. La LED de la carte (D13, GP25) et la liaison série sont exceptées. |
+| Broche câblée, jamais utilisée | Un composant est câblé sur une broche que le code n'emploie jamais. Le cadre rouge est sur ce composant. |
+
+**En cas de doute, Kablix se tait** : numéro de broche calculé (boucle, tableau), variable réaffectée, bibliothèque tierce (`Servo`, `Wire`, `dht`…), shield, fil vers une platine d'essai… le contrôle concerné est alors ignoré. Un avertissement n'apparaît que s'il est certain.
+
+Le réglage **`kablix.lintCode`** (activé par défaut) coupe cette relecture.
 
 ### Éclairage DMX512
 

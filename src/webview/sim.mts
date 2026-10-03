@@ -67,6 +67,7 @@ import './composants/araignee-element.mjs';
 import './composants/custom-part.mjs';
 
 import { initLocale, locale, t } from './i18n.mjs';
+import { lint, type LintLang } from './linter.mjs';
 import { Plotter } from './plotter.mjs';
 import { CompteurConsommation, LisseurCourant, decharger, autonomieH, tensionBatterie, PLAGES_ENTREE, ENTREES_NON_PROTEGEES, COURANT_FORFAITAIRE_A } from './consommation.mjs';
 import { Editor, KABLIX_BADGE, type PaletteState } from './diagram/editor.mjs';
@@ -5040,9 +5041,37 @@ ${detail}
         ? t('REPL ready — type your commands in the console')
         : t('Running…')
   );
+  runLinter();
   // EN DERNIER : un défaut de câblage du robot doit rester lisible dans la barre
   // d'état, il ne serait pas vu s'il partait avant le « Démarrage… ».
   reportAraigneeWiring();
+}
+
+/**
+ * Linter électronique (feuille de route n°3) : relit le code face au schéma.
+ * Un constat n'arrête JAMAIS la simulation : cadre rouge + étiquette sur la
+ * pièce (la carte, ou le composant câblé), une ligne par constat dans la
+ * console, et la phrase du premier dans la barre d'état.
+ */
+function runLinter(): void {
+  if (!lintEnabled || !lintSource) return;
+  let constats: ReturnType<typeof lint>;
+  try {
+    constats = lint(lintSource.text, lintSource.lang, editor.diagram);
+  } catch (err) {
+    console.error('linter', err); // le linter ne doit jamais gêner la simulation
+    return;
+  }
+  if (constats.length === 0) return;
+  const parPiece = new Map<string, string[]>();
+  for (const c of constats) {
+    const liste = parPiece.get(c.partId) ?? [];
+    liste.push(t(c.note));
+    parPiece.set(c.partId, liste);
+  }
+  for (const [id, notes] of parPiece) editor.setFaulty(id, true, [...new Set(notes)].join('\n'));
+  appendSerial(`\n── ${t('Code check')} ──\n${constats.map((c) => `⚠ ${t(c.message, ...c.args)}`).join('\n')}\n`);
+  flashStatus(`⚠ ${t(constats[0].message, ...constats[0].args)}`);
 }
 
 function stopRun(): void {
@@ -5238,6 +5267,7 @@ function requestRun(): void {
  * `programLoaded` reste faux : le prochain ▶ avec un fichier recompile.
  */
 function lancerSansProgramme(): void {
+  lintSource = null;
   unoProgram = AVR_VIDE;
   unoDebugInfo = null;
   picoProgram = { kind: 'ram', image: PICO_VIDE };
@@ -5507,6 +5537,10 @@ let paletteFolded = false;
 let inspectorFolded = false;
 /** Replier la bibliothèque au démarrage de la simulation (réglage de l'extension). */
 let foldLibraryOnRun = true;
+/** Linter électronique : relire le code face au schéma au lancement (réglage). */
+let lintEnabled = true;
+/** Code envoyé par l'hôte au dernier ▶ (null : rien à relire). */
+let lintSource: { text: string; lang: LintLang } | null = null;
 /** Vrai si c'est LA SIMULATION qui a replié la bibliothèque : à l'arrêt, on la rouvre. */
 let paletteFoldedByRun = false;
 /** Même chose pour Variables, replié au démarrage quand l'analyseur logique s'ouvre. */
@@ -5850,6 +5884,9 @@ window.addEventListener('message', (event: MessageEvent) => {
       }
       startRun();
       break;
+    case 'lintSource':
+      lintSource = typeof msg.text === 'string' ? { text: msg.text, lang: msg.lang === 'py' ? 'py' : 'cpp' } : null;
+      break;
     case 'runBlank':
       // Aucun code à lancer (ni fichier choisi, ni éditeur actif) : le montage
       // se simule quand même, le microcontrôleur tourne à vide.
@@ -5877,6 +5914,7 @@ window.addEventListener('message', (event: MessageEvent) => {
       clearCanvasBtn.hidden = !msg.showClearDiagram;
       // Repli automatique de la bibliothèque au démarrage de la simulation.
       if (typeof msg.foldLibraryOnRun === 'boolean') foldLibraryOnRun = msg.foldLibraryOnRun;
+      if (typeof msg.lintCode === 'boolean') lintEnabled = msg.lintCode;
       break;
     case 'netResponse':
       // Réponse réseau de l'hôte : réinjectée dans le script (Pico W).

@@ -8,6 +8,11 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Nouveauté
 
+**Linter électronique**
+
+- **Le code est relu face au schéma** à chaque ▶ : `analogWrite` sur une broche sans PWM, broche lue sans `pinMode`, broche lue ou pilotée alors que rien n'y est branché, composant câblé sur une broche que le code n'utilise jamais. Fonctionne en Arduino et en MicroPython. Le constat entoure en rouge la carte (ou le composant), avec une étiquette qui explique, et la console cite la ligne. La simulation n'est jamais bloquée. En cas de doute (numéro de broche calculé, bibliothèque tierce, shield, platine), Kablix se tait.
+- **Réglage `kablix.lintCode`** : coupe la relecture (activée par défaut).
+
 ### Modification
 
 ### Correction

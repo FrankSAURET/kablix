@@ -8,6 +8,15 @@
 
 ---
 
+# v2026.10.0.198
+1. ✅ **Linter électronique** (feuille de route n°3) : [linter.mts](src/webview/linter.mts) relit le code (Arduino et MicroPython) face au schéma au clic sur ▶. Cinq contrôles : `analogWrite` sans PWM, broche lue sans `pinMode`, broche lue ou pilotée sans rien de branché, composant câblé sur une broche jamais utilisée. Cadre rouge + étiquette ([sim.mts](src/webview/sim.mts) `runLinter`), lignes dans la console, jamais bloquant ; réglage `kablix.lintCode`. L'hôte envoie le texte du code avant le lancement ([panel.ts](src/panel.ts)).
+2. ✅ Banc [verify-linter.mjs](scripts/verify-linter.mjs) : 52 contrôles, dont zéro faux positif sur les 87 projets de testkablix (seule trouvaille réelle : GP13 câblé et inutilisé dans `mesure-pico`). Contre-épreuve faite (broche PWM faussée, câblage retiré : le banc échoue).
+3. ✅ Fiche d'aide FR : « Relecture du code face au schéma » dans [USAGE.md](docs/fr/USAGE.md).
+4. ⏳ **Traductions** : chaînes du linter (`linter.mts`, « Code check »), réglage `kablix.lintCode` (nls fr/es/zh), USAGE EN/ES/ZH.
+5. ⬜ Suite possible : n°4 (pièges à code : broche en l'air qui oscille, boucle bloquante).
+
+---
+
 # v2026.10.0.197
 1. ✅ **2026.10.0 publiée** (Frank, 03/10/2026). CLAUDE.md : état à jour ; CHANGELOG ouvert sous `## 2026.10.1 (prochaine publication)`.
 
