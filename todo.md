@@ -8,6 +8,11 @@
 
 ---
 
+# v2026.10.0.197
+1. ✅ **2026.10.0 publiée** (Frank, 03/10/2026). CLAUDE.md : état à jour ; CHANGELOG ouvert sous `## 2026.10.1 (prochaine publication)`.
+
+---
+
 # v2026.10.0.196
 1. ✅ **Publication renommée 2026.9.8 → 2026.10.0** (changement de mois, règle calver) : [package.json](package.json) `version` 2026.10.0, `buildNumber` 196 (lock suit) ; titre du CHANGELOG ; commentaires « Lot de traduction » des trois [i18n](src/webview/i18n.mts) ; état du CLAUDE.md. Les sections ci-dessous gardent leur numéro d'époque (historique).
 2. ⏳ **Reste à Frank** : empaqueter et publier. Après publication : état du CLAUDE.md (« dernière version en ligne `2026.10.0` »), ouvrir `## 2026.10.1 (prochaine publication)`.
