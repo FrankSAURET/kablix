@@ -13,3 +13,6 @@ debug.log
 # Sorties de compilation Arduino des schemas de test (locales)
 testkablix/.build/
 testkablix/**/.build/
+
+# Videos de demonstration (trop lourdes pour GitHub, locales)
+media/video/

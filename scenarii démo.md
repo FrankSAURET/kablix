@@ -31,6 +31,17 @@
 5. Exporter la vidéo au format MP4.
 6. Préparer une miniature claire, avec le montage ou le résultat visible.
 
+### Ajouter des sous-titres traduisibles
+
+1. Préparer un fichier de sous-titres français au format `.srt`, avec texte et horodatages.
+2. Dans YouTube Studio, ouvrir **Contenu**, choisir la vidéo, puis ouvrir l'onglet **Sous-titres**.
+3. Ajouter le français comme langue des sous-titres.
+4. Cliquer sur **Importer un fichier**, puis choisir le fichier `.srt` avec horodatages.
+5. Relire chaque ligne dans l'éditeur et corriger les termes techniques : Kablix, Arduino, Pico, DHT22 et noms des broches.
+6. Publier la piste de sous-titres française.
+7. Vérifier la vidéo sur YouTube : activer le bouton **Sous-titres**, puis choisir **Traduction automatique** dans les réglages du lecteur pour tester une langue cible.
+8. Ajouter plus tard une piste révisée dans chaque langue importante depuis le même onglet, plutôt que de dépendre uniquement de la traduction automatique.
+
 ### Mettre la vidéo en ligne
 
 1. Dans YouTube Studio, cliquer sur **Créer**, puis **Mettre en ligne une vidéo**.
@@ -43,28 +54,20 @@
 8. Vérifier les droits, la visibilité et les éventuelles alertes avant publication.
 9. Choisir **Non répertoriée** pour une relecture, puis passer à **Publique** après vérification.
 
-### Ajouter des sous-titres traduisibles
-
-1. Préparer un fichier de sous-titres français au format `.srt`, avec texte et horodatages.
-2. Dans YouTube Studio, ouvrir **Contenu**, choisir la vidéo, puis ouvrir l'onglet **Sous-titres**.
-3. Ajouter le français comme langue des sous-titres.
-4. Cliquer sur **Importer un fichier**, puis choisir le fichier `.srt` avec horodatages.
-5. Relire chaque ligne dans l'éditeur et corriger les termes techniques : Kablix, Arduino, Pico, DHT22 et noms des broches.
-6. Publier la piste de sous-titres française.
-7. Vérifier la vidéo sur YouTube : activer le bouton **Sous-titres**, puis choisir **Traduction automatique** dans les réglages du lecteur pour tester une langue cible.
-8. Ajouter plus tard une piste révisée dans chaque langue importante depuis le même onglet, plutôt que de dépendre uniquement de la traduction automatique.
-
-## Premier circuit : LED clignotante
+## Premier projet arduino : LED clignotante
 
 1. Créer un projet avec un Arduino Uno.
-2. Placer une LED et une résistance sur le plan de câblage.
-3. Relier la sortie numérique D13 à la résistance, puis à l'anode de la LED. Relier la cathode au GND.
-4. Montrer les broches mises en évidence lors du raccordement et la création des fils.
-5. Coller un programme Arduino qui alterne `HIGH` et `LOW` sur D13 toutes les secondes.
-6. Lancer la simulation et observer le clignotement de la LED.
-7. Passer la LED en vue schématique, puis revenir à sa vue externe.
-8. Passer la carte Uno en vue schématique et constater que les connexions sont conservées.
-9. Ouvrir l'aide intégrée de Kablix pour présenter les commandes et la documentation du composant.
+    1. Arduino impose de mettre le fichier .ino dans un dossier du même nom. La méthode la plus simple est donc de créer un nouveau projet
+    1. Clique sur arduino vscode ide
+    1. ajouter un projet
+1. Placer une LED et une résistance sur le plan de câblage.
+1. Relier la sortie numérique D13 à la résistance, puis à l'anode de la LED. Relier la cathode au GND.
+1. Montrer les broches mises en évidence lors du raccordement et la création des fils.
+1. Coller un programme Arduino qui alterne `HIGH` et `LOW` sur D13 toutes les secondes.
+1. Lancer la simulation et observer le clignotement de la LED.
+1. Passer la LED en vue schématique, puis revenir à sa vue externe.
+1. Passer la carte Uno en vue schématique.
+1. Ouvrir l'aide intégrée de Kablix pour présenter les commandes et la documentation du composant.
 
 ## Mesurer la température
 
@@ -122,5 +125,3 @@
 6. Le positionner, le raccorder à la carte et régler ses propriétés.
 7. Adapter le programme si nécessaire.
 8. Lancer la simulation pour valider son intégration.
-
-

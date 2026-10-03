@@ -1,4 +1,4 @@
 board: arduino:avr:uno
-sketch: Arduino/autonomie-uno/autonomie-uno.ino
+sketch: Arduino/led-uno/led-uno.ino
 port: COM3
 output: .build

@@ -1,6 +1,6 @@
 // Test LED : clignote sur D13 (via une résistance de 220 ohms).
 void setup() {
-  pinMode(13, OUTPUT);
+  pinMode(14, OUTPUT);
   Serial.begin(115200);
 }
 
