@@ -1326,7 +1326,7 @@ export const ES: Record<string, string> = {
     'El transistor de mando no puede dejar pasar suficiente corriente',
   'This transistor saturates: it only passes gain × base current, less than the motor draws, so the motor stays stalled. Lower the base resistor to drive more base current, or use a transistor with more gain.':
     'Este transistor se satura: solo deja pasar ganancia × corriente de base, menos de lo que pide el motor, así que el motor queda bloqueado. Baje la resistencia de base para inyectar más corriente de base, o use un transistor de mayor ganancia.',
-  // Lot de traduction avant publication 2026.9.8
+  // Lot de traduction avant publication 2026.10.0
   'Capacity (mAh)':
     'Capacidad (mAh)',
   'Custom…':

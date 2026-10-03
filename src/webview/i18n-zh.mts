@@ -1326,7 +1326,7 @@ export const ZH: Record<string, string> = {
     '驱动三极管无法通过足够的电流',
   'This transistor saturates: it only passes gain × base current, less than the motor draws, so the motor stays stalled. Lower the base resistor to drive more base current, or use a transistor with more gain.':
     '该三极管已饱和：它只能通过 增益 × 基极电流，小于电机所需，因此电机卡住不转。请减小基极电阻以提供更大的基极电流，或换用增益更大的三极管。',
-  // Lot de traduction avant publication 2026.9.8
+  // Lot de traduction avant publication 2026.10.0
   'Capacity (mAh)':
     '容量 (mAh)',
   'Custom…':

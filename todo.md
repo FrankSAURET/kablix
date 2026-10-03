@@ -8,6 +8,12 @@
 
 ---
 
+# v2026.10.0.196
+1. ✅ **Publication renommée 2026.9.8 → 2026.10.0** (changement de mois, règle calver) : [package.json](package.json) `version` 2026.10.0, `buildNumber` 196 (lock suit) ; titre du CHANGELOG ; commentaires « Lot de traduction » des trois [i18n](src/webview/i18n.mts) ; état du CLAUDE.md. Les sections ci-dessous gardent leur numéro d'époque (historique).
+2. ⏳ **Reste à Frank** : empaqueter et publier. Après publication : état du CLAUDE.md (« dernière version en ligne `2026.10.0` »), ouvrir `## 2026.10.1 (prochaine publication)`.
+
+---
+
 # v2026.9.8.195
 1. ✅ **CHANGELOG réorganisé par thèmes** (« tu n'as pas tenu compte de la règle du changelog ») : la section 2026.9.8 est rangée en thèmes gras dans Nouveauté / Modification / Correction (Piles, Consommation, Traceur, Simulation, Composants ; Transistors, Gestionnaire, Chargement ; Piles et consommation, Affichage et analyseur, Traductions, Pico 2). Entrées des lots .190 à .194 ajoutées (battery life, pile seule, pile explosée recâblable, Béta, Pico 2 en RAM). Règle inscrite dans [CLAUDE.md](CLAUDE.md) et dans la mémoire du projet.
 2. ✅ **Publication 2026.9.8 préparée** : [package.json](package.json) `version` 2026.9.8, `buildNumber` 195 (lock suit) ; CHANGELOG daté du 3 octobre 2026 ; état du CLAUDE.md.

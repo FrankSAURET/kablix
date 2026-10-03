@@ -2,11 +2,7 @@
 
 ---
 
-<div align="center">
-
 [English](README.en.md) · [Español](README.es.md) · [中文](README.zh-CN.md)
-
-</div>
 
 ---
 
@@ -43,8 +39,8 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
   - `.ino`/`.c`/`.cpp` → compilation via la toolchain locale ;
   - `.py` → MicroPython sur le Pico simulé (firmware `.uf2` requis, voir ci-dessous) ;
   - `.hex` / `.uf2`/`.elf` / `.bin` → chargé directement sans compilation.
-2. **Enregistrer son montage** : « Kablix : Enregistrer le projet (.projix) » ; un `.projix` se rouvre ensuite d’un double-clic dans l’explorateur.  
-   Import/export au format Wokwi (`diagram.json`) également disponibles.
+2. **Enregistrer son montage** : « Kablix : Enregistrer le projet (.projix) » ; un `.projix` se rouvre ensuite d’un double-clic dans l’explorateur.
+  Import/export au format Wokwi (`diagram.json`) également disponibles.
 
 ![alt text](https://raw.githubusercontent.com/FrankSAURET/kablix/main/media/simuler.gif)
 
@@ -62,7 +58,7 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
 - ✅ **Compilation du code réel C/C++**
 - ✅ **Moniteur série bidirectionnel** : sortie temps réel + champ d’envoi vers le microcontrôleur.
 - ✅ **Traceur de courbes** : tracé en direct, plus des **sondes** posées sur une broche pour visualiser sa tension
-- ✅ **Piles, batteries et autonomie** : consommation réelle de la carte au traceur (veille profonde comprise), Power bank qui se vide, piles 4 × AA, 9 V, CR2032 et LiPo à installer depuis la bibliothèque, vitesse de simulation libre jusqu’à 10 000 %. Une pile en court-circuit explose et ouvre une mise en garde.
+- ✅ **Piles, batteries et autonomie** : consommation réelle de la carte au traceur (veille profonde comprise), Piles 4 × AA, 9 V, CR2032 et LiPo à installer depuis la bibliothèque 
 - ✅ **Simulation physique** : luminosité selon la résistance série, les LED sans résistance grillent, les servomoteurs ne démarrent pas, l’alimentation tient compte du courant…
 - ✅ **Capteurs interactifs** : curseurs et boutons pour flamme, gaz, son, lumière, température et mouvement, pilotant l’entrée du montage en direct.
 - ✅ **Appareils de mesure** : Multimètre, oscilloscope, GBF et analyseur logique.
@@ -78,19 +74,19 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
 
 **76 composants** posables à la souris, rangés dans l’ordre de la palette (plus leurs variantes : condensateur polarisé, transistors PN2222A/NPN/PNP, claviers 3×4 et 4×4, platines d’essai mini/half/full…). Chacun a sa **fiche d’aide illustrée** (bouton ❔ de l’inspecteur, hors-ligne, en français, anglais, espagnol et chinois) et **deux montages de test** prêts à simuler dans [testkablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix) — un en C sur Arduino, un en MicroPython sur Pico.
 
-| Catégorie                            | Composants                                                                                                                                                                                                                                                                                                     |
-| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Cartes et platines** (9)           | Arduino Uno · Arduino Nano · Arduino Mega 2560 · Raspberry Pi Pico · Raspberry Pi Pico W · Raspberry Pi Pico 2 · Raspberry Pi Pico 2 W · Grove Shield (Pico) · Platine d’essai                                                                                                                                 |
-| **Composants discrets** (11)         | Résistance · Condensateur (polarisé ou non) · Diode · Transistor (PN2222A, NPN, PNP — boîtier TO-92) · LED · LED RGB · Thermistance CTN · Thermistance CTP · Photorésistance (LDR) · Photodiode · Phototransistor                                                                                              |
-| **Voyants et afficheurs** (8)        | Barre de 10 LED · Afficheur 7 segments (1 à 4 digits) · NeoPixel · Matrice NeoPixel · Anneau NeoPixel · LCD texte 16×2 / 20×4 (I²C ou parallèle) · Écran OLED SSD1306 · Écran TFT ILI9341 (SPI)                                                                                                               |
-| **Commandes** (10)                   | Bouton poussoir · Bouton poussoir 6 mm · Interrupteur à glissière · Interrupteur DIP ×8 · Clavier matriciel 3×4 / 4×4 · Potentiomètre · Potentiomètre à glissière · Potentiomètre ajustable · Relais OMRON G5V · Joystick analogique                                                                           |
-| **Capteurs** (12)                    | Capteur de lumière · Capteur de gaz (MQ) · Capteur de flamme · Capteur de son · Détecteur de mouvement PIR · Capteur d’inclinaison · Capteur à effet Hall · Capteur de pouls · Capteur de température CTN · Capteur à ultrason (HC-SR04) · Température/humidité DHT22 · Température/humidité DHT11             |
-| **Actionneurs** (4)                  | Buzzer · Servomoteur · Ventilateur · Moteur à courant continu                                                                                                                                                                                                                                                 |
-| **Systèmes** (2)                     | Robot araignée · Patte d’araignée                                                                                                                                                                                                                                                                             |
-| **Appareils de mesure** (5)          | Alimentation de laboratoire · Multimètre de table · Oscilloscope de table · Générateur BF · Sonde logique (analyseur logique, expérimental)                                                                                                                                                                     |
-| **Piles / Batteries** (1)            | Batterie externe (plus 4 × AA, 9 V, CR2032 et LiPo 1S dans la bibliothèque téléchargeable) |
-| **Divers** (2)                       | Carte microSD (SPI) · Pilote PWM 16 canaux (PCA9685)                                                                                                                                                                                                                                       |
-| **Circuits intégrés** (12)           | **CMOS 4000** : CD4081 (4 × ET) · CD4071 (4 × OU) · CD4070 (4 × OU exclusif) · CD4011 (4 × NON-ET) · CD4001 (4 × NON-OU) · CD40106 (6 × NON, trigger de Schmitt) — **TTL/HC 74** : 74xx08 · 74xx32 · 74xx86 · 74xx00 · 74xx02 · 74xx14 (mêmes fonctions, la famille choisie décide de la plage d’alimentation) |
+| Catégorie                     | Composants                                                                                                                                                                                                                                                                                                     |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Cartes et platines** (9)    | Arduino Uno · Arduino Nano · Arduino Mega 2560 · Raspberry Pi Pico · Raspberry Pi Pico W · Raspberry Pi Pico 2 · Raspberry Pi Pico 2 W · Grove Shield (Pico) · Platine d’essai                                                                                                                                 |
+| **Composants discrets** (11)  | Résistance · Condensateur (polarisé ou non) · Diode · Transistor (PN2222A, NPN, PNP — boîtier TO-92) · LED · LED RGB · Thermistance CTN · Thermistance CTP · Photorésistance (LDR) · Photodiode · Phototransistor                                                                                              |
+| **Voyants et afficheurs** (8) | Barre de 10 LED · Afficheur 7 segments (1 à 4 digits) · NeoPixel · Matrice NeoPixel · Anneau NeoPixel · LCD texte 16×2 / 20×4 (I²C ou parallèle) · Écran OLED SSD1306 · Écran TFT ILI9341 (SPI)                                                                                                                |
+| **Commandes** (10)            | Bouton poussoir · Bouton poussoir 6 mm · Interrupteur à glissière · Interrupteur DIP ×8 · Clavier matriciel 3×4 / 4×4 · Potentiomètre · Potentiomètre à glissière · Potentiomètre ajustable · Relais OMRON G5V · Joystick analogique                                                                           |
+| **Capteurs** (12)             | Capteur de lumière · Capteur de gaz (MQ) · Capteur de flamme · Capteur de son · Détecteur de mouvement PIR · Capteur d’inclinaison · Capteur à effet Hall · Capteur de pouls · Capteur de température CTN · Capteur à ultrason (HC-SR04) · Température/humidité DHT22 · Température/humidité DHT11             |
+| **Actionneurs** (4)           | Buzzer · Servomoteur · Ventilateur · Moteur à courant continu                                                                                                                                                                                                                                                  |
+| **Systèmes** (2)              | Robot araignée · Patte d’araignée                                                                                                                                                                                                                                                                              |
+| **Appareils de mesure** (5)   | Alimentation de laboratoire · Multimètre de table · Oscilloscope de table · Générateur BF · Sonde logique (analyseur logique, expérimental)                                                                                                                                                                    |
+| **Piles / Batteries** (1)     | Batterie externe (plus 4 × AA, 9 V, CR2032 et LiPo 1S dans la bibliothèque téléchargeable)                                                                                                                                                                                                                     |
+| **Divers** (2)                | Carte microSD (SPI) · Pilote PWM 16 canaux (PCA9685)                                                                                                                                                                                                                                                           |
+| **Circuits intégrés** (12)    | **CMOS 4000** : CD4081 (4 × ET) · CD4071 (4 × OU) · CD4070 (4 × OU exclusif) · CD4011 (4 × NON-ET) · CD4001 (4 × NON-OU) · CD40106 (6 × NON, trigger de Schmitt) — **TTL/HC 74** : 74xx08 · 74xx32 · 74xx86 · 74xx00 · 74xx02 · 74xx14 (mêmes fonctions, la famille choisie décide de la plage d’alimentation) |
 
 À quoi s’ajoutent les **composants de bibliothèque** (`.kompix`), installés par le gestionnaire ou déposés dans le dossier du projet, et les **composants personnalisés** dessinés dans le créateur intégré.
 

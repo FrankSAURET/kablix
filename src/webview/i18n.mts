@@ -870,7 +870,7 @@ const FR: Record<string, string> = {
     'Le transistor de commande ne peut pas passer assez de courant',
   'This transistor saturates: it only passes gain × base current, less than the motor draws, so the motor stays stalled. Lower the base resistor to drive more base current, or use a transistor with more gain.':
     'Ce transistor sature : il ne passe que gain × courant de base, moins que ce que le moteur demande, donc le moteur reste bloqué. Baissez la résistance de base pour envoyer plus de courant de base, ou prenez un transistor de plus grand gain.',
-  // Lot de traduction avant publication 2026.9.8
+  // Lot de traduction avant publication 2026.10.0
   'Capacity (mAh)':
     'Capacité (mAh)',
   'Custom…':

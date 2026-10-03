@@ -4,7 +4,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 [Voir en ligne](https://github.com/FrankSAURET/kablix/blob/main/CHANGELOG.md) · [View online](https://github.com/FrankSAURET/kablix/blob/main/CHANGELOG.md)
 
-## 2026.9.8 (3 octobre 2026)
+## 2026.10.0 (3 octobre 2026)
 
 ### Nouveauté
 
@@ -17,13 +17,12 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Une alimentation inadaptée est refusée** : hors de la plage de l'entrée (VIN 6,2 à 20 V, 5V 4,5 à 5,5 V, VSYS et VBUS 1,8 à 5,5 V), la carte ne démarre pas et la barre d'état dit pourquoi. Une CR2032 ne fait pas tourner une Uno, une LiPo ne passe pas le régulateur de VIN. Une pile qui s'use sous le seuil éteint la carte en route.
 - **Une pile 9 V grille la Pico** : VSYS et VBUS n'ont pas de régulateur protecteur, contrairement à VIN et 5V. Une pile 9 V dessus détruit la carte pour de bon au lieu de simplement refuser de démarrer.
 - **Pile ou batterie en court-circuit : elle explose, et une mise en garde s'ouvre** : la simulation s'arrête, la pile (ou le Power bank) explose sur le montage, et une page de mise en garde sur les piles et batteries recouvre l'écran à chaque fois ; elle ne se ferme qu'après 15 secondes de lecture.
-- **Tests `autonomie-uno` et `autonomie-pico`** : un nœud de mesure sur pile, avec ou sans veille profonde, pour comparer l'autonomie au traceur.
 
 **Consommation et veille**
 
 - **Consommation de la carte au traceur** : deux courbes à chaque lancement, sans une ligne de code : le courant de la carte (mA) et la charge consommée (mAh). C'est la carte réelle qui est mesurée : une Uno endormie garde 31 mA, une Pico en `lightsleep()` descend à 1,3 mA.
 - **La mise en veille d'un µc est prise en compte** : `sleep_cpu()` ou *LowPower* sur Arduino (power-down, power-save, standby), `machine.lightsleep()` sur Pico. `delay()` et `time.sleep()` laissent la puce éveillée, comme en vrai.
-- **Tests `consommation-uno` et `consommation-pico`** : une carte qui alterne veille et réveil, sur une batterie d'1 mAh.
+- **Tests `consommation-uno` et `consommation-pico**` : une carte qui alterne veille et réveil, sur une batterie d'1 mAh.
 
 **Traceur**
 
@@ -53,21 +52,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Correction
 
-**Piles et consommation**
-
-- **« Battery life » ne saute plus** : la courbe d'autonomie bondissait périodiquement (de 10 à 84 jours sur un programme alternant veille et réveil). Le lissage du courant s'allonge maintenant avec le temps simulé et reste stable.
-- **Une pile posée seule n'affiche plus de consommation de carte** : sans carte sur le schéma, plus de courbes « courant de la carte » ni « charge consommée ».
-- **Une pile explosée peut être recâblée** : son marquage « grillé » (cadre rouge, explosion) s'efface dès qu'un fil ou une pièce change, et au lancement suivant.
-- **La mise en garde des piles** se termine par deux points, avant la règle à suivre.
-
 **Affichage et analyseur logique**
 
 - **Symétrie horizontale** : les écritures gravées sur un composant (noms de broches, touches…) restaient inversées après un retournement, même quand le composant lui-même redevenait lisible.
 - **Analyseur logique : la bulle de survol revient** : un décodage replié (`0xF0` pour `0xF0 SEARCH ROM`, `0x48` pour `adr 0x48 W`) ou sans place pour s'écrire donne son texte entier au survol, pour tous les protocoles.
-
-**Traductions**
-
-- **Piles, traceur et mise en garde dans toutes les langues** : les messages des piles et batteries (mise en garde, explosion, refus d'alimentation, charge basse), les courbes de consommation du traceur et la saisie libre de la fenêtre et de la vitesse sortaient en anglais. Ils sont traduits en français, espagnol et chinois, ainsi que la fiche du Power bank, celle des transistors et les fiches des quatre piles de la bibliothèque (mettez-les à jour depuis **⚙ Gérer les composants**).
 
 **Pico 2**
 
