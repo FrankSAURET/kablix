@@ -2938,8 +2938,14 @@ function refreshVisualsInner(): void {
 function majConsommation(): void {
   if (!engine?.simulatedMs) return;
   const m = compteurConso.pas(board, engine.simulatedMs(), engine.sleepMs?.() ?? 0, courantChargesA);
-  plotter.probe(t('Board current'), Math.round(m.courantA * 10_000) / 10, 'mA', true);
-  plotter.probe(t('Charge used'), Math.round(m.chargeAh * 1_000_000) / 1000, 'mAh', true, 'line');
+  // Sans carte posée sur le schéma, il n'y a rien à mesurer : le moteur tourne
+  // à vide (simulation sans code) sur un Uno par défaut, dont le courant ne doit
+  // ni se tracer ni vider la pile posée seule (Frank, 03/10).
+  const carte = editor.diagram.parts.some((p) => partDef(p.type).kind === 'mcu');
+  if (carte) {
+    plotter.probe(t('Board current'), Math.round(m.courantA * 10_000) / 10, 'mA', true);
+    plotter.probe(t('Charge used'), Math.round(m.chargeAh * 1_000_000) / 1000, 'mAh', true, 'line');
+  }
   majBatteries(m.courantA, m.dtMs);
   majBatterieAraignee(m.dtMs);
 }

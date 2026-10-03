@@ -29,9 +29,11 @@ En dessous, la liste des **modèles correspondants** : un clic pose la référen
 | PNP | 2N2907A, 2N3906, 2N4403, 2N5401, BC327, S8550, BC557, BC558, BC640, MPSA92, BD912 |
 | Darlington NPN | BC517 |
 | Darlington PNP | BC516 |
-| MOSFET canal N | BS170, IRF530 |
+| MOSFET canal N | BS170, IRF530, IRL540N, IRLZ34N, IRL1004 |
 
-BD911, BD912 et IRF530 sont en **TO-220** : boîtier de puissance, jusqu'à 15 A.
+BD911, BD912, IRF530, IRL540N, IRLZ34N et IRL1004 sont en **TO-220** : boîtier de puissance (jusqu'à 130 A pour l'IRL1004).
+
+IRL540N, IRLZ34N et IRL1004 sont des MOSFET « niveau logique » : Vgs(th) maximal 2 V, ils s'ouvrent sous les 3,3 V d'une Pico (l'IRF530, à 3,5 V, resterait bloqué).
 
 Le dernier choix de la liste est toujours le **modèle personnalisé** de la famille demandée (« NPN personnalisé », « MOSFET canal N personnalisé »…) : les critères déjà demandés y sont pré-remplis, et **tout reste réglable** ensuite — gain ou Rds(on), tension et courant maximaux, inscription du boîtier, affectation des électrodes.
 

@@ -267,6 +267,8 @@ async function run() {
 	choisir(1, 'to220');
 	await wait(40);
 	ok('MOSFET TO-220 : IRF530 proposé', !!refBtn('IRF530'));
+	ok('MOSFET TO-220 : IRL540N, IRLZ34N, IRL1004 proposés (niveau logique)',
+		!!refBtn('IRL540N') && !!refBtn('IRLZ34N') && !!refBtn('IRL1004'));
 	refBtn('IRF530').click();
 	await wait(80);
 	const el4 = editor.elementOf(q4.id);

@@ -23,12 +23,14 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Alerte de charge basse** : sous 15 % de charge restante, le Power bank ou la batterie du robot araignée le signale dans la barre d'état.
 - **Piles et batteries de bibliothèque validées** : 4 × AA, 9 V, CR2032, LiPo 1S et le Power bank quittent le statut expérimental.
 - **Simulation sans code** : ▶ lance le montage même sans fichier de code ni éditeur ouvert. Le microcontrôleur tourne à vide, le reste (alimentations, piles, multimètre, composants passifs) se simule. Sans carte posée sur le schéma, la simulation démarre aussi.
+- **Trois MOSFET « niveau logique »** : IRL540N (100 V, 0,044 Ω, 30 A), IRLZ34N (55 V, 0,035 Ω, 30 A) et IRL1004 (40 V, 0,0065 Ω, 130 A), en TO-220, Vgs(th) maximal 2 V. Ils s'ouvrent sous les 3,3 V d'une sortie de Pico, là où l'IRF530 (3,5 V) reste bloqué.
 
 ### Modification
 
 - **Mise en garde sur les piles** : la règle à suivre est écrite en gras et en couleur, sur sa propre ligne, sous l'avertissement de danger. En français : « Règle à suivre impérativement quand on utilise des piles et des batteries ».
 - **Courbes de batterie en droites** : charge, tension, autonomie et charge consommée se tracent en lignes continues au traceur, et non plus en escalier.
 - **L'atelier et l'analyseur logique s'ouvrent plus légers** : seules les traductions de la langue de VS Code sont chargées, et non plus celles des quatre langues.
+- **Mise en garde sur les piles** : la règle se termine par deux points (« : »), en français comme en anglais.
 
 ### Correction
 
@@ -38,6 +40,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Durée de vie d'une pile au traceur** : affichée en jours, heures et minutes au-delà d'une heure, plutôt qu'en heures décimales.
 - **Durée de vie d'une pile : plus de sauts** : pendant les attentes du programme, la courbe bondissait vers le haut puis retombait. Elle est maintenant lissée comme prévu.
 - **Analyseur logique : la bulle de survol revient** : un décodage replié (`0xF0` pour `0xF0 SEARCH ROM`, `0x48` pour `adr 0x48 W`) ou sans place pour s'écrire donne son texte entier au survol, pour tous les protocoles.
+- **« Battery life » stable** : sur `consommation-pico` (2 s éveillée, 2 s en veille), l'autonomie oscillait de 79 à 84 jours. La fenêtre de lissage grandit maintenant avec la durée du run (jusqu'à 10 minutes) : l'autonomie tend vers celle du courant moyen du programme.
+- **Pile posée seule : plus de consommation de Uno** : sans carte sur le schéma, la simulation à vide ne trace plus « Board current » ni « Charge used » (le Uno par défaut n'est pas sur le schéma).
 
 ## 2026.9.7 (29 septembre 2026)
 

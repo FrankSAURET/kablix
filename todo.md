@@ -1,17 +1,18 @@
 # À faire
-1. test sur consommation-pico : maintenant batterie life 100 J à 79 puis 84, 79, 84, 79 ad libitum
-1. Schéma avec pille 9v seule non branchée, elle consomme comme avec une uno.
-1. Mets en valeur (gras et couleur) "Rules to folow with cells en batteries:" et cahnge le messahe pour "Règle à suivre impérativement quand on utilise des piles et des batteries : " :Trés bien mais tu mettras 2 points à la fin de la phrase et tu la mettra en anglais dans la version anglaise et en  français pour la version française
-1. Rajoute les transistors mos canal N IRL540N VDSS=100V, RDSon=0,044, ID=30A, VGSthmax=2V et IRLZ34N VDSS=55V, RDSon=0,035, ID=30A, VGSthmax=2V et IRL1004 VDSS=40V, RDSon=0,0065, ID=130A, VGSthmax=2V
-1. Le vgsth max doit être pris en compte pour que le transistor conduise notamment avec une sortie de pico pi
 ## fait
-
-
-
 
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.9.8.193
+1. ✅ **« Battery life » qui oscillait de 79 à 84 j** (`consommation-pico`, 2 s éveillée / 2 s en veille). Cause : la fenêtre de lissage fixe de 5 s était plus courte que la période du programme. [consommation.mts](src/webview/consommation.mts) `LisseurCourant` : la fenêtre grandit avec le temps simulé (5 s → 10 min). Banc [verify-batterie.mjs](scripts/verify-batterie.mjs) : écart < 1 % après 8 min ; l'ancien code donne 9,2 à 13,1 mA (échoue).
+2. ✅ **Pile 9 V posée seule : « consomme comme une Uno »**. Cause probable (pas reproduit dans ton fichier) : sans carte sur le schéma, la simulation à vide (lot .192) tournait sur un Uno par défaut et traçait « Board current » / « Charge used ». [sim.mts](src/webview/sim.mts) `majConsommation` : plus de courbes de carte sans carte posée. Le modèle, lui, ne voyait déjà aucune alimentation (vérifié : `alimentationDeLaCarte` = null, `psuLoadAmps` = 0 pile non câblée). ⬜ Si ça persiste avec une carte posée, envoie le schéma.
+3. ✅ **Mise en garde des piles** : deux points à la fin (« Règle à suivre impérativement quand on utilise des piles et des batteries : » / EN avec « : » aussi). Clé EN changée : les autres langues (es/zh) ⏳ avec le lot de traductions.
+4. ✅ **MOSFET IRL540N, IRLZ34N, IRL1004** (TO-220, GDS, Vgs(th) 2 V) dans [transistors.mts](src/webview/diagram/transistors.mts) ; fiche FR ; banc verify-transistor (+1, 186 OK).
+5. ✅ **Vgs(th) et sortie de Pico** : déjà pris en compte par le modèle (grille tenue par une broche : le rail logique de la carte, 3,3 V sur Pico, est comparé à Vgs(th)). Avec 2 V, les trois nouveaux s'ouvrent sous 3,3 V ; l'IRF530 (3,5 V) reste bloqué.
 
 ---
 

@@ -127,6 +127,15 @@ export function autonomieH(restantAh: number, courantA: number): number {
  * l'amortit sans retarder les grosses variations de plus de quelques secondes.
  */
 const LISSAGE_AUTONOMIE_MS = 5000;
+/**
+ * La fenêtre GRANDIT avec le temps simulé écoulé (jusqu'à ce plafond) : un
+ * montage qui alterne éveil et veille (consommation-pico : 2 s / 2 s) faisait
+ * osciller l'autonomie de 79 à 84 jours avec une fenêtre fixe de 5 s, plus
+ * courte que la période de ses variations (Frank, 03/10). Avec une fenêtre qui
+ * suit l'âge du run, la moyenne tend vers le courant moyen du programme, et un
+ * changement de charge reste visible en quelques minutes.
+ */
+const LISSAGE_AUTONOMIE_MAX_MS = 10 * 60 * 1000;
 
 /**
  * Moyenne glissante exponentielle d'un courant, dans le temps SIMULÉ : chaque
@@ -135,6 +144,7 @@ const LISSAGE_AUTONOMIE_MS = 5000;
  */
 export class LisseurCourant {
   private moyenneA: number | null = null;
+  private ecouleMs = 0;
 
   pas(courantA: number, dtMs: number): number {
     if (this.moyenneA === null) {
@@ -145,7 +155,9 @@ export class LisseurCourant {
     // simulé n'a pas avancé, la moyenne ne bouge pas. La réinitialiser sur le
     // dernier courant mesuré écrasait le lissage à chaque image de sieste.
     if (!(dtMs > 0)) return this.moyenneA;
-    const alpha = 1 - Math.exp(-dtMs / LISSAGE_AUTONOMIE_MS);
+    this.ecouleMs += dtMs;
+    const fenetreMs = Math.min(LISSAGE_AUTONOMIE_MAX_MS, Math.max(LISSAGE_AUTONOMIE_MS, this.ecouleMs));
+    const alpha = 1 - Math.exp(-dtMs / fenetreMs);
     this.moyenneA += (courantA - this.moyenneA) * alpha;
     return this.moyenneA;
   }

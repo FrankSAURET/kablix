@@ -108,6 +108,16 @@ if (typeof decharger !== 'function') {
 	const apres = l.pas(0.0013, 0);
 	check(apres === avant, 'lisseur : tranche vide (dt = 0) → la moyenne ne bouge pas', `${avant} → ${apres}`);
 	check(l.pas(0.0013, 2000) > 0.0013 * 1.5, 'lisseur : une tranche de 2 s en veille ne ramène pas la moyenne tout de suite à 1,3 mA');
+	// Éveil 21 mA / veille 1,3 mA par tranches de 2 s (consommation-pico) : après
+	// deux minutes, l'autonomie ne doit plus osciller de plus de 1 % d'une tranche à l'autre.
+	const l2 = new LisseurCourant();
+	l2.pas(0.021, 0);
+	let mini = Infinity, maxi = 0;
+	for (let t = 0; t < 600; t++) {
+		const m = l2.pas(t % 2 === 0 ? 0.021 : 0.0013, 2000);
+		if (t >= 240) { mini = Math.min(mini, m); maxi = Math.max(maxi, m); }
+	}
+	check((maxi - mini) / maxi < 0.01, 'lisseur : éveil/veille de 2 s → moyenne stable à 1 % près après 8 min', `${(mini * 1000).toFixed(2)} à ${(maxi * 1000).toFixed(2)} mA`);
 }
 
 // --- 2 bis. Piles de bibliothèque (v2026.9.7.180) ----------------------------------
@@ -196,6 +206,9 @@ check(/const sortie = restantAh <= 0 \? 0/.test(bloc) && /el\.volts = battery \|
 	'vide : sa sortie se coupe (tension 0) ; une pile publie sa tension qui baisse');
 check(/PLAGES_ENTREE\[alim!?\.broche\]/.test(bloc) && /dropped to \{1\} V: the board switched off/.test(bloc),
 	'pile qui passe sous le seuil de l’entrée en route : la carte s’éteint');
+const conso = sim.match(/function majConsommation\([\s\S]*?\r?\n}\r?\n/)?.[0] ?? '';
+check(/kind === 'mcu'/.test(conso) && /if \(carte\) \{\s+plotter\.probe\(t\('Board current'\)/.test(conso),
+	'sans carte sur le schéma : pas de courbe « Board current » (une pile posée seule ne consomme pas comme une Uno)');
 const refus = sim.match(/function refusAlimentation\([\s\S]*?\r?\n}\r?\n/)?.[0] ?? '';
 check(/tensionBatterie\(battery, 1\)/.test(refus) && /The board does not start/.test(refus),
 	'pile hors plage au lancement : la carte refuse de démarrer, avec un message');

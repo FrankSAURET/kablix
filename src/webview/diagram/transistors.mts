@@ -122,8 +122,13 @@ export const TRANSISTOR_REFS: readonly TransistorRef[] = [
   // --- MOSFET canal N : commandés en tension, grille isolée (gain sans objet) ---
   // Le BS170 est le piège du lot : même boîtier que le 2N7000, brochage INVERSÉ
   // (drain sur la patte 1, source sur la 3) — brochage donné par la liste de Frank.
+  // IRL540N, IRLZ34N, IRL1004 : MOSFET « niveau logique » (Vgs(th) max 2 V) — ils
+  // s'ouvrent sous les 3,3 V d'une Pico, là où l'IRF530 (3,5 V) resterait bloqué.
   { ref: 'BS170', text: 'BS\n170', symbol: 'nmos', schema: 'nmos-d', pkg: 'to92', pins: DGS, gain: 0, vcemax: 60, icmax: 0.5, rdson: 2.5, vgsth: 2.1, nouveau: true },
   { ref: 'IRF530', text: 'IRF530', symbol: 'nmos', schema: 'nmos-d', pkg: 'to220', pins: GDS, gain: 0, vcemax: 100, icmax: 14, rdson: 0.16, vgsth: 3.5, nouveau: true },
+  { ref: 'IRL540N', text: 'IRL540N', symbol: 'nmos', schema: 'nmos-d', pkg: 'to220', pins: GDS, gain: 0, vcemax: 100, icmax: 30, rdson: 0.044, vgsth: 2, nouveau: true },
+  { ref: 'IRLZ34N', text: 'IRLZ34N', symbol: 'nmos', schema: 'nmos-d', pkg: 'to220', pins: GDS, gain: 0, vcemax: 55, icmax: 30, rdson: 0.035, vgsth: 2, nouveau: true },
+  { ref: 'IRL1004', text: 'IRL1004', symbol: 'nmos', schema: 'nmos-d', pkg: 'to220', pins: GDS, gain: 0, vcemax: 40, icmax: 130, rdson: 0.0065, vgsth: 2, nouveau: true },
 ];
 
 /** Références « personnalisées » : tout reste réglable dans les propriétés. */

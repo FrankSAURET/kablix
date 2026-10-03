@@ -340,7 +340,7 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
       <h2 id="battery-warning-title" class="battery-warning__title">⚠ ${l10n.t('Danger: battery short circuit')}</h2>
       <p id="battery-warning-cause" class="battery-warning__cause"></p>
       <p>${l10n.t('In real life a short-circuited cell or battery heats up in seconds: fire, explosion, severe burns.')}</p>
-      <p class="battery-warning__rules">${l10n.t('Rules to follow without exception when using cells and batteries')}</p>
+      <p class="battery-warning__rules">${l10n.t('Rules to follow without exception when using cells and batteries:')}</p>
       <ul class="battery-warning__list">
         <li>${l10n.t('A short circuit means fire, explosion and burns.')}</li>
         <li>${l10n.t('Cells put in a holder the wrong way round make a short circuit.')}</li>
