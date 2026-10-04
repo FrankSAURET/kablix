@@ -2298,7 +2298,7 @@ export class Editor {
    * de la barre d'état nomme le coupable, le cadre le montre — sur un schéma
    * chargé, lire « (Mod2) » ne suffisait pas à le trouver des yeux.
    */
-  setFaulty(id: string, faulty: boolean, note = ''): void {
+  setFaulty(id: string, faulty: boolean, note = '', destructive = false): void {
     const r = this.rendered.get(id);
     if (!r) return;
     r.container.classList.toggle('part--faulty', faulty);
@@ -2306,7 +2306,7 @@ export class Editor {
       this.faultLayer.querySelectorAll(`.pin-arrow[data-part="${CSS.escape(id)}"]`).forEach((a) => a.remove());
       this.faultPinAnchor.delete(id);
     }
-    this.setFaultNote(id, r.container, faulty ? note : '');
+    this.setFaultNote(id, r.container, faulty ? note : '', destructive);
   }
 
   /**
@@ -2397,7 +2397,7 @@ export class Editor {
    * bas en haut. La position est calculée en pixels du MONDE (la couche subit
    * le même zoom/translation que les composants).
    */
-  private setFaultNote(id: string, container: HTMLElement, text: string): void {
+  private setFaultNote(id: string, container: HTMLElement, text: string, destructive = false): void {
     const sel = `.part__fault[data-part="${CSS.escape(id)}"]`;
     let note = this.faultLayer.querySelector(sel) as HTMLElement | null;
     if (!text) {
@@ -2411,6 +2411,7 @@ export class Editor {
       this.faultLayer.appendChild(note);
     }
     note.textContent = text;
+    note.classList.toggle('part__fault--destructif', destructive);
     this.placeFaultNote(note, container);
     // La boîte du cadre (`.part__selbox`) est calée sur le dessin APRÈS le
     // premier rendu : au démarrage d'une simulation l'étiquette était posée sur

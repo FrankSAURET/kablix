@@ -535,7 +535,7 @@ function markBurned(
   if ((burnNotes.get(partId) ?? '') === note) return;
   if (note) burnNotes.set(partId, note);
   else burnNotes.delete(partId);
-  editor.setFaulty(partId, !!note, note);
+  editor.setFaulty(partId, !!note, note, true);
 }
 // Facteur de luminosité par LED (résistance trop forte → LED sombre), mémorisé
 // à la dernière frame où la LED conduisait.
@@ -1260,7 +1260,7 @@ function reportHallFault(partId: string, fault: string): void {
     return;
   }
   const say = (msg: string, note: string): void => {
-    setStatus(`${t(msg)} (${partId})`);
+    signalerMessage(`${t(msg)} (${partId})`);
     editor.setFaulty(partId, true, t(note));
   };
   if (fault === 'unpowered') {
@@ -1317,7 +1317,7 @@ function reportOpenDrainFault(partId: string, fault: string): void {
     return;
   }
   const say = (msg: string, note: string): void => {
-    setStatus(`${t(msg)} (${partId})`);
+    signalerMessage(`${t(msg)} (${partId})`);
     editor.setFaulty(partId, true, t(note));
   };
   if (fault === 'unpowered') {
@@ -1951,7 +1951,7 @@ function refreshMeters(): void {
       editor.setFaulty(m.partId, false);
       continue;
     }
-    setStatus(`${t('The ammeter is short-circuiting the supply')} (${m.partId})`);
+    signalerMessage(`${t('The ammeter is short-circuiting the supply')} (${m.partId})`);
     editor.setFaulty(
       m.partId,
       true,
@@ -2006,7 +2006,7 @@ function reportRelayFaults(): void {
     // Le cadre rouge désigne, l'étiquette explique : la barre d'état ne garde
     // que la dernière phrase et se perd de vue sur un grand schéma.
     const blame = (msg: string, id: string, note: string): void => {
-      setStatus(`${msg} (${id})`);
+      signalerMessage(`${msg} (${id})`);
       editor.setFaulty(id, true, note);
       relayFaultMarks.set(st.partId, id);
     };
@@ -2074,14 +2074,14 @@ function reportMotorFaults(): void {
       motorFaultMarks.delete(st.partId);
     }
     const blame = (msg: string, id: string, note: string): void => {
-      setStatus(`${msg} (${id})`);
+      signalerMessage(`${msg} (${id})`);
       editor.setFaulty(id, true, note);
       motorFaultMarks.set(st.partId, id);
     };
     if (st.fault === 'reversed-diode') {
       blame(t('Flyback diode is reversed'), st.faultPartId ?? st.partId, t('Diode reversed'));
     } else if (st.fault === 'no-diode') {
-      setStatus(`${t('A flyback diode is required')} (${st.partId})`);
+      signalerMessage(`${t('A flyback diode is required')} (${st.partId})`);
     } else if (st.fault === 'starved') {
       blame(t('The supply cannot deliver the motor current'), st.partId, t('The supply cannot deliver the current this motor draws: a board pin is far too weak for a motor. Use a power supply and a transistor.'));
     } else if (st.fault === 'saturated') {
@@ -2092,7 +2092,7 @@ function reportMotorFaults(): void {
     } else if (st.fault === 'weak') {
       blame(t('Motor voltage too low: it does not turn'), st.partId, t('Too little voltage to overcome the motor friction: the rotor stays stalled and the winding heats up. Supply it at its rated voltage, or cut the losses in series with it.'));
     } else if (st.fault === 'overvolt') {
-      setStatus(`${t('Motor overvoltage: it burned out')} (${st.partId})`);
+      signalerMessage(`${t('Motor overvoltage: it burned out')} (${st.partId})`, true);
     }
   }
   // Transistors percés : l'explosion et son explication sont posées sur EUX,
@@ -2135,7 +2135,7 @@ function reportIcFaults(): void {
     }
     // La tension mesurée et la plage admise disent tout de suite ce qui cloche.
     const detail = `${st.marking} ${st.range.min}–${st.range.max} V, ${st.volts.toFixed(1)} V`;
-    setStatus(`${t('Incompatible supply voltage')} — ${detail} (${st.partId})`);
+    signalerMessage(`${t('Incompatible supply voltage')} — ${detail} (${st.partId})`, st.fault === 'overvolt');
     if (st.fault === 'undervolt') {
       editor.setFaulty(st.partId, true, t('Incompatible supply voltage: this chip is fed below the minimum of its family, so it does nothing. Check the supply against the family printed on the package.'));
     }
@@ -3152,7 +3152,7 @@ function majBatteries(courantCarteA: number, dtMs: number): void {
     if (restantAh > 0 && restantAh / capaciteAh < 0.15) {
       if (!alerteesChargeBasse.has(part.id)) {
         alerteesChargeBasse.add(part.id);
-        setStatus(t('{0}: battery is running low ({1} %)', part.id, Math.round((restantAh / capaciteAh) * 1000) / 10));
+        signalerMessage(t('{0}: battery is running low ({1} %)', part.id, Math.round((restantAh / capaciteAh) * 1000) / 10));
       }
     } else {
       alerteesChargeBasse.delete(part.id);
@@ -3228,7 +3228,7 @@ function majBatterieAraignee(dtMs: number): void {
     if (restantAh > 0 && restantAh / capaciteAh < 0.15) {
       if (!alerteesChargeBasse.has(part.id)) {
         alerteesChargeBasse.add(part.id);
-        setStatus(t('{0}: battery is running low ({1} %)', part.id, Math.round((restantAh / capaciteAh) * 1000) / 10));
+        signalerMessage(t('{0}: battery is running low ({1} %)', part.id, Math.round((restantAh / capaciteAh) * 1000) / 10));
       }
     } else {
       alerteesChargeBasse.delete(part.id);
@@ -3962,7 +3962,7 @@ function bindInputs(): void {
       if (serie && isPicoBoard(board)) {
         if (!prevenu) {
           prevenu = true;
-          flashStatus(t('{0}: this board cannot hear a UART reader — set the jumper to the other mode.', part.id));
+          signalerMessage(t('{0}: this board cannot hear a UART reader — set the jumper to the other mode.', part.id));
         }
       } else {
         prevenu = false;
@@ -4051,7 +4051,7 @@ function reportPhotoFault(partId: string, type: string, fault: string): void {
     return;
   }
   const say = (msg: string, note: string): void => {
-    setStatus(`${t(msg)} (${partId})`);
+    signalerMessage(`${t(msg)} (${partId})`);
     editor.setFaulty(partId, true, t(note));
   };
   // La photodiode laisse passer cent fois moins de courant : sa résistance de
@@ -4392,7 +4392,7 @@ function reportAraigneeWiring(): void {
     const note = vides.length > 0
       ? t('{0} servo(s) have no channel: fill in the "Wire the servos" drawer — 0 to 15, marked 1 to 16 on the board. Without it, these joints do not move.', String(vides.length))
       : t('Channel {0} is wired to two servos at once.', String(doubles[0]));
-    setStatus(`${note} (${part.id})`);
+    signalerMessage(`${note} (${part.id})`);
     editor.setFaulty(part.id, true, note);
   }
 }
@@ -4987,6 +4987,7 @@ function startRun(): void {
   effacerPilesExplosees();
   burnedBoards.clear(); // carte survoltée « remplacée » à chaque lancement
   burnedIcs.clear(); // circuits intégrés détruits « remplacés » eux aussi
+  effacerMessagesDefaut(); // messages de défaut du run précédent
   burnedResistors.clear(); // résistances parties en fumée « remplacées » de même
   burnedLeds.clear(); // LED grillées « remplacées » à chaque nouveau lancement
   burnedPcas.clear(); // carte 16 servos grillée « remplacée » à chaque lancement
@@ -5013,7 +5014,7 @@ function startRun(): void {
 ── ${t('Wiring error')} ──
 ${detail}
 `);
-    flashStatus(t('Error: {0}', detail));
+    signalerMessage(t('Error: {0}', detail));
   }
   engine.start();
   resetSpeedBadge(); // fenêtre de mesure de vitesse remise à zéro
@@ -5086,7 +5087,6 @@ function runLinter(): void {
     console.error('linter', err); // le linter ne doit jamais gêner la simulation
     return;
   }
-  effacerErreursCode();
   armerPieges(constats);
   for (const c of constats) defautsVus.add(`lint:${c.rule}`);
   if (constats.length === 0) return;
@@ -5104,37 +5104,35 @@ function runLinter(): void {
   const carteLint = editor.diagram.parts.find((p) => partDef(p.type).kind === 'mcu');
   if (carteLint) for (const c of constats) editor.setFaultyPin(carteLint.id, c.pin, true);
   appendSerial(`\n── ${t('Code check')} ──\n${constats.map((c) => `⚠ ${t(c.message, ...c.args)}`).join('\n')}\n`);
-  for (const c of constats) signalerErreurCode(t(c.message, ...c.args));
+  for (const c of constats) signalerMessage(t(c.message, ...c.args));
 }
 
 /**
- * Erreurs du code : partie BASSE du panneau Variables, jaune sur rouge — jamais
- * dans la barre d'état. Le panneau se déplie s'il était replié (sinon l'erreur
- * resterait invisible).
+ * Messages de défaut : partie BASSE du panneau Variables — plus dans la barre
+ * d'état. Les messages DESTRUCTEURS (composant grillé, carte détruite) sont en
+ * jaune sur rouge ; les autres suivent les couleurs du thème. Le panneau se
+ * déplie s'il était replié (sinon le message resterait invisible).
  */
 const debugErrorsEl = document.getElementById('debug-errors') as HTMLDivElement;
-let erreursCode: string[] = [];
-function signalerErreurCode(texte: string): void {
-  if (!erreursCode.includes(texte)) erreursCode.push(texte);
-  afficherErreursCode();
+let messagesDefaut: Array<{ texte: string; destructif: boolean }> = [];
+function signalerMessage(texte: string, destructif = false): void {
+  const deja = messagesDefaut.find((m) => m.texte === texte);
+  if (deja) deja.destructif ||= destructif;
+  else messagesDefaut.push({ texte, destructif });
+  afficherMessagesDefaut();
   if (inspectorFolded) setInspectorFolded(false, false);
 }
-function effacerErreursCode(): void {
-  erreursCode = [];
-  afficherErreursCode();
+function effacerMessagesDefaut(): void {
+  messagesDefaut = [];
+  afficherMessagesDefaut();
 }
-function afficherErreursCode(): void {
+function afficherMessagesDefaut(): void {
   debugErrorsEl.replaceChildren();
-  debugErrorsEl.hidden = erreursCode.length === 0;
-  if (erreursCode.length === 0) return;
-  const titre = document.createElement('div');
-  titre.className = 'debug__errors-title';
-  titre.textContent = `⚠ ${t('Code check')}`;
-  debugErrorsEl.append(titre);
-  for (const e of erreursCode) {
+  debugErrorsEl.hidden = messagesDefaut.length === 0;
+  for (const m of messagesDefaut) {
     const ligne = document.createElement('div');
-    ligne.className = 'debug__errors-line';
-    ligne.textContent = e;
+    ligne.className = `debug__msg${m.destructif ? ' debug__msg--destructif' : ''}`;
+    ligne.textContent = `${m.destructif ? '🔥' : '⚠'} ${m.texte}`;
     debugErrorsEl.append(ligne);
   }
 }
@@ -5210,7 +5208,7 @@ function armerPieges(constats: ReturnType<typeof lint>): void {
         editor.setFaulty(carte.id, true, notes.join('\n'));
         editor.setFaultyPin(carte.id, b.pin, true);
         appendSerial(`\n── ${t('Code check')} ──\n⚠ ${t(msg, String(b.line), nom)}\n`);
-        signalerErreurCode(t(msg, String(b.line), nom));
+        signalerMessage(t(msg, String(b.line), nom));
       });
     }, 250),
   );
@@ -5472,7 +5470,7 @@ function stopRun(): void {
   refroidirResistances();
   stopPieges();
   lintNotes.clear();
-  effacerErreursCode();
+  effacerMessagesDefaut();
   buzzerAudio.stopAll(); // coupe les sons de buzzer
   for (const remove of inputRemovers) remove();
   inputRemovers = [];

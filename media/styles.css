@@ -2092,16 +2092,23 @@ body.vscode-light .inspector__ref--nouveau {
   width: max-content;
   max-width: 56ch;
   padding: 5px 8px;
-  border-radius: 4px;
-  border: 1px solid #ffe000;
-  background: #c00000;
-  color: #ffe000;
+  border-radius: 8px;
+  /* Couleurs du thème ; seuls les défauts DESTRUCTEURS passent en jaune sur rouge. */
+  border: 1px solid var(--vscode-editorWidget-border, var(--vscode-panel-border, #454545));
+  background: var(--vscode-editorWidget-background, #252526);
+  color: var(--vscode-editorWidget-foreground, var(--vscode-foreground, #cccccc));
   font-size: 10px;
   line-height: 1.35;
   font-weight: 600;
   text-align: left;
   pointer-events: none;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.part__fault--destructif {
+  border-color: #ffe000;
+  background: #c00000;
+  color: #ffe000;
 }
 
 /* Bouton ⚠ de la barre de simulation relevé : les explications se taisent, le
@@ -3184,17 +3191,13 @@ body.vscode-light .inspector__ref--nouveau {
   border-radius: 8px;
 }
 
-/* Erreurs du code : partie basse du panneau, jaune sur rouge (comme l'étiquette de défaut). */
+/* Messages de défaut : partie basse du panneau Variables. Rectangles arrondis aux
+   couleurs du thème ; les messages DESTRUCTEURS sont en jaune sur rouge. */
 .debug__errors {
   margin-top: 0.5rem;
-  padding: 5px 8px;
-  border: 1px solid #ffe000;
-  border-radius: 4px;
-  background: #c00000;
-  color: #ffe000;
-  font-size: 0.8rem;
-  line-height: 1.35;
-  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   max-height: 50%;
   overflow-y: auto;
   flex: 0 0 auto;
@@ -3204,15 +3207,21 @@ body.vscode-light .inspector__ref--nouveau {
   display: none;
 }
 
-.debug__errors-title {
-  margin-bottom: 3px;
-  text-transform: uppercase;
-  font-size: 0.7rem;
-  letter-spacing: 0.04em;
+.debug__msg {
+  padding: 5px 8px;
+  border: 1px solid var(--vscode-editorWidget-border, var(--vscode-panel-border, #454545));
+  border-radius: 8px;
+  background: var(--vscode-editorWidget-background, #252526);
+  color: var(--vscode-editorWidget-foreground, var(--vscode-foreground, #cccccc));
+  font-size: 0.8rem;
+  line-height: 1.35;
+  font-weight: 600;
 }
 
-.debug__errors-line + .debug__errors-line {
-  margin-top: 3px;
+.debug__msg--destructif {
+  border-color: #ffe000;
+  background: #c00000;
+  color: #ffe000;
 }
 
 /* Panneau en colonne : variables en haut, erreurs collées en bas. */

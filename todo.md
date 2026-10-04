@@ -8,6 +8,14 @@
 
 ---
 
+# v2026.10.0.208
+1. ✅ **Tous les messages de défaut dans la zone du bas du panneau Variables** (plus dans la barre d'état) : `signalerMessage(texte, destructif)` ([sim.mts](src/webview/sim.mts)) pour les `say` / `blame` (Hall, collecteur ouvert, photo, relais, moteur), ampèremètre, diode de roue libre, puce, batterie faible, lecteur UART, erreur de câblage au lancement, araignée, linter, boucle bloquante. Restent en barre d'état : les raisons d'ARRÊT (alimentation refusée, batterie vide, carte qui ne démarre pas) — la simulation s'arrête, le panneau se referme.
+2. ✅ **Couleurs** : destructeurs (`Motor overvoltage: it burned out`, puce surtendue, et les étiquettes de `markBurned`) en jaune sur rouge ; le reste aux couleurs du thème (`--vscode-editorWidget-*`). Étiquettes du schéma : même règle (`setFaulty(…, destructive)`, classe `part__fault--destructif`) ; elles RESTENT sur le schéma.
+3. ✅ **Coins arrondis** : 8 px sur les messages du panneau et sur les étiquettes du schéma.
+4. ✅ Banc verify-fleche-broche : 24 contrôles (couleurs mesurées dans Chrome). ⚠ Un message de la zone reste jusqu'à l'arrêt/au relancement même si le défaut est corrigé en route.
+
+---
+
 # v2026.10.0.207
 1. ✅ **Flèche vers la broche en cause** ([editor.mts](src/webview/diagram/editor.mts) `setFaultyPin`, `placePinArrow`, `pinGeometry`) : posée côté extérieur de la pièce (axe dominant), pointe vers la broche, dans la couche des défauts ; retirée avec le défaut / `clearFaults`.
 2. ✅ **Étiquette d'erreur contre la broche** : `placeFaultNote` la range au bout de la flèche quand une broche est en cause (`faultPinAnchor`), sinon à droite de la pièce comme avant.

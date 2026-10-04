@@ -50,11 +50,16 @@ async function run() {
       noteOutside: n ? loin(nx, ny) >= loin(d.x, d.y) - 1 : false,
       noteDist: n ? Math.round(Math.hypot(nx - d.x, ny - d.y)) : null,
       ring: dot.classList.contains('pin--faulty'),
+      noteBg: note ? getComputedStyle(note).backgroundColor : null,
+      noteRadius: note ? parseFloat(getComputedStyle(note).borderTopLeftRadius) : 0,
     };
     editor.setFaultyPin(pico.id, pin, false);
     editor.setFaulty(pico.id, false);
     res.pins[pin].goneAfter = !editor.faultLayer.querySelector('.pin-arrow');
   }
+  editor.setFaulty(pico.id, true, 'brûlé', true);
+  await wait(50);
+  res.noteDestructifBg = getComputedStyle(editor.faultLayer.querySelector('.part__fault')).backgroundColor;
   editor.setFaulty(pico.id, true, 'x');
   editor.setFaultyPin(pico.id, 'GP15', true);
   editor.clearFaults();
@@ -86,17 +91,20 @@ if (!chrome) {
     check(`${pin} : la flèche est à l'extérieur de la carte, vers la broche`, p?.arrowOutside === true);
     check(`${pin} : la flèche touche la broche (${p?.arrowDist} px)`, p && p.arrowDist > 5 && p.arrowDist < 45);
     check(`${pin} : l'étiquette est à l'extérieur, contre la broche (${p?.noteDist} px du bord)`, p?.noteOutside === true && p.noteDist < 70);
+    check(`${pin} : étiquette non destructrice aux couleurs du thème (${p?.noteBg}), coins arrondis (${p?.noteRadius} px)`, p && p.noteBg !== 'rgb(192, 0, 0)' && p.noteRadius >= 6);
     check(`${pin} : le rond rouge reste`, p?.ring === true);
     check(`${pin} : défaut retiré → flèche retirée`, p?.goneAfter === true);
   }
+  check('étiquette destructrice : jaune sur rouge', r?.noteDestructifBg === 'rgb(192, 0, 0)');
   check('clearFaults vide flèches, étiquettes et ronds', r?.clearedAll === true);
 }
 const sim = readFileSync(join(ROOT, 'src/webview/sim.mts'), 'utf8');
-check('sim.mts : plus de message de code dans la barre d\'état (flashStatus ⚠)', !/flashStatus\(`⚠/.test(sim));
-check('sim.mts : les erreurs du code vont au bas du panneau Variables', /signalerErreurCode\(t\(c\.message/.test(sim) && /signalerErreurCode\(t\(msg/.test(sim));
+check('sim.mts : plus de message de défaut en barre d\'état (say, blame, linter, pièges)', !/flashStatus\(`⚠/.test(sim) && !/const (say|blame) = [^\n]*\n\s*setStatus/.test(sim) && (sim.match(/signalerMessage\(/g) ?? []).length >= 16);
+check('sim.mts : seuls les destructeurs sont marqués (carte/moteur/puce grillés)', /Motor overvoltage: it burned out'\)\} \(\$\{st\.partId\}\)`, true\)/.test(sim) && /st\.fault === 'overvolt'\);/.test(sim));
+check('sim.mts : les erreurs du code vont au bas du panneau Variables', /signalerMessage\(t\(c\.message/.test(sim) && /signalerMessage\(t\(msg/.test(sim));
 const html = readFileSync(join(ROOT, 'src/webview-html.ts'), 'utf8');
 check('panneau Variables : zone d\'erreurs en bas, après le tableau', /id="debug-vars"[\s\S]{0,400}id="debug-errors"/.test(html));
 const css2 = readFileSync(join(ROOT, 'media/styles.css'), 'utf8');
-check('styles : erreurs jaune sur rouge', /\.debug__errors\s*\{[^}]*background:\s*#c00000;[^}]*color:\s*#ffe000/.test(css2));
+check('styles : destructeurs jaune sur rouge, autres aux couleurs du thème, coins arrondis', /\.debug__msg--destructif\s*\{[^}]*background:\s*#c00000;[^}]*color:\s*#ffe000/.test(css2) && /\.debug__msg\s*\{[^}]*border-radius:\s*8px;[^}]*var\(--vscode-editorWidget-background/.test(css2));
 console.log(failures ? `Flèche de broche : ${failures} échec(s).` : 'Flèche de broche : tous les contrôles passent.');
 process.exit(failures ? 1 : 0);
