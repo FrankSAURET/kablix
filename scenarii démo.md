@@ -70,7 +70,7 @@ Tu travail dans V:\DemoKablix
 7. Passer la LED en vue schématique, puis revenir à sa vue externe.
 8. Passer la carte Uno en vue schématique.
 9. Ouvrir l'aide de la led documentation du composant. La refermer
-10.  Modifier le programme pour en declarant la broche 14 à la place de la 13
+10.  Modifier le programme pour en declarant une broche 14 en plus de la 13. Changer la valeur de la résistance en 10 ohms
 11. Indiquer les erreurs et les lire (dans les sous titres)
 
 ## Mesurer la température

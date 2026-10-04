@@ -211,11 +211,4 @@ Pédagogiquement, c'est la plus belle idée de la liste : montrer la rampe du co
 
 ---
 
-## Ce que je ferais, dans l'ordre
 
-L'ordre des numéros est celui de Frank. Si l'ordre technique devait primer, deux remarques :
-
-1. **Le n°8 (schéma verrouillé) est le moins cher et le plus utile** — tout est en place, c'est un **S**.
-2. **Les n°1 et n°2 vont ensemble** et le n°2 n'a aucun sens avant le n°1.
-3. **Le n°4 suit le n°3** sans discussion : c'est la même machinerie.
-4. Le n°9 attend le n°8 : une notation sans TP cadré n'a rien à corriger.

@@ -1,5 +1,5 @@
 # À faire
-1. (rien en attente)
+1. le point 1 du roadmap est il fait. Si ce n'est pas le cas, le faire.
 ## fait
 
 
