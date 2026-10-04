@@ -34,6 +34,12 @@ export const SUCCES: readonly DefSucces[] = [
     atteste: 'You lit an LED with the right series resistor on your first run, without destroying anything.',
   },
   {
+    id: 'niveau-logique',
+    famille: 'maitrise',
+    titre: 'Logic level',
+    atteste: 'A 5 V signal reaches a Pico pin through a voltage divider, and the board survives: you matched the levels.',
+  },
+  {
     id: 'bus',
     famille: 'maitrise',
     titre: 'Bus mastered',
@@ -183,6 +189,8 @@ export interface InfoLancement {
   protocoles: ProtocoleSucces[];
   /** Un transistor est posé dans le schéma. */
   transistor: boolean;
+  /** Un signal 5 V (capteur, alimentation) est lu par une carte 3,3 V à travers un pont diviseur. */
+  niveauLogique: boolean;
 }
 
 /** Relevé périodique pendant la simulation. */
@@ -317,6 +325,9 @@ export class SuiviSucces {
       if (r.calibreDepuis < 0) r.calibreDepuis = s.tMs;
       else if (s.tMs - r.calibreDepuis >= 3000) this.accorder('calibre');
     } else r.calibreDepuis = -1;
+
+    // Niveau logique : le pont est dans le schéma, et la carte a tenu 3 s sans rien griller.
+    if (propre && r.info.niveauLogique && s.tMs >= 3000) this.accorder('niveau-logique');
 
     // Sans attendre / Interruption : lus dans le code, confirmés par l'exécution.
     const src = r.info.source;

@@ -148,6 +148,7 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
         <li class="more-menu__sep" role="separator"></li>
         <li role="menuitem" data-cmd="kablix.saveDefaultLayout">${l10n.t('Save this layout as default')}</li>
         <li class="more-menu__sep" role="separator"></li>
+        <li role="menuitem" data-local="succes">🏅 ${l10n.t('Achievements')}</li>
         <li role="menuitem" data-cmd="kablix.openSettings">${l10n.t('Settings')}</li>
       </ul>
     </div>
@@ -213,7 +214,6 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
                est ouvert, qu'aucune pince n'est posée ou qu'il n'y a rien à
                revoir (cf. majBoutonAnalyseur). -->
           <button id="open-analyseur" class="canvas-controls__btn canvas-controls__btn--icon" hidden title="${l10n.t('Reopen the logic analyzer')}"><img class="canvas-controls__icon" src="${analyseurIconUri}" alt="${l10n.t('Reopen the logic analyzer')}" /></button>
-          <button id="open-succes" class="canvas-controls__btn canvas-controls__btn--icon" title="${l10n.t('Achievements')}" aria-label="${l10n.t('Achievements')}">🏅</button>
           <button id="toggle-faults" class="canvas-controls__btn canvas-controls__btn--faults canvas-controls__btn--icon is-on" title="${l10n.t('Show/hide the fault explanations')}"><img class="canvas-controls__icon" src="${erreurIconUri}" alt="${l10n.t('Show/hide the fault explanations')}" /></button>
         </div>
         <!-- Barre droite : recentrer/ajuster, réinitialiser, effacer (alignée et de

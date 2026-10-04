@@ -10,7 +10,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Succès (badges)**
 
-- **15 badges** dans un panneau 🏅 (barre de simulation), en deux familles. *Preuve de maîtrise* : Loi d'Ohm, Bus maîtrisé (trame I²C décodée), Sans attendre (pas de `delay()`), Interruption, Économe (moins de 1 mA), Le bon calibre (moteur par transistor), Trois protocoles. *Effort et processus* : Premier nuage de fumée, Deux fois vaut mieux, Chercheur de panne, Au pas à pas, À l'instrument, Persévérant, Au propre, Documenté. Chacun dit ce qu'il atteste ; une annonce s'affiche à l'obtention.
+- **16 badges** dans un panneau ouvert par l'entrée « 🏅 Succès » du menu ⋯ (hamburger), en deux familles. *Preuve de maîtrise* : Loi d'Ohm, Niveau logique (signal 5 V abaissé par un pont diviseur avant un Pico, carte intacte), Bus maîtrisé (trame I²C décodée), Sans attendre (pas de `delay()`), Interruption, Économe (moins de 1 mA), Le bon calibre (moteur par transistor), Trois protocoles. *Effort et processus* : Premier nuage de fumée, Deux fois vaut mieux, Chercheur de panne, Au pas à pas, À l'instrument, Persévérant, Au propre, Documenté. Chacun dit ce qu'il atteste ; une annonce s'affiche à l'obtention, puis disparaît au bout de 5 secondes ou au premier clic.
+- **Le panneau ne montre que les badges obtenus** : les autres restent cachés.
 - **Jamais pour du temps passé** : un badge se décerne sur un fait mesuré dans la simulation. Ils suivent l'élève d'un projet à l'autre.
 
 **Linter électronique**
@@ -34,6 +35,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - Un petit pavé jaune vide n'apparaît plus au démarrage (zone d'annonce des badges).
 - L'explication d'un défaut ne recouvre plus la broche en cause : elle se replace une fois le schéma affiché.
+- **La broche en cause est signalée** : un rond rouge pulsant la marque sur la carte (linter, boucle bloquante).
+- **Le message nomme la broche comme le code** : « broche 14 (A0) » au lieu de « A0 » quand le code écrit 14.
 
 **Compilation**
 

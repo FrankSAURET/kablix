@@ -1,15 +1,21 @@
 # À faire
-1. La zone récapitulative des badges ne doit montrer que le badges obtenus
-1. Le badge doit disparaitre au bout de 5 secondes ou lors de nimporte quel clic dans kablix
-1. Pas de bouton de récap de badge mais une entrée dans le menu hamburger
-1. Sur led-uno, il me dit la broche A0 est commandée alors que le code dit pin 14. il faudrat que le message dise plutot "la broche 14 (A0)"
-1. La broche en cause n'est pas signalée
-1. **« Niveau logique »** (capteur 5 V lu par un Pico à travers un pont diviseur) : non fait, il faut connaître la tension en amont du pont. À reprendre avec Frank. -> Utilise tout moyen pour trouver la tension en amont du pont : sortie du composant, netlist ...
+
 ## fait
 
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.0.205
+1. ✅ **Badges : zone récapitulative** ([sim.mts](src/webview/sim.mts) `renderSuccesPanel`) : seuls les badges obtenus sont montrés (message « No badge earned yet. » sinon).
+2. ✅ **Annonce de badge** : disparaît au bout de 5 s (9 s avant) ou au premier clic dans Kablix — écouteur `pointerdown` en phase de CAPTURE (les composants arrêtent l'événement avant le document).
+3. ✅ **Plus de bouton 🏅** : entrée « 🏅 Succès » dans le menu hamburger ([webview-html.ts](src/webview-html.ts), `data-local="succes"`). Fiche FR [USAGE.md](docs/fr/USAGE.md) mise à jour ; banc help-bars sans `open-succes`.
+4. ✅ **« la broche 14 (A0) »** : [linter.mts](src/webview/linter.mts) `nomBrocheCode` (aussi pour la boucle bloquante de [sim.mts](src/webview/sim.mts)). Banc verify-linter : +3 contrôles, 2 échouent sur l'ancien code.
+5. ✅ **Broche en cause signalée** : `Editor.setFaultyPin` ([editor.mts](src/webview/diagram/editor.mts)) + rond rouge pulsant `.pin--faulty` ([styles.css](media/styles.css)) sur la carte, posé par le linter (`carteId` dans le constat) et par la boucle bloquante ; retiré par `setFaulty(false)` / `clearFaults`. ⚠ Rendu non vu à l'œil : à confirmer par Frank en F5.
+6. ✅ **Badge « Niveau logique »** (16e) : la tension en amont se lit dans le schéma — [model.mts](src/webview/diagram/model.mts) `pontsNiveauLogique` : sortie d'un capteur (PIR, Hall, capteurs à sortie numérique) dont la broche d'alimentation est sur un rail > 3,6 V (VBUS, VSYS, 5V), ou alimentation de laboratoire ; résistance non nulle vers ce signal, chemin résistif vers la masse, niveau reçu entre 2 V et 3,6 V. Décerné après 3 s de marche sans rien de grillé ([succes.mts](src/webview/succes.mts)). Un rail 5 V de la carte seul ne compte pas (pas un signal). Banc [verify-niveau-logique.mjs](scripts/verify-niveau-logique.mjs) (9 contrôles, dans `verify:all:serie`) + verify-succes (85). ⚠ Le code n'est pas relu (la broche peut ne jamais être lue) : seule la structure du schéma est jugée.
+7. ⏳ **Traductions** : `No badge earned yet.`, badge « Logic level » (titre et phrase), `Achievements` dans le menu (déjà traduit), USAGE EN/ES/ZH (entrée de menu au lieu du bouton). `verify:i18n` rouge en attendant (attendu).
 
 ---
 

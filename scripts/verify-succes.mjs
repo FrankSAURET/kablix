@@ -28,7 +28,7 @@ const S = await import(pathToFileURL(out).href + `?t=${Date.now()}`);
 
 const info = (o = {}) => ({
   projet: 'P1', jour: '2026-10-03', source: 'void loop(){}', composants: 3, etiquettes: 0, fils: 2, filsPropres: 1,
-  protocoles: [], transistor: false, ...o,
+  protocoles: [], transistor: false, niveauLogique: false, ...o,
 });
 const snap = (o = {}) => ({
   tMs: 6000, ledSaine: false, grilles: [], defauts: [], moteurSain: false, frontsSortie: 0, frontsInterruption: 0,
@@ -41,10 +41,10 @@ const nouveau = () => {
 };
 
 // ------------------------------------------------------------- A0. le catalogue
-check(S.SUCCES.length === 15, `15 badges au catalogue (${S.SUCCES.length})`);
+check(S.SUCCES.length === 16, `16 badges au catalogue (${S.SUCCES.length})`);
 check(new Set(S.SUCCES.map((s) => s.id)).size === S.SUCCES.length, 'ids uniques');
 check(S.SUCCES.every((s) => s.titre && s.atteste.length > 30), 'chaque badge dit ce qu\'il atteste');
-check(S.SUCCES.filter((s) => s.famille === 'maitrise').length === 7 && S.SUCCES.filter((s) => s.famille === 'effort').length === 8, 'deux familles : 7 maîtrise, 8 effort');
+check(S.SUCCES.filter((s) => s.famille === 'maitrise').length === 8 && S.SUCCES.filter((s) => s.famille === 'effort').length === 8, 'deux familles : 8 maîtrise, 8 effort');
 check(!S.SUCCES.some((s) => /time spent|an hour/i.test(s.atteste)), 'aucun badge pour du temps passé');
 
 // ------------------------------------------------------------- A1. rien pour rien
@@ -109,6 +109,26 @@ check(!S.SUCCES.some((s) => /time spent|an hour/i.test(s.atteste)), 'aucun badge
   suivi.lancement(info({ source: 'b.irq(trigger=Pin.IRQ_FALLING, handler=f)' }));
   suivi.tick(snap({ frontsInterruption: 2 }));
   egal(obtenus, ['interruption'], 'interruption : pin.irq en MicroPython');
+}
+{
+  const { suivi, obtenus } = nouveau();
+  suivi.lancement(info({ niveauLogique: true }));
+  suivi.tick(snap({ tMs: 1000 }));
+  egal(obtenus, [], 'niveau logique : pas avant 3 s de marche');
+  suivi.tick(snap({ tMs: 3100 }));
+  egal(obtenus, ['niveau-logique'], 'niveau logique : pont diviseur 5 V → Pico, carte intacte');
+}
+{
+  const { suivi, obtenus } = nouveau();
+  suivi.lancement(info({ niveauLogique: true }));
+  suivi.tick(snap({ tMs: 3100, grilles: ['B'] }));
+  egal(obtenus.filter((x) => x === 'niveau-logique'), [], 'niveau logique : carte grillée = rien');
+}
+{
+  const { suivi, obtenus } = nouveau();
+  suivi.lancement(info({ niveauLogique: false }));
+  suivi.tick(snap({ tMs: 9000 }));
+  egal(obtenus, [], 'niveau logique : sans pont = rien');
 }
 {
   const { suivi, obtenus } = nouveau();
@@ -305,10 +325,16 @@ check(/if \(dirty && !engine\) succes\.modification\(\)/.test(sim), 'modificatio
 check(/case 'succesBus':/.test(sim), 'la page reçoit les trames décodées par l\'analyseur');
 check(/type: 'analyseurBus', protocole/.test(ana) && /type: 'analyseurBus'/.test(anaPanel) && /m\.type === 'analyseurBus'/.test(panel), 'analyseur → hôte → page');
 check(/succes: this\.context\.globalState\.get<unknown>\(SUCCES_KEY\)/.test(panel) && /case 'succesSave':/.test(panel), 'l\'hôte conserve les succès (globalState)');
-check(/id="open-succes"/.test(html) && /id="succes-panel"/.test(html) && /id="succes-toast"/.test(html), 'bouton, panneau et annonce dans l\'interface');
+check(/data-local="succes"/.test(html) && !/id="open-succes"/.test(html) && /id="succes-panel"/.test(html) && /id="succes-toast"/.test(html), 'bouton, panneau et annonce dans l\'interface');
 check(/\.succes-toast\b/.test(css) && /\.succes-panel\b/.test(css), 'styles posés');
 check(/proprete\(\): \{ total: number; propres: number \}/.test(editor), 'l\'éditeur mesure la netteté du câblage');
 check(/if \(!succesCharge\) \{\s+succesCharge = true;/.test(sim), 'l\'état n\'est chargé qu\'une fois');
+
+check(/data-local="succes"/.test(html) && /<li role="menuitem" data-local="succes">/.test(html), 'entrée « Succès » dans le menu hamburger');
+check(/}, 5000\);\s+renderSuccesPanel\(\);/.test(sim), 'l\'annonce disparaît au bout de 5 s');
+check(/document\.addEventListener\(\s+'pointerdown',\s+\(\) => \{\s+if \(succesToast\) succesToast\.hidden = true;\s+\},\s+true,/.test(sim), 'l\'annonce disparaît au premier clic, même sur un composant (phase de capture)');
+check(/succes\.etat\.obtenus\[s\.id\] !== undefined\)/.test(sim) && !/succes-item--locked/.test(sim), 'le panneau ne montre que les badges obtenus');
+check(/setFaultyPin\(c\.carteId \?\? c\.partId, c\.pin, true\)/.test(sim) && /setFaultyPin\(carte\.id, b\.pin, true\)/.test(sim) && /\.pin\.pin--faulty/.test(css), 'la broche en cause est signalée (linter et boucle bloquante)');
 
 console.log(`verify:succes — ${ok} contrôles OK, ${fails.length} échec(s)`);
 process.exit(fails.length ? 1 : 0);

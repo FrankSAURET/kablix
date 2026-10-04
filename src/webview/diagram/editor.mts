@@ -2297,7 +2297,13 @@ export class Editor {
     const r = this.rendered.get(id);
     if (!r) return;
     r.container.classList.toggle('part--faulty', faulty);
+    if (!faulty) for (const dot of r.hotspots.values()) dot.classList.remove('pin--faulty');
     this.setFaultNote(id, r.container, faulty ? note : '');
+  }
+
+  /** Signale (rond rouge pulsant) la broche mise en cause par un défaut, sur le composant qui la porte. */
+  setFaultyPin(partId: string, pin: string, faulty: boolean): void {
+    this.rendered.get(partId)?.hotspots.get(pin)?.classList.toggle('pin--faulty', faulty);
   }
 
   /**
@@ -2365,7 +2371,10 @@ export class Editor {
 
   /** Retire tous les cadres rouges (nouveau lancement, arrêt, réinitialisation). */
   clearFaults(): void {
-    for (const r of this.rendered.values()) r.container.classList.remove('part--faulty');
+    for (const r of this.rendered.values()) {
+      r.container.classList.remove('part--faulty');
+      for (const dot of r.hotspots.values()) dot.classList.remove('pin--faulty');
+    }
     this.faultLayer.replaceChildren();
   }
 

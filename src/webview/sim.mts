@@ -67,7 +67,7 @@ import './composants/araignee-element.mjs';
 import './composants/custom-part.mjs';
 
 import { initLocale, locale, t } from './i18n.mjs';
-import { lint, piegesExecution, type LintLang } from './linter.mjs';
+import { lint, nomBrocheCode, piegesExecution, type LintLang } from './linter.mjs';
 import { SUCCES, SuiviSucces, etatValide, etatVierge, type DefSucces, type InfoLancement, type Instantane, type ProtocoleSucces } from './succes.mjs';
 import { Plotter } from './plotter.mjs';
 import { CompteurConsommation, LisseurCourant, decharger, autonomieH, tensionBatterie, PLAGES_ENTREE, ENTREES_NON_PROTEGEES, COURANT_FORFAITAIRE_A } from './consommation.mjs';
@@ -124,6 +124,7 @@ import {
   scopeProbePins,
   scopeGbfSources,
   gbfBoardStress,
+  pontsNiveauLogique,
   type GbfBoardStress,
   logicProbeVoies,
   type LogicProbeVoie,
@@ -5094,6 +5095,7 @@ function runLinter(): void {
     liste.push(t(c.note));
     parPiece.set(c.partId, liste);
   }
+  for (const c of constats) editor.setFaultyPin(c.carteId ?? c.partId, c.pin, true);
   for (const [id, notes] of parPiece) {
     lintNotes.set(id, [...new Set(notes)]);
     editor.setFaulty(id, true, [...new Set(notes)].join('\n'));
@@ -5166,7 +5168,8 @@ function armerPieges(constats: ReturnType<typeof lint>): void {
         if (attendues[i] !== '1' || signalees.has(b.line)) return;
         signalees.add(b.line);
         const msg = 'Line {0}: the program is stuck waiting for pin {1}';
-        const nom = lintSource!.lang === 'py' ? b.pin : /^\d+$/.test(b.pin) ? `D${b.pin}` : b.pin;
+        const nom = nomBrocheCode(partDef(carte.type).board as BoardId, lintSource!.lang, b.pin);
+        editor.setFaultyPin(carte.id, b.pin, true);
         const note = 'This loop does nothing but wait for the pin to change: while it lasts, the program can do nothing else. Use an interrupt (attachInterrupt / pin.irq) so the program stays free.';
         const notes = [...(lintNotes.get(carte.id) ?? []), t(note)];
         lintNotes.set(carte.id, notes);
@@ -5222,7 +5225,7 @@ function annoncerSucces(def: DefSucces): void {
   window.clearTimeout(succesToastTimer);
   succesToastTimer = window.setTimeout(() => {
     succesToast.hidden = true;
-  }, 9000);
+  }, 5000);
   renderSuccesPanel();
 }
 
@@ -5259,6 +5262,7 @@ function infoLancement(): InfoLancement {
     filsPropres: pro.propres,
     protocoles: [...protocoles],
     transistor: kinds.includes('transistor'),
+    niveauLogique: pontsNiveauLogique(editor.diagram).length > 0,
   };
 }
 
@@ -5351,7 +5355,6 @@ function succesArret(): void {
 }
 
 // Panneau des succès : deux familles, les obtenus en couleur, les autres grisés.
-const succesBtn = document.getElementById('open-succes') as HTMLButtonElement | null;
 const succesPanel = document.getElementById('succes-panel') as HTMLDivElement | null;
 
 function renderSuccesPanel(): void {
@@ -5372,16 +5375,18 @@ function renderSuccesPanel(): void {
   const corps = document.createElement('div');
   corps.className = 'succes-panel__body';
   for (const famille of ['maitrise', 'effort'] as const) {
+    const gagnes = SUCCES.filter((s) => s.famille === famille && succes.etat.obtenus[s.id] !== undefined);
+    if (gagnes.length === 0) continue;
     const h = document.createElement('h4');
     h.textContent = famille === 'maitrise' ? t('Proof of mastery') : t('Effort and process');
     corps.append(h);
-    for (const def of SUCCES.filter((s) => s.famille === famille)) {
+    for (const def of gagnes) {
       const date = succes.etat.obtenus[def.id];
       const ligne = document.createElement('div');
-      ligne.className = `succes-item${date === undefined ? ' succes-item--locked' : ''}`;
+      ligne.className = 'succes-item';
       const icone = document.createElement('span');
       icone.className = 'succes-item__icon';
-      icone.textContent = date === undefined ? '🔒' : '🏅';
+      icone.textContent = '🏅';
       const txt = document.createElement('div');
       const nom = document.createElement('strong');
       nom.textContent = t(def.titre);
@@ -5399,14 +5404,32 @@ function renderSuccesPanel(): void {
       corps.append(ligne);
     }
   }
+  if (obtenus === 0) {
+    const vide = document.createElement('div');
+    vide.className = 'succes-item__text';
+    vide.textContent = t('No badge earned yet.');
+    corps.append(vide);
+  }
   succesPanel.replaceChildren(entete, corps);
 }
 
-succesBtn?.addEventListener('click', () => {
+/** Entrée « Succès » du menu ⋯ : ouvre (ou referme) la liste des badges obtenus. */
+function basculerPanneauSucces(): void {
   if (!succesPanel) return;
   succesPanel.hidden = !succesPanel.hidden;
   renderSuccesPanel();
-});
+}
+
+// L'annonce d'un badge s'efface au premier clic n'importe où dans Kablix. Phase de
+// CAPTURE : les composants et les broches arrêtent `pointerdown` avant qu'il ne
+// remonte jusqu'au document.
+document.addEventListener(
+  'pointerdown',
+  () => {
+    if (succesToast) succesToast.hidden = true;
+  },
+  true,
+);
 
 function stopPieges(): void {
   for (const id of piegesTimers) window.clearInterval(id);
@@ -5805,6 +5828,12 @@ moreBtn.addEventListener('click', (e) => {
   setMoreOpen(moreList.hidden === true);
 });
 moreList.addEventListener('click', (e) => {
+  const local = (e.target as HTMLElement).closest('li[data-local="succes"]');
+  if (local) {
+    basculerPanneauSucces();
+    setMoreOpen(false);
+    return;
+  }
   const item = (e.target as HTMLElement).closest('li[data-cmd]') as HTMLElement | null;
   if (!item) return;
   const command = item.dataset.cmd;

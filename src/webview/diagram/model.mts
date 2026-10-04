@@ -1,6 +1,6 @@
 // Modèle de schéma (pur, sans DOM) : composants, fils, calcul de la netlist et
 // résolution logique des composants. Entièrement testable hors navigateur.
-import { isPicoBoard, mcuInternalStrips, mcuPinRole, mcuPins, partDef, resistorPowerRating, rolePin, PARAM_ATTR_PREFIX, type BoardId, type PartKind } from './catalog.mjs';
+import { isPicoBoard, mcuInternalStrips, mcuPinRole, mcuPins, partDef, pinElectricalRole, resistorPowerRating, rolePin, PARAM_ATTR_PREFIX, type BoardId, type PartKind } from './catalog.mjs';
 import { breadboardStrips, normalizeSize } from './breadboard.mjs';
 import { groveShieldStrips, normalizePower } from './grove-shield.mjs';
 import { shieldStrips } from './shield.mjs';
@@ -4182,6 +4182,105 @@ export function gbfBoardStress(diagram: Diagram): GbfBoardStress[] {
         gbfId: gbf.id, boardPartId: part.id, board, pin: nom, vmax: maxPinVolts(board),
       });
       break;
+    }
+  }
+  return out;
+}
+
+/** Un pont diviseur qui ramène un signal haut (5 V) au niveau logique d'une entrée de carte. */
+export interface PontNiveauLogique {
+  boardPartId: string;
+  /** Broche MCU lue à travers le pont. */
+  mcuPin: string;
+  /** Tension en amont du pont (V) : rail 5 V, alimentation de laboratoire ou sortie d'un capteur alimenté en 5 V. */
+  amont: number;
+  /** Tension que la broche reçoit (V), sortie haute du pont. */
+  aval: number;
+}
+
+/** Alimentations d'un capteur : noms de broche testés pour trouver son rail. */
+const ALIM_CAPTEUR = ['VCC', 'V+', 'VDD', '5V', '+'];
+
+/**
+ * Entrées de carte lues à travers un PONT DIVISEUR depuis un signal plus haut
+ * que ce que la broche supporte (un Pico encaisse 3,6 V, pas 5 V).
+ *
+ * La tension en amont se lit dans le schéma : un rail de la carte (VBUS, VSYS,
+ * 5V), une alimentation de laboratoire, ou la sortie d'un capteur (PIR, Hall,
+ * capteurs à sortie numérique) dont la broche d'alimentation est sur un tel
+ * rail. Le pont est reconnu quand la broche a une résistance (non nulle) vers
+ * ce signal haut ET un chemin résistif vers la masse ; le niveau reçu doit rester
+ * sous la limite de la broche et au-dessus de ~2 V (seuil haut d'une entrée).
+ * Une sortie de capteur câblée EN DIRECT sur la broche n'est pas un pont : elle
+ * grille la carte, et c'est déjà un autre constat.
+ */
+export function pontsNiveauLogique(diagram: Diagram, vcc = 5): PontNiveauLogique[] {
+  const cartes = mcuParts(diagram).filter(({ board }) => isPicoBoard(board));
+  if (cartes.length === 0) return [];
+  const { nets, adj, vccNets, gndNets } = resistiveGraph(diagram);
+  const railVolts = new Map<string, number>();
+  for (const { part, board } of mcuParts(diagram)) {
+    for (const pin of mcuPins(board)) {
+      if (mcuPinRole(board, pin).role !== 'vcc') continue;
+      const net = nets.netOf({ partId: part.id, pin });
+      railVolts.set(net, Math.max(railVolts.get(net) ?? 0, railPinVolts(pin, vcc)));
+    }
+  }
+  for (const psu of psuParts(diagram)) {
+    const net = nets.netOf({ partId: psu.id, pin: psuPlus(psu) });
+    const v = Number(psu.attrs?.voltage ?? 0);
+    if (Number.isFinite(v)) railVolts.set(net, Math.max(railVolts.get(net) ?? 0, v));
+  }
+  const sources: CircuitSource[] = [];
+  for (const net of vccNets) sources.push({ net, volts: railVolts.get(net) ?? vcc, ohms: 0 });
+  for (const net of gndNets) sources.push({ net, volts: 0, ohms: 0 });
+  // Sorties de capteurs alimentés : au niveau haut, elles valent la tension de leur rail.
+  const sorties: string[] = [];
+  for (const part of diagram.parts) {
+    const def = partDef(part.type);
+    if (def.kind !== 'digital-source' && def.kind !== 'ao-do-sensor' && def.kind !== 'hall') continue;
+    const alim = ALIM_CAPTEUR.find((pin) => pinElectricalRole(part.type, pin) === 'vcc');
+    const rail = alim === undefined ? undefined : railVolts.get(nets.netOf({ partId: part.id, pin: alim }));
+    if (!rail) continue;
+    for (const sortie of [def.digitalPin, def.analogPin]) {
+      if (!sortie) continue;
+      const net = nets.netOf({ partId: part.id, pin: sortie });
+      sources.push({ net, volts: rail, ohms: 0 });
+      sorties.push(net);
+    }
+  }
+  const sourceNets = new Set(sources.map((src) => src.net));
+  // Signaux « hauts » qu'un élève doit savoir abaisser : sortie de capteur ou
+  // alimentation de laboratoire. Un rail 5 V de la carte, lui, n'est pas un signal.
+  const hauts = new Set<string>(sorties);
+  for (const psu of psuParts(diagram)) hauts.add(nets.netOf({ partId: psu.id, pin: psuPlus(psu) }));
+  const out: PontNiveauLogique[] = [];
+  for (const { part, board } of cartes) {
+    const vmax = maxPinVolts(board);
+    for (const pin of mcuPins(board)) {
+      const role = mcuPinRole(board, pin);
+      if (role.role !== 'digital' || !role.name) continue;
+      const net = nets.netOf({ partId: part.id, pin });
+      if (vccNets.has(net) || gndNets.has(net) || sourceNets.has(net)) continue;
+      const autres = (garde: ReadonlySet<string>): Set<string> => {
+        const o = new Set(sourceNets);
+        o.delete(net);
+        for (const n of garde) o.delete(n);
+        return o;
+      };
+      let amont = 0;
+      for (const src of sources) {
+        if (src.volts <= vmax || src.net === net || !hauts.has(src.net)) continue;
+        const chemin = minOhmsPath(net, new Set([src.net]), adj, autres(new Set([src.net])), undefined, 'source');
+        if (chemin !== null && chemin > 0) amont = Math.max(amont, src.volts);
+      }
+      if (amont === 0) continue;
+      const bas = minOhmsPath(net, gndNets, adj, autres(gndNets), undefined, 'sink');
+      if (bas === null || bas <= 0) continue;
+      const th = theveninNode(net, sources, sourceNets, adj);
+      if (th && th.volts >= 2 && th.volts <= vmax) {
+        out.push({ boardPartId: part.id, mcuPin: role.name, amont, aval: th.volts });
+      }
     }
   }
   return out;

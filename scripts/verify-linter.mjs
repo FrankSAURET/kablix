@@ -175,5 +175,13 @@ check(/engine\.setInput\(c\.pin, Math\.random\(\) < 0\.5\)/.test(sim) && /engine
 check(/maintenant - depuisMs < 3000/.test(sim), 'la boucle bloquante attend 3 s simulées');
 check(/function stopPieges\(/.test(sim) && /function stopRun\(\): void \{[^}]{0,120}\bstopPieges\(\);/.test(sim), 'les minuteries sont coupées à l\'arrêt');
 
+{
+  const f = lint('void setup(){pinMode(14,OUTPUT);} void loop(){digitalWrite(14,HIGH);}', 'cpp', schema('uno'));
+  egal(f.map((x) => x.args[1]), ['14 (A0)'], 'le message nomme la broche comme le code : « 14 (A0) »');
+  egal(f.map((x) => x.carteId), ['B'], 'le constat porte la carte (pour signaler la broche)');
+  const g = lint('void setup(){pinMode(8,OUTPUT);} void loop(){digitalWrite(8,HIGH);}', 'cpp', schema('uno'));
+  egal(g.map((x) => x.args[1]), ['D8'], 'broche numérique : D8, inchangé');
+}
+
 console.log(`verify:linter — ${ok} contrôles OK, ${fails.length} échec(s)`);
 process.exit(fails.length ? 1 : 0);

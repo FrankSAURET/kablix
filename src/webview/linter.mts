@@ -23,6 +23,8 @@ export interface LintFinding {
   pin: string;
   /** Ligne du source (1-based), 0 si le contrôle porte sur le schéma seul. */
   line: number;
+  /** Carte portant la broche en cause (sert à la signaler : `partId` peut être un autre composant). */
+  carteId?: string;
   /** Pièce à encadrer : la carte, ou le composant câblé pour `wired-unused`. */
   partId: string;
   /** Phrase d'état (clé de traduction EN + arguments). */
@@ -56,6 +58,14 @@ function range(a: number, b: number): number[] {
 /** Broches analogiques AVR : A0 = 14 (328P) ou 54 (2560) en numérotation numérique. */
 function analogBase(board: BoardId): number {
   return board === 'mega' ? 54 : 14;
+}
+
+/** Nom d'une broche tel que le lit l'élève dans le code : `D13`, `14 (A0)` (numéro Arduino + nom de la carte), `GP5`. */
+export function nomBrocheCode(board: BoardId, lang: LintLang, pin: string): string {
+  if (lang === 'py') return pin;
+  if (/^\d+$/.test(pin)) return `D${pin}`;
+  const a = /^A(\d+)$/.exec(pin);
+  return a ? `${analogBase(board) + Number(a[1])} (${pin})` : pin;
 }
 
 /** Broche numérique → nom du schéma ('14' → 'A0'). */
@@ -465,9 +475,9 @@ export function lint(source: string, lang: LintLang, diagram: Diagram): LintFind
     const cle = `${f.rule}:${f.pin}`;
     if (deja.has(cle)) return;
     deja.add(cle);
-    out.push(f);
+    out.push({ ...f, carteId });
   };
-  const nomCode = (pin: string): string => (pico ? pin : /^\d+$/.test(pin) ? `D${pin}` : pin);
+  const nomCode = (pin: string): string => nomBrocheCode(board, lang, pin);
 
   // 1. analogWrite sur une broche sans PWM — certain : le catalogue le sait.
   const pwm = pwmPins(board);

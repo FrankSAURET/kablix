@@ -101,7 +101,6 @@
   - **moniteur série / console**
   - **Traceur** de courbes
   - **rouvrir l'analyseur logique** : n'apparaît que si l'onglet de l'analyseur a été fermé alors qu'une pince est toujours posée sur le schéma. Un clic le rouvre avec sa dernière mesure.
-  - **🏅 succès** : la liste des badges ([Succès](#succès-badges)).
   - **explications de défaut** : le cadre rouge et l'étiquette jaune posés sur un composant en défaut. Actif par défaut ; le bouton les masque quand ils gênent la lecture du schéma.
 
   L'analyseur logique n'a **pas de bouton pour s'ouvrir** : c'est la [sonde logique](composants/sonde-logique.md) qui le déclenche. Posez au moins une pince sur une broche, lancez la simulation, et son onglet s'ouvre tout seul, à poser à côté du schéma. Sans pince, rien ne s'ouvre — l'analyseur n'aurait rien à montrer. Le bouton de la barre ne sert qu'à rouvrir un onglet fermé.
@@ -492,7 +491,7 @@ Seule une boucle au **corps vide** est examinée, et seulement quand le numéro 
 
 ### Succès (badges)
 
-Le bouton **🏅** de la barre de simulation ouvre la liste des succès. Un badge n'est décerné que sur un **fait mesurable dans la simulation** : jamais pour du temps passé devant l'écran. Chacun dit ce qu'il atteste. À l'obtention, une annonce apparaît sur le schéma. Les badges suivent l'élève **d'un projet à l'autre** (ils sont rangés dans les données de l'extension, pas dans le `.projix`).
+L'entrée **🏅 Succès** du menu ⋯ (hamburger) ouvre la liste des badges **obtenus** (les autres restent cachés). Un badge n'est décerné que sur un **fait mesurable dans la simulation** : jamais pour du temps passé devant l'écran. Chacun dit ce qu'il atteste. À l'obtention, une annonce apparaît sur le schéma ; elle disparaît au bout de 5 secondes ou au premier clic dans Kablix. Les badges suivent l'élève **d'un projet à l'autre** (ils sont rangés dans les données de l'extension, pas dans le `.projix`).
 
 **Preuve de maîtrise** (décerné une seule fois)
 
