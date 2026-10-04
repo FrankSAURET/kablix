@@ -4187,6 +4187,108 @@ export function gbfBoardStress(diagram: Diagram): GbfBoardStress[] {
   return out;
 }
 
+/** Un capteur à tension plus haute que la carte, lu à travers un pont diviseur. */
+export interface PontNiveauLogique {
+  boardPartId: string;
+  /** Broche MCU qui lit le capteur (nom logique : GP15…). */
+  pin: string;
+  /** Tension de la sortie du capteur, en amont du pont (V) : celle de son alimentation. */
+  amont: number;
+  /** Tension que la broche reçoit après le pont, sortie haute (V). */
+  aval: number;
+}
+
+/** Résistance de sortie supposée d'un capteur (Ω) : celle d'une sortie logique ordinaire. */
+const CAPTEUR_OUT_OHMS = 100;
+/** Seuil bas d'une entrée en niveau haut : 0,6 × 3,3 V, au plus juste (RP2040 : 2 V). */
+const VIH_MIN = 2;
+
+/** Broches de sortie d'un capteur (noms de broche), d'après son modèle. */
+function sortiesCapteur(part: Part): string[] {
+  const def = partDef(part.type);
+  if (part.type === 'gbf' || def.kind === 'mcu') return [];
+  const out: string[] = [];
+  if (def.analogPin) out.push(def.analogPin);
+  if (def.digitalPin) out.push(def.digitalPin);
+  if (def.kind === 'ultrasonic') out.push(rolePin(part.type, 'ECHO'));
+  if (def.kind === 'digital-source') out.push(rolePin(part.type, 'OUT'));
+  if (def.kind === 'analog-source') out.push(rolePin(part.type, 'AO'));
+  if (def.kind === 'onewire-temp') out.push(rolePin(part.type, 'Data'));
+  return [...new Set(out)];
+}
+
+/**
+ * Capteurs « 5 V » (plus haut que ce que la carte supporte) lus par une carte
+ * 3,3 V À TRAVERS UN PONT DIVISEUR — le badge « Niveau logique ».
+ *
+ * La tension EN AMONT du pont n'est écrite nulle part : un capteur n'a pas de
+ * source dans le graphe. On la lit sur la netlist — c'est la tension du rail qui
+ * alimente le capteur (sa sortie haute vaut son alimentation) — puis le calcul de
+ * Thévenin donne ce que la broche reçoit en aval. Un capteur câblé SANS pont
+ * n'en fait pas partie (la carte grille : GbfBoardStress dit la même chose du GBF).
+ *
+ * Il faut une résistance entre la sortie et la broche, un chemin résistif de la
+ * broche vers la masse (sans lui ce n'est pas un pont), et un niveau d'arrivée
+ * ni destructeur ni trop bas pour être lu comme haut.
+ */
+export function pontsNiveauLogique(
+  diagram: Diagram,
+  psuVolts?: (partId: string) => number | null
+): PontNiveauLogique[] {
+  const cartes = mcuParts(diagram).filter((m) => isPicoBoard(m.board));
+  if (cartes.length === 0) return [];
+  const { nets, adj, vccNets, gndNets } = resistiveGraph(diagram);
+  const { sources } = circuitSources(diagram, 3.3, nets, vccNets, gndNets, undefined, psuVolts);
+  const tension = (net: string): number | null => {
+    const s = sources.filter((x) => x.net === net && x.ohms === 0);
+    return s.length > 0 ? Math.max(...s.map((x) => x.volts)) : null;
+  };
+  // Sortie de chaque capteur alimenté : un générateur de la tension de son alimentation.
+  const capteurs: CircuitSource[] = [];
+  for (const part of diagram.parts) {
+    const sorties = sortiesCapteur(part);
+    if (sorties.length === 0) continue;
+    const candidates = ['VCC', 'V+', 'VDD', '5V', rolePin(part.type, 'VCC'), part.attrs?.vplus ?? ''].filter(Boolean);
+    let vAlim: number | null = null;
+    for (const pin of candidates) {
+      const v = tension(nets.netOf({ partId: part.id, pin }));
+      if (v !== null) {
+        vAlim = v;
+        break;
+      }
+    }
+    if (vAlim === null || vAlim <= 0) continue;
+    for (const pin of sorties) capteurs.push({ net: nets.netOf({ partId: part.id, pin }), volts: vAlim, ohms: CAPTEUR_OUT_OHMS });
+  }
+  if (capteurs.length === 0) return [];
+  const toutes = sources.concat(capteurs);
+  const sourceNets = new Set(toutes.map((x) => x.net));
+  const out: PontNiveauLogique[] = [];
+  for (const { part, board } of cartes) {
+    const vmax = maxPinVolts(board);
+    for (const pin of mcuPins(board)) {
+      const role = mcuPinRole(board, pin);
+      if (role.role !== 'digital' || !role.name) continue;
+      const net = nets.netOf({ partId: part.id, pin });
+      if (vccNets.has(net) || gndNets.has(net)) continue;
+      for (const cap of capteurs) {
+        if (cap.volts <= vmax || cap.net === net) continue;
+        const autres = new Set(sourceNets);
+        autres.delete(cap.net);
+        autres.delete(net);
+        const haut = minOhmsPath(net, new Set([cap.net]), adj, autres, undefined, 'source');
+        if (haut === null || haut <= 0) continue; // pas de résistance : liaison directe
+        if (minOhmsPath(net, gndNets, adj, autres, undefined, 'sink') === null) continue;
+        const th = theveninNode(net, toutes, sourceNets, adj);
+        if (!th || th.volts > vmax || th.volts < VIH_MIN) continue;
+        out.push({ boardPartId: part.id, pin: role.name, amont: cap.volts, aval: th.volts });
+        break;
+      }
+    }
+  }
+  return out;
+}
+
 export interface SevenSegmentMuxBinding {
   partId: string;
   digits: number;

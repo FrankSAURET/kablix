@@ -467,7 +467,13 @@ export function lint(source: string, lang: LintLang, diagram: Diagram): LintFind
     deja.add(cle);
     out.push(f);
   };
-  const nomCode = (pin: string): string => (pico ? pin : /^\d+$/.test(pin) ? `D${pin}` : pin);
+  // Broche analogique d'une carte AVR : « 14 (A0) », le numéro que le code écrit d'abord.
+  const nomCode = (pin: string): string => {
+    if (pico) return pin;
+    if (/^\d+$/.test(pin)) return `D${pin}`;
+    const a = /^A(\d+)$/.exec(pin);
+    return a ? `${analogBase(board) + Number(a[1])} (${pin})` : pin;
+  };
 
   // 1. analogWrite sur une broche sans PWM — certain : le catalogue le sait.
   const pwm = pwmPins(board);

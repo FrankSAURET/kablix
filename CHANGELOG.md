@@ -10,7 +10,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Succès (badges)**
 
-- **15 badges** dans un panneau 🏅 (barre de simulation), en deux familles. *Preuve de maîtrise* : Loi d'Ohm, Bus maîtrisé (trame I²C décodée), Sans attendre (pas de `delay()`), Interruption, Économe (moins de 1 mA), Le bon calibre (moteur par transistor), Trois protocoles. *Effort et processus* : Premier nuage de fumée, Deux fois vaut mieux, Chercheur de panne, Au pas à pas, À l'instrument, Persévérant, Au propre, Documenté. Chacun dit ce qu'il atteste ; une annonce s'affiche à l'obtention.
+- **16 badges** dans un panneau 🏅 (entrée « Succès » du menu hamburger, qui ne liste que les badges obtenus), en deux familles. *Preuve de maîtrise* : Loi d'Ohm, Niveau logique (capteur 5 V lu par une carte 3,3 V à travers un pont diviseur), Bus maîtrisé (trame I²C décodée), Sans attendre (pas de `delay()`), Interruption, Économe (moins de 1 mA), Le bon calibre (moteur par transistor), Trois protocoles. *Effort et processus* : Premier nuage de fumée, Deux fois vaut mieux, Chercheur de panne, Au pas à pas, À l'instrument, Persévérant, Au propre, Documenté. Chacun dit ce qu'il atteste ; une annonce s'affiche à l'obtention, puis disparaît au bout de 5 secondes ou au premier clic.
 - **Jamais pour du temps passé** : un badge se décerne sur un fait mesuré dans la simulation. Ils suivent l'élève d'un projet à l'autre.
 
 **Linter électronique**
@@ -28,7 +28,15 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Modification
 
+**Linter électronique**
+
+- Une broche analogique est nommée par son numéro puis son nom : « broche 14 (A0) » au lieu de « broche A0 » seul (« 54 (A0) » sur un Mega).
+
 ### Correction
+
+**Linter électronique**
+
+- **La broche en cause est signalée** : une pastille rouge pulse sur la broche de la carte visée par le constat (y compris la boucle bloquante), même quand le cadre rouge entoure le composant câblé.
 
 **Simulation**
 

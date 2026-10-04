@@ -34,6 +34,12 @@ export const SUCCES: readonly DefSucces[] = [
     atteste: 'You lit an LED with the right series resistor on your first run, without destroying anything.',
   },
   {
+    id: 'niveau-logique',
+    famille: 'maitrise',
+    titre: 'Logic level',
+    atteste: 'A 5 V sensor is read by a 3.3 V board through a voltage divider: the pin gets a safe level and the board survives.',
+  },
+  {
     id: 'bus',
     famille: 'maitrise',
     titre: 'Bus mastered',
@@ -183,6 +189,8 @@ export interface InfoLancement {
   protocoles: ProtocoleSucces[];
   /** Un transistor est posé dans le schéma. */
   transistor: boolean;
+  /** Un capteur plus haut que la carte est lu à travers un pont diviseur (cf. pontsNiveauLogique). */
+  pontNiveau: boolean;
 }
 
 /** Relevé périodique pendant la simulation. */
@@ -308,6 +316,9 @@ export class SuiviSucces {
 
     // Loi d'Ohm : du PREMIER lancement du projet, rien détruit.
     if (propre && s.ledSaine && r.projet.lancements === 1 && !r.projet.aGrille && s.tMs >= 2000) this.accorder('ohm');
+
+    // Niveau logique : un capteur 5 V lu par une carte 3,3 V à travers un pont, la carte survit.
+    if (propre && r.info.pontNiveau && s.tMs >= 2000) this.accorder('niveau-logique');
 
     // Deux fois vaut mieux : il avait grillé, il tourne maintenant.
     if (propre && r.projet.aGrille && s.tMs >= DUREE_PROPRE_MS) this.accorder('deux-fois');

@@ -128,6 +128,9 @@ egal(piegesExecution('void setup(){pinMode(8,OUTPUT);} void loop(){ while (digit
 egal(piegesExecution('void loop(){ digitalWrite(i,1); while (digitalRead(2)==LOW); }', 'cpp', B2).boucles, [], 'broche pilotée calculée = doute, rien');
 egal(lint('void setup(){pinMode(2,INPUT);} void loop(){ digitalRead(2); }', 'cpp', schema('uno'))[0]?.lecture, 'digital', 'broche en l\'air : lecture numérique');
 egal(lint('void loop(){ analogRead(A0); }', 'cpp', schema('uno'))[0]?.lecture, 'analog', 'broche en l\'air : lecture analogique');
+egal(lint('void loop(){ analogRead(A0); }', 'cpp', schema('uno'))[0]?.args[1], '14 (A0)', 'message : « 14 (A0) », pas « A0 » seul (Uno)');
+egal(lint('void loop(){ analogRead(A0); }', 'cpp', schema('mega'))[0]?.args[1], '54 (A0)', 'message : « 54 (A0) » (Mega)');
+egal(lint('void loop(){ digitalWrite(5, HIGH); }', 'cpp', schema('uno'))[0]?.args[1], 'D5', 'message : broche numérique inchangée (D5)');
 
 // ------------------------------------------------------------- A6. zéro faux positif sur testkablix
 // Les projets de testkablix tournent : leur code est correct. Le linter ne doit
@@ -170,6 +173,8 @@ check(/type: 'lintSource',\s+text: \['\.ino'/.test(panel), "l'hôte envoie le co
 check(/lintCode: cfg\.get<boolean>\('lintCode', true\)/.test(panel), 'le réglage descend vers la webview, actif par défaut');
 check(pkg.contributes.configuration.properties['kablix.lintCode']?.default === true, 'kablix.lintCode déclaré, true par défaut');
 
+check(/editor\.setFaultyPin\(carteLint\.id, c\.pin, true\)/.test(sim) && /editor\.setFaultyPin\(carte\.id, b\.pin, true\)/.test(sim), 'la broche en cause est signalée sur la carte (constats et boucle bloquante)');
+check(/setFaultyPin\(id: string, pin: string, faulty: boolean\)/.test(readFileSync(join(ROOT, 'src/webview/diagram/editor.mts'), 'utf8')) && /\.pin\.pin--faulty/.test(readFileSync(join(ROOT, 'media/styles.css'), 'utf8')), 'éditeur et style de la broche fautive');
 check(/function armerPieges\(/.test(sim) && /armerPieges\(constats\);/.test(sim), 'runLinter arme les pièges à code');
 check(/engine\.setInput\(c\.pin, Math\.random\(\) < 0\.5\)/.test(sim) && /engine\.setAnalog\(c\.pin, Math\.random\(\)\)/.test(sim), 'la broche en l\'air oscille');
 check(/maintenant - depuisMs < 3000/.test(sim), 'la boucle bloquante attend 3 s simulées');

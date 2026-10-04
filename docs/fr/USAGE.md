@@ -85,7 +85,7 @@
   - le bouton **Noms** qui fait apparaitre le nom sur le composant **sélectionné** ou tous les composants ou l'id (le repère) des composants.
   - **réarranger** : rétablit l'organisation Kablix (code d'un côté, Kablix de l'autre, panneaux fermés). Vous pouvez inverser les deux zones et régler leur largeur à la souris, puis **Sauvegarder cette organisation par défaut** (menu hamburger) : le côté de Kablix **et** la largeur sont mémorisés, et « réarranger » les rétablit — y compris en remettant Kablix du côté choisi s'il en a changé depuis. 
   - le **mode texte** (l'icône « T ») : pose des **étiquettes** libres sur la feuille — un titre de montage, une remarque, le nom d'une zone. Une étiquette **sélectionnée** se modifie dans le panneau de droite : **couleur du texte**, **couleur du fond**, **transparence du fond** (jusqu'à zéro : le texte reste seul, sans pavé de couleur), **taille du texte** et **police**. Les étiquettes ne sont que du décor : la simulation les ignore, mais l'export SVG les emporte.
-  - le **menu hamburger** pour les fonctions moins fréquentes : importer / exporter un schéma **Wokwi**, exporter la **liste des composants (CSV)**, mettre à jour le **firmware Pico**, vérifier les **mises à jour des bibliothèques**, sauvegarder l'organisation par défaut, ouvrir les **Paramètres** de Kablix (les réglages de l'extension dans l'écran de VS Code, déjà filtrés).
+  - le **menu hamburger** pour les fonctions moins fréquentes : importer / exporter un schéma **Wokwi**, exporter la **liste des composants (CSV)**, mettre à jour le **firmware Pico**, vérifier les **mises à jour des bibliothèques**, sauvegarder l'organisation par défaut, la liste des **Succès** obtenus ([Succès](#succès-badges)), ouvrir les **Paramètres** de Kablix (les réglages de l'extension dans l'écran de VS Code, déjà filtrés).
   - accés à cette **aide**.
   - le **nom du projet** courant.
   - le **fichier de code** du projet, juste à droite du nom : **clic = changer**, **double-clic = ouvrir** (il s'ouvre du côté du code).
@@ -101,7 +101,6 @@
   - **moniteur série / console**
   - **Traceur** de courbes
   - **rouvrir l'analyseur logique** : n'apparaît que si l'onglet de l'analyseur a été fermé alors qu'une pince est toujours posée sur le schéma. Un clic le rouvre avec sa dernière mesure.
-  - **🏅 succès** : la liste des badges ([Succès](#succès-badges)).
   - **explications de défaut** : le cadre rouge et l'étiquette jaune posés sur un composant en défaut. Actif par défaut ; le bouton les masque quand ils gênent la lecture du schéma.
 
   L'analyseur logique n'a **pas de bouton pour s'ouvrir** : c'est la [sonde logique](composants/sonde-logique.md) qui le déclenche. Posez au moins une pince sur une broche, lancez la simulation, et son onglet s'ouvre tout seul, à poser à côté du schéma. Sans pince, rien ne s'ouvre — l'analyseur n'aurait rien à montrer. Le bouton de la barre ne sert qu'à rouvrir un onglet fermé.
@@ -492,13 +491,14 @@ Seule une boucle au **corps vide** est examinée, et seulement quand le numéro 
 
 ### Succès (badges)
 
-Le bouton **🏅** de la barre de simulation ouvre la liste des succès. Un badge n'est décerné que sur un **fait mesurable dans la simulation** : jamais pour du temps passé devant l'écran. Chacun dit ce qu'il atteste. À l'obtention, une annonce apparaît sur le schéma. Les badges suivent l'élève **d'un projet à l'autre** (ils sont rangés dans les données de l'extension, pas dans le `.projix`).
+L'entrée **🏅 Succès** du menu hamburger ouvre la liste des succès **obtenus** (seuls les badges gagnés y figurent). Un badge n'est décerné que sur un **fait mesurable dans la simulation** : jamais pour du temps passé devant l'écran. Chacun dit ce qu'il atteste. À l'obtention, une annonce apparaît sur le schéma ; elle disparaît au bout de 5 secondes ou au premier clic. Les badges suivent l'élève **d'un projet à l'autre** (ils sont rangés dans les données de l'extension, pas dans le `.projix`).
 
 **Preuve de maîtrise** (décerné une seule fois)
 
 | Badge | Ce qui le déclenche |
 | ----- | ------------------- |
 | **Loi d'Ohm** | Une LED allumée avec une résistance en série, au **premier** lancement du projet, sans rien de détruit. |
+| **Niveau logique** | Un capteur **5 V** (sortie alimentée en 5 V) lu par une carte **3,3 V** (Pico) à travers un **pont diviseur** : la broche reçoit un niveau lisible sans être détruite, la carte survit. La tension en amont du pont est lue sur l'alimentation du capteur. |
 | **Bus maîtrisé** | Une trame **I²C** décodée par l'analyseur logique, adresse et accusé de réception lisibles. |
 | **Sans attendre** | Un code qui n'emploie aucun `delay()` / `sleep()` mais `millis()` ou un timer, et dont au moins 6 changements d'état de broche ont été vus. |
 | **Interruption** | `attachInterrupt` (ou `pin.irq`) posé **et** déclenché par un vrai front sur la broche câblée. |

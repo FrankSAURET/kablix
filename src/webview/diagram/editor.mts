@@ -2301,6 +2301,14 @@ export class Editor {
   }
 
   /**
+   * Broche mise en cause par un message de défaut : pastille rouge qui pulse sur
+   * la carte (le cadre rouge désigne la pièce, ceci la broche).
+   */
+  setFaultyPin(id: string, pin: string, faulty: boolean): void {
+    this.rendered.get(id)?.hotspots.get(pin)?.classList.toggle('pin--faulty', faulty);
+  }
+
+  /**
    * L'étiquette qui EXPLIQUE le défaut, posée à côté du composant encadré (jaune
    * sur rouge, pendant la simulation seulement). Le cadre désigne le coupable,
    * l'étiquette dit quoi corriger — la barre d'état, elle, ne garde que la
@@ -2365,7 +2373,10 @@ export class Editor {
 
   /** Retire tous les cadres rouges (nouveau lancement, arrêt, réinitialisation). */
   clearFaults(): void {
-    for (const r of this.rendered.values()) r.container.classList.remove('part--faulty');
+    for (const r of this.rendered.values()) {
+      r.container.classList.remove('part--faulty');
+      for (const dot of r.hotspots.values()) dot.classList.remove('pin--faulty');
+    }
     this.faultLayer.replaceChildren();
   }
 

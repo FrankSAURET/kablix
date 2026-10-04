@@ -28,7 +28,7 @@ const S = await import(pathToFileURL(out).href + `?t=${Date.now()}`);
 
 const info = (o = {}) => ({
   projet: 'P1', jour: '2026-10-03', source: 'void loop(){}', composants: 3, etiquettes: 0, fils: 2, filsPropres: 1,
-  protocoles: [], transistor: false, ...o,
+  protocoles: [], transistor: false, pontNiveau: false, ...o,
 });
 const snap = (o = {}) => ({
   tMs: 6000, ledSaine: false, grilles: [], defauts: [], moteurSain: false, frontsSortie: 0, frontsInterruption: 0,
@@ -41,11 +41,46 @@ const nouveau = () => {
 };
 
 // ------------------------------------------------------------- A0. le catalogue
-check(S.SUCCES.length === 15, `15 badges au catalogue (${S.SUCCES.length})`);
+check(S.SUCCES.length === 16, `16 badges au catalogue (${S.SUCCES.length})`);
 check(new Set(S.SUCCES.map((s) => s.id)).size === S.SUCCES.length, 'ids uniques');
 check(S.SUCCES.every((s) => s.titre && s.atteste.length > 30), 'chaque badge dit ce qu\'il atteste');
-check(S.SUCCES.filter((s) => s.famille === 'maitrise').length === 7 && S.SUCCES.filter((s) => s.famille === 'effort').length === 8, 'deux familles : 7 maîtrise, 8 effort');
+check(S.SUCCES.filter((s) => s.famille === 'maitrise').length === 8 && S.SUCCES.filter((s) => s.famille === 'effort').length === 8, 'deux familles : 8 maîtrise, 8 effort');
 check(!S.SUCCES.some((s) => /time spent|an hour/i.test(s.atteste)), 'aucun badge pour du temps passé');
+
+// ------------------------------------------------------------- A0b. « Niveau logique » : la netlist
+{
+  const outM = join(CACHE, 'model.mjs');
+  await esbuild({ entryPoints: [join(ROOT, 'src/webview/diagram/model.mts')], outfile: outM, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent' });
+  const M = await import(pathToFileURL(outM).href + `?t=${Date.now()}`);
+  const P = (id, type, attrs) => ({ id, type, x: 0, y: 0, attrs });
+  const W = (a, pa, b, pb) => ({ id: `${a}${pa}${b}${pb}`, a: { partId: a, pin: pa }, b: { partId: b, pin: pb } });
+  /** Pico + capteur 5 V (alimenté par VBUS) ; `pont` : deux résistances, sinon fil direct. */
+  const montage = (pont, r1 = 1000, r2 = 2000, alim = 'VBUS') => {
+    const parts = [P('B', 'pico'), P('S', 'photoresistor')];
+    const wires = [W('B', alim, 'S', 'VCC'), W('B', 'GND.1', 'S', 'GND')];
+    if (pont) {
+      parts.push(P('R1', 'resistor', { value: String(r1) }), P('R2', 'resistor', { value: String(r2) }));
+      wires.push(W('S', 'DO', 'R1', '1'), W('R1', '2', 'B', 'GP15'), W('B', 'GP15', 'R2', '1'), W('R2', '2', 'B', 'GND.1'));
+    } else wires.push(W('S', 'DO', 'B', 'GP15'));
+    return { parts, wires };
+  };
+  const ponts = (d) => M.pontsNiveauLogique(d);
+  const r = ponts(montage(true));
+  check(r.length === 1 && r[0].pin === 'GP15', `pont 1 k / 2 k : GP15 reconnu (${JSON.stringify(r)})`);
+  check(r[0] && Math.abs(r[0].amont - 5) < 1e-9, 'tension en amont : 5 V, lue sur l\'alimentation du capteur (netlist)');
+  check(r[0] && r[0].aval > 3.1 && r[0].aval < 3.4, `tension en aval : environ 3,2 V (${r[0]?.aval})`);
+  check(ponts(montage(false)).length === 0, 'capteur 5 V branché DIRECT : pas un pont');
+  check(ponts(montage(true, 1000, 100)).length === 0, 'pont trop bas (0,45 V) : lu comme un niveau bas, rien');
+  check(ponts(montage(true, 1000, 100000)).length === 0, 'pont qui ne divise pas (4,9 V, carte grillée) : rien');
+  check(ponts(montage(true, 1000, 2000, '3V3')).length === 0, 'capteur alimenté en 3,3 V : rien à diviser');
+  const sansMasse = montage(true);
+  sansMasse.wires = sansMasse.wires.filter((w) => w.id !== 'R2' + '2' + 'B' + 'GND.1');
+  check(ponts(sansMasse).length === 0, 'pont sans résistance vers la masse : pas un pont');
+  const uno = montage(true);
+  uno.parts[0] = P('B', 'uno');
+  uno.wires = uno.wires.map((w) => JSON.parse(JSON.stringify(w).replace(/VBUS/g, '5V').replace(/GP15/g, '7').replace(/GND\.1/g, 'GND.1')));
+  check(ponts(uno).length === 0, 'carte 5 V (Uno) : le capteur 5 V n\'a rien à diviser');
+}
 
 // ------------------------------------------------------------- A1. rien pour rien
 {
@@ -109,6 +144,26 @@ check(!S.SUCCES.some((s) => /time spent|an hour/i.test(s.atteste)), 'aucun badge
   suivi.lancement(info({ source: 'b.irq(trigger=Pin.IRQ_FALLING, handler=f)' }));
   suivi.tick(snap({ frontsInterruption: 2 }));
   egal(obtenus, ['interruption'], 'interruption : pin.irq en MicroPython');
+}
+{
+  const { suivi, obtenus } = nouveau();
+  suivi.lancement(info({ pontNiveau: true }));
+  suivi.tick(snap({ tMs: 1000 }));
+  egal(obtenus, [], 'niveau logique : pas avant 2 s de marche');
+  suivi.tick(snap({ tMs: 2500 }));
+  egal(obtenus, ['niveau-logique'], 'niveau logique : capteur 5 V lu à travers un pont, la carte survit');
+}
+{
+  const { suivi, obtenus } = nouveau();
+  suivi.lancement(info({ pontNiveau: true }));
+  suivi.tick(snap({ tMs: 3000, grilles: ['carte'] }));
+  egal(obtenus.includes('niveau-logique'), false, 'niveau logique : carte grillée = rien');
+}
+{
+  const { suivi, obtenus } = nouveau();
+  suivi.lancement(info({ pontNiveau: false }));
+  suivi.tick(snap({ tMs: 9000 }));
+  egal(obtenus, [], 'niveau logique : sans pont diviseur = rien');
 }
 {
   const { suivi, obtenus } = nouveau();
@@ -305,7 +360,10 @@ check(/if \(dirty && !engine\) succes\.modification\(\)/.test(sim), 'modificatio
 check(/case 'succesBus':/.test(sim), 'la page reçoit les trames décodées par l\'analyseur');
 check(/type: 'analyseurBus', protocole/.test(ana) && /type: 'analyseurBus'/.test(anaPanel) && /m\.type === 'analyseurBus'/.test(panel), 'analyseur → hôte → page');
 check(/succes: this\.context\.globalState\.get<unknown>\(SUCCES_KEY\)/.test(panel) && /case 'succesSave':/.test(panel), 'l\'hôte conserve les succès (globalState)');
-check(/id="open-succes"/.test(html) && /id="succes-panel"/.test(html) && /id="succes-toast"/.test(html), 'bouton, panneau et annonce dans l\'interface');
+check(/id="more-succes"/.test(html) && !/id="open-succes"/.test(html) && /id="succes-panel"/.test(html) && /id="succes-toast"/.test(html), 'entrée du menu hamburger (plus de bouton), panneau et annonce dans l\'interface');
+check(/\}, 5000\);/.test(sim) && /addEventListener\(\s*'click',[\s\S]{0,160}succesToastDepuis/.test(sim), 'annonce : 5 secondes ou clic (hors le clic qui l\'a causée)');
+check(/s\.famille === famille && succes\.etat\.obtenus\[s\.id\] !== undefined/.test(sim) && !/succes-item--locked/.test(sim), 'panneau : seulement les badges obtenus');
+check(/pontNiveau: pontsNiveauLogique\(d,/.test(sim), 'la page rapporte le pont diviseur au lancement');
 check(/\.succes-toast\b/.test(css) && /\.succes-panel\b/.test(css), 'styles posés');
 check(/proprete\(\): \{ total: number; propres: number \}/.test(editor), 'l\'éditeur mesure la netteté du câblage');
 check(/if \(!succesCharge\) \{\s+succesCharge = true;/.test(sim), 'l\'état n\'est chargé qu\'une fois');

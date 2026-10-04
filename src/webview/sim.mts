@@ -124,6 +124,7 @@ import {
   scopeProbePins,
   scopeGbfSources,
   gbfBoardStress,
+  pontsNiveauLogique,
   type GbfBoardStress,
   logicProbeVoies,
   type LogicProbeVoie,
@@ -5098,6 +5099,9 @@ function runLinter(): void {
     lintNotes.set(id, [...new Set(notes)]);
     editor.setFaulty(id, true, [...new Set(notes)].join('\n'));
   }
+  // La broche en cause est sur la carte, même quand le cadre entoure le composant câblé.
+  const carteLint = editor.diagram.parts.find((p) => partDef(p.type).kind === 'mcu');
+  if (carteLint) for (const c of constats) editor.setFaultyPin(carteLint.id, c.pin, true);
   appendSerial(`\n── ${t('Code check')} ──\n${constats.map((c) => `⚠ ${t(c.message, ...c.args)}`).join('\n')}\n`);
   flashStatus(`⚠ ${t(constats[0].message, ...constats[0].args)}`);
 }
@@ -5171,6 +5175,7 @@ function armerPieges(constats: ReturnType<typeof lint>): void {
         const notes = [...(lintNotes.get(carte.id) ?? []), t(note)];
         lintNotes.set(carte.id, notes);
         editor.setFaulty(carte.id, true, notes.join('\n'));
+        editor.setFaultyPin(carte.id, b.pin, true);
         appendSerial(`\n── ${t('Code check')} ──\n⚠ ${t(msg, String(b.line), nom)}\n`);
         flashStatus(`⚠ ${t(msg, String(b.line), nom)}`);
       });
@@ -5205,6 +5210,15 @@ function sauverSucces(): void {
 
 const succesToast = document.getElementById('succes-toast') as HTMLDivElement | null;
 let succesToastTimer = 0;
+let succesToastDepuis = 0;
+// Un clic n'importe où efface l'annonce — sauf celui qui l'a provoquée (annonce posée PENDANT son traitement).
+document.addEventListener(
+  'click',
+  (e) => {
+    if (succesToast && !succesToast.hidden && e.timeStamp > succesToastDepuis) succesToast.hidden = true;
+  },
+  true,
+);
 
 function annoncerSucces(def: DefSucces): void {
   sauverSucces();
@@ -5219,10 +5233,11 @@ function annoncerSucces(def: DefSucces): void {
   succesToast.classList.remove('succes-toast--in');
   void succesToast.offsetWidth; // relance l'animation
   succesToast.classList.add('succes-toast--in');
+  succesToastDepuis = performance.now();
   window.clearTimeout(succesToastTimer);
   succesToastTimer = window.setTimeout(() => {
     succesToast.hidden = true;
-  }, 9000);
+  }, 5000);
   renderSuccesPanel();
 }
 
@@ -5259,6 +5274,7 @@ function infoLancement(): InfoLancement {
     filsPropres: pro.propres,
     protocoles: [...protocoles],
     transistor: kinds.includes('transistor'),
+    pontNiveau: pontsNiveauLogique(d, (id) => psuLiveVolts(id)).length > 0,
   };
 }
 
@@ -5350,8 +5366,8 @@ function succesArret(): void {
   if (succesChange()) sauverSucces();
 }
 
-// Panneau des succès : deux familles, les obtenus en couleur, les autres grisés.
-const succesBtn = document.getElementById('open-succes') as HTMLButtonElement | null;
+// Panneau des succès : deux familles, seuls les badges obtenus (ouvert par le menu hamburger).
+const succesBtn = document.getElementById('more-succes');
 const succesPanel = document.getElementById('succes-panel') as HTMLDivElement | null;
 
 function renderSuccesPanel(): void {
@@ -5375,13 +5391,20 @@ function renderSuccesPanel(): void {
     const h = document.createElement('h4');
     h.textContent = famille === 'maitrise' ? t('Proof of mastery') : t('Effort and process');
     corps.append(h);
-    for (const def of SUCCES.filter((s) => s.famille === famille)) {
+    const obtenusFamille = SUCCES.filter((s) => s.famille === famille && succes.etat.obtenus[s.id] !== undefined);
+    if (obtenusFamille.length === 0) {
+      const vide = document.createElement('div');
+      vide.className = 'succes-item__text';
+      vide.textContent = t('No badge yet');
+      corps.append(vide);
+    }
+    for (const def of obtenusFamille) {
       const date = succes.etat.obtenus[def.id];
       const ligne = document.createElement('div');
-      ligne.className = `succes-item${date === undefined ? ' succes-item--locked' : ''}`;
+      ligne.className = 'succes-item';
       const icone = document.createElement('span');
       icone.className = 'succes-item__icon';
-      icone.textContent = date === undefined ? '🔒' : '🏅';
+      icone.textContent = '🏅';
       const txt = document.createElement('div');
       const nom = document.createElement('strong');
       nom.textContent = t(def.titre);
@@ -5389,12 +5412,10 @@ function renderSuccesPanel(): void {
       att.className = 'succes-item__text';
       att.textContent = t(def.atteste);
       txt.append(nom, att);
-      if (date !== undefined) {
-        const quand = document.createElement('div');
-        quand.className = 'succes-item__date';
-        quand.textContent = new Date(date).toLocaleDateString();
-        txt.append(quand);
-      }
+      const quand = document.createElement('div');
+      quand.className = 'succes-item__date';
+      quand.textContent = new Date(date).toLocaleDateString();
+      txt.append(quand);
       ligne.append(icone, txt);
       corps.append(ligne);
     }

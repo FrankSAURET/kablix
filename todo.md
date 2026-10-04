@@ -1,15 +1,21 @@
 # À faire
-1. La zone récapitulative des badges ne doit montrer que le badges obtenus
-1. Le badge doit disparaitre au bout de 5 secondes ou lors de nimporte quel clic dans kablix
-1. Pas de bouton de récap de badge mais une entrée dans le menu hamburger
-1. Sur led-uno, il me dit la broche A0 est commandée alors que le code dit pin 14. il faudrat que le message dise plutot "la broche 14 (A0)"
-1. La broche en cause n'est pas signalée
-1. **« Niveau logique »** (capteur 5 V lu par un Pico à travers un pont diviseur) : non fait, il faut connaître la tension en amont du pont. À reprendre avec Frank. -> Utilise tout moyen pour trouver la tension en amont du pont : sortie du composant, netlist ...
+1. (rien en attente)
 ## fait
 
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.0.205
+1. ✅ **Récap des badges** : le panneau ne montre que les badges obtenus ([sim.mts](src/webview/sim.mts) `renderSuccesPanel`, mot « No badge yet » si aucun).
+2. ✅ **Annonce** : disparaît après 5 s ou au premier clic dans Kablix (hors le clic qui l'a provoquée : comparaison `e.timeStamp`).
+3. ✅ **Plus de bouton 🏅** : entrée « 🏅 Succès » dans le menu hamburger ([webview-html.ts](src/webview-html.ts)) ; aide FR mise à jour.
+4. ✅ **« Broche 14 (A0) »** : `nomCode` de [linter.mts](src/webview/linter.mts) (54 sur Mega).
+5. ✅ **Broche en cause signalée** : `setFaultyPin` ([editor.mts](src/webview/diagram/editor.mts)), pastille rouge pulsante `.pin--faulty` ; constats du linter et boucle bloquante.
+6. ✅ **Badge « Niveau logique »** : `pontsNiveauLogique` ([model.mts](src/webview/diagram/model.mts)) lit la tension en amont sur la netlist (alimentation du capteur : rail carte ou alim de labo), le Thévenin donne l'aval ; badge si le pont existe, aval entre 2 V et 3,6 V, carte intacte après 2 s. Catalogue : 16 badges.
+7. Bancs : `verify:succes` (91), `verify:linter` (78) ; contre-épreuve faite (échec sur l'ancien code). ⏳ Traductions : « No badge yet », « Logic level » + phrase, ligne « Niveau logique » du tableau (EN/ES/ZH). ⚠️ Pulsation de la broche et annonce non vues à l'œil.
 
 ---
 
