@@ -56,18 +56,22 @@
 
 ## Premier projet arduino : LED clignotante
 
+Tu travail dans V:\DemoKablix
+
 1. Créer un projet avec un Arduino Uno.
-    1. Arduino impose de mettre le fichier .ino dans un dossier du même nom. La méthode la plus simple est donc de créer un nouveau projet
-    1. Clique sur arduino vscode ide
-    1. ajouter un projet
-1. Placer une LED et une résistance sur le plan de câblage.
-1. Relier la sortie numérique D13 à la résistance, puis à l'anode de la LED. Relier la cathode au GND.
-1. Montrer les broches mises en évidence lors du raccordement et la création des fils.
-1. Coller un programme Arduino qui alterne `HIGH` et `LOW` sur D13 toutes les secondes.
-1. Lancer la simulation et observer le clignotement de la LED.
-1. Passer la LED en vue schématique, puis revenir à sa vue externe.
-1. Passer la carte Uno en vue schématique.
-1. Ouvrir l'aide intégrée de Kablix pour présenter les commandes et la documentation du composant.
+  1. Arduino impose de mettre le fichier .ino dans un dossier du même nom. La méthode la plus simple est donc de créer un nouveau projet
+  2. Clique sur arduino vscode ide
+  3. ajouter un projet
+2. Placer une arduino uno, LED et une résistance sur le plan de câblage.
+3. Relier la sortie numérique D13 à la résistance, puis à l'anode de la LED. Relier la cathode au GND.
+4. Montrer les broches mises en évidence lors du raccordement et la création des fils.
+5. Coller un programme Arduino qui alterne `HIGH` et `LOW` sur D13 -> fréquence 1s.
+6. Lancer la simulation et observer le clignotement de la LED.
+7. Passer la LED en vue schématique, puis revenir à sa vue externe.
+8. Passer la carte Uno en vue schématique.
+9. Ouvrir l'aide de la led documentation du composant. La refermer
+10.  Modifier le programme pour en declarant la broche 14 à la place de la 13
+11. Indiquer les erreurs et les lire (dans les sous titres)
 
 ## Mesurer la température
 
