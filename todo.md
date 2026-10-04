@@ -8,6 +8,11 @@
 
 ---
 
+# v2026.10.0.206
+1. ✅ **Banc [verify-niveau-logique.mjs](scripts/verify-niveau-logique.mjs)** (9 contrôles, dans `verify:all:serie`) : `pontsNiveauLogique` reconnaît un PIR 5 V + pont 1k/2k sur un Pico, et rien pour : sortie en direct, pont trop faible ou trop fort, capteur non alimenté ou en 3,3 V, Uno.
+
+---
+
 # v2026.10.0.205
 1. ✅ **Récap des badges** : le panneau ne montre que les badges obtenus ([sim.mts](src/webview/sim.mts) `renderSuccesPanel`, mot « No badge yet » si aucun).
 2. ✅ **Annonce** : disparaît après 5 s ou au premier clic dans Kablix (hors le clic qui l'a provoquée : comparaison `e.timeStamp`).
