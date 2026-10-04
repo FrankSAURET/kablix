@@ -2,14 +2,17 @@
 
 ## Sommaire
 
-1. [Publier une vidéo sur YouTube](#publier-une-vidéo-sur-youtube)
-2. [Premier circuit : LED clignotante](#premier-circuit--led-clignotante)
-3. [Mesurer la température](#mesurer-la-température)
-4. [Demo analyseur logique](#demo-analyseur-logique)
-5. [Piloter des servomoteur](#piloter-des-servomoteur)
-6. [Debogage](#debogage)
-7. [Appareil de mesure](#appareil-de-mesure)
-8. [Importer un composant Kablix](#importer-un-composant-kablix)
+- [Publier une vidéo sur YouTube](#publier-une-vidéo-sur-youtube)
+
+Scénarios :
+
+1. [Premier projet arduino : LED clignotante](#scénario-1--premier-projet-arduino--led-clignotante)
+2. [Mesurer la température](#scénario-2--mesurer-la-température)
+3. [Demo analyseur logique](#scénario-3--demo-analyseur-logique)
+4. [Piloter des servomoteur](#scénario-4--piloter-des-servomoteur)
+5. [debogage](#scénario-5--debogage)
+6. [appareil de mesure](#scénario-6--appareil-de-mesure)
+7. [Importer un composant Kablix](#scénario-7--importer-un-composant-kablix)
 
 ## Publier une vidéo sur YouTube
 
@@ -54,7 +57,7 @@
 8. Vérifier les droits, la visibilité et les éventuelles alertes avant publication.
 9. Choisir **Non répertoriée** pour une relecture, puis passer à **Publique** après vérification.
 
-## Premier projet arduino : LED clignotante
+## Scénario 1 : Premier projet arduino : LED clignotante
 
 Tu travail dans V:\DemoKablix
 
@@ -73,7 +76,7 @@ Tu travail dans V:\DemoKablix
 10.  Modifier le programme pour en declarant une broche 14 en plus de la 13. Changer la valeur de la résistance en 10 ohms
 11. Indiquer les erreurs et les lire (dans les sous titres)
 
-## Mesurer la température
+## Scénario 2 : Mesurer la température
 
 1. Créer un projet avec un Raspberry Pi Pico.
 2. Placer un DHT22 et le relier à l'alimentation, au GND et à une broche numérique du Pico.
@@ -83,7 +86,7 @@ Tu travail dans V:\DemoKablix
 6. Montrer les nouvelles mesures affichées par le programme.
 7. Ouvrir la fiche d'aide du DHT22 pour présenter ses broches, ses propriétés et un exemple de code.
 
-## Demo analyseur logique
+## Scénario 3 : Demo analyseur logique
 
 1. Reprendre le montage DHT22 et son programme MicroPython.
 2. Ajouter des sondes logiques sur l'alimentation, la masse et le fil de données du capteur.
@@ -92,7 +95,7 @@ Tu travail dans V:\DemoKablix
 5. Régler le décodage adapté au protocole du capteur.
 6. Comparer les octets décodés aux valeurs de température et d'humidité affichées sur le port série.
 
-## Piloter des servomoteur
+## Scénario 4 : Piloter des servomoteur
 
 1. Créer un montage Arduino Uno avec deux servomoteurs.
 2. Relier l'alimentation et la masse de chaque servomoteur, puis leurs fils de commande à deux sorties PWM.
@@ -101,7 +104,7 @@ Tu travail dans V:\DemoKablix
 5. Modifier les angles ou les temporisations dans le programme, puis relancer pour montrer l'effet immédiat.
 6. Débrancher volontairement un fil de commande et montrer la différence de comportement.
 
-## debogage
+## Scénario 5 : debogage
 
 1. Reprendre le montage de LED et introduire une erreur simple : connecter la LED à une mauvaise broche.
 2. Lancer la simulation et constater que le comportement attendu ne se produit pas.
@@ -110,7 +113,7 @@ Tu travail dans V:\DemoKablix
 5. Corriger le câblage ou le programme.
 6. Relancer la simulation pour confirmer la correction.
 
-## appareil de mesure
+## Scénario 6 : appareil de mesure
 
 1. Reprendre un montage qui produit un signal numérique, comme le clignotement de LED.
 2. Ajouter les appareils de mesure disponibles sur le fil à observer.
@@ -119,7 +122,7 @@ Tu travail dans V:\DemoKablix
 5. Vérifier que les mesures et les courbes suivent la nouvelle fréquence.
 6. Utiliser les mesures pour expliquer le lien entre le programme, le câblage et le signal observé.
 
-## Importer un composant Kablix
+## Scénario 7 : Importer un composant Kablix
 
 1. Ouvrir un montage existant avec une carte et de la place sur le plan de câblage.
 2. Ouvrir la bibliothèque de composants Kablix.
