@@ -8,6 +8,13 @@
 
 ---
 
+# v2026.10.0.209
+1. ✅ **Zone des messages tout en haut du panneau Variables** (avant l'en-tête, sous le bouton de repli) — [webview-html.ts](src/webview-html.ts), [styles.css](media/styles.css).
+2. ✅ **Messages non destructeurs** : fond `#95C9F0`, texte `#215F9A` (panneau, étiquettes du schéma, flèche de broche). Destructeurs inchangés (jaune sur rouge).
+3. ✅ **Boutons de Kablix sur fond blanc** quel que soit le thème : `.toolbar button`, `.toolbar__file`, `.canvas-controls__btn` (fond `#fff`, texte `#1f1f1f`, bordure `#b8b8b8`). Inchangés : boutons à icône nue de la barre (transparents), boutons `primary` / gomme (bleus), listes déroulantes. ⚠ Rendu vu sur une page de test avec thème sombre, pas dans VS Code.
+
+---
+
 # v2026.10.0.208
 1. ✅ **Tous les messages de défaut dans la zone du bas du panneau Variables** (plus dans la barre d'état) : `signalerMessage(texte, destructif)` ([sim.mts](src/webview/sim.mts)) pour les `say` / `blame` (Hall, collecteur ouvert, photo, relais, moteur), ampèremètre, diode de roue libre, puce, batterie faible, lecteur UART, erreur de câblage au lancement, araignée, linter, boucle bloquante. Restent en barre d'état : les raisons d'ARRÊT (alimentation refusée, batterie vide, carte qui ne démarre pas) — la simulation s'arrête, le panneau se referme.
 2. ✅ **Couleurs** : destructeurs (`Motor overvoltage: it burned out`, puce surtendue, et les étiquettes de `markBurned`) en jaune sur rouge ; le reste aux couleurs du thème (`--vscode-editorWidget-*`). Étiquettes du schéma : même règle (`setFaulty(…, destructive)`, classe `part__fault--destructif`) ; elles RESTENT sur le schéma.

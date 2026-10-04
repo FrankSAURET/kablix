@@ -2334,7 +2334,7 @@ export class Editor {
       arrow.dataset.part = id;
       arrow.dataset.pin = pin;
       arrow.innerHTML =
-        '<svg viewBox="0 0 40 16" width="40" height="16" aria-hidden="true"><path d="M1 5h25V1l13 7-13 7v-4H1z" fill="#e00000" stroke="#ffe000" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+        '<svg viewBox="0 0 40 16" width="40" height="16" aria-hidden="true"><path d="M1 5h25V1l13 7-13 7v-4H1z" fill="#95c9f0" stroke="#215f9a" stroke-width="1.5" stroke-linejoin="round"/></svg>';
       this.faultLayer.appendChild(arrow);
     }
     this.placePinArrow(arrow, r.container, dot);

@@ -91,11 +91,12 @@ if (!chrome) {
     check(`${pin} : la flèche est à l'extérieur de la carte, vers la broche`, p?.arrowOutside === true);
     check(`${pin} : la flèche touche la broche (${p?.arrowDist} px)`, p && p.arrowDist > 5 && p.arrowDist < 45);
     check(`${pin} : l'étiquette est à l'extérieur, contre la broche (${p?.noteDist} px du bord)`, p?.noteOutside === true && p.noteDist < 70);
-    check(`${pin} : étiquette non destructrice aux couleurs du thème (${p?.noteBg}), coins arrondis (${p?.noteRadius} px)`, p && p.noteBg !== 'rgb(192, 0, 0)' && p.noteRadius >= 6);
+    check(`${pin} : étiquette non destructrice bleu clair (${p?.noteBg}), coins arrondis (${p?.noteRadius} px)`, p && p.noteBg === 'rgb(149, 201, 240)' && p.noteRadius >= 6);
     check(`${pin} : le rond rouge reste`, p?.ring === true);
     check(`${pin} : défaut retiré → flèche retirée`, p?.goneAfter === true);
   }
   check('étiquette destructrice : jaune sur rouge', r?.noteDestructifBg === 'rgb(192, 0, 0)');
+  check('flèche aux couleurs des messages non destructeurs (#95C9F0 / #215F9A)', /fill="#95c9f0" stroke="#215f9a"/.test(readFileSync(join(ROOT, 'src/webview/diagram/editor.mts'), 'utf8')));
   check('clearFaults vide flèches, étiquettes et ronds', r?.clearedAll === true);
 }
 const sim = readFileSync(join(ROOT, 'src/webview/sim.mts'), 'utf8');
@@ -103,8 +104,9 @@ check('sim.mts : plus de message de défaut en barre d\'état (say, blame, linte
 check('sim.mts : seuls les destructeurs sont marqués (carte/moteur/puce grillés)', /Motor overvoltage: it burned out'\)\} \(\$\{st\.partId\}\)`, true\)/.test(sim) && /st\.fault === 'overvolt'\);/.test(sim));
 check('sim.mts : les erreurs du code vont au bas du panneau Variables', /signalerMessage\(t\(c\.message/.test(sim) && /signalerMessage\(t\(msg/.test(sim));
 const html = readFileSync(join(ROOT, 'src/webview-html.ts'), 'utf8');
-check('panneau Variables : zone d\'erreurs en bas, après le tableau', /id="debug-vars"[\s\S]{0,400}id="debug-errors"/.test(html));
+check('panneau Variables : zone de messages tout en haut, avant l\'en-tête', /id="debug-errors"[\s\S]{0,200}class="debug__head"/.test(html));
 const css2 = readFileSync(join(ROOT, 'media/styles.css'), 'utf8');
-check('styles : destructeurs jaune sur rouge, autres aux couleurs du thème, coins arrondis', /\.debug__msg--destructif\s*\{[^}]*background:\s*#c00000;[^}]*color:\s*#ffe000/.test(css2) && /\.debug__msg\s*\{[^}]*border-radius:\s*8px;[^}]*var\(--vscode-editorWidget-background/.test(css2));
+check('styles : destructeurs jaune sur rouge, autres bleu clair, coins arrondis', /\.debug__msg--destructif\s*\{[^}]*background:\s*#c00000;[^}]*color:\s*#ffe000/.test(css2) && /\.debug__msg\s*\{[^}]*border-radius:\s*8px;[^}]*background:\s*#95c9f0;[^}]*color:\s*#215f9a/.test(css2));
+check('boutons de Kablix : fond blanc quel que soit le thème (barre, simulation, fichier de code)', /\.toolbar button \{[^}]*background:\s*#ffffff/.test(css2) && /\.toolbar button\.toolbar__file \{[^}]*background:\s*#ffffff/.test(css2) && /\.canvas-controls__btn \{[^}]*background:\s*#ffffff/.test(css2));
 console.log(failures ? `Flèche de broche : ${failures} échec(s).` : 'Flèche de broche : tous les contrôles passent.');
 process.exit(failures ? 1 : 0);

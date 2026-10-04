@@ -283,6 +283,9 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
         <span class="panel__chevron" aria-hidden="true"></span>
         <span class="panel__fold-label">${l10n.t('Variables')}</span>
       </button>
+      <!-- Messages de défaut : tout EN HAUT du panneau (sous le bouton de repli),
+           plus dans la barre d'état. Destructeurs en jaune sur rouge. -->
+      <div id="debug-errors" class="debug__errors" role="alert" hidden></div>
       <div class="debug__head">
         <div class="debug__titlebar">
           <!-- Titre cliquable : ouvre la liste des variables masquées (œil de
@@ -296,9 +299,6 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
       </div>
       <div id="debug-hidden" class="debug__menu" hidden></div>
       <table id="debug-vars" class="debug__vars"></table>
-      <!-- Erreurs du code (relecture face au schéma, boucle bloquante) : partie BASSE
-           du panneau, jaune sur rouge — plus dans la barre d'état. -->
-      <div id="debug-errors" class="debug__errors" role="alert" hidden></div>
     </section>
 
     <section class="serial" id="serial-section">

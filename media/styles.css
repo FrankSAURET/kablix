@@ -61,11 +61,12 @@ textarea {
   letter-spacing: 0.02em;
 }
 
+/* Les boutons de Kablix restent sur fond BLANC quel que soit le thème. */
 .toolbar button {
   font: inherit;
-  color: var(--vscode-input-foreground, #fff);
-  background: var(--vscode-input-background, #333);
-  border: 1px solid var(--vscode-input-border, #555);
+  color: #1f1f1f;
+  background: #ffffff;
+  border: 1px solid #b8b8b8;
   border-radius: 4px;
   padding: 0.3rem 0.6rem;
   cursor: pointer;
@@ -952,9 +953,9 @@ textarea {
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  border: 1px solid var(--vscode-input-border, #555);
-  background: var(--vscode-input-background, #2a2a2a);
-  color: var(--vscode-input-foreground, #fff);
+  border: 1px solid #b8b8b8;
+  background: #ffffff; /* fond blanc quel que soit le thème */
+  color: #1f1f1f;
   cursor: pointer;
 }
 
@@ -1131,9 +1132,9 @@ textarea {
   padding: 0 0.5rem;
   height: 28px;
   border-radius: 6px;
-  border: 1px solid var(--vscode-input-border, #555);
-  background: var(--vscode-input-background, #2a2a2a);
-  color: var(--vscode-input-foreground, #fff);
+  border: 1px solid #b8b8b8;
+  background: #ffffff;
+  color: #1f1f1f;
   cursor: pointer;
 }
 
@@ -2093,10 +2094,10 @@ body.vscode-light .inspector__ref--nouveau {
   max-width: 56ch;
   padding: 5px 8px;
   border-radius: 8px;
-  /* Couleurs du thème ; seuls les défauts DESTRUCTEURS passent en jaune sur rouge. */
-  border: 1px solid var(--vscode-editorWidget-border, var(--vscode-panel-border, #454545));
-  background: var(--vscode-editorWidget-background, #252526);
-  color: var(--vscode-editorWidget-foreground, var(--vscode-foreground, #cccccc));
+  /* Bleu clair sur bleu foncé ; seuls les défauts DESTRUCTEURS passent en jaune sur rouge. */
+  border: 1px solid #215f9a;
+  background: #95c9f0;
+  color: #215f9a;
   font-size: 10px;
   line-height: 1.35;
   font-weight: 600;
@@ -3191,10 +3192,10 @@ body.vscode-light .inspector__ref--nouveau {
   border-radius: 8px;
 }
 
-/* Messages de défaut : partie basse du panneau Variables. Rectangles arrondis aux
-   couleurs du thème ; les messages DESTRUCTEURS sont en jaune sur rouge. */
+/* Messages de défaut : tout en haut du panneau Variables. Rectangles arrondis
+   bleu clair (#95C9F0 / #215F9A) ; les messages DESTRUCTEURS sont en jaune sur rouge. */
 .debug__errors {
-  margin-top: 0.5rem;
+  margin: 0 0 0.5rem;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -3209,10 +3210,10 @@ body.vscode-light .inspector__ref--nouveau {
 
 .debug__msg {
   padding: 5px 8px;
-  border: 1px solid var(--vscode-editorWidget-border, var(--vscode-panel-border, #454545));
+  border: 1px solid #215f9a;
   border-radius: 8px;
-  background: var(--vscode-editorWidget-background, #252526);
-  color: var(--vscode-editorWidget-foreground, var(--vscode-foreground, #cccccc));
+  background: #95c9f0;
+  color: #215f9a;
   font-size: 0.8rem;
   line-height: 1.35;
   font-weight: 600;
@@ -3224,7 +3225,7 @@ body.vscode-light .inspector__ref--nouveau {
   color: #ffe000;
 }
 
-/* Panneau en colonne : variables en haut, erreurs collées en bas. */
+/* Panneau en colonne : messages de défaut tout en haut, variables dessous. */
 .debug--side {
   display: flex;
   flex-direction: column;
@@ -3232,10 +3233,6 @@ body.vscode-light .inspector__ref--nouveau {
 
 .debug--side > * {
   flex-shrink: 0;
-}
-
-.debug--side > .debug__errors {
-  margin-top: auto;
 }
 
 .debug__head {
