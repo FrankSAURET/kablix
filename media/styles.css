@@ -3449,6 +3449,11 @@ body.vscode-light .inspector__ref--nouveau {
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
   pointer-events: none;
 }
+/* `display: flex` écrase l'attribut hidden : sans cette règle, le pavé vide
+   (padding + bordure) restait visible dès le démarrage. */
+.succes-toast[hidden] {
+  display: none;
+}
 .succes-toast--in {
   animation: succes-toast-in 0.5s ease-out 1;
 }

@@ -2331,6 +2331,19 @@ export class Editor {
       this.faultLayer.appendChild(note);
     }
     note.textContent = text;
+    this.placeFaultNote(note, container);
+    // La boîte du cadre (`.part__selbox`) est calée sur le dessin APRÈS le
+    // premier rendu : au démarrage d'une simulation l'étiquette était posée sur
+    // une mesure périmée, donc sur la broche fautive. On la replace une fois la
+    // disposition stabilisée.
+    for (const delay of [0, 150, 500]) {
+      window.setTimeout(() => {
+        if (note?.isConnected) this.placeFaultNote(note, container);
+      }, delay);
+    }
+  }
+
+  private placeFaultNote(note: HTMLElement, container: HTMLElement): void {
     const body = container.querySelector('.part__body') as HTMLElement | null;
     // Position calée sur le DESSIN mesuré (`.part__selbox`, la boîte du cadre
     // rouge) plutôt que sur le corps : un composant tourné à 90° déborde de sa

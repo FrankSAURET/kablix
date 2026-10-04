@@ -30,6 +30,11 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Correction
 
+**Simulation**
+
+- Un petit pavé jaune vide n'apparaît plus au démarrage (zone d'annonce des badges).
+- L'explication d'un défaut ne recouvre plus la broche en cause : elle se replace une fois le schéma affiché.
+
 **Compilation**
 
 - Le résumé de la première erreur du compilateur affiche le bon nom de fichier quel que soit le style du chemin (Windows ou Linux).

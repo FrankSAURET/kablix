@@ -8,6 +8,12 @@
 
 ---
 
+# v2026.10.0.204
+1. ✅ **Pavé jaune parasite au démarrage** : `.succes-toast { display: flex }` écrasait l'attribut `hidden` → pavé vide visible. Règle `.succes-toast[hidden]` ajoutée ([styles.css](media/styles.css)).
+2. ✅ **Étiquette de défaut sur la broche fautive** : [editor.mts](src/webview/diagram/editor.mts) `setFaultNote` posait l'étiquette sur une mesure de `.part__selbox` périmée au lancement ; `placeFaultNote` la replace à 0, 150 et 500 ms. ⚠ Cause supposée, non reproduite en Chrome headless : à confirmer par Frank en F5.
+
+---
+
 # v2026.10.0.203
 1. ✅ **Bancs rouges soldés** (« Règle tout ce qui est rouge ») : `verify:all` entièrement vert dans le conteneur avec Chrome.
     1. **Traductions des lots .198 à .201** (demandées par Frank, donc faites avant publication) : relecture du code, pièges, 15 badges (titres et phrases), panneau, annonce, `Achievements` — FR / ES / ZH (`i18n*.mts`, bundles l10n, `package.nls.*` `kablix.config.lintCode`) ; aide EN : relecture du code, pièges, Succès, bouton 🏅, fiche résistance (échauffement).
