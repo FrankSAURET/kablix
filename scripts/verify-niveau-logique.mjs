@@ -52,8 +52,8 @@ const ponts = (d) => m.pontsNiveauLogique(d);
 {
   const p = ponts(montage());
   check(p.length === 1, `PIR 5 V + pont 1k/2k sur un Pico : un pont reconnu (${p.length})`);
-  check(p[0]?.mcuPin === 'GP15' && p[0]?.amont === 5, `broche GP15, 5 V en amont (${JSON.stringify(p[0])})`);
-  check(Math.abs((p[0]?.aval ?? 0) - 10 / 3) < 0.01, `3,33 V reçus (${p[0]?.aval})`);
+  check(p[0]?.pin === 'GP15' && p[0]?.amont === 5, `broche GP15, 5 V en amont (${JSON.stringify(p[0])})`);
+  check(Math.abs((p[0]?.aval ?? 0) - 10 / 3) < 0.15, `≈ 3,3 V reçus (sortie du capteur : résistance interne) (${p[0]?.aval})`);
 }
 check(ponts(montage({ direct: true })).length === 0, 'sortie 5 V câblée en direct : pas un pont');
 check(ponts(montage({ r1: '1000', r2: '10000' })).length === 0, 'pont trop faible (4,5 V reçus) : rien');
