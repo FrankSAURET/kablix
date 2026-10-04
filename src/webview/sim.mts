@@ -5086,6 +5086,7 @@ function runLinter(): void {
     console.error('linter', err); // le linter ne doit jamais gêner la simulation
     return;
   }
+  effacerErreursCode();
   armerPieges(constats);
   for (const c of constats) defautsVus.add(`lint:${c.rule}`);
   if (constats.length === 0) return;
@@ -5103,7 +5104,39 @@ function runLinter(): void {
   const carteLint = editor.diagram.parts.find((p) => partDef(p.type).kind === 'mcu');
   if (carteLint) for (const c of constats) editor.setFaultyPin(carteLint.id, c.pin, true);
   appendSerial(`\n── ${t('Code check')} ──\n${constats.map((c) => `⚠ ${t(c.message, ...c.args)}`).join('\n')}\n`);
-  flashStatus(`⚠ ${t(constats[0].message, ...constats[0].args)}`);
+  for (const c of constats) signalerErreurCode(t(c.message, ...c.args));
+}
+
+/**
+ * Erreurs du code : partie BASSE du panneau Variables, jaune sur rouge — jamais
+ * dans la barre d'état. Le panneau se déplie s'il était replié (sinon l'erreur
+ * resterait invisible).
+ */
+const debugErrorsEl = document.getElementById('debug-errors') as HTMLDivElement;
+let erreursCode: string[] = [];
+function signalerErreurCode(texte: string): void {
+  if (!erreursCode.includes(texte)) erreursCode.push(texte);
+  afficherErreursCode();
+  if (inspectorFolded) setInspectorFolded(false, false);
+}
+function effacerErreursCode(): void {
+  erreursCode = [];
+  afficherErreursCode();
+}
+function afficherErreursCode(): void {
+  debugErrorsEl.replaceChildren();
+  debugErrorsEl.hidden = erreursCode.length === 0;
+  if (erreursCode.length === 0) return;
+  const titre = document.createElement('div');
+  titre.className = 'debug__errors-title';
+  titre.textContent = `⚠ ${t('Code check')}`;
+  debugErrorsEl.append(titre);
+  for (const e of erreursCode) {
+    const ligne = document.createElement('div');
+    ligne.className = 'debug__errors-line';
+    ligne.textContent = e;
+    debugErrorsEl.append(ligne);
+  }
 }
 
 /** Notes déjà portées par chaque cadre rouge du linter (un piège d'exécution s'y ajoute). */
@@ -5177,7 +5210,7 @@ function armerPieges(constats: ReturnType<typeof lint>): void {
         editor.setFaulty(carte.id, true, notes.join('\n'));
         editor.setFaultyPin(carte.id, b.pin, true);
         appendSerial(`\n── ${t('Code check')} ──\n⚠ ${t(msg, String(b.line), nom)}\n`);
-        flashStatus(`⚠ ${t(msg, String(b.line), nom)}`);
+        signalerErreurCode(t(msg, String(b.line), nom));
       });
     }, 250),
   );
@@ -5439,6 +5472,7 @@ function stopRun(): void {
   refroidirResistances();
   stopPieges();
   lintNotes.clear();
+  effacerErreursCode();
   buzzerAudio.stopAll(); // coupe les sons de buzzer
   for (const remove of inputRemovers) remove();
   inputRemovers = [];

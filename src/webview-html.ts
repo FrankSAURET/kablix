@@ -296,6 +296,9 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
       </div>
       <div id="debug-hidden" class="debug__menu" hidden></div>
       <table id="debug-vars" class="debug__vars"></table>
+      <!-- Erreurs du code (relecture face au schéma, boucle bloquante) : partie BASSE
+           du panneau, jaune sur rouge — plus dans la barre d'état. -->
+      <div id="debug-errors" class="debug__errors" role="alert" hidden></div>
     </section>
 
     <section class="serial" id="serial-section">

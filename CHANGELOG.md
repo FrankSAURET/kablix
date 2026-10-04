@@ -36,7 +36,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Linter électronique**
 
-- **La broche en cause est signalée** : une pastille rouge pulse sur la broche de la carte visée par le constat (y compris la boucle bloquante), même quand le cadre rouge entoure le composant câblé.
+- **La broche en cause est signalée** : une pastille rouge pulse sur la broche de la carte visée par le constat (y compris la boucle bloquante), même quand le cadre rouge entoure le composant câblé. Une **flèche** la désigne, et l'étiquette d'explication se range contre elle, au bout de la flèche, au lieu du bord de la carte.
+- **Les erreurs du code quittent la barre d'état** : elles s'affichent en jaune sur rouge dans la partie basse du panneau Variables (qui se déplie si besoin), en plus de la console.
 
 **Simulation**
 

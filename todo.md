@@ -8,6 +8,14 @@
 
 ---
 
+# v2026.10.0.207
+1. ✅ **Flèche vers la broche en cause** ([editor.mts](src/webview/diagram/editor.mts) `setFaultyPin`, `placePinArrow`, `pinGeometry`) : posée côté extérieur de la pièce (axe dominant), pointe vers la broche, dans la couche des défauts ; retirée avec le défaut / `clearFaults`.
+2. ✅ **Étiquette d'erreur contre la broche** : `placeFaultNote` la range au bout de la flèche quand une broche est en cause (`faultPinAnchor`), sinon à droite de la pièce comme avant.
+3. ✅ **Erreurs du code hors de la barre d'état** : constats du linter et boucle bloquante vont dans `#debug-errors`, partie basse du panneau Variables (colonne flex, jaune sur rouge, panneau déplié si replié) — [sim.mts](src/webview/sim.mts) `signalerErreurCode`, [styles.css](media/styles.css), [webview-html.ts](src/webview-html.ts). Effacées à chaque lancement et à l'arrêt ; la console les garde.
+4. ✅ Banc [verify-fleche-broche.mjs](scripts/verify-fleche-broche.mjs) (Chrome, 18 contrôles, dans `verify:all:serie`) ; rendu vu en capture. ⚠ Seules les erreurs du linter / boucle bloquante sont déplacées : les autres messages (câblage, composants grillés) restent dans la barre d'état. ⏳ Aucune chaîne nouvelle.
+
+---
+
 # v2026.10.0.206
 1. ✅ **Banc [verify-niveau-logique.mjs](scripts/verify-niveau-logique.mjs)** (9 contrôles, dans `verify:all:serie`) : `pontsNiveauLogique` reconnaît un PIR 5 V + pont 1k/2k sur un Pico, et rien pour : sortie en direct, pont trop faible ou trop fort, capteur non alimenté ou en 3,3 V, Uno.
 

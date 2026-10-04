@@ -2508,6 +2508,32 @@ body.vscode-light .inspector__ref--nouveau {
 }
 
 /* Broche en cause dans un défaut : pastille rouge qui pulse (setFaultyPin). */
+/* Flèche qui désigne la broche en cause (couche des défauts, pixels du monde). */
+.pin-arrow {
+  position: absolute;
+  z-index: 62;
+  width: 40px;
+  height: 16px;
+  transform-origin: 100% 50%;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+}
+
+.pin-arrow svg {
+  display: block;
+  animation: pin-arrow-pulse 1s ease-in-out infinite;
+}
+
+@keyframes pin-arrow-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.canvas--no-faults .pin-arrow {
+  display: none;
+}
+
 .pin.pin--faulty {
   width: 12px;
   height: 12px;
@@ -3156,6 +3182,51 @@ body.vscode-light .inspector__ref--nouveau {
   background: var(--vscode-editorWidget-background, rgba(255, 255, 255, 0.04));
   border: 1px solid var(--vscode-panel-border, #444);
   border-radius: 8px;
+}
+
+/* Erreurs du code : partie basse du panneau, jaune sur rouge (comme l'étiquette de défaut). */
+.debug__errors {
+  margin-top: 0.5rem;
+  padding: 5px 8px;
+  border: 1px solid #ffe000;
+  border-radius: 4px;
+  background: #c00000;
+  color: #ffe000;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  font-weight: 600;
+  max-height: 50%;
+  overflow-y: auto;
+  flex: 0 0 auto;
+}
+
+.debug__errors[hidden] {
+  display: none;
+}
+
+.debug__errors-title {
+  margin-bottom: 3px;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+}
+
+.debug__errors-line + .debug__errors-line {
+  margin-top: 3px;
+}
+
+/* Panneau en colonne : variables en haut, erreurs collées en bas. */
+.debug--side {
+  display: flex;
+  flex-direction: column;
+}
+
+.debug--side > * {
+  flex-shrink: 0;
+}
+
+.debug--side > .debug__errors {
+  margin-top: auto;
 }
 
 .debug__head {

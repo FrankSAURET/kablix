@@ -145,6 +145,9 @@ const MAX_RECENTS = 10;
 const ZOOM_MIN = 0.2;
 const ZOOM_MAX = 10; // 1000 %
 /** Pas de la grille magnétique d'alignement (px) = écartement des broches. */
+/** Flèche de broche en cause : écart pointe-broche et longueur (px du monde). */
+const PIN_ARROW_GAP = 9;
+const PIN_ARROW_LEN = 40;
 const GRID = 10;
 /** Côté du carré posé au bout d'un fil, sur sa pastille de connexion : un poil
  *  plus large que le trait (3 px) pour se voir sans manger la broche voisine. */
@@ -520,6 +523,8 @@ export class Editor {
    *  z, plus loin dans le DOM) passait encore devant son étiquette
    *  (relais-pico, retour de Frank). L'étiquette sort donc de `.part`. */
   private faultLayer!: HTMLDivElement;
+  /** Broche en cause par pièce : l'étiquette de défaut se range contre elle. */
+  private faultPinAnchor = new Map<string, HTMLElement>();
   /** Couche des étiquettes de texte libres, AU PREMIER PLAN du dessin : une
    *  annotation se lit par-dessus le montage, jamais dessous (demande de Frank).
    *  Elle reste sous la couche des défauts, qui doit rester lisible en toutes
@@ -2297,6 +2302,10 @@ export class Editor {
     const r = this.rendered.get(id);
     if (!r) return;
     r.container.classList.toggle('part--faulty', faulty);
+    if (!faulty) {
+      this.faultLayer.querySelectorAll(`.pin-arrow[data-part="${CSS.escape(id)}"]`).forEach((a) => a.remove());
+      this.faultPinAnchor.delete(id);
+    }
     this.setFaultNote(id, r.container, faulty ? note : '');
   }
 
@@ -2305,7 +2314,70 @@ export class Editor {
    * la carte (le cadre rouge désigne la pièce, ceci la broche).
    */
   setFaultyPin(id: string, pin: string, faulty: boolean): void {
-    this.rendered.get(id)?.hotspots.get(pin)?.classList.toggle('pin--faulty', faulty);
+    const r = this.rendered.get(id);
+    const dot = r?.hotspots.get(pin);
+    dot?.classList.toggle('pin--faulty', faulty);
+    const sel = `.pin-arrow[data-part="${CSS.escape(id)}"][data-pin="${CSS.escape(pin)}"]`;
+    let arrow = this.faultLayer.querySelector(sel) as HTMLElement | null;
+    if (!faulty || !r || !dot) {
+      arrow?.remove();
+      if (this.faultPinAnchor.get(id) === dot) this.faultPinAnchor.delete(id);
+      return;
+    }
+    // L'étiquette d'explication se range contre la première broche en cause.
+    if (!this.faultPinAnchor.has(id)) this.faultPinAnchor.set(id, dot);
+    const noteEl = this.faultLayer.querySelector(`.part__fault[data-part="${CSS.escape(id)}"]`) as HTMLElement | null;
+    if (noteEl) this.placeFaultNote(noteEl, r.container);
+    if (!arrow) {
+      arrow = document.createElement('div');
+      arrow.className = 'pin-arrow';
+      arrow.dataset.part = id;
+      arrow.dataset.pin = pin;
+      arrow.innerHTML =
+        '<svg viewBox="0 0 40 16" width="40" height="16" aria-hidden="true"><path d="M1 5h25V1l13 7-13 7v-4H1z" fill="#e00000" stroke="#ffe000" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+      this.faultLayer.appendChild(arrow);
+    }
+    this.placePinArrow(arrow, r.container, dot);
+    // Même raison que l'étiquette : la boîte du composant se cale après le premier rendu.
+    for (const delay of [0, 150, 500]) {
+      window.setTimeout(() => {
+        if (!arrow?.isConnected) return;
+        this.placePinArrow(arrow, r.container, dot);
+        const n = this.faultLayer.querySelector(`.part__fault[data-part="${CSS.escape(id)}"]`) as HTMLElement | null;
+        if (n) this.placeFaultNote(n, r.container);
+      }, delay);
+    }
+  }
+
+  /**
+   * Flèche qui DÉSIGNE la broche : posée au bord de la pièce, côté de la broche
+   * (axe dominant du centre de la pièce vers la broche), pointe tournée vers elle.
+   * Position en pixels du monde, comme l'étiquette de défaut.
+   */
+  private placePinArrow(arrow: HTMLElement, container: HTMLElement, dot: HTMLElement): void {
+    const { px, py, ux, uy } = this.pinGeometry(container, dot);
+    arrow.style.left = `${px + ux * PIN_ARROW_GAP}px`;
+    arrow.style.top = `${py + uy * PIN_ARROW_GAP}px`;
+    const deg = (Math.atan2(-uy, -ux) * 180) / Math.PI; // la flèche va vers la broche
+    arrow.style.transform = `translate(-100%, -50%) rotate(${deg}deg)`;
+  }
+
+  /** Centre de la broche (pixels du monde) et côté de la pièce où elle se trouve (axe dominant). */
+  private pinGeometry(container: HTMLElement, dot: HTMLElement): { px: number; py: number; ux: number; uy: number } {
+    const z = this.zoom || 1;
+    const wr = this.world.getBoundingClientRect();
+    const pr = dot.getBoundingClientRect();
+    const box =
+      (container.querySelector('.part__selbox') as HTMLElement | null) ??
+      (container.querySelector('.part__body') as HTMLElement | null) ??
+      container;
+    const br = box.getBoundingClientRect();
+    const px = (pr.left + pr.width / 2 - wr.left) / z;
+    const py = (pr.top + pr.height / 2 - wr.top) / z;
+    const dx = px - (br.left + br.width / 2 - wr.left) / z;
+    const dy = py - (br.top + br.height / 2 - wr.top) / z;
+    const horiz = Math.abs(dx) >= Math.abs(dy);
+    return { px, py, ux: horiz ? Math.sign(dx) || 1 : 0, uy: horiz ? 0 : Math.sign(dy) || 1 };
   }
 
   /**
@@ -2352,6 +2424,17 @@ export class Editor {
   }
 
   private placeFaultNote(note: HTMLElement, container: HTMLElement): void {
+    // Une broche est en cause : l'étiquette se pose contre elle, au bout de la flèche.
+    const dot = this.faultPinAnchor.get(note.dataset.part ?? '');
+    if (dot?.isConnected) {
+      const { px, py, ux, uy } = this.pinGeometry(container, dot);
+      const d = PIN_ARROW_GAP + PIN_ARROW_LEN + 4;
+      note.style.left = `${px + ux * d}px`;
+      note.style.top = `${py + uy * d}px`;
+      note.style.transform = `translate(${ux > 0 ? '0' : ux < 0 ? '-100%' : '-50%'}, ${uy > 0 ? '0' : uy < 0 ? '-100%' : '-50%'})`;
+      return;
+    }
+    note.style.transform = '';
     const body = container.querySelector('.part__body') as HTMLElement | null;
     // Position calée sur le DESSIN mesuré (`.part__selbox`, la boîte du cadre
     // rouge) plutôt que sur le corps : un composant tourné à 90° déborde de sa
@@ -2378,6 +2461,7 @@ export class Editor {
       for (const dot of r.hotspots.values()) dot.classList.remove('pin--faulty');
     }
     this.faultLayer.replaceChildren();
+    this.faultPinAnchor.clear();
   }
 
   /**
