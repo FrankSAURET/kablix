@@ -1,8 +1,17 @@
 # À faire
-1. ⬜ À revoir à l'œil dans VS Code : bouton de vitesse sur fond blanc.
+
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.1.211 — publication 2026.10.1 préparée (5 octobre 2026)
+1. ✅ **Version 2026.10.1** : `package.json`, `package-lock.json`, CLAUDE.md (état), CHANGELOG daté du 5 octobre 2026 et rangé par thèmes. ⏳ **Reste à Frank : empaquetage (`npm run package`) et publication** (`electropol-fr`).
+2. ✅ **README FR / EN / ES / ZH** : trois fonctions ajoutées (résistance qui rougit, relecture du code face au schéma, succès).
+3. ✅ **Lot de traduction** : badges (« Niveau logique » + sa phrase, « Aucun badge pour l'instant », corrections de Frank : n°4, 7, 9, 10 « Deux fois ») en FR / ES / ZH — clés EN alignées dans [succes.mts](src/webview/succes.mts) ; `verify:i18n` 17/17.
+4. ✅ **Guides** : [docs/fr](docs/fr/USAGE.md) et [docs/en](docs/en/USAGE.md) corrigés (ligne « Niveau logique » manquante, « Deux fois ») ; ES et ZH (relecture du code, succès, fiche résistance) traduits.
+5. ✅ [roadmap.md](roadmap.md) : pistes 1 à 6 (faites) retirées.
 
 ---
 

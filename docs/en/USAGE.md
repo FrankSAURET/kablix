@@ -497,6 +497,7 @@ The **🏅** button in the simulation bar opens the list of achievements. A badg
 | Badge | What triggers it |
 | ----- | ---------------- |
 | **Ohm's law** | An LED lit with a series resistor, on the **first** run of the project, with nothing destroyed. |
+| **Logic level** | A **5 V** sensor (output powered at 5 V) read by a **3.3 V** board (Pico) through a **voltage divider**: the pin gets a readable level without being destroyed, the board survives. The voltage upstream of the divider is read from the sensor's supply. |
 | **Bus mastered** | An **I²C** frame decoded by the logic analyzer, address and acknowledge readable. |
 | **No waiting** | Code with no `delay()` / `sleep()` but `millis()` or a timer, and at least 6 pin changes seen. |
 | **Interrupt** | `attachInterrupt` (or `pin.irq`) set **and** triggered by a real edge on the wired pin. |
@@ -508,8 +509,8 @@ The **🏅** button in the simulation bar opens the list of achievements. A badg
 
 | Badge | What triggers it |
 | ----- | ---------------- |
-| **First puff of smoke** | Your first burned component. Everybody gets one: the mistake is a tool. |
-| **Twice is better** | A project that burned, then the same project running 5 seconds with nothing destroyed. |
+| **First puff of smoke** | Your first burned component. Everybody gets one: the mistake helps you progress. |
+| **Twice** | A project that burned, then the same project running 5 seconds with nothing destroyed. |
 | **Fault hunter** | Three different faults (code check, burned part, motor fault) fixed from one run to the next of the same project. |
 | **Step by step** | A breakpoint set and ten steps executed. |
 | **With the instrument** | A measurement of at least 3 seconds with a wired multimeter or oscilloscope, **then** a change to the circuit. |

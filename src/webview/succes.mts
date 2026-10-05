@@ -49,7 +49,7 @@ export const SUCCES: readonly DefSucces[] = [
     id: 'sans-attendre',
     famille: 'maitrise',
     titre: 'No waiting',
-    atteste: 'Your circuit blinks without a single delay(): you keep time with millis() or a timer, so the program stays free.',
+    atteste: 'Your circuit blinks without a single delay(): you keep time with millis() or with a timer, so the microcontroller stays free.',
   },
   {
     id: 'interruption',
@@ -67,7 +67,7 @@ export const SUCCES: readonly DefSucces[] = [
     id: 'calibre',
     famille: 'maitrise',
     titre: 'The right rating',
-    atteste: 'A motor runs through a transistor with nothing saturating, burning or collapsing: you sized the power stage.',
+    atteste: 'A motor runs, driven by a transistor, with nothing burning or collapsing: you sized the power stage.',
   },
   {
     id: 'trois-protocoles',
@@ -80,12 +80,12 @@ export const SUCCES: readonly DefSucces[] = [
     id: 'fumee',
     famille: 'effort',
     titre: 'First puff of smoke',
-    atteste: 'Your first burned component. Everybody gets one: the mistake is a tool, and the explanation on the frame is the lesson.',
+    atteste: 'Your first burned component. Everybody gets one: the mistake helps you progress.',
   },
   {
     id: 'deux-fois',
     famille: 'effort',
-    titre: 'Twice is better',
+    titre: 'Twice',
     atteste: 'A circuit burned, then the same project ran cleanly: you fixed it.',
   },
   {

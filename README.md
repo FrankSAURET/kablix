@@ -59,7 +59,9 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
 - ✅ **Moniteur série bidirectionnel** : sortie temps réel + champ d’envoi vers le microcontrôleur.
 - ✅ **Traceur de courbes** : tracé en direct, plus des **sondes** posées sur une broche pour visualiser sa tension
 - ✅ **Piles, batteries et autonomie** : consommation réelle de la carte au traceur (veille profonde comprise), Piles 4 × AA, 9 V, CR2032 et LiPo à installer depuis la bibliothèque 
-- ✅ **Simulation physique** : luminosité selon la résistance série, les LED sans résistance grillent, les servomoteurs ne démarrent pas, l’alimentation tient compte du courant…
+- ✅ **Simulation physique** : luminosité selon la résistance série, les LED sans résistance grillent, les servomoteurs ne démarrent pas, l’alimentation tient compte du courant, la résistance rougit avant de griller…
+- ✅ **Relecture du code face au schéma** : à chaque ▶, Kablix signale `analogWrite` sur une broche sans PWM, broche lue sans `pinMode` ou sans rien de branché, composant câblé sur une broche que le code n’utilise jamais ; une entrée en l’air oscille, une boucle d’attente bloquante est signalée. Jamais bloquant, et Kablix se tait au moindre doute.
+- ✅ **Succès (badges)** : 16 badges qui attestent d’une compétence mesurée dans la simulation (loi d’Ohm, niveau logique, bus I²C décodé…) ou récompensent la manière de travailler (premier composant grillé, pas à pas, schéma au propre…). Jamais pour du temps passé.
 - ✅ **Capteurs interactifs** : curseurs et boutons pour flamme, gaz, son, lumière, température et mouvement, pilotant l’entrée du montage en direct.
 - ✅ **Appareils de mesure** : Multimètre, oscilloscope, GBF et analyseur logique.
 

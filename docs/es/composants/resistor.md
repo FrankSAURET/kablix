@@ -19,6 +19,10 @@ Resistencia fija. Limita la corriente (LED) o forma un divisor / pull-up / pull-
 | `orientation` | Montaje: `h` horizontal (tumbada) o `v` vertical (de pie) | `h` |
 | `angle` | Orientación (0/90/180/270°) | 0 |
 
+## Se calienta y luego se quema
+
+La simulación calcula la potencia que cada resistencia **disipa realmente** (`P = R × I²`, promediada sobre el ciclo de trabajo en PWM). Cuando supera la **mitad** de lo que admite el encapsulado (propiedad `power`), el cuerpo se pone **rojo** y adquiere un resplandor, cada vez más intenso hasta el límite. Es un indicador «potencia disipada / admisible», no un modelo térmico detallado: una resistencia de ¼ W que disipa 0,2 W ya está bastante roja, una de 10 W en el mismo circuito sigue fría. Más allá del límite, explota. Se enfría al detener la simulación.
+
 ## Uso
 
 - No polarizada: los dos bornes son equivalentes.

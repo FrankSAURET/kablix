@@ -1373,14 +1373,20 @@ export const ES: Record<string, string> = {
     'Ley de Ohm',
   'You lit an LED with the right series resistor on your first run, without destroying anything.':
     'Encendió un LED con la resistencia en serie correcta en su primera ejecución, sin destruir nada.',
+  'Logic level':
+    'Nivel lógico',
+  'A 5 V sensor is read by a 3.3 V board through a voltage divider: the pin gets a safe level and the board survives.':
+    'Un sensor de 5 V es leído por una placa de 3,3 V a través de un divisor de tensión: el pin recibe un nivel seguro y la placa sobrevive.',
+  'No badge yet':
+    'Aún no hay insignias',
   'Bus mastered':
     'Bus dominado',
   'You decoded a real I²C frame with the logic analyzer: the address and the acknowledge are readable.':
     'Decodificó una trama I²C real con el analizador lógico: la dirección y el acuse de recibo se leen.',
   'No waiting':
     'Sin esperar',
-  'Your circuit blinks without a single delay(): you keep time with millis() or a timer, so the program stays free.':
-    'Su circuito parpadea sin un solo delay(): mide el tiempo con millis() o un temporizador, y el programa queda libre.',
+  'Your circuit blinks without a single delay(): you keep time with millis() or with a timer, so the microcontroller stays free.':
+    'Su circuito parpadea sin un solo delay(): mide el tiempo con millis() o con un temporizador, y el microcontrolador queda libre.',
   'Interrupt':
     'Interrupción',
   'An input was handled by an interrupt (attachInterrupt, pin.irq) instead of a waiting loop.':
@@ -1391,18 +1397,18 @@ export const ES: Record<string, string> = {
     'Su circuito consume menos de 1 mA de media: dormir entre dos tareas es lo que permite que una pila de botón dure años.',
   'The right rating':
     'El calibre adecuado',
-  'A motor runs through a transistor with nothing saturating, burning or collapsing: you sized the power stage.':
-    'Un motor funciona a través de un transistor sin que nada sature, se queme o se hunda: dimensionó bien la etapa de potencia.',
+  'A motor runs, driven by a transistor, with nothing burning or collapsing: you sized the power stage.':
+    'Un motor funciona, controlado por un transistor, sin que nada se queme ni se hunda: dimensionó bien la etapa de potencia.',
   'Three protocols':
     'Tres protocolos',
   'You ran I²C, SPI and a serial link, each in a different project.':
     'Ejecutó I²C, SPI y un enlace serie, cada uno en un proyecto distinto.',
   'First puff of smoke':
     'Primera nube de humo',
-  'Your first burned component. Everybody gets one: the mistake is a tool, and the explanation on the frame is the lesson.':
-    'Su primer componente quemado. A todos nos pasa: el error es una herramienta y la explicación del recuadro es la lección.',
-  'Twice is better':
-    'Mejor dos veces',
+  'Your first burned component. Everybody gets one: the mistake helps you progress.':
+    'Su primer componente quemado. A todos nos pasa: el error le ayuda a progresar.',
+  'Twice':
+    'Dos veces',
   'A circuit burned, then the same project ran cleanly: you fixed it.':
     'Un circuito se quemó y después el mismo proyecto funcionó sin problemas: lo corrigió.',
   'Fault hunter':

@@ -510,8 +510,8 @@ L'entrée **🏅 Succès** du menu hamburger ouvre la liste des succès **obtenu
 
 | Badge | Ce qui le déclenche |
 | ----- | ------------------- |
-| **Premier nuage de fumée** | Le premier composant grillé. Tout le monde en a un : l'erreur est un outil. |
-| **Deux fois vaut mieux** | Un projet qui a grillé, puis le même projet qui tourne 5 secondes sans rien détruire. |
+| **Premier nuage de fumée** | Le premier composant grillé. Tout le monde en a un : l'erreur vous aide à progresser. |
+| **Deux fois** | Un projet qui a grillé, puis le même projet qui tourne 5 secondes sans rien détruire. |
 | **Chercheur de panne** | Trois défauts différents (relecture du code, composant grillé, moteur en défaut) corrigés d'un lancement à l'autre du même projet. |
 | **Au pas à pas** | Un point d'arrêt posé et dix pas exécutés. |
 | **À l'instrument** | Une mesure d'au moins 3 secondes avec un multimètre ou un oscilloscope câblé, **puis** une modification du montage. |

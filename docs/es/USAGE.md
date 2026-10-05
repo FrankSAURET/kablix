@@ -27,7 +27,9 @@
    6. [Monitor serie](#monitor-serie)
    7. [Trazador](#trazador)
    8. [Consumo de la placa](#consumo-de-la-placa)
-   9. [Iluminación DMX512](#iluminación-dmx512)
+   9. [Verificar el código contra el esquema](#verificar-el-código-contra-el-esquema)
+   10. [Logros (insignias)](#logros-insignias)
+   11. [Iluminación DMX512](#iluminación-dmx512)
 5. [Exportar la lista de componentes (nomenclatura CSV)](#exportar-la-lista-de-componentes-nomenclatura-csv)
 6. [Exportar el esquema en SVG](#exportar-el-esquema-en-svg)
 7. [Crear sus propios componentes](#crear-sus-propios-componentes)
@@ -99,6 +101,7 @@
   - **monitor serie / consola**
   - **Trazador**
   - **reabrir el analizador lógico**: solo aparece cuando se ha cerrado la pestaña del analizador mientras sigue habiendo una pinza en el esquema. Un clic la vuelve a abrir con su última medida.
+  - **🏅 logros**: la lista de insignias ([Logros](#logros-insignias)).
   - **explicaciones de fallos**: el marco rojo y la etiqueta amarilla colocados sobre un componente con fallo. Activado por defecto; el botón los oculta cuando molestan para leer el esquema.
 
   El analizador lógico **no tiene botón para abrirlo**: es la [sonda lógica](composants/sonde-logique.md) la que lo activa. Coloque al menos una pinza en un pin, arranque la simulación y su pestaña se abre sola, para colocarla junto al esquema. Sin pinza, no se abre nada — el analizador no tendría nada que mostrar. El botón de la barra solo sirve para reabrir una pestaña cerrada.
@@ -461,6 +464,61 @@ Cada entrada de la placa tiene su rango de tensión:
 Fuera de rango al arrancar, **la placa se niega a arrancar** y la barra de estado dice por qué: una CR2032 (3 V) no hace funcionar una Uno, una LiPo (4,2 V) no pasa el regulador de VIN, una pila de 9 V quemaría el VSYS de una Pico. Una pila que se gasta también puede caer **por debajo** del umbral por el camino: la placa se apaga entonces, y la barra de estado dice tras cuánto tiempo de programa (4 × AA en VIN, por debajo de 6,2 V).
 
 **Cortocircuito de una pila o batería** (su + unido a su − sin nada entre los dos): **explota**, la simulación se detiene y se abre una **página de advertencia** cada vez. Recuerda las reglas de seguridad de pilas y baterías (cortocircuito, pilas al revés en un portapilas, cargador, carga sin vigilancia, superficie inflamable, pilas nuevas y usadas mezcladas, temperaturas extremas, pila deformada, recogida). Cubre el montaje y solo se cierra tras 15 segundos de lectura. Del mismo modo, una pila de 9 V en VSYS destruye la placa: la explosión y la explicación permanecen sobre el montaje.
+
+### Verificar el código contra el esquema
+
+Al pulsar ▶, Kablix lee su código **frente al esquema**: ningún compilador puede decir «lee el pin 2 pero no hay nada conectado a él», Kablix sí. Un hallazgo **nunca detiene** la simulación: la placa (o el componente afectado) recibe un marco rojo con una etiqueta que lo explica, y la consola enumera una línea por hallazgo con su número de línea.
+
+| Hallazgo | Cuándo aparece |
+| -------- | -------------- |
+| `analogWrite` en un pin sin PWM | Arduino: el pin no es PWM (Uno/Nano: 3, 5, 6, 9, 10, 11; Mega: 2 a 13 y 44 a 46). |
+| Pin leído sin `pinMode` | Arduino: `digitalRead` en un pin que `setup()` nunca declara. |
+| Pin leído, nada conectado | El pin se lee (`digitalRead`, `analogRead`, `attachInterrupt`, `Pin.IN`, `ADC`) pero ningún cable llega a él y no hay ningún pull interno activado. |
+| Pin controlado, nada conectado | El pin se escribe (`digitalWrite`, `analogWrite`, `Pin.OUT`) sin nada al otro extremo. Se exceptúan el LED de la placa (D13, GP25) y el enlace serie. |
+| Pin conectado, nunca usado | Un componente está conectado a un pin que el código nunca usa. El marco rojo aparece sobre ese componente. |
+
+**Ante la duda, Kablix guarda silencio**: número de pin calculado (bucle, tabla), variable reasignada, biblioteca de terceros (`Servo`, `Wire`, `dht`…), shield, cable hacia una placa de pruebas… la comprobación afectada se omite. Una advertencia solo aparece cuando es segura.
+
+El ajuste **`kablix.lintCode`** (activado por defecto) desactiva esta comprobación.
+
+#### Trampas vistas durante la ejecución
+
+- **Pin flotante**: una entrada leída sin nada conectado (el hallazgo «Pin leído, nada conectado») **oscila al azar**, como un pin flotante real. Conecte un pulsador con su resistencia o active `INPUT_PULLUP` / `Pin.PULL_UP`.
+- **Bucle bloqueante**: `while (digitalRead(2) == LOW);` (o `while b.value() == 0: pass` en MicroPython). Si, durante **3 segundos simulados**, el pin esperado se mantiene en el nivel que sujeta el bucle y nada más se mueve (ningún pin controlado, ninguna salida serie, ninguna suspensión), la placa recibe un marco rojo: el programa no hace más que esperar. Las **interrupciones** (`attachInterrupt`, `pin.irq`) dejan el programa libre.
+
+Solo se examina un bucle con el **cuerpo vacío**, y solo cuando el número de pin se puede leer en el código.
+
+### Logros (insignias)
+
+El botón **🏅** de la barra de simulación abre la lista de logros. Una insignia solo se concede por un **hecho medible en la simulación**: nunca por el tiempo pasado frente a la pantalla. Cada una dice lo que atestigua. Aparece un banner sobre el esquema cuando se obtiene una. Las insignias acompañan al alumno **de un proyecto a otro** (se guardan en los datos de la extensión, no en el `.projix`).
+
+**Prueba de dominio** (se concede una sola vez)
+
+| Insignia | Qué la activa |
+| -------- | ------------- |
+| **Ley de Ohm** | Un LED encendido con una resistencia en serie, en la **primera** ejecución del proyecto, sin que nada se destruya. |
+| **Nivel lógico** | Un sensor de **5 V** (salida alimentada a 5 V) leído por una placa de **3,3 V** (Pico) a través de un **divisor de tensión**: el pin recibe un nivel legible sin destruirse, la placa sobrevive. La tensión aguas arriba del divisor se lee en la alimentación del sensor. |
+| **Bus dominado** | Una trama **I²C** decodificada por el analizador lógico, con la dirección y el acuse de recibo legibles. |
+| **Sin esperar** | Código sin `delay()` / `sleep()` pero con `millis()` o un temporizador, y al menos 6 cambios de pin vistos. |
+| **Interrupción** | `attachInterrupt` (o `pin.irq`) configurado **y** disparado por un flanco real en el pin conectado. |
+| **Frugal** | Corriente media de la placa inferior a 1 mA, medida durante 10 segundos de programa (sueño profundo). |
+| **El calibre adecuado** | Un motor que funciona a través de un transistor durante 3 segundos, sin nada quemado y sin fallo. |
+| **Tres protocolos** | I²C, SPI y un enlace serie, **cada uno en un proyecto distinto**. |
+
+**Esfuerzo y proceso** (cómo trabaja, no el resultado)
+
+| Insignia | Qué la activa |
+| -------- | ------------- |
+| **Primera nube de humo** | Su primer componente quemado. A todos nos pasa: el error le ayuda a progresar. |
+| **Dos veces** | Un proyecto que se quemó y después el mismo proyecto funcionando 5 segundos sin que nada se destruya. |
+| **Cazador de fallos** | Tres fallos distintos (comprobación del código, componente quemado, fallo de motor) corregidos de una ejecución a otra del mismo proyecto. |
+| **Paso a paso** | Un punto de interrupción puesto y diez pasos ejecutados. |
+| **Con el instrumento** | Una medida de al menos 3 segundos con un multímetro o un osciloscopio conectado, **y después** una modificación del circuito. |
+| **Perseverante** | Cinco ejecuciones del mismo proyecto el mismo día. |
+| **En limpio** | Más de diez componentes y **todos** los cables limpios (segmentos horizontales y verticales, cuatro codos como máximo). |
+| **Documentado** | Al menos tres etiquetas de texto en la hoja. |
+
+Una insignia se juzga por lo que **Kablix vio ejecutarse**: ante la duda (código ilegible, biblioteca de terceros…), no se concede.
 
 ### Iluminación DMX512
 

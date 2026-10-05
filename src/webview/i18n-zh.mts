@@ -1373,14 +1373,20 @@ export const ZH: Record<string, string> = {
     '欧姆定律',
   'You lit an LED with the right series resistor on your first run, without destroying anything.':
     '第一次运行就用合适的串联电阻点亮了 LED，没有损坏任何东西。',
+  'Logic level':
+    '逻辑电平',
+  'A 5 V sensor is read by a 3.3 V board through a voltage divider: the pin gets a safe level and the board survives.':
+    '5 V 传感器通过分压器接入 3.3 V 开发板：引脚得到安全的电平，开发板安然无恙。',
+  'No badge yet':
+    '暂无徽章',
   'Bus mastered':
     '总线达人',
   'You decoded a real I²C frame with the logic analyzer: the address and the acknowledge are readable.':
     '你用逻辑分析仪解码了一帧真实的 I²C 数据：地址和应答都清晰可读。',
   'No waiting':
     '不再等待',
-  'Your circuit blinks without a single delay(): you keep time with millis() or a timer, so the program stays free.':
-    '你的电路不用任何 delay() 就能闪烁：用 millis() 或定时器计时，程序保持空闲。',
+  'Your circuit blinks without a single delay(): you keep time with millis() or with a timer, so the microcontroller stays free.':
+    '你的电路不用任何 delay() 就能闪烁：用 millis() 或定时器计时，微控制器保持空闲。',
   'Interrupt':
     '中断',
   'An input was handled by an interrupt (attachInterrupt, pin.irq) instead of a waiting loop.':
@@ -1391,18 +1397,18 @@ export const ZH: Record<string, string> = {
     '你的电路平均电流低于 1 mA：在两次工作之间休眠，纽扣电池才能用上好几年。',
   'The right rating':
     '选对规格',
-  'A motor runs through a transistor with nothing saturating, burning or collapsing: you sized the power stage.':
-    '电机通过晶体管运转，没有任何元件饱和、烧毁或电压崩溃：功率级选得合适。',
+  'A motor runs, driven by a transistor, with nothing burning or collapsing: you sized the power stage.':
+    '电机由晶体管驱动运转，没有任何元件烧毁或电压崩溃：功率级选得合适。',
   'Three protocols':
     '三种协议',
   'You ran I²C, SPI and a serial link, each in a different project.':
     '你分别在不同的项目中运行了 I²C、SPI 和串口通信。',
   'First puff of smoke':
     '第一缕青烟',
-  'Your first burned component. Everybody gets one: the mistake is a tool, and the explanation on the frame is the lesson.':
-    '你的第一个烧坏的元件。人人都会遇到：错误是一种工具，红框上的说明就是教训。',
-  'Twice is better':
-    '再试一次更好',
+  'Your first burned component. Everybody gets one: the mistake helps you progress.':
+    '你的第一个烧坏的元件。人人都会遇到：错误会帮助你进步。',
+  'Twice':
+    '两次',
   'A circuit burned, then the same project ran cleanly: you fixed it.':
     '电路烧坏之后，同一个项目顺利运行：你把它修好了。',
   'Fault hunter':

@@ -53,7 +53,9 @@ My test library is available here: [TestKablix](https://github.com/FrankSAURET/k
 - ✅ **Two-way serial monitor**: live output plus an input field to send data to the microcontroller.
 - ✅ **Plotter**: live curves, plus **probes** dropped on a pin to watch its voltage
 - ✅ **Batteries and battery life**: real board consumption on the plotter (deep sleep included), a Power bank that drains, 4 × AA, 9 V, CR2032 and LiPo cells to install from the library, free simulation speed up to 10,000 %. A short-circuited cell explodes and opens a warning page.
-- ✅ **Physical simulation**: brightness follows the series resistor, LEDs without a resistor burn out, servos fail to start, the power supply accounts for current…
+- ✅ **Physical simulation**: brightness follows the series resistor, LEDs without a resistor burn out, servos fail to start, the power supply accounts for current, a resistor turns red before it burns…
+- ✅ **Code checked against the diagram**: on each ▶, Kablix flags `analogWrite` on a pin without PWM, a pin read without `pinMode` or with nothing wired, a part wired to a pin the code never uses; a floating input oscillates and a blocking wait loop is flagged. Never blocking, and Kablix stays silent when in doubt.
+- ✅ **Achievements (badges)**: 16 badges that attest to a skill measured in the simulation (Ohm's law, logic level, a decoded I²C bus…) or reward how you work (first burned component, step by step, a neat diagram…). Never for time spent.
 - ✅ **Interactive sensors**: sliders and buttons for flame, gas, sound, light, temperature and motion, driving the circuit input live.
 - ✅ **Measuring instruments**: Multimeter, oscilloscope, GBF, and logic analyzer.
 

@@ -917,13 +917,19 @@ const FR: Record<string, string> = {
     'Loi d\'Ohm',
   'You lit an LED with the right series resistor on your first run, without destroying anything.':
     'Vous avez allumé une LED avec la bonne résistance en série dès le premier lancement, sans rien détruire.',
+  'Logic level':
+    'Niveau logique',
+  'A 5 V sensor is read by a 3.3 V board through a voltage divider: the pin gets a safe level and the board survives.':
+    'Un capteur 5 V est lu par une carte 3,3 V à travers un pont diviseur : la broche reçoit un niveau sûr et la carte survit.',
+  'No badge yet':
+    'Aucun badge pour l\'instant',
   'Bus mastered':
     'Bus maîtrisé',
   'You decoded a real I²C frame with the logic analyzer: the address and the acknowledge are readable.':
     'Vous avez décodé une vraie trame I²C avec l\'analyseur logique : l\'adresse et l\'accusé de réception sont lisibles.',
   'No waiting':
     'Sans attendre',
-  'Your circuit blinks without a single delay(): you keep time with millis() or a timer, so the program stays free.':
+  'Your circuit blinks without a single delay(): you keep time with millis() or with a timer, so the microcontroller stays free.':
     'Votre montage clignote sans un seul delay() : vous comptez le temps avec millis() ou avec un timer, le microcontrôleur reste libre.',
   'Interrupt':
     'Interruption',
@@ -935,7 +941,7 @@ const FR: Record<string, string> = {
     'Votre montage consomme moins de 1 mA en moyenne : dormir entre deux tâches, c\'est ainsi qu\'une pile bouton dure des années.',
   'The right rating':
     'Le bon calibre',
-  'A motor runs through a transistor with nothing saturating, burning or collapsing: you sized the power stage.':
+  'A motor runs, driven by a transistor, with nothing burning or collapsing: you sized the power stage.':
     'Un moteur tourne, commandé par un transistor sans que rien ne brûle ni ne s\'effondre : vous avez bien dimensionné l\'étage de puissance.',
   'Three protocols':
     'Trois protocoles',
@@ -943,9 +949,9 @@ const FR: Record<string, string> = {
     'Vous avez fait tourner I²C, SPI et une liaison série, chacun dans un projet différent.',
   'First puff of smoke':
     'Premier nuage de fumée',
-  'Your first burned component. Everybody gets one: the mistake is a tool, and the explanation on the frame is the lesson.':
+  'Your first burned component. Everybody gets one: the mistake helps you progress.':
     'Votre premier composant grillé. Tout le monde en a un : l\'erreur vous aide à progresser.',
-  'Twice is better':
+  'Twice':
     'Deux fois',
   'A circuit burned, then the same project ran cleanly: you fixed it.':
     'Un montage a grillé, puis le même projet a tourné sans problème : vous l\'avez corrigé.',
