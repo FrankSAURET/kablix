@@ -16,8 +16,8 @@ L'ordre des numéros est celui **choisi par Frank**, pas un classement par inté
 
 | #   | Piste                                                                         | Intérêt | Coût  | Verdict                        |
 | --- | ----------------------------------------------------------------------------- | ------- | ----- | ------------------------------ |
-| 1   | [Consommation en temps réel](#1-consommation-énergétique-en-temps-réel)       | ★★★★☆   | **M** | **À faire**                    |
-| 2   | [Batterie et durée de vie](#2-batterie-et-durée-de-vie)                       | ★★★★☆   | **S** | **À faire** après le n°1       |
+| 1   | [Consommation en temps réel](#1-consommation-énergétique-en-temps-réel)       | ★★★★☆   | **M** | **Fait** (v2026.9.7.179)       |
+| 2   | [Batterie et durée de vie](#2-batterie-et-durée-de-vie)                       | ★★★★☆   | **S** | **Fait** (v2026.9.7.179)       |
 | 3   | [Linter électronique](#3-linter-électronique--relire-le-code-face-au-schéma)  | ★★★★★   | **M** | **Fait** (v2026.10.0.198)      |
 | 4   | [Pièges à code](#4-pièges-à-code--les-mauvaises-habitudes)                    | ★★★★☆   | **S** | **Fait** (v2026.10.0.199)      |
 | 5   | [Dégradation thermique](#5-dégradation-thermique-effet-joule-visuel)          | ★★★☆☆   | **S** | **Fait** (v2026.10.0.200)      |

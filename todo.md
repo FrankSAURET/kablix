@@ -1,10 +1,15 @@
 # À faire
-1. le point 1 du roadmap est il fait. Si ce n'est pas le cas, le faire.
-## fait
-
+1. ⬜ À revoir à l'œil dans VS Code : bouton de vitesse sur fond blanc.
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.0.210
+1. ✅ **Point 1 de la feuille de route (consommation en temps réel) : déjà fait** en v2026.9.7.179 (`consommation.mts`, courbes « Board current » / « Charge used », veille AVR et Pico). Le tableau de [roadmap.md](roadmap.md) disait encore « À faire » pour les n°1 et n°2 : corrigé en « Fait (v2026.9.7.179) ».
+2. ✅ **Bouton de vitesse de simulation (lapin, aigle…) sur fond blanc** : `.canvas-controls__speed` (fond `#fff`, bordure `#b8b8b8`, texte `#1f1f1f`) — [styles.css](media/styles.css).
+3. ✅ **Badges, traductions FR relues par Frank** : n°4 Sans attendre, n°7 Le bon calibre, n°9 Premier nuage de fumée, n°10 renommé « Deux fois » — [i18n.mts](src/webview/i18n.mts), CHANGELOG. ⬜ « Logic level » (n°2) n'a pas encore de traduction FR.
 
 ---
 

@@ -924,7 +924,7 @@ const FR: Record<string, string> = {
   'No waiting':
     'Sans attendre',
   'Your circuit blinks without a single delay(): you keep time with millis() or a timer, so the program stays free.':
-    'Votre montage clignote sans un seul delay() : vous comptez le temps avec millis() ou un timer, le programme reste libre.',
+    'Votre montage clignote sans un seul delay() : vous comptez le temps avec millis() ou avec un timer, le microcontrôleur reste libre.',
   'Interrupt':
     'Interruption',
   'An input was handled by an interrupt (attachInterrupt, pin.irq) instead of a waiting loop.':
@@ -936,7 +936,7 @@ const FR: Record<string, string> = {
   'The right rating':
     'Le bon calibre',
   'A motor runs through a transistor with nothing saturating, burning or collapsing: you sized the power stage.':
-    'Un moteur tourne par un transistor sans que rien ne sature, ne brûle ni ne s\'effondre : vous avez bien dimensionné l\'étage de puissance.',
+    'Un moteur tourne, commandé par un transistor sans que rien ne brûle ni ne s\'effondre : vous avez bien dimensionné l\'étage de puissance.',
   'Three protocols':
     'Trois protocoles',
   'You ran I²C, SPI and a serial link, each in a different project.':
@@ -944,9 +944,9 @@ const FR: Record<string, string> = {
   'First puff of smoke':
     'Premier nuage de fumée',
   'Your first burned component. Everybody gets one: the mistake is a tool, and the explanation on the frame is the lesson.':
-    'Votre premier composant grillé. Tout le monde en a un : l\'erreur est un outil, et l\'explication sur le cadre est la leçon.',
+    'Votre premier composant grillé. Tout le monde en a un : l\'erreur vous aide à progresser.',
   'Twice is better':
-    'Deux fois vaut mieux',
+    'Deux fois',
   'A circuit burned, then the same project ran cleanly: you fixed it.':
     'Un montage a grillé, puis le même projet a tourné sans problème : vous l\'avez corrigé.',
   'Fault hunter':

@@ -1084,9 +1084,9 @@ textarea {
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  border: 1px solid var(--vscode-input-border, #555);
-  background: var(--vscode-input-background, #2a2a2a);
-  color: var(--vscode-input-foreground, #fff);
+  border: 1px solid #b8b8b8;
+  background: #ffffff;
+  color: #1f1f1f;
   cursor: pointer;
   /* Un emoji est plus LARGE que son dessin (blancs d'avance de part et d'autre) :
      à cette taille sa boîte dépasse le bouton alors que le dessin, lui, tient.

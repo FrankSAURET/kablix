@@ -10,8 +10,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Succès (badges)**
 
-- **16 badges** dans un panneau 🏅 (entrée « Succès » du menu hamburger, qui ne liste que les badges obtenus), en deux familles. *Preuve de maîtrise* : Loi d'Ohm, Niveau logique (capteur 5 V lu par une carte 3,3 V à travers un pont diviseur), Bus maîtrisé (trame I²C décodée), Sans attendre (pas de `delay()`), Interruption, Économe (moins de 1 mA), Le bon calibre (moteur par transistor), Trois protocoles. *Effort et processus* : Premier nuage de fumée, Deux fois vaut mieux, Chercheur de panne, Au pas à pas, À l'instrument, Persévérant, Au propre, Documenté. Chacun dit ce qu'il atteste ; une annonce s'affiche à l'obtention, puis disparaît au bout de 5 secondes ou au premier clic.
-- **Jamais pour du temps passé** : un badge se décerne sur un fait mesuré dans la simulation. Ils suivent l'élève d'un projet à l'autre.
+- **16 badges** dans un panneau 🏅 (entrée « Succès » du menu hamburger, qui ne liste que les badges obtenus), en deux familles. *Preuve de maîtrise* : Loi d'Ohm, Niveau logique (capteur 5 V lu par une carte 3,3 V à travers un pont diviseur), Bus maîtrisé (trame I²C décodée), Sans attendre (pas de `delay()`), Interruption, Économe (moins de 1 mA), Le bon calibre (moteur par transistor), Trois protocoles. *Effort et processus* : Premier nuage de fumée, Deux fois, Chercheur de panne, Au pas à pas, À l'instrument, Persévérant, Au propre, Documenté. Chacun dit ce qu'il atteste ; une annonce s'affiche à l'obtention, puis disparaît au bout de 5 secondes ou au premier clic.
 
 **Linter électronique**
 
