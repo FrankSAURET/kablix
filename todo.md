@@ -1,5 +1,6 @@
 # À faire
-
+1. Le saut de trame ne fonctionne avec tous les protocoles (vu avec DHT11/22 sur pico). Retestes tous les protocoles, fais moi une liste de ce que j'ai à vérifier ensuite.
+1. Ajoute un bouton pour stopper la capture dans l'analyseur. Pas la simulation, la caprure uniquement.
 
 ## ne pas faire pour l'instant
 - Ruban led extensible

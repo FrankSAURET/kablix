@@ -1,9 +1,14 @@
+<!--
+ _______       _            _     _          ______        _                 _ 
+(_______)     (_)       _  (_)   | |        (____  \      (_)               | |
+ _______  ____ _  ___ _| |_ _  __| |_____    ____)  ) ____ _ _____ ____   __| |
+|  ___  |/ ___) |/___|_   _) |/ _  | ___ |  |  __  ( / ___) (____ |  _ \ / _  |
+| |   | | |   | |___ | | |_| ( (_| | ____|  | |__)  ) |   | / ___ | | | ( (_| |
+|_|   |_|_|   |_(___/   \__)_|\____|_____)  |______/|_|   |_\_____|_| |_|\____|
+    
+Auteur: Frank SAURET(frank.sauret.prof@gmail.com) 
+Todo temp.md(Ɔ) 2026
+Description : Saisissez la description puis « Tab »
+Créé le :  lundi 5 octobre 2026 à 16:30:52 
+Dernière modification : samedi 5 septembre 2026 à 17:30:03-->
 
-
-
-1. La zone récapitulative des badges ne doit montrer que le badges obtenus
-1. Le badge doit disparaitre au bout de 5 secondes ou lors de nimporte quel clic dans kablix
-1. Pas de bouton de récap de badge mais une entrée dans le menu hamburger
-1. Sur led-uno, il me dit la broche A0 est commandée alors que le code dit pin 14. il faudrat que le message dise plutot "la broche 14 (A0)"
-1. La broche en cause n'est pas signalée
-1. **« Niveau logique »** (capteur 5 V lu par un Pico à travers un pont diviseur) : non fait, il faut connaître la tension en amont du pont. À reprendre avec Frank. -> Utilise tout moyen pour trouver la tension en amont du pont : sortie du composant, netlist ...

@@ -1,13 +1,12 @@
-// Test carte Arduino Uno : la LED embarquée (D13, marquée L) clignote.
+const int LED = 13;
+
 void setup() {
-  pinMode(LED_BUILTIN, OUTPUT);
-  Serial.begin(115200);
-  Serial.println("blink Uno");
+  pinMode(LED, OUTPUT);
 }
 
 void loop() {
-  digitalWrite(LED_BUILTIN, HIGH);
+  digitalWrite(LED, HIGH);
   delay(500);
-  digitalWrite(LED_BUILTIN, LOW);
+  digitalWrite(LED, LOW);
   delay(500);
 }
