@@ -2239,6 +2239,42 @@ const dhtDe = (tempC, humidity, model) => {
   check('⏮ ⏭ : deux bus entrelacés, chacun comparé à ses propres trames (« AB » répété sauté, « AC » gardé)',
     abOuv.length === 3 && memes(melange, attenduMelange), `${melange} / ${attenduMelange}`);
 
+  // ⏮ ⏭ sur des trames IDENTIQUES mais ESPACÉES (Frank, 06/10 : « le saut de
+  // trame ne fonctionne pas avec tous les protocoles, vu avec DHT11/22 sur
+  // pico »). Un capteur répond la même valeur à chaque lecture : trois trames
+  // identiques à 500 ms d'écart sont trois événements, pas une rafale. Seul le
+  // DMX de DmxSimple (2 ms) se replie sur sa première trame.
+  {
+    const rep = (paires, n, ecart) => Array.from({ length: n }, (_x, k) => paires.map(([t, v]) => [t + k * ecart, v])).flat();
+    const trois = (voies, reglages) => ({
+      toutes: debutsDeTrame(voies, reglages),
+      changements: changementsDeTrame(voies, reglages),
+    });
+    const verifie = (nom, voies, reglages, attendu = 3) => {
+      const r = trois(voies, reglages);
+      check(`⏮ ⏭ ${nom} : trois trames identiques espacées de 500 ms restent trois sauts`,
+        r.toutes.length === attendu && r.changements.length === attendu && memes(r.toutes, r.changements),
+        `${r.toutes.length} débuts / ${r.changements.length} sauts`);
+    };
+    const dht = dhtDe(23.4, 56.7, 'dht22');
+    verifie('DHT22', [voieDe(0, 'DATA', rep(dht, 3, 500), 1)], [{ protocole: 'dht', donnees: 0, modele: 'dht22' }]);
+    const dht11 = dhtDe(23, 56, 'dht11');
+    verifie('DHT11', [voieDe(0, 'DATA', rep(dht11, 3, 500), 1)], [{ protocole: 'dht', donnees: 0, modele: 'dht11' }]);
+    verifie('1-Wire', [voieDe(0, 'DQ', rep(oneWireDe(['reset', 0xcc, 0x44]), 3, 500), 1)], [{ protocole: 'onewire', donnees: 0 }]);
+    const i2c = i2cDe(['start', 0x90, 0x00, 'stop']);
+    verifie('I²C', [voieDe(0, 'SCL', rep(i2c.scl, 3, 500), 1), voieDe(1, 'SDA', rep(i2c.sda, 3, 500), 1)],
+      [{ protocole: 'i2c', horloge: 0, donnees: 1 }]);
+    const spi = spiMode0([{ out: 0xa5, in: 0x3c }], true);
+    verifie('SPI', [voieDe(0, 'SCK', rep(spi.sck, 3, 500), 0), voieDe(1, 'MOSI', rep(spi.mosi, 3, 500), 0), voieDe(2, 'CS', rep(spi.cs, 3, 500), 1)],
+      [{ protocole: 'spi', horloge: 0, donnees: 1, selection: 2 }]);
+    // Deux octets de silence entre les rafales : l'UART ouvre une trame après un silence.
+    const ligne = serieDe([0x41, 0x42], 9600, 8, 'none', 1, [0, 0]);
+    verifie('UART', [voieDe(0, 'TX', rep(ligne, 3, 500), 1)], [{ protocole: 'uart', donnees: 0, bauds: 9600 }]);
+    // Et à l'inverse : une rafale DMX de 2 ms reste repliée sur sa première trame.
+    const seul = changementsDeTrame([voieDe(0, 'DMX', dmxFronts, 1)], [REG_DMX]);
+    check('⏮ ⏭ DMX en rafale (2 ms) : les répétitions restent sautées', seul.length === 3, String(seul.length));
+  }
+
   // --- Déclenchement « début de trame » dans la capture ---
   // UART sur trois groupes séparés par des silences de 5 ms : A (3 car.), B
   // (3 car.), C (2 car.).

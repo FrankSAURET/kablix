@@ -477,6 +477,9 @@ export class AnalyseurPanel {
        ne montrait jamais d'un coup d'œil laquelle déclenchait. -->
   <!-- Nouvelle acquisition tout de suite (Frank, 26/09) : capture vidée,
        déclenchement réarmé. Grisé hors simulation : plus rien à capturer. -->
+  <!-- Arrêter la capture SEULE (Frank, 06/10) : la simulation continue, la mesure
+       reste telle quelle. Grisé hors simulation, et une fois la capture arrêtée. -->
+  <button id="arreter-capture" type="button" disabled title="${l.t('Stop the capture only: the simulation keeps running, but nothing more is recorded and the measurement stays as it is. Restart capture begins a new one.')}">⏹ ${l.t('Stop capture')}</button>
   <button id="relancer" type="button" disabled title="${l.t('Start a new acquisition now: the capture is cleared and the trigger waits again for its edge. Available while the simulation runs.')}">↻ ${l.t('Restart capture')}</button>
   <label title="${l.t('Sampling rate of the analyzer: edges closer together than one sample are merged, exactly as on a real instrument. Unlimited shows every edge the simulation produced. It does not change how long the capture lasts: the capture keeps exact edges, and Depth sets how many.')}">${l.t('Sampling')}
     <select id="horloge">

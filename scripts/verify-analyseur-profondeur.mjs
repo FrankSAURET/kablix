@@ -208,6 +208,27 @@ if (!chrome) {
 		check(l3?.textes[2] === '60 k (≈ 6 s)', 'la salve suivante remplit la nouvelle acquisition', JSON.stringify(l3?.textes));
 		check(/^Capturing… 2100\.0$/.test(await etat()), 'et la capture continue, sans attente', await etat());
 
+		// 3 bis. « Arrêter la capture » (Frank, 06/10) : la simulation continue, la
+		//        mesure ne bouge plus. Vrai clic ; « Relancer » repart.
+		const a0 = await bouton('arreter-capture');
+		check(!!a0 && a0.large && /Stop capture/.test(a0.texte), 'le bouton « Stop capture » est dans la barre', JSON.stringify(a0));
+		check(a0?.grise === false, 'en simulation, le bouton « Stop capture » est allumé');
+		await clic(a0.x, a0.y);
+		const s1 = await etat();
+		check(/^Capture stopped: .+ kept\. Click Restart capture to capture anew\.$/.test(s1), 'vrai clic sur « Stop capture » : l’état dit que la capture est arrêtée', s1);
+		check((await bouton('arreter-capture'))?.grise === true, 'une fois arrêtée, le bouton « Stop capture » se grise');
+		check((await bouton('relancer'))?.grise === false, 'et « Restart capture » reste allumé');
+		await envoyer({ type: 'fronts', salves: { D8: clk(2100, 2200) } });
+		const s2 = await etat();
+		check(s2 === s1, 'la simulation continue d’envoyer des fronts : la capture n’en garde aucun', `${s1} → ${s2}`);
+		await relancer();
+		check((await bouton('arreter-capture'))?.grise === false, '« Restart capture » : la capture repart, « Stop capture » se rallume');
+		await envoyer({ type: 'fronts', salves: { D8: clk(2200, 2300) } });
+		const s3 = await etat();
+		check(/^Capturing… 2300\.0$/.test(s3), 'la relance remplit une nouvelle acquisition, sans les fronts reçus à l’arrêt', s3);
+		const l4 = await liste2();
+		check(l4?.textes[2] === '60 k (≈ 6 s)', 'et le débit repart de la relance', JSON.stringify(l4?.textes));
+
 		// 4. Déclenchement réglé : il tombe, puis « Relancer » le remet en attente.
 		await envoyer({ type: 'arret' });
 		await envoyer({ type: 'restaure', etat: { voies: [], declenchement: { voie: 1, sens: 'rising' }, decodages: [], voiesReglages: {}, echantillonnage: 0 } });

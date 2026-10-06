@@ -1,9 +1,23 @@
 # À faire
-1. Le saut de trame ne fonctionne avec tous les protocoles (vu avec DHT11/22 sur pico). Retestes tous les protocoles, fais moi une liste de ce que j'ai à vérifier ensuite.
-1. Ajoute un bouton pour stopper la capture dans l'analyseur. Pas la simulation, la caprure uniquement.
+_(rien pour l'instant)_
 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.1.213
+1. ✅ **⏮ ⏭ sur les trames identiques espacées** : `changementsDeTrame` ne saute une trame identique à la précédente que dans une rafale (< 50 ms entre deux débuts, `RAFALE_TRAMES_MS`) — [analyseur-decodage.mts](src/webview/analyseur-decodage.mts). Cause : un DHT (ou DS18B20, I²C relu…) répond la même valeur à chaque lecture ; toutes les trames suivantes passaient pour des répétitions et ⏭ ne bougeait plus. Banc : six protocoles × trois trames à 500 ms ([verify-analyseur.mjs](scripts/verify-analyseur.mjs)), contre-épreuve rouge sur l'ancien décodeur, DMX en rafale toujours replié. ⚠ Le firmware Pico n'est pas dans le conteneur cloud : le DHT sur Pico n'a pas été rejoué de bout en bout, seulement des trames fabriquées (via le moteur DHT22).
+2. ✅ **Bouton ⏹ Arrêter la capture** ([analyseur-panel.ts](src/analyseur-panel.ts), [analyseur.mts](src/webview/analyseur.mts), `AnalyseurCapture.arreter()`) : la simulation continue, la mesure est figée, ↻ repart. Banc [verify-analyseur-profondeur.mjs](scripts/verify-analyseur-profondeur.mjs) (vrai clic, 39 contrôles), contre-épreuve rouge. ⏳ Chaînes EN `Stop capture`, `Capture stopped: {0} kept. …`, info-bulle : traduction FR en attente de la publication.
+
+**À vérifier par Frank**
+- DHT11 et DHT22 sur Pico, valeurs fixes : ⏭ passe d'une lecture à la suivante.
+- DS18B20 (1-Wire), Pico et Uno : un saut par RESET.
+- I²C : un saut par transaction (le START répété n'ouvre pas de trame).
+- SPI avec CS, puis sans CS (une trame par salve d'horloge).
+- UART : un saut par groupe de caractères séparés d'un silence.
+- DMX (DmxSimple) : toujours trois sauts rouge / cyan / rouge, pas 490.
+- ⏹ : la courbe se fige, la simulation tourne ; ↻ repart ; un déclenchement posé après l'arrêt se cherche dans la mesure.
 
 ---
 

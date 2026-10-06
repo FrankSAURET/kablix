@@ -402,7 +402,7 @@ function allerAuDeclenchement(): void {
 function choisirDeclenchement(d: Declenchement | null): void {
   majDecodagesCapture();
   capture.reglerDeclenchement(d);
-  if (enCours) {
+  if (enCours && !capture.arretee) {
     suivi = true;
     suivreFin();
   } else if (d && capture.chercherDeclenchement() !== null) {
@@ -559,7 +559,9 @@ function majEtat(): void {
   // Capture pleine : la DURÉE gardée, pas l'heure de la simulation. Après une
   // relance, l'heure grandit à chaque essai alors que la capture tient autant.
   etatTexte.textContent = enCours
-    ? capture.pleine
+    ? capture.arretee
+      ? t('Capture stopped: {0} kept. Click Restart capture to capture anew.', duree(capture.tFin - capture.tDebutComplet))
+      : capture.pleine
       ? t('Capture full: {0} kept ({1} edges per channel). Click Restart capture to capture anew.',
           duree(capture.tFin - capture.tDebutComplet), nomProfondeur(capture.profondeur))
       : capture.enAttente
@@ -571,6 +573,8 @@ function majEtat(): void {
   // Hors simulation, plus rien à capturer : relancer viderait la mesure pour
   // n'y remettre rien.
   if (btnRelancer) btnRelancer.disabled = !enCours;
+  // Rien à arrêter sans simulation, ni une fois la capture déjà arrêtée.
+  if (btnArreter) btnArreter.disabled = !enCours || capture.arretee;
   majProfondeurs();
 }
 
@@ -796,6 +800,7 @@ const selHorloge = document.getElementById('horloge') as HTMLSelectElement;
 /** Profondeur et bouton « Relancer la capture » : absents d'une page d'avant v2026.9.5.161. */
 const selProfondeur = document.getElementById('profondeur') as HTMLSelectElement | null;
 const btnRelancer = document.getElementById('relancer') as HTMLButtonElement | null;
+const btnArreter = document.getElementById('arreter-capture') as HTMLButtonElement | null;
 const etatTexte = document.getElementById('etat') as HTMLSpanElement;
 const btnReafficher = document.getElementById('reafficher') as HTMLButtonElement | null;
 /** Bouton ☰ des exports, et son menu (posé hors de la barre, voir analyseur-panel.ts). */
@@ -2123,6 +2128,14 @@ selProfondeur?.addEventListener('change', () => {
   }
   dessiner();
   envoyerReglages();
+});
+btnArreter?.addEventListener('click', () => {
+  if (!enCours || capture.arretee) return;
+  capture.arreter();
+  // La mesure ne bouge plus : la vue cesse de courir après la fin.
+  suivi = false;
+  majEtat();
+  dessiner();
 });
 btnRelancer?.addEventListener('click', () => {
   if (!enCours) return;

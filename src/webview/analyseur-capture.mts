@@ -199,6 +199,14 @@ export class AnalyseurCapture {
   /** Vrai quand le prochain versement doit ouvrir une nouvelle acquisition. */
   private aVider = false;
   /**
+   * Vrai quand l'élève a ARRÊTÉ la capture (bouton « Arrêter la capture ») : la
+   * simulation continue, mais plus aucun front n'est gardé. Comme une capture
+   * pleine pour ce qui est de repartir (`relancer`), mais décidée à la main : la
+   * mesure reste telle qu'elle est, et un déclenchement réglé après coup la
+   * cherche dans ce qui est déjà capturé.
+   */
+  private arret = false;
+  /**
    * Dernier niveau vu par broche PENDANT que la capture est pleine : les
    * fronts ne sont plus gardés, mais la nouvelle acquisition doit savoir d'où
    * repart chaque voie.
@@ -252,6 +260,7 @@ export class AnalyseurCapture {
    * partir de maintenant, la vue n'a pas à le redessiner inconnu.
    */
   relancer(): void {
+    this.arret = false;
     this.tDeclenche = null;
     this.armee = this.declenchement !== null;
     this.armeDepuis = this.luJusqua = this.tVu > 0 ? this.tVu : -Infinity;
@@ -429,6 +438,20 @@ export class AnalyseurCapture {
   /** Vrai quand la capture déclenchée a rempli sa profondeur et ne prend plus rien. */
   get pleine(): boolean {
     return this.plein;
+  }
+
+  /** Vrai quand l'élève a arrêté la capture : la simulation tourne, la mesure ne bouge plus. */
+  get arretee(): boolean {
+    return this.arret;
+  }
+
+  /**
+   * Arrête la capture, pas la simulation (Frank, 06/10) : ce qui est gardé le
+   * reste, les fronts à venir sont lus pour savoir où en sont les broches mais
+   * jetés. `relancer` repart d'une capture vide.
+   */
+  arreter(): void {
+    this.arret = true;
   }
 
   /**
@@ -709,6 +732,7 @@ export class AnalyseurCapture {
     this.armee = this.declenchement !== null;
     this.plein = false;
     this.aVider = false;
+    this.arret = false;
     this.niveauxHors.clear();
   }
 
@@ -741,6 +765,18 @@ export class AnalyseurCapture {
    * broches que seul un oscilloscope regarde.
    */
   verser(salves: Record<string, number[]>): void {
+    if (this.arret) {
+      // Capture arrêtée : rien n'entre, mais la prochaine acquisition doit
+      // savoir d'où repart chaque voie, et à partir de quand elle compte.
+      for (const [pin, plat] of Object.entries(salves)) {
+        if (!this.parPin.has(pin)) continue;
+        for (let i = 0; i + 1 < plat.length; i += 2) {
+          if (plat[i]! > this.tVu) this.tVu = plat[i]!;
+          this.niveauxHors.set(pin, plat[i + 1] ? 1 : 0);
+        }
+      }
+      return;
+    }
     if (this.aVider) this.repartir();
     for (const [pin, plat] of Object.entries(salves)) {
       for (const v of this.parPin.get(pin) ?? []) this.verserVoie(v, pin, plat);

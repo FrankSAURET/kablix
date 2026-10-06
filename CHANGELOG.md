@@ -4,6 +4,20 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 [Voir en ligne](https://github.com/FrankSAURET/kablix/blob/main/CHANGELOG.md) · [View online](https://github.com/FrankSAURET/kablix/blob/main/CHANGELOG.md)
 
+## 2026.10.2 (prochaine publication)
+
+### Nouveauté
+
+**Analyseur logique**
+
+- **Bouton ⏹ Arrêter la capture** : arrête la capture seule, pas la simulation. La mesure reste telle quelle, les fronts suivants ne sont plus gardés ; un déclenchement réglé après coup se cherche dans ce qui est déjà capturé. ↻ Relancer la capture repart d'une capture vide.
+
+### Correction
+
+**Analyseur logique**
+
+- **⏮ ⏭ ne restent plus bloquées sur les trames identiques espacées** (DHT11/22, DS18B20, I²C, SPI, UART, 1-Wire). Un capteur qui répond la même valeur à chaque lecture donne des trames identiques à plusieurs centaines de ms d'écart : elles étaient toutes prises pour des répétitions et ⏭ n'avançait plus. Seules les répétitions en rafale (moins de 50 ms entre deux débuts de trame, comme DmxSimple) restent sautées.
+
 ## 2026.10.1 (5 octobre 2026)
 
 ### Nouveauté

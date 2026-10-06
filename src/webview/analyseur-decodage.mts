@@ -1523,6 +1523,14 @@ export function debutsDeTrame(voies: VoieCapture[], reglages: ReglageDecodage[])
 }
 
 /**
+ * Écart de début de trame, en ms, en deçà duquel deux trames identiques font
+ * partie de la même rafale : ⏮ ⏭ n'en gardent que la première. Couvre DmxSimple
+ * (~2 ms) et le DMX à 44 Hz (23 ms) ; laisse libres les lectures de capteur,
+ * espacées d'au moins quelques centaines de ms.
+ */
+const RAFALE_TRAMES_MS = 50;
+
+/**
  * Débuts des trames dont le CONTENU change, dans l'ordre du temps : ce que
  * parcourent les flèches ⏮ ⏭ (Frank, 26/09). DmxSimple renvoie tout l'univers
  * toutes les ~2 ms : une couleur tenue une seconde, c'est ~490 trames
@@ -1542,13 +1550,20 @@ export function changementsDeTrame(voies: VoieCapture[], reglages: ReglageDecoda
     const annotations = decoder(voies, { ...r, bits: false })
       .sort((a, b) => a.t0 - b.t0 || Number(!!b.trame) - Number(!!a.trame));
     let precedente: string | undefined;
+    let debutPrecedente = -Infinity;
     let debut: number | undefined;
     let contenu: string[] = [];
     const clore = (): void => {
       if (debut === undefined) return;
       const signature = contenu.join('\u0001');
-      if (signature !== precedente) debuts.push(debut);
+      // Une trame identique à la précédente n'est sautée qu'au sein d'une
+      // RAFALE (DmxSimple, ~2 ms). Un capteur qui répond la même valeur à
+      // chaque lecture (DHT, DS18B20, I²C relu) donne des trames identiques
+      // espacées de centaines de ms : chacune est un événement à part, et ⏭ ne
+      // doit pas passer de la première à la fin de la capture (Frank, 06/10).
+      if (signature !== precedente || debut - debutPrecedente > RAFALE_TRAMES_MS) debuts.push(debut);
       precedente = signature;
+      debutPrecedente = debut;
     };
     for (const a of annotations) {
       if (a.trame) {
