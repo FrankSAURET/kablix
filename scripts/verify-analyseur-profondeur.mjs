@@ -151,9 +151,17 @@ if (!chrome) {
 			const r = b.getBoundingClientRect();
 			return { x: r.left + r.width / 2, y: r.top + r.height / 2, grise: b.disabled, texte: b.textContent.trim(), large: r.width > 0 && r.height > 0 };
 		})()`);
+		/**
+		 * « Relancer » : depuis le 07/10 un SEUL bouton, ■ tant que la capture
+		 * tourne, ↻ une fois arrêtée ou pleine. Relancer en plein run = ■ puis ↻.
+		 */
 		const relancer = async () => {
-			const b = await bouton('relancer');
+			let b = await bouton('capture-bouton');
 			if (!b) return false;
+			if (b.texte === '■' && b.grise === false) {
+				await clic(b.x, b.y);
+				b = await bouton('capture-bouton');
+			}
 			await clic(b.x, b.y);
 			return true;
 		};
@@ -184,8 +192,8 @@ if (!chrome) {
 		await envoyer({ type: 'voies', voies: VOIES });
 
 		// 1. La barre : le bouton et la liste sont là, le bouton grisé hors simulation.
-		const b0 = await bouton('relancer');
-		check(!!b0 && b0.large && /Restart capture/.test(b0.texte), 'le bouton « Restart capture » est dans la barre', JSON.stringify(b0));
+		const b0 = await bouton('capture-bouton');
+		check(!!b0 && b0.large && b0.texte === '■', 'le bouton de capture (■, sans texte) est dans la barre', JSON.stringify(b0));
 		check(b0?.grise === true, 'hors simulation, le bouton est grisé');
 		const l0 = await liste2();
 		check(l0?.valeur === '60000' && l0.textes.join('|') === '5 k|15 k|60 k|250 k|1 M',
@@ -194,7 +202,7 @@ if (!chrome) {
 		// 2. Run sans déclenchement : 2 s d'horloge, la durée s'estime.
 		await envoyer({ type: 'depart' });
 		for (let t = 0; t < 2000; t += 100) await envoyer({ type: 'fronts', salves: { D8: clk(t, t + 100) } });
-		check((await bouton('relancer'))?.grise === false, 'en simulation, le bouton s’allume');
+		check((await bouton('capture-bouton'))?.grise === false, 'en simulation, le bouton s’allume');
 		const l1 = await liste2();
 		check(l1?.textes.join('|') === '5 k (≈ 500 ms)|15 k (≈ 1.5 s)|60 k (≈ 6 s)|250 k (≈ 25 s)|1 M (≈ 1.7 min)',
 			'chaque profondeur dit la durée qu’elle tiendrait (10 fronts par ms)', JSON.stringify(l1?.textes));
@@ -208,21 +216,20 @@ if (!chrome) {
 		check(l3?.textes[2] === '60 k (≈ 6 s)', 'la salve suivante remplit la nouvelle acquisition', JSON.stringify(l3?.textes));
 		check(/^Capturing… 2100\.0$/.test(await etat()), 'et la capture continue, sans attente', await etat());
 
-		// 3 bis. « Arrêter la capture » (Frank, 06/10) : la simulation continue, la
-		//        mesure ne bouge plus. Vrai clic ; « Relancer » repart.
-		const a0 = await bouton('arreter-capture');
-		check(!!a0 && a0.large && /Stop capture/.test(a0.texte), 'le bouton « Stop capture » est dans la barre', JSON.stringify(a0));
-		check(a0?.grise === false, 'en simulation, le bouton « Stop capture » est allumé');
+		// 3 bis. Un seul bouton (Frank, 07/10) : ■ pendant la capture, ↻ une fois
+		//        arrêtée. La simulation continue, la mesure ne bouge plus. Vrai clic.
+		const a0 = await bouton('capture-bouton');
+		check(a0?.grise === false && a0.texte === '■', 'en simulation, le bouton montre ■ et il est allumé', JSON.stringify(a0));
 		await clic(a0.x, a0.y);
 		const s1 = await etat();
-		check(/^Capture stopped: .+ kept\. Click Restart capture to capture anew\.$/.test(s1), 'vrai clic sur « Stop capture » : l’état dit que la capture est arrêtée', s1);
-		check((await bouton('arreter-capture'))?.grise === true, 'une fois arrêtée, le bouton « Stop capture » se grise');
-		check((await bouton('relancer'))?.grise === false, 'et « Restart capture » reste allumé');
+		check(/^Capture stopped: .+ kept\. Click Restart capture to capture anew\.$/.test(s1), 'vrai clic sur ■ : l’état dit que la capture est arrêtée', s1);
+		const a1 = await bouton('capture-bouton');
+		check(a1?.texte === '↻' && a1.grise === false, 'une fois arrêtée, le même bouton montre ↻ et reste allumé', JSON.stringify(a1));
 		await envoyer({ type: 'fronts', salves: { D8: clk(2100, 2200) } });
 		const s2 = await etat();
 		check(s2 === s1, 'la simulation continue d’envoyer des fronts : la capture n’en garde aucun', `${s1} → ${s2}`);
-		await relancer();
-		check((await bouton('arreter-capture'))?.grise === false, '« Restart capture » : la capture repart, « Stop capture » se rallume');
+		await clic(a1.x, a1.y);
+		check((await bouton('capture-bouton'))?.texte === '■', '↻ : la capture repart, le bouton redevient ■');
 		await envoyer({ type: 'fronts', salves: { D8: clk(2200, 2300) } });
 		const s3 = await etat();
 		check(/^Capturing… 2300\.0$/.test(s3), 'la relance remplit une nouvelle acquisition, sans les fronts reçus à l’arrêt', s3);
@@ -277,7 +284,7 @@ if (!chrome) {
 
 		// 6. Simulation arrêtée : le bouton se grise, un clic ne vide rien.
 		await envoyer({ type: 'arret' });
-		const b1 = await bouton('relancer');
+		const b1 = await bouton('capture-bouton');
 		check(b1?.grise === true, 'simulation arrêtée : le bouton se grise');
 		await relancer();
 		const e5 = await etat();

@@ -261,19 +261,30 @@ if (!chrome) {
 		check(prec?.texte === '⏮' && suiv?.texte === '⏭', 'les flèches ⏮ ⏭ sont dans la barre', JSON.stringify({ prec, suiv }));
 		check(!!prec && !!suiv && !!gauche && !!droite && prec.x < gauche.x && droite.x < suiv.x,
 			'⏮ ◀ ▶ ⏭ dans cet ordre');
-		check(prec?.grise === true && suiv?.grise === true, 'sans décodage, ⏮ ⏭ sont grisées');
+		// Frank, 07/10 : un bouton de capture au milieu des flèches, et des ⏮ ⏭
+		// d'une autre couleur de part et d'autre (trame DIFFÉRENTE).
+		const dPrec = await bouton('trame-diff-prec');
+		const dSuiv = await bouton('trame-diff-suiv');
+		const capt = await bouton('capture-bouton');
+		check(dPrec?.texte === '⏮' && dSuiv?.texte === '⏭' && !!prec && !!suiv && dPrec.x < prec.x && suiv.x < dSuiv.x,
+			'les ⏮ ⏭ « trame différente » encadrent les premières', JSON.stringify({ dPrec, dSuiv }));
+		check(!!capt && !!gauche && !!droite && gauche.x < capt.x && capt.x < droite.x && capt.texte === '■',
+			'le bouton de capture (■) est entre ◀ et ▶', JSON.stringify(capt));
+		check(prec?.grise === true && suiv?.grise === true && dPrec?.grise === true && dSuiv?.grise === true,
+			'sans décodage, les quatre flèches de trame sont grisées');
 
 		// 2. Décodage UART posé par le menu « P » de la voie : les flèches s'allument.
 		await ouvrirMenu(0, 'protocole');
 		const uart = await choisir('UART');
-		const allumees = (await bouton('trame-prec'))?.grise === false && (await bouton('trame-suiv'))?.grise === false;
+		const allumees = (await bouton('trame-prec'))?.grise === false && (await bouton('trame-suiv'))?.grise === false
+			&& (await bouton('trame-diff-prec'))?.grise === false && (await bouton('trame-diff-suiv'))?.grise === false;
 		check(uart && allumees, 'un décodage posé au menu allume ⏮ ⏭');
 
 		// 3. Zoom à la molette, puis ⏮ jusqu'à la première trame.
 		await molette(-8);
 		const zoom = await fenetre();
 		check(!!zoom && zoom.duree < 40, 'la molette a zoomé', JSON.stringify(zoom));
-		for (let i = 0; i < 4; i++) await cliquerBouton('trame-prec');
+		for (let i = 0; i < 6; i++) await cliquerBouton('trame-prec');
 		const surA = await fenetre();
 		const marge = (f) => f.duree * 0.02;
 		check(!!surA && pres(surA.t0, T_A - marge(surA), 1e-6),
@@ -287,9 +298,9 @@ if (!chrome) {
 				`premier front à x=${xs[0]}, attendu ${xA.toFixed(1)}`);
 		}
 
-		// 4. ⏭ : trame suivante, puis la dernière, puis plus rien. Les
+		// 4. ⏭ de couleur : trame suivante DIFFÉRENTE, puis la dernière, puis plus rien. Les
 		//    répétitions identiques (A2, B2) sont sautées.
-		await cliquerBouton('trame-suiv');
+		await cliquerBouton('trame-diff-suiv');
 		const surB = await fenetre();
 		check(!!surB && !pres(surB.t0, T_A2 - marge(surB), 1e-6), '⏭ saute la répétition identique de la première trame',
 			JSON.stringify(surB));
@@ -300,18 +311,49 @@ if (!chrome) {
 			check(xs.length > 0 && pres(xs[0], xB, 2), 'à l’écran, son front d’ouverture aussi',
 				`premier front à x=${xs[0]}, attendu ${xB.toFixed(1)}`);
 		}
-		await cliquerBouton('trame-suiv');
+		await cliquerBouton('trame-diff-suiv');
 		const surC = await fenetre();
 		check(!!surC && pres(surC.t0, T_C - marge(surC), 1e-6), '⏭ encore : la dernière trame', JSON.stringify(surC));
-		await cliquerBouton('trame-suiv');
+		await cliquerBouton('trame-diff-suiv');
 		const toujoursC = await fenetre();
 		check(!!toujoursC && !!surC && toujoursC.t0 === surC.t0, 'après la dernière trame, ⏭ ne bouge plus', JSON.stringify(toujoursC));
-		await cliquerBouton('trame-prec');
+		await cliquerBouton('trame-diff-prec');
 		const retourB = await fenetre();
 		check(!!retourB && !pres(retourB.t0, T_B2 - marge(retourB), 1e-6), '⏮ saute la répétition identique, lui aussi',
 			JSON.stringify(retourB));
 		check(!!retourB && pres(retourB.t0, T_B - marge(retourB), 1e-6), '⏮ ramène au début de la série d’avant', JSON.stringify(retourB));
 		check(!!retourB && !!zoom && pres(retourB.duree, zoom.duree, 1e-9), 'le zoom n’a pas bougé de tout le parcours');
+
+		// 4 bis. Les ⏮ ⏭ du milieu passent par TOUTES les trames, répétitions comprises.
+		await cliquerBouton('trame-suiv');
+		const surB2 = await fenetre();
+		check(!!surB2 && pres(surB2.t0, T_B2 - marge(surB2), 1e-6), '⏭ du milieu : la répétition identique compte (B2)', JSON.stringify(surB2));
+		await cliquerBouton('trame-prec');
+		const retB = await fenetre();
+		check(!!retB && pres(retB.t0, T_B - marge(retB), 1e-6), '⏮ du milieu : retour sur B', JSON.stringify(retB));
+		await cliquerBouton('trame-prec');
+		const surA2 = await fenetre();
+		check(!!surA2 && pres(surA2.t0, T_A2 - marge(surA2), 1e-6), '⏮ du milieu : de B à A2, la répétition de A', JSON.stringify(surA2));
+
+		// 4 ter. Toutes les trames identiques : pas de saut, un avertissement très lisible.
+		const REG_UART = [{ protocole: 'uart', id: 'd1', donnees: 0, bauds: 9600 }];
+		await envoyer({ type: 'restaure', etat: { ...CAPTURE, decodages: REG_UART, voies: [
+			{ voie: 0, nom: 'TX', pin: 'D1', fronts: serie([{ t: T_A, octets: [0x41, 0x42] }, { t: T_A2, octets: [0x41, 0x42] }, { t: T_B, octets: [0x41, 0x42] }]), niveauInitial: 1 },
+			CAPTURE.voies[1],
+		] } });
+		await attendre(150);
+		const avantId = await fenetre();
+		await cliquerBouton('trame-diff-suiv');
+		const apresId = await fenetre();
+		const bandeau = await ev(`(() => {
+			const b = document.getElementById('avertissement');
+			if (!b) return null;
+			const st = getComputedStyle(b);
+			return { visible: !b.hidden && b.getBoundingClientRect().height > 0, texte: b.textContent, gras: Number(st.fontWeight) >= 700 };
+		})()`);
+		check(!!avantId && !!apresId && avantId.t0 === apresId.t0, 'trames toutes identiques : ⏭ de couleur ne bouge pas', JSON.stringify({ avantId, apresId }));
+		check(bandeau?.visible === true && bandeau.gras === true && bandeau.texte === 'All frames are identical.',
+			'et affiche « All frames are identical. » en gras', JSON.stringify(bandeau));
 
 		// 5. Menu « T » de la voie décodée : « Frame start » ; la capture arrêtée
 		//    se fige sur la première trame.

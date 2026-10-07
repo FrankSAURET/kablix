@@ -1011,6 +1011,9 @@ export class SimulatorPanel {
       showClearDiagram: cfg.get<boolean>('showClearDiagramButton', false),
       foldLibraryOnRun: cfg.get<boolean>('foldLibraryOnRun', true),
       lintCode: cfg.get<boolean>('lintCode', true),
+      // Case « Ouvrir l'analyseur dans une nouvelle fenêtre » des sondes : un seul
+      // état pour toutes, gardé dans les réglages globaux de l'utilisateur.
+      analyseurFenetre: cfg.get<boolean>('analyseurNouvelleFenetre', false),
       // Succès : conservés d'un projet à l'autre, donc dans l'état global de l'extension.
       succes: this.context.globalState.get<unknown>(SUCCES_KEY),
     });
@@ -1837,7 +1840,8 @@ export class SimulatorPanel {
       this.analyseurCleRangee,
       this.analyseurTitre(),
       () => this.etatAnalyseur(),
-      (m: AnalyseurVersHote) => this.surReglagesAnalyseur(m)
+      (m: AnalyseurVersHote) => this.surReglagesAnalyseur(m),
+      vscode.workspace.getConfiguration('kablix').get<boolean>('analyseurNouvelleFenetre', false)
     );
   }
 
@@ -1917,6 +1921,8 @@ export class SimulatorPanel {
     /** Presse-papier système (messages `clipboardRead` / `clipboardWrite`). */
     id?: number;
     text?: string;
+    /** Case « nouvelle fenêtre » des sondes (message `analyseurFenetre`). */
+    valeur?: unknown;
     /** Analyseur logique : voies déclarées, salves de fronts, capture à plat. */
     voies?: unknown[];
     salves?: unknown;
@@ -2145,6 +2151,14 @@ export class SimulatorPanel {
           // instant unique (un arrêt de simulation, une fermeture d'onglet) ne
           // peut emporter la mesure avec lui.
           this.journalAnalyseur().verser(salves);
+        }
+        break;
+      case 'analyseurFenetre':
+        // La case des sondes a été cliquée : réglage GLOBAL, le même pour tous
+        // les projets. `onDidChangeConfiguration` le renvoie à la page.
+        if (typeof msg.valeur === 'boolean') {
+          void vscode.workspace.getConfiguration('kablix')
+            .update('analyseurNouvelleFenetre', msg.valeur, vscode.ConfigurationTarget.Global);
         }
         break;
       case 'analyseurDepart':

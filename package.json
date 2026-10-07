@@ -2,7 +2,7 @@
   "name": "kablix",
   "displayName": "Kablix",
   "version": "2026.10.1",
-  "buildNumber": 213,
+  "buildNumber": 214,
   "description": "%kablix.description%",
   "publisher": "electropol-fr",
   "author": {
@@ -285,6 +285,11 @@
           "type": "boolean",
           "default": true,
           "description": "%kablix.config.lintCode%"
+        },
+        "kablix.analyseurNouvelleFenetre": {
+          "type": "boolean",
+          "default": false,
+          "description": "%kablix.config.analyseurNouvelleFenetre%"
         },
         "kablix.foldLibraryOnRun": {
           "type": "boolean",
