@@ -97,11 +97,21 @@ export interface Annotation {
   bit?: boolean;
   /**
    * Ouvre une TRAME : BREAK DMX, START I²C (pas un START répété), CS ↓ ou début
-   * de salve SPI, premier caractère UART après un silence, RESET 1-Wire, départ
-   * DHT. Les flèches ⏮ ⏭ sautent de l'une à l'autre et le déclenchement « début
-   * de trame » s'y arrête (Frank, 25/09).
+   * de salve SPI, premier caractère UART après un silence, RESET 1-Wire, PRESENCE
+   * DHT (le départ de 18 ms qui la précède n'ouvre la trame que si le capteur ne
+   * répond pas). Les flèches ⏮ ⏭ sautent de l'une à l'autre et le déclenchement
+   * « début de trame » s'y arrête (Frank, 25/09).
    */
   trame?: boolean;
+  /**
+   * Durée, en ms, de la partie utile de la trame que ouvre cette annotation : les
+   * flèches ⏮ ⏭ calent la fenêtre dessus (un peu plus large) au lieu de garder le
+   * zoom. DHT : de la PRESENCE à la fin des 40 bits — les ~5 ms qui comptent,
+   * sans les 18 ms du départ (Frank, 07/10 : « calage sur présent »).
+   */
+  calageMs?: number;
+  /** Délimiteur qui n'appartient à aucune trame en propre : hors du contenu comparé par `changementsDeTrame`. */
+  sansContenu?: boolean;
 }
 
 /**
@@ -1258,9 +1268,17 @@ function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
    * les cinq octets faux.
    */
   let attendAccuse = false;
+  /** Le départ du maître en cours, et la PRESENCE qui ouvre la trame (calée à la clôture). */
+  let demande: Annotation | null = null;
+  let presence: Annotation | null = null;
 
   /** Pose les trois champs et le résumé d'une trame complète, ou signale une trame tronquée. */
   const clore = (tFin: number): void => {
+    // La partie utile de la trame, de la PRESENCE à sa fin : ce que ⏮ ⏭ cadrent.
+    if (presence) {
+      presence.calageMs = tFin - presence.t0;
+      presence = null;
+    }
     if (bits.length === 0) {
       enTrame = false;
       return;
@@ -1325,7 +1343,10 @@ function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
       // Signal de départ du maître : ce qui traînait avant n'appartient pas à
       // la trame qui commence.
       clore(f.t);
-      out.push({ t0: f.t, t1: montant.t, texte: t('REQUEST'), nature: 'start', trame: true });
+      // Le départ ouvre la trame tant que le capteur n'a pas répondu ; sa PRESENCE
+      // la reprendra (calage sur PRESENCE, Frank 07/10).
+      demande = { t0: f.t, t1: montant.t, texte: t('REQUEST'), nature: 'start', trame: true, sansContenu: true };
+      out.push(demande);
       attendAccuse = true;
       continue;
     }
@@ -1336,7 +1357,10 @@ function decoderDht(voies: VoieCapture[], r: ReglageDecodage): Annotation[] {
     const hautUs = descendant ? (descendant.t - montant.t) / usMs : Infinity;
 
     if (attendAccuse) {
-      out.push({ t0: f.t, t1: montant.t, texte: t('PRESENCE'), nature: 'cadre' });
+      presence = { t0: f.t, t1: montant.t, texte: t('PRESENCE'), nature: 'cadre', trame: true };
+      out.push(presence);
+      if (demande) delete demande.trame;
+      demande = null;
       attendAccuse = false;
       enTrame = true;
       tTrame = montant.t;
@@ -1523,6 +1547,21 @@ export function debutsDeTrame(voies: VoieCapture[], reglages: ReglageDecodage[])
 }
 
 /**
+ * Durée utile (ms) des trames qui en annoncent une (`Annotation.calageMs`), par
+ * instant de début : ⏮ ⏭ cadrent la fenêtre dessus au lieu de garder le zoom.
+ */
+export function calagesDeTrame(voies: VoieCapture[], reglages: ReglageDecodage[]): Map<number, number> {
+  const calages = new Map<number, number>();
+  for (const r of reglages) {
+    if (!reglageComplet(r)) continue;
+    for (const a of decoder(voies, { ...r, bits: false })) {
+      if (a.trame && a.calageMs !== undefined && a.calageMs > 0) calages.set(a.t0, a.calageMs);
+    }
+  }
+  return calages;
+}
+
+/**
  * Débuts des trames dont le CONTENU change, dans l'ordre du temps : ce que
  * parcourent les flèches ⏮ ⏭ « trame différente » (Frank, 26/09 ; 07/10 : les
  * flèches du milieu parcourent TOUTES les trames, `debutsDeTrame`). DmxSimple renvoie tout l'univers
@@ -1559,7 +1598,7 @@ export function changementsDeTrame(voies: VoieCapture[], reglages: ReglageDecoda
       }
       // Avant la première ouverture : un morceau de trame coupé par le début
       // de la capture, sans début à montrer.
-      if (debut === undefined || a.nature === 'cadre' || a.resume) continue;
+      if (debut === undefined || a.nature === 'cadre' || a.resume || a.sansContenu) continue;
       contenu.push(a.texte);
     }
     clore();

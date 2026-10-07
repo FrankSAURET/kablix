@@ -37,6 +37,7 @@ import {
 } from './analyseur-vue.mjs';
 import {
   avanceNecessaireMs,
+  calagesDeTrame,
   changementsDeTrame,
   debutsDeTrame,
   decoderTous,
@@ -348,6 +349,19 @@ function ajuster(): void {
     const marge = etendue * 0.01;
     fenetre = { t0: debut - marge, duree: etendue + 2 * marge };
   }
+  suivi = false;
+  dessiner();
+}
+
+/**
+ * ⇤ ⇥ (Frank, 07/10) : amène le début ou la fin de la capture au bord de la
+ * vue, zoom inchangé. Le suivi de la fin s'arrête : c'est ⤓ qui le remet.
+ */
+function allerAuBout(fin: boolean): void {
+  if (!capture.aDesDonnees) return;
+  fenetre = fin
+    ? { t0: capture.tFin - fenetre.duree, duree: fenetre.duree }
+    : { t0: capture.tDebut, duree: fenetre.duree };
   suivi = false;
   dessiner();
 }
@@ -798,10 +812,15 @@ function sauterTrame(sens: -1 | 1, differente = false): void {
     ? debuts.find((t) => t > bord + eps)
     : [...debuts].reverse().find((t) => t < bord - eps);
   if (cible === undefined) return;
-  const t0 = cible - fenetre.duree * MARGE_TRAME;
+  // DHT (Frank, 07/10) : la trame s'ouvre sur sa PRESENCE et la fenêtre se cale
+  // sur ses ~5 ms utiles, au lieu de garder un zoom qui noie les bits dans les
+  // 18 ms du départ. Les autres protocoles gardent le zoom.
+  const calage = calagesDeTrame(tranche, reglagesEffectifs()).get(cible);
+  const duree = calage !== undefined ? calage * 1.1 : fenetre.duree;
+  const t0 = cible - duree * MARGE_TRAME;
   decalerFenetreF(cible - (ancreF ?? bord));
   ancreF = cible;
-  fenetre = { t0, duree: fenetre.duree };
+  fenetre = { t0, duree };
   suivi = false;
   dessiner();
 }
@@ -2180,6 +2199,8 @@ document.getElementById('gauche')?.addEventListener('click', () => defiler(-1));
 document.getElementById('droite')?.addEventListener('click', () => defiler(1));
 document.getElementById('trame-suiv')?.addEventListener('click', () => sauterTrame(1));
 document.getElementById('trame-diff-suiv')?.addEventListener('click', () => sauterTrame(1, true));
+document.getElementById('debut')?.addEventListener('click', () => allerAuBout(false));
+document.getElementById('fin')?.addEventListener('click', () => allerAuBout(true));
 document.getElementById('tout')?.addEventListener('click', ajuster);
 document.getElementById('suivre')?.addEventListener('click', suivreFinDemande);
 btnReafficher?.addEventListener('click', () => {

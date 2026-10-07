@@ -12,13 +12,16 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - **Un seul bouton de capture, au centre des flèches** : ■ tant que la capture tourne, ↻ une fois arrêtée ou pleine, sans texte. ■ arrête la capture seule, pas la simulation : la mesure reste telle quelle et un déclenchement réglé après coup se cherche dans ce qui est capturé. ↻ repart d'une capture vide.
 - **Flèches de trame « différente »** : de part et d'autre, ⏮ ⏭ dans une autre couleur du thème, qui ne s'arrêtent que sur une trame différente de sa voisine. Si toutes les trames sont identiques, elles ne bougent pas et un bandeau en gras annonce « Toutes les trames sont identiques ».
+- **Boutons ⇤ ⇥** aux deux bouts des flèches : amènent le début ou la fin de la capture au bord de la vue, zoom inchangé.
 - **Case « Ouvrir l'analyseur dans une nouvelle fenêtre »** dans les propriétés des sondes logiques : la même pour toutes les sondes, posées ou à venir, enregistrée dans les réglages globaux de l'utilisateur.
 
 ### Modification
 
 **Analyseur logique**
 
-- **Les flèches ⏮ ⏭ du milieu parcourent toutes les trames**, répétitions identiques comprises (DHT, DS18B20, I²C relu…). Le saut des répétitions passe aux flèches de couleur.
+- **Les flèches ⏮ ⏭ du milieu parcourent toutes les trames**, répétitions identiques comprises (DHT, DS18B20, I²C relu…). Le saut des répétitions passe aux flèches de couleur, dont la couleur est celle de la pastille de la barre d'activité.
+- **DHT : les flèches ⏮ ⏭ se calent sur la PRESENCE** du capteur et sur les ~5 ms utiles de la trame, au lieu de garder un zoom que les 18 ms du départ rendent illisible. Le déclenchement « début de trame » s'y arrête aussi.
+- **« Toute la capture » et « Suivre en direct » deviennent ⇼ et ⤓**, après un séparateur ; les listes Échantillonnage et Profondeur gardent une largeur fixe.
 
 ## 2026.10.1 (5 octobre 2026)
 

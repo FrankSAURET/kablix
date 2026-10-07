@@ -6,6 +6,16 @@ _(rien pour l'instant)_
 
 ---
 
+# v2026.10.1.215
+1. ✅ **Flèches « différente »** : couleur = pastille de la barre d'activité (`--vscode-activityBarBadge-background`, repli `activityBar-activeBorder`). Le bleu lien du .214 était trop proche du texte courant.
+2. ✅ **⇤ ⇥** (`#debut`, `#fin`) aux deux bouts : début / fin de la capture au bord de la vue, zoom inchangé, suivi coupé.
+3. ✅ **⇼ (toute la capture) et ⤓ (suivre)** à la place des textes, **séparateur** après ⇥ ; listes `#horloge` (8,5 em) et `#profondeur` (11,5 em) à largeur fixe.
+4. ✅ **DHT, option C** : la trame s'ouvre sur la PRESENCE (le départ de 18 ms n'ouvre une trame que si le capteur ne répond pas) ; `Annotation.calageMs` + `calagesDeTrame` : ⏮ ⏭ cadrent PRESENCE → fin des 40 bits (+10 %). Le déclenchement « début de trame » s'arrête aussi sur la PRESENCE. Bancs : verify-analyseur, -trames.
+5. ⬜ **Couleur du texte des onglets (Kablix et analyseur)** : aucun changement de ma part ne la touche (relu : titres de panneau, CSS, `colorCustomizations` absents). Piste : décoration git de VS Code sur le .projix modifié (tab orange/vert) — à confirmer avec Frank.
+6. ⏳ Chaînes EN nouvelles (⇤ ⇥, aria-labels) : traduction à la publication.
+
+---
+
 # v2026.10.1.214
 1. ✅ **Bouton de capture unique** `#capture-bouton` entre ◀ et ▶, sans texte : ■ en cours, ↻ arrêtée ou pleine (remplace ↻ Restart et ⏹ Stop). Relancer en plein run = ■ puis ↻.
 2. ✅ **Flèches de trame** : ⏮ ⏭ du milieu = TOUTES les trames (`debutsDeTrame`) ; ⏮ ⏭ de couleur (`--vscode-textLink-foreground`) aux extrémités = trame DIFFÉRENTE (`changementsDeTrame`). Trames toutes identiques : pas de saut, bandeau `#avertissement` en gras (couleurs d'alerte du thème, 5 s) « All frames are identical. ». Le seuil de rafale du .213 est retiré (plus utile). Bancs : verify-analyseur, -trames (31), -profondeur (37).

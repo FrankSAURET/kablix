@@ -439,7 +439,12 @@ export class AnalyseurPanel {
   .barre button:hover { background: var(--vscode-toolbar-hoverBackground, rgba(128,128,128,.2)); }
   #etat { opacity: .7; margin-left: auto; }
   /* ⏮ ⏭ « trame différente » : même symbole, autre couleur du thème. */
-  .barre button.trame-diff { color: var(--vscode-textLink-foreground, #3794ff); }
+  .barre button.trame-diff { color: var(--vscode-activityBarBadge-background, var(--vscode-activityBar-activeBorder, #0078d4)); }
+  /* Listes à largeur FIXE : leur texte change (durée de chaque profondeur) et la
+     barre ne doit pas bouger avec (Frank, 07/10). */
+  #horloge { width: 8.5em; }
+  #profondeur { width: 11.5em; }
+  .barre .separateur { align-self: stretch; width: 1px; margin: 0 2px; background: var(--vscode-panel-border, rgba(128,128,128,.5)); }
   #avertissement {
     margin: 0; padding: 6px 10px; font-weight: 700; text-align: center;
     color: var(--vscode-inputValidation-warningForeground, var(--vscode-foreground));
@@ -529,6 +534,7 @@ export class AnalyseurPanel {
        ■ pendant qu'elle tourne, ↻ une fois arrêtée (ou pleine) — l'arrêt
        concerne la capture seule, pas la simulation (Frank, 06/10). Grisé hors
        simulation. -->
+  <button id="debut" type="button" title="${l.t('Bring the start of the capture to the left edge, zoom unchanged.')}">⇤</button>
   <button id="trame-diff-prec" class="trame-diff" type="button" disabled title="${l.t('Bring the start of the previous decoded frame that differs from its neighbour to the left edge. Needs a decoding on a channel.')}">⏮</button>
   <button id="trame-prec" type="button" disabled title="${l.t('Bring the start of the previous decoded frame to the left edge. Needs a decoding on a channel.')}">⏮</button>
   <button id="gauche" type="button" title="${l.t('Move back in time by half a window. The Left arrow key does the same.')}">◀</button>
@@ -536,10 +542,12 @@ export class AnalyseurPanel {
   <button id="droite" type="button" title="${l.t('Move forward in time by half a window. The Right arrow key does the same.')}">▶</button>
   <button id="trame-suiv" type="button" disabled title="${l.t('Bring the start of the next decoded frame to the left edge. Needs a decoding on a channel.')}">⏭</button>
   <button id="trame-diff-suiv" class="trame-diff" type="button" disabled title="${l.t('Bring the start of the next decoded frame that differs from its neighbour to the left edge. Needs a decoding on a channel.')}">⏭</button>
+  <button id="fin" type="button" title="${l.t('Bring the end of the capture to the right edge, zoom unchanged.')}">⇥</button>
+  <span class="separateur" role="separator"></span>
   <!-- Deux boutons nommés en clair : « Fit » et « Follow » ne disaient pas ce
        qu'ils font une fois dans un analyseur (retour Frank, .91). -->
-  <button id="tout" type="button" title="${l.t('Zoom out until the whole capture, from the start to the last edge, fits the window.')}">${l.t('Whole capture')}</button>
-  <button id="suivre" type="button" title="${l.t('Keep the window on the last captured edges: the view scrolls by itself while the simulation runs. Zooming with the wheel turns it off.')}">${l.t('Follow live')}</button>
+  <button id="tout" type="button" title="${l.t('Zoom out until the whole capture, from the start to the last edge, fits the window.')}" aria-label="${l.t('Whole capture')}">⇼</button>
+  <button id="suivre" type="button" title="${l.t('Keep the window on the last captured edges: the view scrolls by itself while the simulation runs. Zooming with the wheel turns it off.')}" aria-label="${l.t('Follow live')}">⤓</button>
   <!-- Menu d'export (Frank, 26/09) : CSV, SVG copié, SVG enregistré, tous
        limités à l'intervalle M1–M2 quand les deux marqueurs sont posés. Le CSV
        lit le journal de session côté hôte ; le SVG, la page le dessine au zoom

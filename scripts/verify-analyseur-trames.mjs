@@ -355,6 +355,40 @@ if (!chrome) {
 		check(bandeau?.visible === true && bandeau.gras === true && bandeau.texte === 'All frames are identical.',
 			'et affiche « All frames are identical. » en gras', JSON.stringify(bandeau));
 
+		// 4 quater. Barre (Frank, 07/10) : ⇤ ⇥ aux extrémités, ⇼ ⤓ sans texte après un séparateur,
+		//           listes à taille fixe, flèches de couleur différente des autres.
+		const bDebut = await bouton('debut');
+		const bFin = await bouton('fin');
+		const bTout = await bouton('tout');
+		const bSuivre = await bouton('suivre');
+		check(bDebut?.texte === '⇤' && bFin?.texte === '⇥' && !!bDebut && !!dPrec && !!dSuiv && !!bFin
+			&& bDebut.x < dPrec.x && dSuiv.x < bFin.x, '⇤ et ⇥ encadrent l’ensemble des flèches', JSON.stringify({ bDebut, bFin }));
+		check(bTout?.texte === '⇼' && bSuivre?.texte === '⤓', 'les boutons « toute la capture » et « suivre » sont les symboles ⇼ et ⤓', JSON.stringify({ bTout, bSuivre }));
+		const sep = await ev(`(() => {
+			const s = document.querySelector('.separateur');
+			if (!s) return null;
+			const r = s.getBoundingClientRect();
+			return { x: r.left, large: r.width > 0 && r.height > 0 };
+		})()`);
+		check(!!sep?.large && !!bFin && !!bTout && bFin.x < sep.x && sep.x < bTout.x, 'un séparateur entre les flèches et ⇼ ⤓', JSON.stringify(sep));
+		const couleurs = await ev(`(() => {
+			const c = (id) => getComputedStyle(document.getElementById(id)).color;
+			return { milieu: c('trame-prec'), diff: c('trame-diff-prec'), diff2: c('trame-diff-suiv') };
+		})()`);
+		check(couleurs.diff !== couleurs.milieu && couleurs.diff === couleurs.diff2, 'les flèches « différente » ont une autre couleur que les premières', JSON.stringify(couleurs));
+		const largeurs = async () => ev(`({ h: document.getElementById('horloge').getBoundingClientRect().width, p: document.getElementById('profondeur').getBoundingClientRect().width })`);
+		const l1 = await largeurs();
+		await ev(`(() => { const p = document.getElementById('profondeur'); p.options[0].textContent = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; return true; })()`);
+		const l2 = await largeurs();
+		check(l1.h === l2.h && l1.p === l2.p, 'les listes Sampling et Depth gardent une largeur fixe', JSON.stringify({ l1, l2 }));
+		const avantFin = await fenetre();
+		await cliquerBouton('fin');
+		const surFin = await fenetre();
+		check(!!surFin && !!avantFin && pres(surFin.duree, avantFin.duree, 1e-9) && surFin.t0 + surFin.duree >= 60, '⇥ : la fin de la capture au bord droit, zoom inchangé', JSON.stringify(surFin));
+		await cliquerBouton('debut');
+		const surDebut = await fenetre();
+		check(!!surDebut && surDebut.t0 <= T_A && surDebut.t0 >= T_A - 2 && pres(surDebut.duree, avantFin.duree, 1e-9), '⇤ : le début de la capture au bord gauche, zoom inchangé', JSON.stringify(surDebut));
+
 		// 5. Menu « T » de la voie décodée : « Frame start » ; la capture arrêtée
 		//    se fige sur la première trame.
 		const entrees = await ouvrirMenu(0, 'declenchement');
@@ -370,6 +404,35 @@ if (!chrome) {
 		const entreesLent = await ouvrirMenu(1, 'declenchement');
 		check(entreesLent.length > 0 && !entreesLent.some((e) => e.includes('Frame start')),
 			'menu T d’une voie sans décodage : pas de « Frame start »', entreesLent.join(' | '));
+
+		// 4 quinquies. DHT : le saut se cale sur la PRESENCE et sur les ~5 ms utiles, pas sur
+		//              le départ de 18 ms (Frank, 07/10).
+		{
+			const US = 0.001;
+			const dht = [];
+			let t = 10;
+			const trameDht = (t0) => {
+				let u = t0;
+				const pose = (n, dureeUs) => { dht.push([u, n]); u += dureeUs * US; };
+				pose(0, 18000); // départ du maître
+				pose(1, 30);
+				pose(0, 80); pose(1, 80); // accusé
+				for (let k = 0; k < 40; k++) { pose(0, 50); pose(1, k % 2 ? 70 : 26); }
+				pose(0, 50); // fin de trame
+				dht.push([u, 1]);
+			};
+			trameDht(t);
+			trameDht(200);
+			const PRES = 10 + 18 + 0.03;
+			await envoyer({ type: 'restaure', etat: { ...CAPTURE, decodages: [{ protocole: 'dht', id: 'd1', donnees: 0, modele: 'dht22' }],
+				voies: [{ voie: 0, nom: 'TX', pin: 'D1', fronts: dht.flat(), niveauInitial: 1 }, CAPTURE.voies[1]] } });
+			await attendre(150);
+			await molette(-6); // zoom : bien plus étroit que la capture
+			for (let i = 0; i < 4; i++) await cliquerBouton('trame-prec');
+			const surDht = await fenetre();
+			check(!!surDht && surDht.duree > 4 && surDht.duree < 8 && pres(surDht.t0, PRES - surDht.duree * 0.02, 0.2),
+				'DHT : ⏮ amène la PRESENCE au bord gauche, fenêtre calée sur les ~5 ms utiles', JSON.stringify({ surDht, PRES }));
+		}
 
 		// 7. Projet rouvert avec un décodage `d1` : un décodage ajouté ensuite au
 		//    menu prend un autre identifiant (le compteur reprenait à `d1`).

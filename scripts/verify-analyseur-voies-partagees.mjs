@@ -311,7 +311,7 @@ try {
 		return [0, 1, 2].map((k) => textes.filter((x) => /^[01]$/.test(x.t) && /bold/.test(x.font) && Math.abs(x.y - (hautPiste(k) + PISTE_H / 2)) < 0.6).pop()?.t ?? '—').join('');
 	};
 	const toutVoir = async () => {
-		await ev(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Whole capture').click()`);
+		await ev(`document.getElementById('tout').click()`);
 		await attendre(80);
 	};
 

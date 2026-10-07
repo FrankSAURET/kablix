@@ -92,7 +92,7 @@ const { AnalyseurCapture, VOIES_MAX, FRONTS_MAX_PAR_VOIE, RESERVE_AVANT, PROFOND
 // Le décodeur parle la langue de la webview (`t()`, v2026.9.4.133) : son paquet
 // embarque SON i18n, qu'il faut régler dans CE paquet. Le banc lit en français,
 // puis refait un tour en anglais (langue de base) plus bas.
-const { decoder, decoderTous, debutsDeTrame, changementsDeTrame, reglageComplet, rolesDe, reculNecessaireMs, lignesSousVoie, initLocale } = await buildTo(
+const { decoder, decoderTous, debutsDeTrame, changementsDeTrame, calagesDeTrame, reglageComplet, rolesDe, reculNecessaireMs, lignesSousVoie, initLocale } = await buildTo(
   {
     resolveDir: join(root, 'src/webview'),
     contents: [
@@ -2182,7 +2182,20 @@ const dhtDe = (tempC, humidity, model) => {
     owResets.length === 2 && memes(owOuv, owResets), `${owOuv} / ${owResets}`);
   const dht = dhtDe(23.4, 56.7, 'dht22');
   const dhtOuv = ouvertures(decoder([voieDe(0, 'DATA', dht, 1)], { protocole: 'dht', donnees: 0 }));
-  check('trame DHT : la demande du maître ouvre la trame', memes(dhtOuv, [dht[0][0]]), String(dhtOuv));
+  // Frank, 07/10 : la trame DHT s'ouvre sur la PRESENCE (calage), pas sur le
+  // départ de 18 ms ; ⏮ ⏭ cadrent alors les ~5 ms utiles.
+  const dhtAnn = decoder([voieDe(0, 'DATA', dht, 1)], { protocole: 'dht', donnees: 0 });
+  const presence = dhtAnn.find((a) => a.texte === 'PRESENCE' || a.texte === 'PRÉSENT');
+  check('trame DHT : la PRESENCE du capteur ouvre la trame, pas le départ du maître',
+    !!presence && memes(dhtOuv, [presence.t0]) && !dhtAnn.find((a) => a.nature === 'start' && a.trame), `${dhtOuv} / ${presence?.t0}`);
+  const calDht = calagesDeTrame([voieDe(0, 'DATA', dht, 1)], [{ protocole: 'dht', donnees: 0 }]);
+  const finDht = dht[dht.length - 1][0];
+  check('trame DHT : le calage couvre de la PRESENCE à la fin des 40 bits (~5 ms, sans les 18 ms de départ)',
+    !!presence && calDht.size === 1 && calDht.get(presence.t0) > 3 && calDht.get(presence.t0) < 8 && calDht.get(presence.t0) <= finDht - presence.t0 + 1e-9,
+    JSON.stringify([...calDht]));
+  // Sans réponse du capteur, le départ ouvre la trame faute de mieux.
+  const sansCapteur = decoder([voieDe(0, 'DATA', dht.slice(0, 2), 1)], { protocole: 'dht', donnees: 0 });
+  check('trame DHT sans capteur : le départ du maître ouvre la trame', memes(ouvertures(sansCapteur), [dht[0][0]]), String(ouvertures(sansCapteur)));
 
   // Deux décodages : les débuts de trame des deux, dans l'ordre du temps.
   const deux = debutsDeTrame(
