@@ -6,6 +6,12 @@ _(rien pour l'instant)_
 
 ---
 
+# v2026.10.1.216
+1. ✅ **Flèches « différente »** remplies du bleu du bouton « Noms » actif (`--vscode-button-background`, texte `--vscode-button-foreground`), au lieu de la couleur d'activité.
+2. ✅ **⇤ ⇥ ⇼ ⤓** en 1,35 em et en gras. ⚠ Rendu non vu dans VS Code (thème de Frank) : à confirmer.
+
+---
+
 # v2026.10.1.215
 1. ✅ **Flèches « différente »** : couleur = pastille de la barre d'activité (`--vscode-activityBarBadge-background`, repli `activityBar-activeBorder`). Le bleu lien du .214 était trop proche du texte courant.
 2. ✅ **⇤ ⇥** (`#debut`, `#fin`) aux deux bouts : début / fin de la capture au bord de la vue, zoom inchangé, suivi coupé.

@@ -439,7 +439,17 @@ export class AnalyseurPanel {
   .barre button:hover { background: var(--vscode-toolbar-hoverBackground, rgba(128,128,128,.2)); }
   #etat { opacity: .7; margin-left: auto; }
   /* ⏮ ⏭ « trame différente » : même symbole, autre couleur du thème. */
-  .barre button.trame-diff { color: var(--vscode-activityBarBadge-background, var(--vscode-activityBar-activeBorder, #0078d4)); }
+  /* Même bleu que le bouton « Noms » de Kablix quand une de ses cases est cochée
+     (classe primary) : ces flèches se voient d'un coup d'œil (Frank, 07/10). */
+  .barre button.trame-diff {
+    color: var(--vscode-button-foreground, #fff);
+    background: var(--vscode-button-background, #0e639c);
+    border-color: var(--vscode-button-background, #0e639c);
+  }
+  .barre button.trame-diff:hover { background: var(--vscode-button-hoverBackground, #1177bb); }
+  .barre button.trame-diff:disabled { opacity: .4; }
+  /* Flèches et symboles ajoutés (⇤ ⇥ ⇼ ⤓) : plus gros et en gras, ils étaient à peine visibles. */
+  #debut, #fin, #tout, #suivre { font-size: 1.35em; font-weight: 700; line-height: 1; }
   /* Listes à largeur FIXE : leur texte change (durée de chaque profondeur) et la
      barre ne doit pas bouger avec (Frank, 07/10). */
   #horloge { width: 8.5em; }

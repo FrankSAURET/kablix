@@ -19,7 +19,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Analyseur logique**
 
-- **Les flèches ⏮ ⏭ du milieu parcourent toutes les trames**, répétitions identiques comprises (DHT, DS18B20, I²C relu…). Le saut des répétitions passe aux flèches de couleur, dont la couleur est celle de la pastille de la barre d'activité.
+- **Les flèches ⏮ ⏭ du milieu parcourent toutes les trames**, répétitions identiques comprises (DHT, DS18B20, I²C relu…). Le saut des répétitions passe aux flèches de couleur, remplies du bleu du bouton « Noms » de la barre d'outils quand une de ses cases est cochée. ⇤ ⇥ ⇼ ⤓ sont plus gros et en gras.
 - **DHT : les flèches ⏮ ⏭ se calent sur la PRESENCE** du capteur et sur les ~5 ms utiles de la trame, au lieu de garder un zoom que les 18 ms du départ rendent illisible. Le déclenchement « début de trame » s'y arrête aussi.
 - **« Toute la capture » et « Suivre en direct » deviennent ⇼ et ⤓**, après un séparateur ; les listes Échantillonnage et Profondeur gardent une largeur fixe.
 
