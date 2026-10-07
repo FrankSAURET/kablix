@@ -400,7 +400,7 @@ if (!chrome) {
 			return ['F1', 'F2'].map((n) => { const d = drapeauDe(vu, n); return d ? tDe(d.x, f) - debut : null; });
 		};
 		const unPx = (f) => (1.2 * f.duree) / (boite.largeur - 104 - 12);
-		const sauts = [['trame-suiv', '⏭', 30], ['trame-prec', '⏮', 2], ['promenade', 'courbe promenée puis ⏭', null]];
+		const sauts = [['trame-diff-suiv', '⏭', 30], ['trame-diff-prec', '⏮', 2], ['promenade', 'courbe promenée puis ⏭', null]];
 		for (const [fleche, nomFleche, attendu] of sauts) {
 			if (fleche === 'promenade') {
 				// Le cas de Frank : la courbe tirée de 160 px vers la gauche, puis ⏭.
@@ -408,7 +408,7 @@ if (!chrome) {
 				await glisser(700, 110, 540, 110);
 				const fQ = await fenetre();
 				check(!!fP && !!fQ && fQ.t0 > fP.t0, 'témoin : la courbe tenue et tirée fait défiler la vue', `${fmt(fP?.t0)} → ${fmt(fQ?.t0)} ms`);
-				await cliquerBouton('trame-suiv');
+				await cliquerBouton('trame-diff-suiv');
 			}
 			const fAvant = await fenetre();
 			const vAvant = await releve();
