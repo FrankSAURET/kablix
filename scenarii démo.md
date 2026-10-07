@@ -127,15 +127,6 @@ Tu travail dans V:\DemoKablix
 15. fermer vscode et keyviz.
 16. Séparer les 2 vidéos et les traiter comme le scenario1
 
-## Scénario 4 : Piloter des servomoteur
-
-1. Créer un montage Arduino Uno avec deux servomoteurs.
-2. Relier l'alimentation et la masse de chaque servomoteur, puis leurs fils de commande à deux sorties PWM.
-3. Ajouter un programme Arduino qui déplace les servomoteurs entre plusieurs angles.
-4. Lancer la simulation et observer le déplacement des bras des servomoteurs.
-5. Modifier les angles ou les temporisations dans le programme, puis relancer pour montrer l'effet immédiat.
-6. Débrancher volontairement un fil de commande et montrer la différence de comportement.
-
 ## Scénario 5 : debogage
 
 1. Reprendre le montage de LED et introduire une erreur simple : connecter la LED à une mauvaise broche.
