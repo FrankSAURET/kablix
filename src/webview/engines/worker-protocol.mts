@@ -211,6 +211,8 @@ export type FromWorker =
   /** Univers DMX512 décodé sur une broche TX, publié quand un canal a changé. */
   | { t: 'dmx'; pin: string; data: Uint8Array }
   | { t: 'debugPause'; state: unknown }
+  /** Message d'un point de journalisation (ou erreur de condition). */
+  | { t: 'debugLog'; entry: unknown }
   /** MicroPython : le script de l'utilisateur commence VRAIMENT (cf. `onRunning`). */
   | { t: 'scriptStarted' }
   /** MicroPython : bascule vers le script instrumenté (cf. `onDebugRestart`). */

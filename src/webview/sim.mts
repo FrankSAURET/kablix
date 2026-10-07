@@ -561,7 +561,7 @@ const capSamplers = new Map<string, () => number>();
 const analogWaves = new Map<string, AnalogWave>();
 // Condensateurs claqués pendant ce run (tension de service dépassée).
 const burnedCaps = new Set<string>();
-let breakpoints: Breakpoint[] = []; // points d'arrêt envoyés par l'extension (ligne + condition)
+let breakpoints: Breakpoint[] = []; // points d'arrêt envoyés par l'extension (ligne + règles VS Code)
 // Vrai dès qu'un programme compilé/chargé a été reçu : sinon, lancer la
 // simulation déclenche d'abord une compilation automatique du fichier de code.
 let programLoaded = false;
@@ -4924,6 +4924,11 @@ function startRun(): void {
     if (rest) appendSerial(rest);
   };
   engine.onDebugPause = renderDebugPause;
+  // Points de journalisation (et erreurs de condition) : écrits côté VS Code,
+  // dans un canal de sortie — jamais dans le moniteur série, que le traceur lit.
+  if (engine.onDebugLog !== undefined) {
+    engine.onDebugLog = (entry) => vscode.postMessage({ type: 'debugLog', ...entry });
+  }
   // Pico : le programme tourne d'abord sans instrumentation (pleine vitesse) et
   // n'est relancé en version « pas à pas » qu'au premier point d'arrêt. Le rejeu
   // se fait en silence jusqu'à ce point : on repart d'une console vierge pour ne
@@ -6338,7 +6343,7 @@ window.addEventListener('message', (event: MessageEvent) => {
       break;
     case 'breakpoints':
       // Points d'arrêt de la gouttière de l'éditeur VS Code (ligne 1-based +
-      // condition optionnelle évaluée côté moteur).
+      // condition, nombre de passages, message : évalués côté moteur).
       breakpoints = Array.isArray(msg.breakpoints) ? (msg.breakpoints as Breakpoint[]) : [];
       nbPointsArret = breakpoints.length;
       succes.pointsArret(nbPointsArret);

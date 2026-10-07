@@ -282,5 +282,87 @@ const again = await nextPause();
 check('le point d\'arrêt re-déclenche après resume()', engine.paused && again?.line === loopLine);
 engine.stop();
 
+// --- Règles VS Code : condition C, nombre de passages, journalisation --------
+// Moteur neuf à chaque cas : le point d'arrêt est AVANT « compteur++ », donc au
+// N-ième passage compteur vaut N-1. Jusqu'à la v2026.10.1.214, la condition
+// était ignorée (arrêt à chaque passage) et ni passages ni messages n'existaient.
+console.log('Règles VS Code (condition, passages, journalisation) :');
+const cas = (bps) => {
+  const e = new AvrEngine(Uint16Array.from(p.bytes), debug);
+  const r = { engine: e, logs: [], pauses: [], waiting: null };
+  e.onDebugPause = (st) => { r.pauses.push(st); r.waiting?.(st); };
+  e.onDebugLog = (entry) => r.logs.push(entry);
+  r.next = (ms = 15000) => new Promise((resolve) => {
+    const timer = setTimeout(() => { r.waiting = null; resolve(null); }, ms);
+    r.waiting = (st) => { clearTimeout(timer); r.waiting = null; resolve(st); };
+  });
+  e.setSpeed(100);
+  e.setBreakpoints(bps);
+  e.start();
+  return r;
+};
+const cpt = (st) => st?.variables.find((v) => v.name === 'compteur')?.value;
+
+{
+  const r = cas([{ line: loopLine, condition: 'compteur >= 5 && compteur % 3 == 0 && notes[compteur - compteur + 1] == 20 && p1.y == 7' }]);
+  const a = await r.next();
+  r.engine.resume();
+  const b = await r.next();
+  r.engine.stop();
+  check(`condition C (tableau, structure) vraie seulement à compteur = 6 puis 9 (${cpt(a)}, ${cpt(b)})`, cpt(a) === '6' && cpt(b) === '9');
+}
+{
+  const r = cas([{ line: loopLine, condition: 'seuil > 4.5 ? HIGH : LOW' }]);
+  const a = await r.next();
+  r.engine.stop();
+  const s = parseFloat(a?.variables.find((v) => v.name === 'seuil')?.value ?? 'NaN');
+  check(`condition flottante + ternaire + HIGH/LOW (seuil = ${s} > 4.5)`, s > 4.5 && s <= 5.14 + 1e-6);
+}
+{
+  const r = cas([{ line: loopLine, hitCondition: '4' }]);
+  const a = await r.next();
+  r.engine.resume();
+  const b = await r.next(800);
+  r.engine.stop();
+  check(`passages « 4 » : arrêt au 4e passage seulement (compteur = ${cpt(a)}, puis ${b ? 'arrêt' : 'aucun'})`, cpt(a) === '3' && b === null);
+}
+{
+  const r = cas([{ line: loopLine, hitCondition: '%10' }]);
+  const a = await r.next();
+  r.engine.resume();
+  const b = await r.next();
+  r.engine.stop();
+  check(`passages « %10 » : compteur = 9 puis 19 (${cpt(a)}, ${cpt(b)})`, cpt(a) === '9' && cpt(b) === '19');
+}
+{
+  const r = cas([{ line: loopLine, condition: 'compteur % 2 == 1', hitCondition: '>=3' }]);
+  const a = await r.next();
+  r.engine.stop();
+  check(`condition puis passages comptés sur la condition vraie (compteur = ${cpt(a)}, attendu 5)`, cpt(a) === '5');
+}
+{
+  const r = cas([{ line: loopLine, logMessage: 'c={compteur} n={notes[1]} {{x}}', hitCondition: '<=3' }]);
+  const a = await r.next(800);
+  r.engine.stop();
+  const msgs = r.logs.map((l) => l.message);
+  check(`journalisation sans arrêt (${a ? 'arrêt !' : 'aucun arrêt'}, ${msgs.length} message(s))`, a === null && msgs.length === 3);
+  check(`message interpolé (${JSON.stringify(msgs[0])})`, msgs[0] === 'c=0 n=20 {x}' && msgs[2]?.startsWith('c=2 '));
+  check('message porté par la bonne ligne', r.logs.length > 0 && r.logs.every((l) => l.line === loopLine && !l.error));
+}
+{
+  const r = cas([{ line: loopLine, condition: 'inconnu > 2' }]);
+  const a = await r.next(800);
+  r.engine.stop();
+  check(`condition invalide : pas d'arrêt, erreur signalée UNE fois (${r.logs.length} : ${r.logs[0]?.message})`,
+    a === null && r.logs.length === 1 && r.logs[0].error === true && /inconnu/.test(r.logs[0].message));
+}
+{
+  const r = cas([{ line: loopLine, hitCondition: 'beaucoup' }]);
+  const a = await r.next();
+  r.engine.stop();
+  check(`nombre de passages illisible : signalé, point d'arrêt ordinaire (${r.logs[0]?.message})`,
+    a !== null && r.logs.length === 1 && r.logs[0].error === true);
+}
+
 console.log(failures === 0 ? '\nRESULTAT: OK' : `\nRESULTAT: ECHEC (${failures})`);
 process.exit(failures === 0 ? 0 : 1);

@@ -21,6 +21,7 @@ import {
 } from './rp-chip.mjs';
 import type {
   Breakpoint,
+  DebugLogEntry,
   DebugPauseState,
   Dht22Sensor,
   Ds18b20Sensor,
@@ -33,6 +34,7 @@ import type {
   UltrasonicSensor,
 } from './types.mjs';
 import { LOGIC_LOG_MAX, SCOPE_LOG_MAX } from './types.mjs';
+import { encodePyBreakpoints, parseHitCondition } from './breakpoints.mjs';
 import { selectSpiDevice, Hd44780, type I2cDevice, type SpiDevice } from './i2c-devices.mjs';
 import { Ws2812Decoder } from './ws2812.mjs';
 import { DmxDecoder } from './dmx.mjs';
@@ -283,6 +285,7 @@ export class PicoEngine implements SimEngine {
   onUpdate: (() => void) | null = null;
   onSerial: ((chunk: string) => void) | null = null;
   onDebugPause: ((state: DebugPauseState) => void) | null = null;
+  onDebugLog: ((entry: DebugLogEntry) => void) | null = null;
   onRunning: (() => void) | null = null;
   onNetRequest: ((req: NetRequest) => void) | null = null;
   /**
@@ -1547,14 +1550,19 @@ export class PicoEngine implements SimEngine {
 
   /**
    * Points d'arrêt MicroPython : la liste est retenue puis transmise au script
-   * instrumenté via stdin (« \x10 {json} \n », ligne → condition ou null). Le
-   * préambule __kx s'arrête à ces lignes même hors pas à pas, et ne suspend sur
-   * une ligne conditionnelle que si l'expression Python est vraie. Si le script
+   * instrumenté via stdin (« \x10 {json} \n », ligne → règle). Le préambule
+   * __kx s'arrête à ces lignes même hors pas à pas et y applique les règles VS
+   * Code (condition Python, nombre de passages, journalisation). Si le script
    * n'est pas encore lancé, la liste sera envoyée dès qu'il atteint sa phase
    * d'exécution (cf. enterStdout).
    */
   setBreakpoints(breakpoints: Breakpoint[]): void {
     this.breakpoints = breakpoints.map((b) => ({ ...b }));
+    // Nombre de passages illisible : signalé ici (le script n'en reçoit aucun).
+    for (const b of this.breakpoints) {
+      const hit = parseHitCondition(b.hitCondition);
+      if (hit instanceof Error) this.onDebugLog?.({ line: b.line, message: hit.message, error: true });
+    }
     if (this.scriptRunning) this.sendBreakpoints();
     else if (this.breakpoints.length > 0 && this.canSwitchToDebug && this.replPhase === 'stdout') {
       // Point d'arrêt posé pendant que le script rapide tourne : on relance en
@@ -1563,14 +1571,18 @@ export class PicoEngine implements SimEngine {
     }
   }
 
+  /** Vrai si tous les points d'arrêt posés sont des points de journalisation. */
+  private get journalSeulement(): boolean {
+    return this.breakpoints.length > 0 && this.breakpoints.every((b) => !!b.logMessage);
+  }
+
   /** Envoie la liste courante des points d'arrêt au script (stdin du REPL). */
   private sendBreakpoints(): void {
     if (!this.cdc) return;
-    // Objet JSON { "ligne": condition|null } : robuste aux conditions contenant
-    // des virgules ; l'encodage JSON échappe tout caractère de contrôle, donc le
-    // '\n' final reste un terminateur sûr.
-    const map: Record<string, string | null> = {};
-    for (const b of this.breakpoints) map[String(b.line)] = b.condition ?? null;
+    // Objet JSON { "ligne": règle } (cf. __kx_set_bps) : l'encodage JSON échappe
+    // tout caractère de contrôle, donc le '\n' final reste un terminateur sûr.
+    // Le nombre de passages et le message sont analysés ici, une fois pour toutes.
+    const map = encodePyBreakpoints(this.breakpoints);
     const cmd = '\x10' + JSON.stringify(map) + '\n';
     for (const ch of cmd) this.cdc.sendSerialByte(ch.charCodeAt(0));
   }
@@ -1585,6 +1597,9 @@ export class PicoEngine implements SimEngine {
     // Ce que le script rapide a lâché en s'interrompant (KeyboardInterrupt) ne
     // fait pas partie du rejeu : on repart d'un tampon vide.
     if (this.silentReplay) this.replayBuf = '';
+    // Que des points de journalisation : aucun arrêt ne viendra clore le rejeu
+    // silencieux, le programme relancé s'affiche donc normalement dès son départ.
+    if (this.silentReplay && this.instrumented && this.journalSeulement) this.endSilentReplay();
     if (this.instrumented) {
       if (this.breakpoints.length > 0) this.sendBreakpoints();
       if (this.isPaused && !this.pausedByStop) this.cdc?.sendSerialByte(0x05);
@@ -1724,7 +1739,7 @@ export class PicoEngine implements SimEngine {
   // Les octets arrivent par paquets arbitraires : un petit tampon reconstitue
   // la séquence avant de décider de sa destination (panneau Variables, hôte
   // réseau) ; tout ce qui n'est pas une séquence connue retourne au moniteur.
-  private static readonly ESC_TAGS = ['KX', 'NT'];
+  private static readonly ESC_TAGS = ['KX', 'KL', 'NT'];
 
   private emitSerial(text: string): void {
     for (const ch of text) this.emitSerialChar(ch);
@@ -1772,6 +1787,7 @@ export class PicoEngine implements SimEngine {
       const payload = this.escBuf.slice(3).replace(/\r$/, '');
       this.escBuf = '';
       if (tag === 'KX') this.handleKxLine(payload);
+      else if (tag === 'KL') this.handleLogLine(payload);
       else this.handleNetLine(payload);
       return;
     }
@@ -1802,6 +1818,17 @@ export class PicoEngine implements SimEngine {
     if (!this.cdc) return;
     const cmd = '\x1bNR' + JSON.stringify(response) + '\n';
     for (const ch of cmd) this.cdc.sendSerialByte(ch.charCodeAt(0));
+  }
+
+  /** Message d'un point de journalisation (ou erreur de condition) publié par __kx. */
+  private handleLogLine(json: string): void {
+    try {
+      const data = JSON.parse(json) as { l?: number; m?: string; e?: boolean };
+      if (typeof data.l !== 'number' || typeof data.m !== 'string') return;
+      this.onDebugLog?.({ line: data.l, message: data.m, error: data.e === true || undefined });
+    } catch {
+      // Séquence malformée : ignorée.
+    }
   }
 
   /** Décode un état de pause publié par __kx et le relaie au panneau Variables. */

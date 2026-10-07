@@ -19,6 +19,7 @@ import type { PicoProgram } from './pico.mjs';
 import type { SevenSegMuxSpec } from './sevenseg.mjs';
 import type {
   Breakpoint,
+  DebugLogEntry,
   DebugPauseState,
   Dht22Sensor,
   Ds18b20Sensor,
@@ -177,6 +178,8 @@ export class WorkerEngine implements SimEngine {
   onUpdate: (() => void) | null = null;
   onSerial: ((chunk: string) => void) | null = null;
   onDebugPause: ((state: DebugPauseState) => void) | null = null;
+  /** Point de journalisation atteint (ou erreur d'évaluation d'un point d'arrêt). */
+  onDebugLog: ((entry: DebugLogEntry) => void) | null = null;
   /** MicroPython : le script de l'élève démarre pour de bon. */
   onRunning: (() => void) | null = null;
   /** MicroPython : bascule vers le script instrumenté ('start' puis 'end'). */
@@ -321,6 +324,9 @@ export class WorkerEngine implements SimEngine {
       case 'debugPause':
         this.pausedMirror = true;
         this.onDebugPause?.(msg.state as DebugPauseState);
+        return;
+      case 'debugLog':
+        this.onDebugLog?.(msg.entry as DebugLogEntry);
         return;
       case 'scriptStarted':
         this.onRunning?.();

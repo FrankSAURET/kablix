@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 const l10n = vscode.l10n;
 import { buildWebviewHtml } from './webview-html';
 import {
@@ -1402,8 +1402,9 @@ export class SimulatorPanel {
 
   /**
    * Envoie à la webview les points d'arrêt actifs du fichier source courant :
-   * pour chacun, la ligne (1-based) et son éventuelle condition (expression
-   * saisie dans la gouttière, évaluée côté moteur — Python pour MicroPython).
+   * pour chacun, la ligne (1-based) et ses règles saisies dans la gouttière :
+   * condition (évaluée côté moteur — Python pour MicroPython, C pour Arduino),
+   * nombre de passages, message de journalisation.
    */
   private sendBreakpoints(): void {
     try {
@@ -1420,11 +1421,29 @@ export class SimulatorPanel {
             .map((bp) => ({
               line: bp.location.range.start.line + 1,
               condition: bp.condition || undefined,
+              hitCondition: bp.hitCondition || undefined,
+              logMessage: bp.logMessage || undefined,
             }));
       this.post({ type: 'breakpoints', breakpoints });
     } catch {
       // panneau ou éditeur dans un état transitoire : ignoré
     }
+  }
+
+  /**
+   * Canal de sortie des points de journalisation (« Log Message » de VS Code),
+   * partagé par tous les panneaux. Kablix n'ouvre pas de session de débogage
+   * VS Code : la console de débogage n'existe pas, le canal en tient lieu.
+   */
+  private static logChannel: vscode.OutputChannel | undefined;
+
+  /** Écrit un message de point de journalisation (ou une erreur) et montre le canal. */
+  private writeDebugLog(line: number, message: string, error: boolean): void {
+    const channel = (SimulatorPanel.logChannel ??= vscode.window.createOutputChannel(l10n.t('Kablix — Logpoints')));
+    const file = this.currentSourceUri ? basename(this.currentSourceUri.fsPath) : '';
+    const where = file ? `${file}:${line}` : String(line);
+    channel.appendLine(error ? `${where}  ⚠ ${l10n.t('Breakpoint error: {0}', message)}` : `${where}  ${message}`);
+    channel.show(true); // sans voler le focus de l'éditeur
   }
 
   /** Surligne la ligne source où la simulation est en pause (sans voler le focus). */
@@ -1906,6 +1925,8 @@ export class SimulatorPanel {
     part?: unknown;
     state?: unknown;
     line?: number;
+    message?: string;
+    error?: boolean;
     diagram?: unknown;
     json?: unknown;
     onlyIfChanged?: boolean;
@@ -2074,6 +2095,11 @@ export class SimulatorPanel {
         break;
       case 'debugResumed':
         this.clearDebugLine();
+        break;
+      case 'debugLog':
+        if (typeof msg.line === 'number' && typeof msg.message === 'string') {
+          this.writeDebugLog(msg.line, msg.message, msg.error === true);
+        }
         break;
       case 'nativeSave':
         // Bouton Enregistrer : save « intelligent » — un projet untitled avec un

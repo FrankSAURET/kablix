@@ -15,6 +15,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Boutons ⇤ ⇥** aux deux bouts des flèches : amènent le début ou la fin de la capture au bord de la vue, zoom inchangé.
 - **Case « Ouvrir l'analyseur dans une nouvelle fenêtre »** dans les propriétés des sondes logiques : la même pour toutes les sondes, posées ou à venir, enregistrée dans les réglages globaux de l'utilisateur.
 
+**Mise au point**
+
+- **Points d'arrêt complets, sur Arduino comme sur Pico** : les trois variantes de VS Code (clic droit dans la gouttière) sont prises en compte. *Expression* : arrêt seulement si elle est vraie, en C sur Arduino (variables globales, cases de tableau, champs de structure) et en Python sur Pico (variables globales et locales de la fonction). *Nombre d'accès* : `5` arrête au 5ᵉ passage, `>5`, `<=5`, `%3`… *Message de journal* : la simulation ne s'arrête pas, le message (`compteur = {compteur}`) s'écrit dans la sortie « Kablix — Logpoints ». Une expression erronée est signalée une fois dans cette même sortie au lieu d'arrêter.
+
 ### Modification
 
 **Analyseur logique**
@@ -22,6 +26,13 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Les flèches ⏮ ⏭ du milieu parcourent toutes les trames**, répétitions identiques comprises (DHT, DS18B20, I²C relu…). Le saut des répétitions passe aux flèches de couleur, remplies du bleu du bouton « Noms » de la barre d'outils quand une de ses cases est cochée. ⇤ ⇥ ⇼ ⤓ sont plus gros et en gras.
 - **DHT : les flèches ⏮ ⏭ se calent sur la PRESENCE** du capteur et sur les ~5 ms utiles de la trame, au lieu de garder un zoom que les 18 ms du départ rendent illisible. Le déclenchement « début de trame » s'y arrête aussi.
 - **« Toute la capture » et « Suivre en direct » deviennent ⇼ et ⤓**, après un séparateur ; les listes Échantillonnage et Profondeur gardent une largeur fixe.
+
+### Correction
+
+**Mise au point**
+
+- **Arduino : un point d'arrêt conditionnel s'arrêtait à chaque passage**, la condition étant ignorée. Elle est maintenant évaluée.
+- **Un point de journalisation (« Message de journal ») arrêtait la simulation** comme un point d'arrêt ordinaire, sur Arduino comme sur Pico.
 
 ## 2026.10.1 (5 octobre 2026)
 

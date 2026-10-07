@@ -46,6 +46,7 @@ import type { ADCMuxConfiguration } from 'avr8js';
 import type {
   AvrDebugInfo,
   Breakpoint,
+  DebugLogEntry,
   DebugPauseState,
   DebugVariable,
   Dht22Sensor,
@@ -56,6 +57,8 @@ import type {
   UltrasonicSensor,
 } from './types.mjs';
 import { LOGIC_LOG_MAX, SCOPE_LOG_MAX } from './types.mjs';
+import { hitMatches, parseHitCondition, splitLogMessage, type HitRule } from './breakpoints.mjs';
+import { evalC, formatC } from './cexpr.mjs';
 import {
   buildDht22Schedule,
   dht22ResponseCycles,
@@ -255,10 +258,25 @@ for (let i = 0; i < 8; i++) {
 }
 const MEGA_ADC_CONFIG = { ...adcConfig, adcInterrupt: 0x3a, numChannels: 16, muxInputMask: 0x3f, muxChannels: MEGA_ADC_CHANNELS };
 
+
+/** Point d'arrêt posé à une adresse flash : règles VS Code + compteur de passages. */
+interface RegleArret {
+  line: number;
+  /** Clé de la règle : un point d'arrêt inchangé garde son compteur. */
+  cle: string;
+  condition?: string;
+  hit: HitRule | null;
+  /** Message découpé (texte / expression alternés), si point de journalisation. */
+  log: string[] | null;
+  hits: number;
+  /** Erreur déjà signalée : une seule fois par règle, pas à chaque passage. */
+  erreurSignalee: boolean;
+}
 export class AvrEngine implements SimEngine {
   onUpdate: (() => void) | null = null;
   onSerial: ((chunk: string) => void) | null = null;
   onDebugPause: ((state: DebugPauseState) => void) | null = null;
+  onDebugLog: ((entry: DebugLogEntry) => void) | null = null;
 
   private cpu: CPU;
   private ports: Partial<Record<PortKey, AVRIOPort>>;
@@ -315,7 +333,7 @@ export class AvrEngine implements SimEngine {
   private isPaused = false;
   private speed = 1; // fraction du temps réel exécutée à chaque frame
   private debugInfo: AvrDebugInfo | null = null;
-  private breakpoints = new Set<number>(); // adresses flash (octets) des points d'arrêt
+  private breakpoints = new Map<number, RegleArret>(); // adresse flash (octets) → règle
   private skipBreakAddr: number | null = null; // adresse à ne pas re-déclencher après un arrêt
   // Pas à pas « par-dessus » exécuté en arrière-plan par la boucle RAF (cf. step()
   // et loop()) : on avance jusqu'à une autre ligne du sketch revenue au niveau de
@@ -1647,19 +1665,79 @@ export class AvrEngine implements SimEngine {
   }
 
   /**
-   * Convertit les lignes cochées en adresses flash (1re entrée par ligne). Les
-   * conditions (champ `condition`) ne sont pas évaluées côté C/AVR : il faudrait
-   * un évaluateur d'expression C sur les globales DWARF (hors périmètre). Un
-   * point d'arrêt conditionnel en C se comporte donc comme inconditionnel.
+   * Convertit les lignes cochées en adresses flash (1re entrée par ligne), avec
+   * leurs règles VS Code : condition (expression C sur les globales, cf.
+   * cexpr.mts), nombre de passages, message de journalisation. Un point d'arrêt
+   * inchangé garde son compteur de passages quand on en pose un autre.
    */
   setBreakpoints(breakpoints: Breakpoint[]): void {
+    const anciennes = new Map<string, RegleArret>();
+    for (const r of this.breakpoints.values()) anciennes.set(r.cle, r);
     this.breakpoints.clear();
     if (!this.debugInfo) return;
-    const wanted = new Set(breakpoints.map((b) => b.line));
+    const parLigne = new Map<number, Breakpoint>();
+    for (const b of breakpoints) parLigne.set(b.line, b);
     for (const entry of this.debugInfo.lines) {
       // Table triée par adresse : delete() ne retient que la première entrée.
-      if (wanted.delete(entry.line)) this.breakpoints.add(entry.addr);
+      const b = parLigne.get(entry.line);
+      if (!b) continue;
+      parLigne.delete(entry.line);
+      const cle = JSON.stringify([b.line, b.condition ?? '', b.hitCondition ?? '', b.logMessage ?? '']);
+      const hit = parseHitCondition(b.hitCondition);
+      const regle: RegleArret = {
+        line: b.line,
+        cle,
+        condition: b.condition?.trim() || undefined,
+        hit: hit instanceof Error ? null : hit,
+        log: b.logMessage ? splitLogMessage(b.logMessage) : null,
+        hits: anciennes.get(cle)?.hits ?? 0,
+        erreurSignalee: anciennes.get(cle)?.erreurSignalee ?? false,
+      };
+      if (hit instanceof Error) this.signalerErreur(regle, hit.message);
+      this.breakpoints.set(entry.addr, regle);
     }
+  }
+
+  /** Erreur d'évaluation d'un point d'arrêt : signalée une fois par règle. */
+  private signalerErreur(regle: RegleArret, message: string): void {
+    if (regle.erreurSignalee) return;
+    regle.erreurSignalee = true;
+    this.onDebugLog?.({ line: regle.line, message, error: true });
+  }
+
+  /** Valeur numérique d'une globale du croquis (pour les conditions). */
+  private valeurGlobale = (nom: string): number | undefined => {
+    const g = this.debugInfo?.globals.find((x) => x.name === nom);
+    return g ? this.lireGlobale(g)?.n : undefined;
+  };
+
+  /**
+   * Point d'arrêt atteint : vrai s'il faut suspendre. Condition fausse (ou
+   * illisible), nombre de passages pas atteint, ou point de journalisation
+   * (message écrit, pas d'arrêt) → faux.
+   */
+  private arretVoulu(regle: RegleArret): boolean {
+    if (regle.condition) {
+      try {
+        if (evalC(regle.condition, this.valeurGlobale) === 0) return false;
+      } catch (e) {
+        this.signalerErreur(regle, `condition '${regle.condition}': ${(e as Error).message}`);
+        return false;
+      }
+    }
+    regle.hits++;
+    if (!hitMatches(regle.hit, regle.hits)) return false;
+    if (!regle.log) return true;
+    const morceaux = regle.log.map((p, i) => {
+      if (i % 2 === 0) return p;
+      try {
+        return formatC(evalC(p, this.valeurGlobale));
+      } catch (e) {
+        return `<${(e as Error).message}>`;
+      }
+    });
+    this.onDebugLog?.({ line: regle.line, message: morceaux.join('') });
+    return false;
   }
 
   /** Ligne source pour une adresse flash en octets (recherche dichotomique). */
@@ -1689,37 +1767,46 @@ export class AvrEngine implements SimEngine {
   /** Lit les globales en SRAM (little-endian) pour le panneau Variables. */
   private readVariables(): DebugVariable[] {
     if (!this.debugInfo) return [];
-    const data = this.cpu.data;
-    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
     const out: DebugVariable[] = [];
     for (const g of this.debugInfo.globals) {
-      if (g.addr + g.size > data.length) continue;
-      const type = (g.type ?? '').toLowerCase();
-      const unsigned = type.includes('unsigned') || type.startsWith('uint') || type === 'bool';
-      let value: string;
-      // Un pointeur (`int *`) est une ADRESSE : signé, il s'afficherait en
-      // négatif dès la moitié haute de l'espace. On le rend en hexadécimal,
-      // comme on l'écrit et comme le montrent les outils de mise au point.
-      if (type.endsWith('*')) {
-        const addr = view.getUint16(g.addr, true);
-        out.push({ name: g.name, value: `0x${addr.toString(16).padStart(4, '0')}`, type: g.type });
-        continue;
-      }
-      // Sur AVR, `double` = flottant 32 bits (identique à float) : même décodage.
-      if (g.size === 4 && (type.includes('float') || type.includes('double'))) {
-        // Float IEEE 754 ; arrondi pour masquer le bruit binaire (3.1400001…).
-        value = String(Math.round(view.getFloat32(g.addr, true) * 1e6) / 1e6);
-      } else if (g.size === 1) {
-        const n = unsigned ? view.getUint8(g.addr) : view.getInt8(g.addr);
-        value = type.includes('bool') ? (n ? 'true' : 'false') : String(n);
-      } else if (g.size === 2) {
-        value = String(unsigned ? view.getUint16(g.addr, true) : view.getInt16(g.addr, true));
-      } else {
-        value = String(unsigned ? view.getUint32(g.addr, true) : view.getInt32(g.addr, true));
-      }
-      out.push({ name: g.name, value, type: g.type });
+      const lu = this.lireGlobale(g);
+      if (lu) out.push({ name: g.name, value: lu.texte, type: g.type });
     }
     return out;
+  }
+
+  /**
+   * Lit une globale en SRAM : valeur numérique (conditions) et texte affiché
+   * (panneau Variables). undefined si elle déborde de la mémoire.
+   */
+  private lireGlobale(g: AvrDebugInfo['globals'][number]): { n: number; texte: string } | undefined {
+    const data = this.cpu.data;
+    if (g.addr + g.size > data.length) return undefined;
+    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+    const type = (g.type ?? '').toLowerCase();
+    const unsigned = type.includes('unsigned') || type.startsWith('uint') || type === 'bool';
+    // Un pointeur (`int *`) est une ADRESSE : signé, il s'afficherait en
+    // négatif dès la moitié haute de l'espace. On le rend en hexadécimal,
+    // comme on l'écrit et comme le montrent les outils de mise au point.
+    if (type.endsWith('*')) {
+      const addr = view.getUint16(g.addr, true);
+      return { n: addr, texte: `0x${addr.toString(16).padStart(4, '0')}` };
+    }
+    // Sur AVR, `double` = flottant 32 bits (identique à float) : même décodage.
+    if (g.size === 4 && (type.includes('float') || type.includes('double'))) {
+      // Float IEEE 754 ; arrondi pour masquer le bruit binaire (3.1400001…).
+      const n = Math.round(view.getFloat32(g.addr, true) * 1e6) / 1e6;
+      return { n, texte: String(n) };
+    }
+    if (g.size === 1) {
+      const n = unsigned ? view.getUint8(g.addr) : view.getInt8(g.addr);
+      return { n, texte: type.includes('bool') ? (n ? 'true' : 'false') : String(n) };
+    }
+    const n =
+      g.size === 2
+        ? unsigned ? view.getUint16(g.addr, true) : view.getInt16(g.addr, true)
+        : unsigned ? view.getUint32(g.addr, true) : view.getInt32(g.addr, true);
+    return { n, texte: String(n) };
   }
 
   /** Publie l'état courant (ligne + variables) vers le panneau de débogage. */
@@ -1797,11 +1884,17 @@ export class AvrEngine implements SimEngine {
         // Points d'arrêt : test du PC (en octets) après chaque instruction.
         if (this.breakpoints.size > 0) {
           if (pcBytes !== this.skipBreakAddr) this.skipBreakAddr = null;
-          if (this.skipBreakAddr === null && this.breakpoints.has(pcBytes)) {
-            this.skipBreakAddr = pcBytes; // resume() repartira sans re-déclencher ici
-            this.stepping = false;
-            this.pause(); // émet l'état et interrompt la boucle (isPaused)
-            break;
+          const regle = this.skipBreakAddr === null ? this.breakpoints.get(pcBytes) : undefined;
+          if (regle) {
+            // resume() repartira sans re-déclencher ici ; un passage sans arrêt
+            // (condition fausse, journalisation) ne compte qu'une fois, même si
+            // l'instruction boucle sur elle-même.
+            this.skipBreakAddr = pcBytes;
+            if (this.arretVoulu(regle)) {
+              this.stepping = false;
+              this.pause(); // émet l'état et interrompt la boucle (isPaused)
+              break;
+            }
           }
         }
         // Pas à pas « par-dessus » : arrêt sur une autre ligne du sketch, les

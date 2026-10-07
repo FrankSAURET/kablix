@@ -2,6 +2,8 @@
 import type { BusDeviceSpec, BusDevices, I2cDevice, SpiDevice } from './i2c-devices.mjs';
 import type { AnalogWave } from './analog-waves.mjs';
 import type { SevenSegMuxSpec } from './sevenseg.mjs';
+import type { DebugLogEntry } from './breakpoints.mjs';
+export type { DebugLogEntry } from './breakpoints.mjs';
 
 /**
  * Plafond du journal de fronts d'un oscilloscope, en NOMBRES (deux par front).
@@ -53,6 +55,16 @@ export interface Breakpoint {
    * Absente = point d'arrêt inconditionnel.
    */
   condition?: string;
+  /**
+   * Nombre de passages (`5`, `>5`, `%3`…) : compté quand la condition est vraie.
+   * Cf. parseHitCondition (breakpoints.mts).
+   */
+  hitCondition?: string;
+  /**
+   * Point de journalisation : au lieu de suspendre, écrit ce message
+   * (expressions entre accolades remplacées par leur valeur).
+   */
+  logMessage?: string;
 }
 
 /**
@@ -207,6 +219,8 @@ export interface SimEngine {
   setBreakpoints?(breakpoints: Breakpoint[]): void;
   /** Appelé à chaque pause avec la ligne courante et les variables lisibles. */
   onDebugPause: ((state: DebugPauseState) => void) | null;
+  /** Message d'un point de journalisation, ou erreur d'évaluation d'un point d'arrêt. */
+  onDebugLog?: ((entry: DebugLogEntry) => void) | null;
   /**
    * Temps SIMULÉ écoulé depuis le démarrage, en ms (cycles CPU ÷ horloge). Comparé
    * au temps réel, il donne la vitesse effective de la simulation : c'est le seul
