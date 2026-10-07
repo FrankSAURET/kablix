@@ -854,8 +854,8 @@ const btnReafficher = document.getElementById('reafficher') as HTMLButtonElement
 const btnMenuExport = document.getElementById('menu-export') as HTMLButtonElement | null;
 const menuExport = document.getElementById('menu-export-liste') as HTMLDivElement | null;
 
-/** Remplit un sélecteur de voie avec les voies traçables. */
-function remplirVoies(sel: HTMLSelectElement, aucun: string): void {
+/** Remplit un sélecteur de voie avec les voies traçables (sauf `exclue`). */
+function remplirVoies(sel: HTMLSelectElement, aucun: string, exclue?: number): void {
   const avant = sel.value;
   sel.textContent = '';
   const vide = document.createElement('option');
@@ -864,6 +864,7 @@ function remplirVoies(sel: HTMLSelectElement, aucun: string): void {
   sel.append(vide);
   for (const d of diagnostics) {
     if (d.probleme) continue; // une voie en défaut ne déclenche ni ne décode rien
+    if (d.voie === exclue) continue;
     const o = document.createElement('option');
     o.value = String(d.voie);
     o.textContent = nomAffiche(d);
@@ -901,6 +902,73 @@ const PROTOCOLES: Array<[Protocole, string]> = [
 /** Décodage dont CETTE voie porte les données, ou undefined. */
 function decodageDe(voie: number): ReglageDecodage | undefined {
   return decodages.find((d) => d.donnees === voie);
+}
+
+/**
+ * Rôle I²C probable d'une voie : son nom d'abord (« SDA », « SCL » écrits par
+ * l'élève), sinon sa broche — GP pair = SDA, impair = SCL sur un Pico (GP8/GP9,
+ * GP4/GP5…) ; A4/A5 sur un Uno, 20/21 sur un Mega.
+ */
+function roleI2c(d: VoieVue): 'sda' | 'scl' | null {
+  const nom = nomAffiche(d).toUpperCase();
+  if (/\bSCL\b/.test(nom)) return 'scl';
+  if (/\bSDA\b/.test(nom)) return 'sda';
+  const pin = d.pin.toUpperCase();
+  const gp = /^GP(\d+)$/.exec(pin);
+  if (gp) return Number(gp[1]) % 2 === 0 ? 'sda' : 'scl';
+  if (pin === 'A4' || pin === '20') return 'sda';
+  if (pin === 'A5' || pin === '21') return 'scl';
+  return null;
+}
+
+/** Broche jumelle d'une broche I²C (GP8 ↔ GP9, A4 ↔ A5, 20 ↔ 21), ou null. */
+function brocheJumelle(pin: string): string | null {
+  const p = pin.toUpperCase();
+  const gp = /^GP(\d+)$/.exec(p);
+  if (gp) return `GP${Number(gp[1]) ^ 1}`;
+  const paires: Record<string, string> = { A4: 'A5', A5: 'A4', '20': '21', '21': '20' };
+  return paires[p] ?? null;
+}
+
+/**
+ * La voie qui joue l'AUTRE rôle I²C face à `ici` : celle dont le nom le dit,
+ * sinon celle posée sur la broche jumelle, sinon n'importe quelle voie du bon
+ * rôle. Une SDA qui porte déjà un décodage n'est pas reprise.
+ */
+function partenaireI2c(ici: VoieVue, voulu: 'sda' | 'scl'): number | undefined {
+  const jumelle = brocheJumelle(ici.pin);
+  const candidates = diagnostics.filter(
+    (d) =>
+      d.voie !== ici.voie &&
+      !d.probleme &&
+      roleI2c(d) === voulu &&
+      (voulu === 'scl' || !decodageDe(d.voie))
+  );
+  const score = (d: VoieVue): number => {
+    const nom = nomAffiche(d).toUpperCase();
+    if (new RegExp(`\\b${voulu.toUpperCase()}\\b`).test(nom)) return 2;
+    return jumelle !== null && d.pin.toUpperCase() === jumelle ? 1 : 0;
+  };
+  return candidates.sort((a, b) => score(b) - score(a))[0]?.voie;
+}
+
+/**
+ * Nouveau décodage I²C posé depuis la voie `voie` (Frank, 07/10/2026 : trois
+ * décodages posés, aucun valide — le « P » d'une voie la prenait TOUJOURS pour
+ * SDA et laissait SCL vide, si bien qu'un « P » cliqué sur la voie SCL
+ * décodait l'horloge comme des données). On range chaque voie à sa place et on
+ * va chercher l'autre ligne du bus.
+ */
+function nouveauI2c(id: string, voie: number): ReglageDecodage {
+  const ici = diagnostics.find((d) => d.voie === voie);
+  if (!ici) return { protocole: 'i2c', id, donnees: voie };
+  if (roleI2c(ici) === 'scl') {
+    const sda = partenaireI2c(ici, 'sda');
+    if (sda !== undefined) return { protocole: 'i2c', id, donnees: sda, horloge: voie };
+    return { protocole: 'i2c', id, donnees: voie };
+  }
+  const scl = partenaireI2c(ici, 'scl');
+  return { protocole: 'i2c', id, donnees: voie, ...(scl !== undefined ? { horloge: scl } : {}) };
 }
 
 // --- Panneaux flottants ------------------------------------------------------
@@ -1099,6 +1167,13 @@ function menuProtocole(z: ZoneBouton): void {
     ouvrirPanneau(z, panneauDecodage(existant, z.voie), false);
     return;
   }
+  // Voie SCL d'un I²C déjà posé sur sa SDA : c'est ce décodage-là qu'on règle,
+  // pas un second qui lirait l'horloge comme des données.
+  const parHorloge = decodages.find((d) => d.protocole === 'i2c' && d.horloge === z.voie && d.donnees !== undefined);
+  if (parHorloge) {
+    ouvrirPanneau(z, panneauDecodage(parHorloge, parHorloge.donnees!), false);
+    return;
+  }
   const boite = document.createElement('div');
   boite.style.display = 'contents';
   boite.append(
@@ -1110,7 +1185,8 @@ function menuProtocole(z: ZoneBouton): void {
     boite.append(
       entreeMenu(nom, false, () => {
         idDecodage += 1;
-        decodages.push({ protocole: cle, id: `d${idDecodage}`, donnees: z.voie });
+        const id = `d${idDecodage}`;
+        decodages.push(cle === 'i2c' ? nouveauI2c(id, z.voie) : { protocole: cle, id, donnees: z.voie });
         dessiner();
         envoyerReglages();
       })
@@ -1188,6 +1264,11 @@ function panneauDecodage(d: ReglageDecodage, voie: number): HTMLElement {
     if (base) d.base = base;
     if (bits) d.bits = true;
     d.donnees = voie;
+    // Passage à l'I²C : l'horloge se devine comme à la pose (broche jumelle).
+    if (d.protocole === 'i2c') {
+      const h = nouveauI2c(d.id ?? '', voie);
+      if (h.donnees === voie && h.horloge !== undefined) d.horloge = h.horloge;
+    }
     refaire();
     // Le panneau montre d'autres rôles selon le bus : on le refait sur place.
     const z = zoneDe(voie, 'protocole');
@@ -1201,7 +1282,9 @@ function panneauDecodage(d: ReglageDecodage, voie: number): HTMLElement {
     const lab = document.createElement('label');
     lab.textContent = role.nom;
     const sel = document.createElement('select');
-    remplirVoies(sel, role.obligatoire ? '—' : t('none'));
+    // La voie de données n'est jamais aussi l'horloge ou le CS : la proposer
+    // laissait poser SDA = SCL, un décodage muet sans le moindre avertissement.
+    remplirVoies(sel, role.obligatoire ? '—' : t('none'), voie);
     const courant = d[role.cle];
     if (typeof courant === 'number') sel.value = String(courant);
     sel.addEventListener('change', () => {

@@ -1,7 +1,17 @@
 # À faire
-1. ⬜ Sonde posée sur le MILIEU d'un fil (pas sur une pastille) : aujourd'hui elle ne s'y accroche pas du tout (le modèle ne connaît que les pattes). À trancher par Frank : faut-il ce geste ?
+
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.1.219
+1. ✅ **Décodage I²C muet** (« 16 servo + alim-pico2 » : « ni décodage ni bits sur SDA »). Les 3 décodages du projet étaient faux : d1 SDA = SCL = voie 2, d2 tout sur la voie 7 (SCL), d3 SDA sur la voie 0 (GP9 = SCL). Cause : le « P » prenait TOUJOURS sa voie pour SDA, SCL vide ; le panneau proposait la voie de données comme horloge. [analyseur.mts](src/webview/analyseur.mts) : `roleI2c` (nom SDA/SCL, sinon broche : GP pair/impair, A4/A5, 20/21), `partenaireI2c` (nom explicite > broche jumelle), `nouveauI2c` à la pose et au passage à l'I²C dans le panneau ; « P » d'une voie SCL déjà décodée rouvre CE décodage ; `remplirVoies` exclut la voie de données des rôles.
+2. ✅ Banc [verify-analyseur-i2c-pose.mjs](scripts/verify-analyseur-i2c-pose.mjs) : vraie page, vraie souris (CDP), échange LigneI2c réel ; pose depuis SCL puis depuis SDA, second « P », liste SCL. 8 contrôles, contre-épreuve `--ancien` en échec. Ajouté à `verify:all:serie`. analyseur, -rendu, -bits, -marqueurs, -i2c, -bulle, -restaure, -voies-partagees : verts.
+3. ⏳ Les décodages déjà enregistrés dans un .projix ne sont pas réparés : à reposer à la main.
+
+**À vérifier par Frank**
+- « 16 servo + alim-pico2 » : retirer les 3 décodages, cliquer « P » sur SDA (ou SCL) → I²C ; trame et bits visibles sous SDA.
 
 ---
 

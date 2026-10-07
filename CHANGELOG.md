@@ -34,6 +34,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - **Le bus I²C restait plat** : SDA et SCL ne bougeaient pas, l'analyseur attendait son front de déclenchement pour toujours. Les échanges s'affichent et se décodent maintenant sur Arduino comme sur Pico.
 - **À l'arrêt de la simulation, les sondes reliées par un fil redevenaient grises.** Elles gardent leur couleur.
+- **Un décodage I²C posé depuis la voie SCL ne décodait rien** : elle était prise pour SDA. Posé depuis SDA ou SCL, le décodage range maintenant chaque ligne à sa place et trouve l'autre tout seul ; la voie SDA n'est plus proposée comme horloge.
 
 **Mise au point**
 
