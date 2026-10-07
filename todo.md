@@ -1,8 +1,20 @@
 # À faire
-_(rien pour l'instant)_
-
+1. ⬜ Sonde posée sur le MILIEU d'un fil (pas sur une pastille) : aujourd'hui elle ne s'y accroche pas du tout (le modèle ne connaît que les pattes). À trancher par Frank : faut-il ce geste ?
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.1.218
+1. ✅ **I²C visible dans l'analyseur** (« 16 servo + alim-pico2 » : 3 sondes, rien, « en attente du front de déclenchement »). Cause : ni rp2040js ni avr8js ne pilotent SDA/SCL, les échanges sont résolus au niveau protocole. Nouveau [i2c-fronts.mts](src/webview/engines/i2c-fronts.mts) (`LigneI2c` : START/START répété, octet + ACK/NACK, STOP, morceaux chaînés dans le temps comme uart-fronts). [pico.mts](src/webview/engines/pico.mts) : fronts versés par les gestionnaires I²C avant `complete*`, seulement si la broche est en fonction F3 ; période = sclHigh+sclLow. [avr.mts](src/webview/engines/avr.mts) : idem sur les événements TWI (A4/A5 Uno, 20/21 Mega, `sclFrequency`). Broches synthétisées exclues du relevé GPIO.
+2. ✅ Banc [verify-analyseur-i2c.mjs](scripts/verify-analyseur-i2c.mjs) (Uno registres TWI + PCA9685, NACK, lecture, 100 kHz ; Pico 1 et 2 en vrai MicroPython avec la lib grove_16_channels_pwm, décodage START/0x7F/STOP). Ajouté à `verify:all:serie`. Contre-épreuve : 14 échecs sur l'ancien code.
+3. ✅ **Sondes reliées par un fil grises à l'arrêt** : `stopRun` → `editor.resetVisuals()` recrée chaque composant et efface `relie`. [sim.mts](src/webview/sim.mts) rappelle `colorerSondesReliees()` juste après.
+4. ✅ **La sonde prend la couleur du fil** (cordon sur sa pointe, sinon fil déjà relié à la patte sous la pointe), à la première attribution de voie seulement (la voie ne change plus ensuite, règle inchangée). Correspondance écrite à la main dans [voies-couleurs.mts](src/webview/voies-couleurs.mts) `voiesProchesDuFil` (jaune → ambre, orange → orange, bleu → bleu puis turquoise…), distance de teinte pour une couleur libre `#rrggbb`, rien pour noir/blanc/gris → première voie libre. Jamais deux sondes de même teinte. [editor.mts](src/webview/diagram/editor.mts) `voieDuFil`.
+5. ✅ Banc [verify-sonde-fil.mjs](scripts/verify-sonde-fil.mjs) : sections 8 (couleurs de fil, pose sur patte câblée) et 9 (resetVisuals efface `relie` + contrôle de source de `stopRun`) ; 29 contrôles, contre-épreuve 9 échecs. souris, sonde-dessus, crochet, align, analyseur, wirecolor, diagram : verts.
+
+**À vérifier par Frank**
+- « 16 servo + alim-pico2 » : SDA/SCL s'affichent et se décodent ; à l'arrêt, SD1/SD2 gardent leur couleur.
+- Nouvelle sonde reliée par un cordon jaune → ambre ; posée sur une patte où arrive un fil bleu → bleue.
 
 ---
 

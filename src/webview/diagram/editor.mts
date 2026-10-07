@@ -49,7 +49,7 @@ import { icAttrs, icRef } from './ics.mjs';
 import { PACKAGE_LABELS, type TransistorPackage } from '../composants/transistor-element.mjs';
 import { nextPartId } from './refnames.mjs';
 import { colorDisplayName, colorSwatchBackground } from './colors.mjs';
-import { couleurVoie, themeSombre } from '../voies-couleurs.mjs';
+import { couleurVoie, themeSombre, voiesProchesDuFil } from '../voies-couleurs.mjs';
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { embedClipboardInSvg, encodeClipboard, extractClipboard, type ClipboardPayload } from './clipboard.mjs';
 import { groveSignalGpio, groveSocketPins } from './grove-shield.mjs';
@@ -4381,7 +4381,7 @@ export class Editor {
     // pointe, la sonde restait sans indice de voie, donc GRISE sur la planche et
     // sans pastille de couleur à choisir dans ses propriétés.
     if ((cible || this.sondeFilAttache(part.id)) && !(part.attrs?.voie ?? '').trim()) {
-      attrs.voie = String(this.voieLibre(part.id));
+      attrs.voie = String(this.voieDuFil(part.id, cible) ?? this.voieLibre(part.id));
     }
     part.attrs = attrs;
     const el = this.rendered.get(part.id)?.el as unknown as HTMLElement | undefined;
@@ -4424,6 +4424,14 @@ export class Editor {
    * lien visuel entre la pince et la voie tracée.
    */
   private voieLibre(exceptId: string): number {
+    const prises = this.voiesPrises(exceptId);
+    let v = 0;
+    while (prises.has(v)) v++;
+    return v;
+  }
+
+  /** Indices de voie déjà portés par les AUTRES sondes du schéma. */
+  private voiesPrises(exceptId: string): Set<number> {
     const prises = new Set<number>();
     for (const p of this.diagram.parts) {
       if (p.id === exceptId) continue;
@@ -4431,9 +4439,28 @@ export class Editor {
       const v = Number.parseInt(p.attrs?.voie ?? '', 10);
       if (Number.isInteger(v) && v >= 0) prises.add(v);
     }
-    let v = 0;
-    while (prises.has(v)) v++;
-    return v;
+    return prises;
+  }
+
+  /**
+   * Teinte de voie qui rappelle le FIL sur lequel la sonde est branchée (Frank,
+   * 07/10/2026) : le cordon tiré jusqu'à sa pointe, sinon un fil déjà relié à la
+   * patte sous la pointe. Une pince sur le fil jaune de SDA devient ambre, et
+   * l'élève retrouve sa piste d'un coup d'œil. Teinte déjà prise par une autre
+   * sonde : on essaie la suivante la plus proche, puis on renonce (null) —
+   * deux sondes de même couleur casseraient le lien avec l'analyseur.
+   */
+  private voieDuFil(sondeId: string, cible: Endpoint | null): number | null {
+    const pointe = [...(this.rendered.get(sondeId)?.hotspots.keys() ?? [])][0];
+    const touche = (w: Wire, e: Endpoint): boolean =>
+      (w.a.partId === e.partId && w.a.pin === e.pin) || (w.b.partId === e.partId && w.b.pin === e.pin);
+    const fils = this.diagram.wires.filter((w) => !w.auto && !!w.color);
+    const fil =
+      (pointe !== undefined ? fils.find((w) => touche(w, { partId: sondeId, pin: pointe })) : undefined) ??
+      (cible ? fils.find((w) => touche(w, cible)) : undefined);
+    if (!fil) return null;
+    const prises = this.voiesPrises(sondeId);
+    return voiesProchesDuFil(fil.color).find((v) => !prises.has(v)) ?? null;
   }
 
   /** Broche (hotspot) la plus proche d'un point monde, dans le rayon d'accrochage. */

@@ -68,7 +68,9 @@ async function run() {
 	ok('posée dans le vide, la pince n a encore aucune voie',
 		!(sonde.attrs && (sonde.attrs.voie || '').trim()), JSON.stringify(sonde.attrs || {}));
 
-	editor.addWire({ partId: sonde.id, pin: pointe }, { partId: carte.id, pin: broche });
+	// Fil GRIS : sans teinte voisine dans la palette, la pince prend la première
+	// voie libre (la couleur du fil est contrôlée à part, section 8).
+	editor.addWire({ partId: sonde.id, pin: pointe }, { partId: carte.id, pin: broche }, { color: 'gray' });
 	await wait(120);
 	const voieApresFil = (editor.diagram.parts.find((p) => p.id === sonde.id).attrs || {}).voie;
 	ok('branchée par un fil : la pince reçoit un indice de voie',
@@ -118,7 +120,7 @@ async function run() {
 	const sonde2 = editor.addPart('sonde-logique', 560, 460);
 	await wait(120);
 	const pointe2 = [...(editor.rendered.get(sonde2.id) || {}).hotspots.keys()][0];
-	editor.addWire({ partId: sonde2.id, pin: pointe2 }, { partId: carte.id, pin: broche2 });
+	editor.addWire({ partId: sonde2.id, pin: pointe2 }, { partId: carte.id, pin: broche2 }, { color: 'gray' });
 	await wait(120);
 	const voie2 = (editor.diagram.parts.find((p) => p.id === sonde2.id).attrs || {}).voie;
 	ok('une deuxième pince branchée prend une voie DIFFÉRENTE',
@@ -197,6 +199,72 @@ async function run() {
 	ok('la pince atteinte par ce chemin prend une VRAIE couleur (plus grise)',
 		!!teinte7 && teinte7.toLowerCase() !== '#9e9e9e', 'couleur=' + teinte7);
 
+	// --- 8. La pince prend la COULEUR DU FIL (Frank, 07/10/2026) --------------
+	// « une sonde logique posée sur un fil ou une broche connectée à un fil prend
+	// sa couleur (ou la couleur la plus proche) ». Avant : toujours la première
+	// teinte libre, quel que soit le fil — bleue sur un fil jaune.
+	editor.loadDiagram({ parts: [{ id: 'pico1', type: 'pico', x: 40, y: 40, attrs: {} }], wires: [] });
+	await wait(200);
+	const picoId = editor.diagram.parts[0].id;
+	const gps = [...editor.rendered.get(picoId).hotspots.keys()].filter((p) => /^GP\\d/.test(p));
+	const voieDe = (id) => (editor.diagram.parts.find((p) => p.id === id).attrs || {}).voie;
+	const cordon = async (couleur, gp, x, y) => {
+		const s = editor.addPart('sonde-logique', x, y);
+		await wait(100);
+		const pt = [...editor.rendered.get(s.id).hotspots.keys()][0];
+		editor.addWire({ partId: s.id, pin: pt }, { partId: picoId, pin: gp }, { color: couleur });
+		await wait(80);
+		return s.id;
+	};
+	const jaune = await cordon('yellow', gps[0], 520, 300);
+	ok('cordon JAUNE : la pince devient ambre (voie 2)', voieDe(jaune) === '2', 'voie=' + voieDe(jaune));
+	const orange = await cordon('orange', gps[1], 560, 340);
+	ok('cordon ORANGE : la pince devient orange (voie 7)', voieDe(orange) === '7', 'voie=' + voieDe(orange));
+	const bleu1 = await cordon('blue', gps[2], 600, 380);
+	ok('cordon BLEU : la pince devient bleue (voie 0)', voieDe(bleu1) === '0', 'voie=' + voieDe(bleu1));
+	const bleu2 = await cordon('blue', gps[3], 640, 420);
+	ok('second cordon bleu : bleu déjà pris, teinte la plus proche (turquoise, voie 5)',
+		voieDe(bleu2) === '5', 'voie=' + voieDe(bleu2));
+	const perso = await cordon('#00c8ff', gps[4], 680, 460);
+	ok('couleur libre #00c8ff : teinte libre la plus proche (turquoise et bleu pris → vert, voie 1)',
+		voieDe(perso) === '1', 'voie=' + voieDe(perso));
+	const noir = await cordon('black', gps[5], 720, 500);
+	ok('cordon NOIR (sans équivalent) : première teinte libre (voie 3)', voieDe(noir) === '3', 'voie=' + voieDe(noir));
+
+	// Pince POSÉE sur une patte déjà reliée par un fil violet : c'est la couleur de
+	// ce fil qu'elle reprend. On cale sa pointe pile sur la pastille, puis on
+	// joue la pose (celle que le lâcher de souris déclenche).
+	const r8 = editor.addPart('resistor', 300, 520);
+	await wait(100);
+	const pr8 = [...editor.rendered.get(r8.id).hotspots.keys()][0];
+	editor.addWire({ partId: r8.id, pin: pr8 }, { partId: picoId, pin: gps[6] }, { color: 'purple' });
+	const posee = editor.addPart('sonde-logique', 760, 120);
+	await wait(100);
+	const ptP = [...editor.rendered.get(posee.id).hotspots.keys()][0];
+	const a8 = editor.hotspotCenter({ partId: posee.id, pin: ptP });
+	const b8 = editor.hotspotCenter({ partId: picoId, pin: gps[6] });
+	posee.x += b8.x - a8.x;
+	posee.y += b8.y - a8.y;
+	editor.rerenderPart(posee.id);
+	await wait(100);
+	editor.poserSonde(posee);
+	const ap = editor.diagram.parts.find((p) => p.id === posee.id).attrs || {};
+	ok('posée sur la patte, la pince s y accroche', ap.accroche === picoId + '/' + gps[6], 'accroche=' + ap.accroche);
+	ok('posée sur une patte reliée par un fil VIOLET : la pince devient violette (voie 4)',
+		ap.voie === '4', 'voie=' + ap.voie);
+
+	// --- 9. À l ARRÊT, resetVisuals recrée les pinces ------------------------
+	// Cause de « quand je coupe la simulation les sondes au bout de fils
+	// redeviennent grises » : l arrêt rend chaque composant à neuf, et relie
+	// (déduit du câblage, jamais enregistré) disparaît avec l ancien élément.
+	// On le prouve ici ; le rappel de colorerSondesReliees() dans stopRun est
+	// contrôlé sur le source plus bas (sim.mts n entre pas dans ce banc).
+	editor.elementOf(jaune).setAttribute('relie', '1');
+	editor.resetVisuals();
+	await wait(100);
+	ok('resetVisuals rend une pince NEUVE, sans relie (d où le rappel à l arrêt)',
+		!editor.elementOf(jaune).hasAttribute('relie'), 'relie=' + editor.elementOf(jaune).getAttribute('relie'));
+
 	const out = document.createElement('pre');
 	out.id = 'measures';
 	out.textContent = JSON.stringify(checks);
@@ -272,6 +340,18 @@ if (corps) {
 		detail: 'getElementById de retour : la fonction ne colorera plus rien',
 	});
 }
+
+// À l'arrêt, `resetVisuals()` rend les pinces neuves (contrôle 9 de la page) :
+// `stopRun` doit donc rappeler `colorerSondesReliees()` APRÈS lui, sinon les
+// pinces au bout d'un fil repassent au gris (Frank, 07/10/2026).
+const arret = sim.match(/function stopRun\(\)[\s\S]*?\n\}/);
+const codeArret = arret ? arret[0].replace(/\/\/[^\n]*/g, '') : '';
+const iReset = codeArret.indexOf('editor.resetVisuals()');
+rows.push({
+	name: 'stopRun rappelle colorerSondesReliees() après resetVisuals()',
+	ok: iReset >= 0 && codeArret.indexOf('colorerSondesReliees()', iReset) > iReset,
+	detail: 'rappel absent : les pinces au bout d un fil redeviennent grises à l arrêt',
+});
 
 let fail = 0;
 for (const r of rows) {

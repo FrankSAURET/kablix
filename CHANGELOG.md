@@ -26,8 +26,14 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Les flèches ⏮ ⏭ du milieu parcourent toutes les trames**, répétitions identiques comprises (DHT, DS18B20, I²C relu…). Le saut des répétitions passe aux flèches de couleur, remplies du bleu du bouton « Noms » de la barre d'outils quand une de ses cases est cochée. ⇤ ⇥ ⇼ ⤓ sont plus gros et en gras.
 - **DHT : les flèches ⏮ ⏭ se calent sur la PRESENCE** du capteur et sur les ~5 ms utiles de la trame, au lieu de garder un zoom que les 18 ms du départ rendent illisible. Le déclenchement « début de trame » s'y arrête aussi.
 - **« Toute la capture » et « Suivre en direct » deviennent ⇼ et ⤓**, après un séparateur ; les listes Échantillonnage et Profondeur gardent une largeur fixe.
+- **Une sonde branchée sur un fil prend la couleur de ce fil**, ou la plus proche encore libre : posée sur une patte déjà câblée ou reliée par un cordon, elle devient ambre sur un fil jaune, orange sur un fil orange, bleue sur un fil bleu. Noir, blanc et gris n'ayant pas d'équivalent, elle prend alors la première couleur libre.
 
 ### Correction
+
+**Analyseur logique**
+
+- **Le bus I²C restait plat** : SDA et SCL ne bougeaient pas, l'analyseur attendait son front de déclenchement pour toujours. Les échanges s'affichent et se décodent maintenant sur Arduino comme sur Pico.
+- **À l'arrêt de la simulation, les sondes reliées par un fil redevenaient grises.** Elles gardent leur couleur.
 
 **Mise au point**
 

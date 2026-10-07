@@ -39,6 +39,7 @@ import { selectSpiDevice, Hd44780, type I2cDevice, type SpiDevice } from './i2c-
 import { Ws2812Decoder } from './ws2812.mjs';
 import { DmxDecoder } from './dmx.mjs';
 import { frontsDeTrame, dureeTrameUs, frontsDeBreak, type TrameSerie } from './uart-fronts.mjs';
+import { LigneI2c, periodeI2cUs, type FrontsI2c } from './i2c-fronts.mjs';
 import { buildDht22Schedule, DHT22_START_LOW_US, type DhtModel, type DhtTransition } from './dht22.mjs';
 import { Ds18b20 } from './ds18b20.mjs';
 import { DEFAULT_AIR_TEMP_C, echoUsPerCm } from './ultrasonic.mjs';
@@ -65,6 +66,9 @@ function gpioIndex(name: string): number | null {
   const n = Number(m[1]);
   return n >= 0 && n < 30 ? n : null;
 }
+
+/** FUNCSEL de l'I²C dans IO_BANK0 (F3, RP2040 et RP2350). */
+const GPIO_FUNC_I2C = 3;
 
 // Canal ADC d'une broche analogique (GP26..GP28 -> 0..2).
 function adcChannel(name: string): number | null {
@@ -695,6 +699,7 @@ export class PicoEngine implements SimEngine {
    */
   private noterFrontEntree(name: string, i: number): void {
     if (!this.scopePins.has(name) && !this.logicPins.has(name)) return;
+    if (this.i2cSynth.has(name)) return; // fronts rejoués par la synthèse I²C
     const niveau = this.niveauDuFil(i);
     if (this.niveauFil.get(name) === niveau) return;
     this.niveauFil.set(name, niveau);
@@ -796,13 +801,17 @@ export class PicoEngine implements SimEngine {
       const addrs = devices.map((d) => '0x' + d.address.toString(16));
       this.script = this.script.replace('_KX_I2C_ADDRS = None', `_KX_I2C_ADDRS = [${addrs.join(', ')}]`);
     }
-    for (const ctrl of this.mcu.i2c) {
+    // Chaque échange est aussi rejoué en fronts sur les broches SDA/SCL sondées
+    // (cf. i2c-fronts.mts), AVANT le `complete*` : un NAK d'adresse enchaîne
+    // le STOP dans la foulée, il doit suivre l'octet sur la ligne.
+    this.mcu.i2c.forEach((ctrl, bus) => {
       let current: I2cDevice | null = null;
       ctrl.onStart = (repeated: boolean) => {
         for (const d of devices) d.onStart?.(repeated);
+        this.verserI2c(bus, (l, t, T) => l.start(t, T));
         ctrl.completeStart();
       };
-      ctrl.onConnect = (address: number) => {
+      ctrl.onConnect = (address: number, mode: number) => {
         // General Call (0x00) : dirigé vers le 1er device qui l'accepte (SWRST
         // du PCA9685). Un NAK sur 0x00 perturberait le bus rp2040js simulé (EIO
         // sur la transaction suivante), même quand le pilote encadre le reset.
@@ -813,20 +822,72 @@ export class PicoEngine implements SimEngine {
           current = devices.find((d) => d.address === address) ?? null;
           current?.setGeneralCall?.(false);
         }
-        ctrl.completeConnect(current !== null); // ACK seulement si l'adresse existe
+        const ack = current !== null; // ACK seulement si l'adresse existe
+        this.verserI2c(bus, (l, t, T) => l.octet((address << 1) | (mode & 1), ack, t, T));
+        ctrl.completeConnect(ack);
       };
       ctrl.onWriteByte = (value: number) => {
-        ctrl.completeWrite(current ? current.write(value) : false);
+        const ack = current ? current.write(value) : false;
+        this.verserI2c(bus, (l, t, T) => l.octet(value, ack, t, T));
+        ctrl.completeWrite(ack);
       };
-      ctrl.onReadByte = () => {
-        ctrl.completeRead(current ? current.read() : 0xff);
+      ctrl.onReadByte = (ackMaitre: boolean) => {
+        const value = current ? current.read() : 0xff;
+        this.verserI2c(bus, (l, t, T) => l.octet(value, ackMaitre, t, T));
+        ctrl.completeRead(value);
       };
       ctrl.onStop = () => {
         current?.onStop?.();
         current = null;
+        this.verserI2c(bus, (l, t, T) => l.stop(t, T));
         ctrl.completeStop();
       };
+    });
+  }
+
+  /**
+   * Broches SDA / SCL sondées, par contrôleur I²C. Sur le RP2040 la fonction
+   * I²C se lit dans le numéro de broche : GPn appartient à I2C((n÷2) mod 2),
+   * SDA si n est pair, SCL sinon. Vide sans pince : la synthèse ne coûte rien.
+   */
+  private i2cSondees: Array<{ sda: string[]; scl: string[] }> = [];
+  private lignesI2c = [new LigneI2c(), new LigneI2c()];
+  /**
+   * Broches dont les fronts viennent de la synthèse I²C : le relevé GPIO
+   * (`samplePulses`, `noterFrontEntree`) les ignore, sinon le niveau du pad,
+   * daté à l'heure courante, se glisserait au milieu d'octets datés en avance.
+   */
+  private i2cSynth = new Set<string>();
+
+  /** Rejoue un morceau d'échange I²C sur les broches sondées de ce contrôleur. */
+  private verserI2c(bus: number, tracer: (l: LigneI2c, maintenantUs: number, periodeUs: number) => FrontsI2c): void {
+    const s = this.i2cSondees[bus];
+    if (!s) return;
+    const ctrl = this.mcu.i2c[bus];
+    // Débit programmé par le firmware : SCL haut + SCL bas, en cycles de clk_sys.
+    const cycles = ctrl.sclHighPeriod + ctrl.sclLowPeriod;
+    const T = periodeI2cUs(cycles > 0 ? 1e9 / (this.nanosParCycle * cycles) : 0);
+    const f = tracer(this.lignesI2c[bus], this.simulatedMs() * 1000, T);
+    for (const pin of s.sda) this.verserFrontsI2c(pin, f.sda);
+    for (const pin of s.scl) this.verserFrontsI2c(pin, f.scl);
+  }
+
+  /** Verse des fronts datés en µs absolues au journal d'une broche en fonction I²C. */
+  private verserFrontsI2c(pin: string, fronts: number[]): void {
+    const i = gpioIndex(pin);
+    // Broche sondée qui n'est pas aiguillée vers l'I²C (GP0 en UART alors que
+    // le bus 0 sort sur GP8/GP9) : elle ne porte pas ce signal.
+    if (i === null || this.mcu.gpio[i].functionSelect !== GPIO_FUNC_I2C) return;
+    this.i2cSynth.add(pin);
+    if (fronts.length === 0) return;
+    let log = this.scopeLog.get(pin);
+    if (!log) {
+      log = [];
+      this.scopeLog.set(pin, log);
     }
+    for (let k = 0; k < fronts.length; k += 2) log.push(fronts[k] / 1000, fronts[k + 1]); // journal daté en ms
+    const max = this.logPlafond(pin);
+    if (log.length > max) log.splice(0, log.length - max);
   }
 
   // Sonde d'oscilloscope (cf. avr.mts) : chaque bascule datée au cycle près,
@@ -1275,6 +1336,16 @@ export class PicoEngine implements SimEngine {
       if (uart === undefined) continue;
       (this.uartTxSondee[uart] ??= []).push(name);
     }
+    // Idem pour le bus I²C : GPn → I2C((n÷2) mod 2), SDA si n pair.
+    this.i2cSondees = [];
+    this.i2cSynth.clear();
+    for (const l of this.lignesI2c) l.reset();
+    for (const name of new Set(names)) {
+      const n = gpioIndex(name);
+      if (n === null) continue;
+      const s = (this.i2cSondees[(n >> 1) & 1] ??= { sda: [], scl: [] });
+      (n % 2 === 0 ? s.sda : s.scl).push(name);
+    }
     this.purgeLogs();
   }
 
@@ -1374,7 +1445,7 @@ export class PicoEngine implements SimEngine {
       // par l'extérieur (capteur 1-Wire, DHT…), et `value` ne rend alors qu'un
       // mode d'entrée. Le registre est partagé avec `noterFrontEntree()` pour
       // que les deux sources ne notent pas deux fois le même front.
-      if (this.scopePins.has(pp.name) || this.logicPins.has(pp.name)) {
+      if ((this.scopePins.has(pp.name) || this.logicPins.has(pp.name)) && !this.i2cSynth.has(pp.name)) {
         const niveau = this.niveauDuFil(pp.index);
         if (this.niveauFil.get(pp.name) !== niveau) {
           this.niveauFil.set(pp.name, niveau);

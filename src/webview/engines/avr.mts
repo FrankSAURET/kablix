@@ -73,6 +73,7 @@ import { DmxDecoder, DmxWire } from './dmx.mjs';
 // Pas de `frontsDeBreak` ici : l'USART de l'AVR n'a pas de bit BREAK (le DMX y
 // passe par bit-bang, décodé sur le fil par DmxWire).
 import { frontsDeTrame, dureeTrameUs, type TrameSerie } from './uart-fronts.mjs';
+import { LigneI2c, periodeI2cUs, type FrontsI2c } from './i2c-fronts.mjs';
 
 export type AvrFamily = 'avr328' | 'avr2560';
 
@@ -651,6 +652,46 @@ export class AvrEngine implements SimEngine {
       : { '1': 0 };
   }
 
+  /** Broches du bus TWI (Wire) : A4/A5 sur le 328P, 20/21 sur le Mega. */
+  private brochesI2c(): { sda: string; scl: string } {
+    return this.family === 'avr2560' ? { sda: '20', scl: '21' } : { sda: 'A4', scl: 'A5' };
+  }
+
+  /** Bus TWI rejoué en fronts pour l'analyseur (cf. i2c-fronts.mts). */
+  private ligneI2c = new LigneI2c();
+  /** Broches SDA / SCL sondées (au plus une de chaque). Vide sans pince. */
+  private i2cSondees: { sda: boolean; scl: boolean } = { sda: false, scl: false };
+  /**
+   * Broches dont les fronts viennent de la synthèse I²C : le relevé du port les
+   * ignore, sinon le niveau du pad, daté à l'heure courante, se glisserait au
+   * milieu d'octets datés en avance.
+   */
+  private i2cSynth = new Set<string>();
+
+  /** Rejoue un morceau d'échange TWI sur les broches SDA / SCL sondées. */
+  private verserI2c(tracer: (l: LigneI2c, maintenantUs: number, periodeUs: number) => FrontsI2c): void {
+    if (!this.i2cSondees.sda && !this.i2cSondees.scl) return;
+    const T = periodeI2cUs(this.twi.sclFrequency);
+    const f = tracer(this.ligneI2c, (this.cpu.cycles / CLOCK_HZ) * 1_000_000, T);
+    const { sda, scl } = this.brochesI2c();
+    if (this.i2cSondees.sda) this.verserFrontsI2c(sda, f.sda);
+    if (this.i2cSondees.scl) this.verserFrontsI2c(scl, f.scl);
+  }
+
+  /** Verse des fronts datés en µs absolues au journal d'une broche du bus. */
+  private verserFrontsI2c(pin: string, fronts: number[]): void {
+    this.i2cSynth.add(pin);
+    if (fronts.length === 0) return;
+    let log = this.scopeLog.get(pin);
+    if (!log) {
+      log = [];
+      this.scopeLog.set(pin, log);
+    }
+    for (let i = 0; i < fronts.length; i += 2) log.push(fronts[i] / 1000, fronts[i + 1]); // journal daté en ms
+    const max = this.logPlafond(pin);
+    if (log.length > max) log.splice(0, log.length - max);
+  }
+
   /**
    * Fronts d'une trame émise par un USART, versés sur ses broches sondées.
    *
@@ -848,6 +889,7 @@ export class AvrEngine implements SimEngine {
    */
   private noterFrontEntree(name: string, port: PortKey, bit: number): void {
     if (!this.scopePins.has(name) && !this.logicPins.has(name)) return;
+    if (this.i2cSynth.has(name)) return; // fronts rejoués par la synthèse I²C
     const niveau = this.niveauDuFil(port, bit);
     if (this.niveauFil.get(name) === niveau) return;
     this.niveauFil.set(name, niveau);
@@ -896,6 +938,11 @@ export class AvrEngine implements SimEngine {
       if (usart === undefined) continue;
       (this.uartTxSondee[usart] ??= []).push(name);
     }
+    // Idem pour le bus TWI : une pince sur SDA ou SCL fait naître sa synthèse.
+    const i2c = this.brochesI2c();
+    this.i2cSondees = { sda: this.logicPins.has(i2c.sda), scl: this.logicPins.has(i2c.scl) };
+    this.i2cSynth.clear();
+    this.ligneI2c.reset();
     this.purgeLogs();
   }
 
@@ -997,16 +1044,20 @@ export class AvrEngine implements SimEngine {
     const twi = this.twi;
     let current: I2cDevice | null = null;
     twi.eventHandler = {
+      // Chaque échange est aussi rejoué en fronts sur SDA / SCL sondées (cf.
+      // i2c-fronts.mts), AVANT le `complete*` qui peut enchaîner la suite.
       start: (repeated: boolean) => {
         for (const d of devices) d.onStart?.(repeated);
+        this.verserI2c((l, t, T) => l.start(t, T));
         twi.completeStart();
       },
       stop: () => {
         current?.onStop?.();
         current = null;
+        this.verserI2c((l, t, T) => l.stop(t, T));
         twi.completeStop();
       },
-      connectToSlave: (addr: number) => {
+      connectToSlave: (addr: number, write: boolean) => {
         // General Call (0x00) : dirigé vers le 1er device qui l'accepte (SWRST
         // du PCA9685), sinon NAK. Symétrique du routage Pico.
         if (addr === 0) {
@@ -1016,13 +1067,19 @@ export class AvrEngine implements SimEngine {
           current = devices.find((d) => d.address === addr) ?? null;
           current?.setGeneralCall?.(false);
         }
-        twi.completeConnect(current !== null); // ACK seulement si l'adresse existe
+        const ack = current !== null; // ACK seulement si l'adresse existe
+        this.verserI2c((l, t, T) => l.octet((addr << 1) | (write ? 0 : 1), ack, t, T));
+        twi.completeConnect(ack);
       },
       writeByte: (value: number) => {
-        twi.completeWrite(current ? current.write(value) : false);
+        const ack = current ? current.write(value) : false;
+        this.verserI2c((l, t, T) => l.octet(value, ack, t, T));
+        twi.completeWrite(ack);
       },
-      readByte: () => {
-        twi.completeRead(current ? current.read() : 0xff);
+      readByte: (ackMaitre: boolean) => {
+        const value = current ? current.read() : 0xff;
+        this.verserI2c((l, t, T) => l.octet(value, ackMaitre, t, T));
+        twi.completeRead(value);
       },
     };
   }
@@ -1411,7 +1468,7 @@ export class AvrEngine implements SimEngine {
       // niveau du FIL, pas celui du maître : une broche relâchée est tenue par
       // l'extérieur. Le registre est partagé avec `noterFrontEntree()` pour que
       // les deux sources ne notent pas deux fois le même front.
-      if (this.scopePins.has(pp.name) || this.logicPins.has(pp.name)) {
+      if ((this.scopePins.has(pp.name) || this.logicPins.has(pp.name)) && !this.i2cSynth.has(pp.name)) {
         const niveau = this.niveauDuFil(pp.port, pp.bit);
         if (this.niveauFil.get(pp.name) !== niveau) {
           this.niveauFil.set(pp.name, niveau);

@@ -5531,6 +5531,9 @@ function stopRun(): void {
   }
   dmxTargets.clear();
   editor.resetVisuals();
+  // resetVisuals recrée chaque composant : une sonde branchée par un fil perd
+  // son `relie` (déduit du câblage, jamais enregistré) et repasserait au gris.
+  colorerSondesReliees();
   useDebugAsInspector(false); // Propriétés de nouveau dans la colonne de droite
   // La bibliothèque ne se rouvre QUE si c'est la simulation qui l'avait repliée.
   if (paletteFoldedByRun) {

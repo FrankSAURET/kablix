@@ -45,6 +45,58 @@ export function couleurVoie(idx: number, sombre: boolean): string {
 }
 
 /**
+ * Voies dont la teinte rappelle un fil Dupont, de la plus proche à la moins
+ * proche. Écrit à la main : la seule distance de teinte enverrait le fil orange
+ * sur l'ambre (33° contre 41°) et non sur l'orange que l'élève attend.
+ * Noir, blanc et gris n'ont pas d'équivalent dans la palette (exclus exprès).
+ */
+const VOIES_PAR_FIL: Record<string, number[]> = {
+  red: [7, 6],
+  orange: [7, 2],
+  yellow: [2, 7],
+  green: [1, 3, 5],
+  blue: [0, 5, 4],
+  purple: [4, 6, 0],
+  fuchsia: [6, 4],
+  brown: [7, 2],
+};
+
+/** Teinte (0-360°) et saturation (0-1) d'une couleur `#rrggbb`, ou null. */
+function teinte(hex: string): { h: number; s: number } | null {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const n = Number.parseInt(m[1]!, 16);
+  const r = ((n >> 16) & 255) / 255;
+  const g = ((n >> 8) & 255) / 255;
+  const b = (n & 255) / 255;
+  const max = Math.max(r, g, b);
+  const d = max - Math.min(r, g, b);
+  if (d === 0) return { h: 0, s: 0 };
+  const h = max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return { h: h * 60, s: max === 0 ? 0 : d / max };
+}
+
+/**
+ * Voies candidates pour une sonde branchée sur un fil de couleur `couleur`
+ * (identifiant Dupont ou `#rrggbb`), de la plus ressemblante à la moins.
+ * Liste vide : couleur sans équivalent (noir, blanc, gris) — la sonde prend
+ * alors simplement la première teinte libre.
+ */
+export function voiesProchesDuFil(couleur: string | undefined): number[] {
+  if (!couleur) return [];
+  const connu = VOIES_PAR_FIL[couleur.trim().toLowerCase()];
+  if (connu) return connu;
+  const t = teinte(couleur);
+  if (!t || t.s < 0.25) return [];
+  const ecart = (i: number): number => {
+    const v = teinte(PALETTE_LIGHT[i]!)!;
+    const e = Math.abs(v.h - t.h);
+    return Math.min(e, 360 - e);
+  };
+  return [...PALETTE_LIGHT.keys()].sort((a, b) => ecart(a) - ecart(b)).slice(0, 3);
+}
+
+/**
  * Thème courant de la webview, lu sur le `<body>` que VS Code habille.
  * Défaut sombre (comme le traceur) : la classe `vscode-light` est le seul
  * marqueur fiable du thème clair.
