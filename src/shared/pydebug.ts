@@ -15,11 +15,12 @@
 //   \x05 (ENQ) : demande de pause — le mode pas à pas s'active au prochain __kx ;
 //   \x06 (ACK) : exécuter un pas (rester en mode pas à pas) ;
 //   \x07 (BEL) : reprendre l'exécution normale (désactive le mode pas à pas) ;
-//   \x10 (DLE) + objet JSON { "ligne": condition|null } + '\n' : (re)définit les
-//        points d'arrêt. __kx(n) se met en pause à la ligne n même hors mode pas
-//        à pas ; si une condition (expression Python) est fournie, l'arrêt n'a
-//        lieu que si elle s'évalue à vrai dans les globales du script (une erreur
-//        d'évaluation = pas d'arrêt). Un objet vide (\x10{}\n) efface les arrêts.
+//   \x10 (DLE) + objet JSON { "ligne": règle } + '\n' : (re)définit les points
+//        d'arrêt. __kx(n) se met en pause à la ligne n même hors mode pas à pas,
+//        selon la règle VS Code : condition (expression Python évaluée dans les
+//        globales ET les locales de la ligne ; une erreur = pas d'arrêt), nombre
+//        de passages, ou point de journalisation (message \x1bKL{json}\n sur
+//        stdout, sans arrêt). Un objet vide (\x10{}\n) efface les arrêts.
 // En mode pas à pas, __kx publie l'état sur stdout sous la forme
 //   \x1bKX{"l":<ligne>,"v":{"nom":"repr tronqué", …}}\n
 // puis BLOQUE en lisant stdin jusqu'à \x06 ou \x07. Le moteur (pico.mts)
@@ -67,7 +68,7 @@ const PREAMBLE: string[] = [
   '__kx_poll = __kx_sel.poll()',
   '__kx_poll.register(__kx_sys.stdin, __kx_sel.POLLIN)',
   '__kx_step = False',
-  '__kx_bps = {}',             // points d'arrêt : { ligne(int) : condition(str|None) }
+  '__kx_bps = {}',             // points d'arrêt : { ligne(int) : règle (cf. __kx_set_bps) }
   '__kx_bpbuf = None',         // tampon de lecture d'une commande \x10{json}\n (None = inactif)
   // Garde d'armement : chaque ligne du script est préfixée de `__kx_on and …`,
   // donc tant qu'aucune pause ni aucun point d'arrêt n'est demandé, une ligne ne
@@ -82,14 +83,27 @@ const PREAMBLE: string[] = [
   'def __kx_arm():',           // (re)calcule la garde d'après l'état du débogage
   '    global __kx_on',
   '    __kx_on = __kx_step or len(__kx_bps) > 0',
-  'def __kx_set_bps(__s):',    // __s = objet JSON { "ligne": condition|null }
+  // __s = objet JSON { "ligne": {"c": condition|null, "h": [op, n]|null,
+  // "m": [texte, expr, texte…]|null, "k": clé} } (une chaîne seule = ancienne
+  // forme « condition »). Règle rangée : [cond, op, n, morceaux, passages, clé,
+  // erreur signalée]. Un point d'arrêt de même clé garde son compteur.
+  'def __kx_set_bps(__s):',
   '    global __kx_bps',
   '    __b = {}',
   '    try:',
   '        __m = __kx_json.loads(__s)',
   '        for __k in __m:',
   '            try:',
-  '                __b[int(__k)] = __m[__k]',
+  '                __e = __m[__k]',
+  '                if not isinstance(__e, dict):',
+  "                    __e = {'c': __e, 'k': str(__e)}",
+  '                __n = int(__k)',
+  "                __h = __e.get('h')",
+  "                __key = __e.get('k')",
+  '                __old = __kx_bps.get(__n)',
+  '                __same = __old is not None and __old[5] == __key',
+  "                __b[__n] = [__e.get('c'), __h[0] if __h else None, __h[1] if __h else 0,",
+  "                            __e.get('m'), __old[4] if __same else 0, __key, __same and __old[6]]",
   '            except Exception:',
   '                pass',
   '    except Exception:',
@@ -156,19 +170,70 @@ const PREAMBLE: string[] = [
   '        except Exception:',
   '            continue',
   '    return __o',
-  // Décide si le point d'arrêt à la ligne __n doit suspendre : pas de condition
-  // → toujours ; condition → on évalue l'expression Python dans les globales du
-  // script (une condition qui lève une exception ne suspend pas, comme VS Code).
-  'def __kx_bp_hit(__n):',
-  '    if __n not in __kx_bps:',
-  '        return False',
-  '    __cond = __kx_bps[__n]',
-  '    if not __cond:',
-  '        return True',
+  // Espace de noms des expressions (conditions, messages) : les globales du
+  // script, plus les locales de la fonction en cours quand la ligne en a.
+  'def __kx_ns(__loc):',
+  '    if __loc is None:',
+  '        return globals()',
+  '    __d = dict(globals())',
   '    try:',
-  '        return bool(eval(__cond, globals()))',
+  '        for __p in __loc():',
+  '            try:',
+  '                __d[__p[0]] = __p[1]()',
+  '            except Exception:',
+  '                pass',
   '    except Exception:',
+  '        pass',
+  '    return __d',
+  // Message de journalisation (ou erreur) vers l'hôte : \x1bKL{json}\n, filtré
+  // du moniteur série par le moteur comme les états \x1bKX.
+  'def __kx_log(__n, __m, __e=False):',
+  "    __kx_sys.stdout.write('\\x1bKL' + __kx_json.dumps({'l': __n, 'm': __m, 'e': __e}) + '\\n')",
+  'def __kx_err(__r, __n, __m):',  // une erreur signalée une fois par règle
+  '    if not __r[6]:',
+  '        __r[6] = True',
+  '        __kx_log(__n, __m, True)',
+  // Décide si le point d'arrêt à la ligne __n doit suspendre (ordre VS Code) :
+  // condition Python (une erreur = pas d'arrêt, signalée une fois), puis
+  // compteur de passages, puis point de journalisation (message, pas d'arrêt).
+  'def __kx_bp_hit(__n, __loc):',
+  '    __r = __kx_bps.get(__n)',
+  '    if __r is None:',
   '        return False',
+  '    __ns = None',
+  '    if __r[0]:',
+  '        __ns = __kx_ns(__loc)',
+  '        try:',
+  '            if not eval(__r[0], __ns):',
+  '                return False',
+  '        except Exception as __x:',
+  "            __kx_err(__r, __n, \"condition '\" + __r[0] + \"': \" + type(__x).__name__ + ': ' + str(__x))",
+  '            return False',
+  '    __r[4] += 1',
+  '    __o = __r[1]',
+  '    __c = __r[4]',
+  '    __t = __r[2]',
+  "    if __o == '==' and __c != __t or __o == '>' and __c <= __t or __o == '>=' and __c < __t:",
+  '        return False',
+  "    if __o == '<' and __c >= __t or __o == '<=' and __c > __t or __o == '%' and __c % __t:",
+  '        return False',
+  '    if __r[3] is None:',
+  '        return True',
+  '    if __ns is None:',
+  '        __ns = __kx_ns(__loc)',
+  "    __s = ''",
+  '    __i = 0',
+  '    for __p in __r[3]:',
+  '        if __i % 2 == 0:',
+  '            __s += __p',
+  '        else:',
+  '            try:',
+  '                __s += str(eval(__p, __ns))',
+  '            except Exception as __x:',
+  "                __s += '<' + type(__x).__name__ + ': ' + str(__x) + '>'",
+  '        __i += 1',
+  '    __kx_log(__n, __s)',
+  '    return False',
   // __loc : lambda sans argument renvoyant des paires (nom, thunk) pour les
   // locales de la fonction en cours — évaluée SEULEMENT en pause. Un thunk qui
   // lève (NameError : variable pas encore affectée à cette ligne) est ignoré.
@@ -178,7 +243,7 @@ const PREAMBLE: string[] = [
   'def __kx(__n, __loc=None):',
   '    global __kx_step, __kx_bpbuf',
   '    __kx_poll_in()',
-  '    if __kx_bp_hit(__n):',         // point d'arrêt atteint : on s'arrête même hors pas à pas
+  '    if __kx_bp_hit(__n, __loc):',         // point d'arrêt atteint : on s'arrête même hors pas à pas
   '        __kx_step = True',
   '    if not __kx_step:',
   '        return',

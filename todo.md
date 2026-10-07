@@ -6,6 +6,21 @@ _(rien pour l'instant)_
 
 ---
 
+# v2026.10.1.217
+1. ✅ **Points d'arrêt complets, Arduino et Pico** (demande de Frank, 07/10/2026) : condition, nombre d'accès (`hitCondition`) et message de journal (`logMessage`) de VS Code. [panel.ts](src/panel.ts) transmet les trois champs ; règles communes dans [breakpoints.mts](src/webview/engines/breakpoints.mts) (nombre seul = `==`, comme debugpy ; compteur compté sur condition vraie, conservé quand la liste change).
+2. ✅ **Arduino** : la condition était IGNORÉE (arrêt à chaque passage). Évaluateur C [cexpr.mts](src/webview/engines/cexpr.mts) sur les variables lisibles (globales, `notes[i]`, `p1.x`, opérateurs C, `HIGH`/`LOW`, court-circuit `&&`/`||`/`?:`) — [avr.mts](src/webview/engines/avr.mts) `arretVoulu()`. Locales : non lisibles, donc erreur explicite.
+3. ✅ **Pico** : préambule [pydebug.ts](src/shared/pydebug.ts) — condition évaluée avec les globales ET les locales de la ligne, compteur, message `\x1bKL{json}` filtré du moniteur. Que des points de journalisation : pas de rejeu silencieux (le programme relancé s'affiche tout de suite).
+4. ✅ **Sortie « Kablix — Logpoints »** (OutputChannel, pas de session de débogage VS Code donc pas de console de débogage) : `fichier:ligne  message`, erreur de condition écrite une fois. Relais par le worker (`debugLog`).
+5. ✅ Bancs : [verify-points-arret.mjs](scripts/verify-points-arret.mjs) (règles, évaluateur C, préambule exécuté par MicroPython Unix — 10 contrôles de bout en bout, contre-épreuve rouge 7/10) ; [verify-debug-avr.mjs](scripts/verify-debug-avr.mjs) « Règles VS Code » (10 contrôles sur un vrai croquis compilé, contre-épreuve rouge 9/10). ⚠ Cloud : avr-gcc Ubuntu (7.3) produit un DWARF illisible par son objdump sans `-gdwarf-2` (enveloppe locale pour le banc, rien de changé dans Kablix) ; firmware Pico absent (micropython.org refusé) → PicoEngine pas rejoué de bout en bout.
+6. ✅ Aide : [USAGE.md](docs/fr/USAGE.md) § Déboguer (expression, nombre d'accès, message de journal).
+7. ⏳ Chaînes EN `Kablix — Logpoints`, `Breakpoint error: {0}` et `docs/en/USAGE.md` : traduction à la publication.
+
+**À vérifier par Frank**
+- Uno : point d'arrêt conditionnel `compteur > 10` dans `loop()` ; puis nombre d'accès `5` ; puis message `c={compteur}` (onglet Sortie « Kablix — Logpoints », la simulation ne s'arrête pas).
+- Pico : mêmes essais en Python, avec une variable locale de fonction dans la condition ; un point de journalisation posé PENDANT l'exécution relance le programme sans le masquer.
+
+---
+
 # v2026.10.1.216
 1. ✅ **Flèches « différente »** remplies du bleu du bouton « Noms » actif (`--vscode-button-background`, texte `--vscode-button-foreground`), au lieu de la couleur d'activité.
 2. ✅ **⇤ ⇥ ⇼ ⤓** en 1,35 em et en gras. ⚠ Rendu non vu dans VS Code (thème de Frank) : à confirmer.

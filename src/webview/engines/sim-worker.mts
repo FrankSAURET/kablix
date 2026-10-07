@@ -310,6 +310,7 @@ function init(msg: Extract<ToWorker, { t: 'init' }>): void {
     publish(); // l'écran doit montrer les broches DE L'ARRÊT, pas de la frame d'avant
     send({ t: 'debugPause', state });
   };
+  engine.onDebugLog = (entry) => send({ t: 'debugLog', entry });
   send({ t: 'ready' });
 }
 
