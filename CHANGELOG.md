@@ -29,6 +29,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Une sonde branchée sur un fil prend la couleur de ce fil**, ou la plus proche encore libre : posée sur une patte déjà câblée ou reliée par un cordon, elle devient ambre sur un fil jaune, orange sur un fil orange, bleue sur un fil bleu. Noir, blanc et gris n'ayant pas d'équivalent, elle prend alors la première couleur libre.
 - **Décodage I²C plus clair** : côté SDA, la liste SCL propose les numéros de GPIO, la broche voisine par défaut. Côté SCL, le panneau ne montre plus que le bus et de quoi ôter le décodage. La case « Bits » devient « Bit ».
 
+**Mise au point**
+
+- **Pico : le panneau Variables ne montre plus les objets** (bus I²C, PWM, objets de bibliothèque), qui n'apprenaient rien. Une broche reste affichée par son état, 0 ou 1.
+
 ### Correction
 
 **Analyseur logique**

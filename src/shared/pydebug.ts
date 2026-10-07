@@ -135,6 +135,10 @@ const PREAMBLE: string[] = [
   // Types d'objets « système » (périphérique flash, systèmes de fichiers) à
   // masquer aussi quand l'élève les a (ré)assignés sous un autre nom.
   "__kx_hidden_types = ('Flash', 'Partition', 'VfsFat', 'VfsLfs1', 'VfsLfs2')",
+  // Seules valeurs affichées telles quelles : nombres, textes, booléens, None et
+  // conteneurs. Un autre objet (I2C, PWM, objet d'une bibliothèque…) n'a qu'un
+  // repr de configuration ou une adresse mémoire : masqué (Frank, 07/10/2026).
+  '__kx_simple = (int, float, str, bytes, bytearray, bool, list, tuple, dict, set, type(None))',
   // Formate et range UNE variable (nom → repr court) — partagé globales/locales.
   'def __kx_put(__o, __k, __v):',
   '    if isinstance(__v, type) or isinstance(__v, type(__kx_put)) or isinstance(__v, type(__kx_sys)):',
@@ -144,12 +148,14 @@ const PREAMBLE: string[] = [
   // Objets type Pin (machine.Pin, Signal…) : on affiche « nom.value » = niveau
   // logique (0/1) plutôt que le repr de l'objet (« Pin(GPIO13, mode=OUT) »).
   '    __vm = getattr(__v, "value", None)',
-  '    if callable(__vm) and not isinstance(__v, (int, float, str, bytes, bool)):',
+  '    if callable(__vm) and not isinstance(__v, __kx_simple):',
   '        try:',
   "            __o[__k + '.value'] = repr(__vm())",
   '            return',
   '        except Exception:',
   '            pass',
+  '    if not isinstance(__v, __kx_simple):',
+  '        return',
   '    try:',
   '        __r = repr(__v)',
   '    except Exception:',

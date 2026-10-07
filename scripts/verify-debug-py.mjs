@@ -189,7 +189,9 @@ const segments = parseUf2(new Uint8Array(readFileSync(fw))).map((s) => ({
 }));
 
 // 3 globales + une fonction (locales r/g/b) + boucle : TICK régulier pour
-// synchroniser le test.
+// synchroniser le test. Lignes 13-17 (en fin de boucle, pour ne pas décaler les
+// numéros des autres contrôles) : une broche, un bus I2C et un PWM — seul l'état
+// de la broche doit apparaître dans les variables (v2026.10.1.222).
 const script = [
   "print('START')", //   ligne 1
   'compteur = 0', //     ligne 2
@@ -203,6 +205,11 @@ const script = [
   '    total = melange(compteur, seuil)', // ligne 10
   '    if compteur % 10 == 0:', //       ligne 11
   "        print('TICK', compteur)", //  ligne 12
+  '    if compteur == 1:', //            ligne 13
+  '        from machine import Pin, I2C, PWM', // ligne 14
+  '        led = Pin(25, Pin.OUT)', //   ligne 15
+  '        bus = I2C(0, sda=Pin(8), scl=Pin(9))', // ligne 16
+  '        pwm = PWM(Pin(15))', //       ligne 17
   '',
 ].join('\n');
 
@@ -258,8 +265,8 @@ try {
   // Lignes : numéros du source ORIGINAL, dans la boucle ou la fonction, et qui évoluent.
   const lines = states.slice(0, 3).map((s) => s.line);
   check(
-    'lignes dans la boucle ou la fonction (6..12)',
-    lines.every((l) => typeof l === 'number' && l >= 6 && l <= 12),
+    'lignes dans la boucle ou la fonction (6..13)',
+    lines.every((l) => typeof l === 'number' && l >= 6 && l <= 13),
     `lignes reçues : ${JSON.stringify(lines)}`
   );
   check(
@@ -280,6 +287,9 @@ try {
     'variables : pas de noms internes __kx*',
     last.variables.every((v) => !v.name.startsWith('_'))
   );
+  check('variables : la broche montre son état (led.value)', vars['led.value'] === '0', JSON.stringify(vars));
+  const objets = ['bus', 'pwm', 'led', 'Pin', 'I2C', 'PWM'].filter((n) => n in vars);
+  check('variables : ni objet (I2C, PWM) ni classe affichés', objets.length === 0, objets.join(', '));
 
   // Le moniteur série ne doit jamais voir les séquences de débogage.
   check('moniteur sans séquence \\x1bKX', !serial.includes('\x1bKX') && !serial.includes('"l":'));
