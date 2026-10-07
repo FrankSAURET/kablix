@@ -11,7 +11,7 @@
 // rien ne change.
 //
 // VOLET B — l'onglet (Chrome headless, CDP brut). Vraie page, vrai bundle. La
-// case « Bits » se coche à la VRAIE souris (bouton du bus dessiné sur la piste,
+// case « Bit » se coche à la VRAIE souris (bouton du bus dessiné sur la piste,
 // puis la case du panneau) : le réglage part vers l'hôte, la piste grandit, les
 // chiffres s'écrivent sous le créneau, centrés dans leur cellule, et un trait
 // pointillé part du créneau à chaque bord de bit, pile sur les fronts.
@@ -296,7 +296,7 @@ check('lignes sous la piste : UART 1, UART + bits 2, DHT + bits 3, bits d\'un d�
 		&& lignesSousVoie([{ protocole: 'uart', donnees: 1, bits: true }], 0) === 1);
 
 // === VOLET B : l'onglet =======================================================
-console.log('Volet B — onglet de l\'analyseur, case « Bits » à la vraie souris');
+console.log('Volet B — onglet de l\'analyseur, case « Bit » à la vraie souris');
 const STUB = `
 export const Uri = { joinPath: (b, ...p) => ({ fsPath: [b.fsPath, ...p].join('/'), toString() { return this.fsPath; } }) };
 export const l10n = { t: (s, ...a) => String(s).replace(/\\{(\\d+)\\}/g, (_m, i) => a[i]) };
@@ -441,13 +441,13 @@ try {
 	check('témoin : le bouton du bus est dessiné (« UART »)', () => !!bouton);
 	if (bouton) await clic(r0.left + bouton.x, r0.top + bouton.y);
 	const caseBits = await ev(`(() => {
-		const l = [...document.querySelectorAll('.flottant label')].find((x) => x.textContent.trim() === 'Bits');
+		const l = [...document.querySelectorAll('.flottant label')].find((x) => x.textContent.trim() === 'Bit');
 		const c = l?.querySelector('input[type=checkbox]');
 		if (!c) return null;
 		const r = c.getBoundingClientRect();
 		return { x: r.left + r.width / 2, y: r.top + r.height / 2, coche: c.checked };
 	})()`);
-	check('le panneau du décodage montre une case « Bits », décochée par défaut', () => caseBits !== null && caseBits.coche === false, () => JSON.stringify(caseBits));
+	check('le panneau du décodage montre une case « Bit », décochée par défaut', () => caseBits !== null && caseBits.coche === false, () => JSON.stringify(caseBits));
 	if (caseBits) await clic(caseBits.x, caseBits.y);
 	const regl = await reglages();
 	check('case cochée à la souris : le réglage part vers l\'hôte avec bits: true (le .projix le garde)',
@@ -508,7 +508,7 @@ try {
 
 	// Décocher à la souris : plus de bits, plus de ligne, rien d'écrit dans le projet.
 	const caseBis = await ev(`(() => {
-		const c = [...document.querySelectorAll('.flottant label')].find((x) => x.textContent.trim() === 'Bits')?.querySelector('input[type=checkbox]');
+		const c = [...document.querySelectorAll('.flottant label')].find((x) => x.textContent.trim() === 'Bit')?.querySelector('input[type=checkbox]');
 		if (!c) return null;
 		const r = c.getBoundingClientRect();
 		return { x: r.left + r.width / 2, y: r.top + r.height / 2, coche: c.checked };

@@ -913,7 +913,12 @@ function roleI2c(d: VoieVue): 'sda' | 'scl' | null {
   const nom = nomAffiche(d).toUpperCase();
   if (/\bSCL\b/.test(nom)) return 'scl';
   if (/\bSDA\b/.test(nom)) return 'sda';
-  const pin = d.pin.toUpperCase();
+  return roleBroche(d.pin);
+}
+
+/** Rôle I²C d'une broche seule : GP pair = SDA, impair = SCL ; A4/A5 ; 20/21. */
+function roleBroche(broche: string): 'sda' | 'scl' | null {
+  const pin = broche.toUpperCase();
   const gp = /^GP(\d+)$/.exec(pin);
   if (gp) return Number(gp[1]) % 2 === 0 ? 'sda' : 'scl';
   if (pin === 'A4' || pin === '20') return 'sda';
@@ -931,9 +936,10 @@ function brocheJumelle(pin: string): string | null {
 }
 
 /**
- * La voie qui joue l'AUTRE rôle I²C face à `ici` : celle dont le nom le dit,
- * sinon celle posée sur la broche jumelle, sinon n'importe quelle voie du bon
- * rôle. Une SDA qui porte déjà un décodage n'est pas reprise.
+ * La voie qui joue l'AUTRE rôle I²C face à `ici` : celle posée sur la broche
+ * jumelle (Frank : « par défaut la broche voisine »), sinon celle dont le nom
+ * le dit, sinon n'importe quelle voie du bon rôle. Une SDA qui porte déjà un
+ * décodage n'est pas reprise.
  */
 function partenaireI2c(ici: VoieVue, voulu: 'sda' | 'scl'): number | undefined {
   const jumelle = brocheJumelle(ici.pin);
@@ -946,10 +952,47 @@ function partenaireI2c(ici: VoieVue, voulu: 'sda' | 'scl'): number | undefined {
   );
   const score = (d: VoieVue): number => {
     const nom = nomAffiche(d).toUpperCase();
-    if (new RegExp(`\\b${voulu.toUpperCase()}\\b`).test(nom)) return 2;
-    return jumelle !== null && d.pin.toUpperCase() === jumelle ? 1 : 0;
+    return (
+      (jumelle !== null && d.pin.toUpperCase() === jumelle ? 2 : 0) +
+      (new RegExp(`\\b${voulu.toUpperCase()}\\b`).test(nom) ? 1 : 0)
+    );
   };
   return candidates.sort((a, b) => score(b) - score(a))[0]?.voie;
+}
+
+/**
+ * Liste « SCL » d'un I²C posé sur la voie `sda` : les broches SCL possibles,
+ * écrites par leur numéro de GPIO (Frank, 07/10/2026). Deux pinces sur la même
+ * broche lisent le même signal : une seule entrée, la voie que `partenaireI2c`
+ * préfère. La voie SDA elle-même n'y est jamais. Sans aucune broche reconnue
+ * comme SCL, toutes les autres voies restent proposées, par leur nom.
+ */
+function remplirSclI2c(sel: HTMLSelectElement, sda: number, courant?: number): void {
+  sel.textContent = '';
+  const vide = document.createElement('option');
+  vide.value = '';
+  vide.textContent = '—';
+  sel.append(vide);
+  const ici = diagnostics.find((d) => d.voie === sda);
+  const autres = diagnostics.filter((d) => !d.probleme && d.voie !== sda);
+  const parBroche = autres.filter((d) => roleBroche(d.pin) === 'scl');
+  // La voie déjà réglée garde sa place dans la liste, sinon celle qu'on devine.
+  const prefere = courant ?? (ici ? partenaireI2c(ici, 'scl') : undefined);
+  const vues = new Map<string, VoieVue>();
+  for (const d of parBroche) {
+    const cle = d.pin.toUpperCase();
+    if (!vues.has(cle) || d.voie === prefere) vues.set(cle, d);
+  }
+  const liste: Array<[number, string]> =
+    vues.size > 0
+      ? [...vues.values()].sort((a, b) => a.pin.localeCompare(b.pin, undefined, { numeric: true })).map((d) => [d.voie, d.pin])
+      : autres.map((d) => [d.voie, nomAffiche(d)]);
+  for (const [v, texte] of liste) {
+    const o = document.createElement('option');
+    o.value = String(v);
+    o.textContent = texte;
+    sel.append(o);
+  }
 }
 
 /**
@@ -1171,7 +1214,7 @@ function menuProtocole(z: ZoneBouton): void {
   // pas un second qui lirait l'horloge comme des données.
   const parHorloge = decodages.find((d) => d.protocole === 'i2c' && d.horloge === z.voie && d.donnees !== undefined);
   if (parHorloge) {
-    ouvrirPanneau(z, panneauDecodage(parHorloge, parHorloge.donnees!), false);
+    ouvrirPanneau(z, panneauDecodage(parHorloge, parHorloge.donnees!, true), false);
     return;
   }
   const boite = document.createElement('div');
@@ -1232,13 +1275,31 @@ function formatUart(d: ReglageDecodage): string {
  * La voie de données n'y figure pas : c'est la voie du bouton qu'on a cliqué,
  * et la déplacer ici ferait sauter le réglage sur une piste qu'on ne regarde
  * pas.
+ *
+ * `horlogeSeule` : panneau ouvert depuis la voie SCL d'un I²C. Elle ne fait
+ * que battre la mesure : ni liste SCL, ni valeurs, ni bit (Frank, 07/10/2026)
+ * — tout cela se règle sur la voie SDA. Le bus y est montré, figé, avec de
+ * quoi ôter le décodage.
  */
-function panneauDecodage(d: ReglageDecodage, voie: number): HTMLElement {
+function panneauDecodage(d: ReglageDecodage, voie: number, horlogeSeule = false): HTMLElement {
   const boite = document.createElement('div');
   boite.style.display = 'contents';
   const refaire = (): void => {
     dessiner();
     envoyerReglages();
+  };
+  const boutonOter = (): HTMLButtonElement => {
+    const oter = document.createElement('button');
+    oter.type = 'button';
+    oter.textContent = t('Remove');
+    oter.title = t('Remove this decoding');
+    oter.addEventListener('click', () => {
+      decodages = decodages.filter((x) => x !== d);
+      fermerPanneau();
+      dessiner();
+      envoyerReglages();
+    });
+    return oter;
   };
 
   const labProto = document.createElement('label');
@@ -1277,15 +1338,25 @@ function panneauDecodage(d: ReglageDecodage, voie: number): HTMLElement {
   labProto.append(selProto);
   boite.append(labProto);
 
+  if (horlogeSeule) {
+    selProto.disabled = true;
+    labProto.title = t('Clock of the I²C decoding: settings are on the SDA channel.');
+    boite.append(boutonOter());
+    return boite;
+  }
+
   for (const role of rolesDe(d.protocole)) {
     if (role.cle === 'donnees') continue; // c'est la voie du bouton cliqué
     const lab = document.createElement('label');
     lab.textContent = role.nom;
     const sel = document.createElement('select');
+    const courant = d[role.cle];
     // La voie de données n'est jamais aussi l'horloge ou le CS : la proposer
     // laissait poser SDA = SCL, un décodage muet sans le moindre avertissement.
-    remplirVoies(sel, role.obligatoire ? '—' : t('none'), voie);
-    const courant = d[role.cle];
+    // L'horloge d'un I²C se choisit par son numéro de GPIO.
+    if (d.protocole === 'i2c' && role.cle === 'horloge')
+      remplirSclI2c(sel, voie, typeof courant === 'number' ? courant : undefined);
+    else remplirVoies(sel, role.obligatoire ? '—' : t('none'), voie);
     if (typeof courant === 'number') sel.value = String(courant);
     sel.addEventListener('change', () => {
       const v = sel.value === '' ? -1 : Number(sel.value);
@@ -1408,20 +1479,11 @@ function panneauDecodage(d: ReglageDecodage, voie: number): HTMLElement {
     else delete d.bits;
     refaire();
   });
-  labBits.append(caseBits, document.createTextNode(t('Bits')));
+  // « Bit », invariable (Frank, 07/10/2026).
+  labBits.append(caseBits, document.createTextNode(t('Bit')));
   boite.append(labBits);
 
-  const oter = document.createElement('button');
-  oter.type = 'button';
-  oter.textContent = t('Remove');
-  oter.title = t('Remove this decoding');
-  oter.addEventListener('click', () => {
-    decodages = decodages.filter((x) => x !== d);
-    fermerPanneau();
-    dessiner();
-    envoyerReglages();
-  });
-  boite.append(oter);
+  boite.append(boutonOter());
   return boite;
 }
 

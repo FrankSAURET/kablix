@@ -5,6 +5,15 @@
 
 ---
 
+# v2026.10.1.220
+1. ✅ **Panneau I²C côté SDA** (Frank : « pas super clair ») : la liste SCL écrit les GPIO (`remplirSclI2c`) — broches SCL seulement (`roleBroche` : GP impair, A5, 21), une entrée par broche (deux pinces sur GP9 = une ligne, voie réglée ou devinée gardée), jamais la voie SDA ; repli sur les noms de voie si aucune broche reconnue. Broche voisine prioritaire sur le nom dans `partenaireI2c` (score jumelle 2 + nom 1).
+2. ✅ **Panneau côté SCL** : `panneauDecodage(…, horlogeSeule)` — bus figé (infobulle « réglages sur la voie SDA ») + « Remove », plus de liste SCL, de valeurs ni de case bit.
+3. ✅ Case « Bits » → « Bit » (Frank : invariable). Chaîne de base EN changée.
+4. ✅ [verify-analyseur-i2c-pose.mjs](scripts/verify-analyseur-i2c-pose.mjs) : 12 contrôles (GP9/GP11 listés, GP10 et SDA exclus, panneau SCL réduit, « Bit ») ; contre-épreuve 5 échecs. verify-analyseur-bits suit « Bit ». analyseur, -rendu, -bits, -marqueurs, -voies-partagees, dictionnaires : verts.
+5. ⏳ Traductions des chaînes nouvelles (« Bit », infobulle du bus figé) : avant publication. verify:i18n : 6 échecs déjà présents (traductions en attente).
+
+---
+
 # v2026.10.1.219
 1. ✅ **Décodage I²C muet** (« 16 servo + alim-pico2 » : « ni décodage ni bits sur SDA »). Les 3 décodages du projet étaient faux : d1 SDA = SCL = voie 2, d2 tout sur la voie 7 (SCL), d3 SDA sur la voie 0 (GP9 = SCL). Cause : le « P » prenait TOUJOURS sa voie pour SDA, SCL vide ; le panneau proposait la voie de données comme horloge. [analyseur.mts](src/webview/analyseur.mts) : `roleI2c` (nom SDA/SCL, sinon broche : GP pair/impair, A4/A5, 20/21), `partenaireI2c` (nom explicite > broche jumelle), `nouveauI2c` à la pose et au passage à l'I²C dans le panneau ; « P » d'une voie SCL déjà décodée rouvre CE décodage ; `remplirVoies` exclut la voie de données des rôles.
 2. ✅ Banc [verify-analyseur-i2c-pose.mjs](scripts/verify-analyseur-i2c-pose.mjs) : vraie page, vraie souris (CDP), échange LigneI2c réel ; pose depuis SCL puis depuis SDA, second « P », liste SCL. 8 contrôles, contre-épreuve `--ancien` en échec. Ajouté à `verify:all:serie`. analyseur, -rendu, -bits, -marqueurs, -i2c, -bulle, -restaure, -voies-partagees : verts.

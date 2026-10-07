@@ -11,8 +11,10 @@
 //   1. « P » de la voie SCL → « I²C / TWI » : le décodage se pose avec SDA en
 //      données et SCL en horloge, et la trame se lit sous la piste SDA.
 //   2. « P » de la voie SCL une seconde fois : il rouvre CE décodage, n'en
-//      pose pas un second.
-//   3. La liste « SCL » du panneau ne propose pas la voie SDA elle-même.
+//      pose pas un second, et ne montre que le bus figé et « Remove » (v.220).
+//   3. Côté SDA, la liste « SCL » écrit les GPIO SCL (GP9, GP11), une entrée
+//      par broche, la voisine par défaut ; ni la voie SDA ni une broche paire.
+//      La case s'appelle « Bit ».
 //   4. Cas symétrique : « P » de la voie SDA → l'horloge est trouvée seule.
 //
 // Contre-épreuve : `--ancien` compile analyseur.mts dans sa version HEAD. Le
@@ -86,6 +88,8 @@ const enMs = (f) => f.map((v, i) => (i % 2 === 0 ? v / 1000 : v));
 const VOIES = [
 	{ voie: 0, nom: 'GP9', pin: 'GP9', fronts: enMs(scl), niveauInitial: 1 },
 	{ voie: 2, nom: 'SDA', pin: 'GP8', fronts: enMs(sda), niveauInitial: 1 },
+	{ voie: 4, nom: 'GP11', pin: 'GP11', fronts: [], niveauInitial: 1 },
+	{ voie: 5, nom: 'GP10', pin: 'GP10', fronts: [], niveauInitial: 1 },
 	{ voie: 7, nom: 'SCL', pin: 'GP9', fronts: enMs(scl), niveauInitial: 1 },
 ];
 
@@ -193,8 +197,30 @@ try {
 	const reglages = async () => (await ev('window.__msgs')).filter((m) => m.type === 'analyseurReglages').pop()?.decodages ?? [];
 	const optionsScl = () => ev(`(() => {
 		const s = [...document.querySelectorAll('.flottant label')].find((x) => x.textContent.startsWith('SCL'))?.querySelector('select');
-		return s ? { valeur: s.value, voies: [...s.options].map((o) => o.value).filter((v) => v !== '') } : null;
+		const o = [...(s?.options ?? [])].filter((x) => x.value !== '');
+		return s ? { valeur: s.value, voies: o.map((x) => x.value), textes: o.map((x) => x.textContent) } : null;
 	})()`);
+	/** Contenu du panneau ouvert : libellés, état de la liste « Bus », boutons. */
+	const panneau = () => ev(`(() => {
+		const f = document.querySelector('.flottant');
+		if (!f) return null;
+		const bus = [...f.querySelectorAll('label')].find((x) => x.textContent.startsWith('Bus'))?.querySelector('select');
+		return {
+			libelles: [...f.querySelectorAll('label')].map((x) => x.textContent.trim().split('\\n')[0].slice(0, 6)),
+			bus: bus ? { valeur: bus.value, fige: bus.disabled } : null,
+			boutons: [...f.querySelectorAll('button')].map((x) => x.textContent.trim()),
+			bit: [...f.querySelectorAll('label')].some((x) => x.textContent.trim() === 'Bit'),
+		};
+	})()`);
+	/** Clic souris sur le bouton de protocole (« I²C ») dessiné sous la voie `nom`. */
+	const clicBus = async (nom, texte) => {
+		const textes = await releve();
+		const r = await trace();
+		const etiquette = textes.find((x) => x.t === nom && x.x < 104);
+		const b = textes.filter((x) => x.t === texte && x.x < 104 && etiquette && x.y > etiquette.y).sort((a, c) => a.y - c.y)[0];
+		if (!b) throw new Error(`bouton ${texte} de ${nom} introuvable`);
+		await clic(r.left + b.x, r.top + b.y);
+	};
 	// START et ACK tiennent dans une cellule étroite et s'abrègent (« S… ») : on
 	// juge sur l'adresse et l'octet, écrits en entier.
 	const decode = (textes) => textes.some((x) => x.t === 'addr 0x40 W') && textes.some((x) => x.t === '0x06');
@@ -217,13 +243,28 @@ try {
 	// --- 2. Second « P » sur SCL : le même décodage ---
 	etape = 'second P sur SCL';
 	await clicP('SCL');
-	const opt = await optionsScl();
-	check('« P » de SCL rouvre le décodage posé (panneau avec la liste SCL réglée sur 7)', () => opt?.valeur === '7', () => JSON.stringify(opt));
-	check('la liste SCL ne propose pas la voie SDA elle-même', () => opt && !opt.voies.includes('2'), () => JSON.stringify(opt));
+	const pScl = await panneau();
+	check('« P » de SCL rouvre le décodage posé : bus I²C montré, figé',
+		() => pScl?.bus?.valeur === 'i2c' && pScl.bus.fige === true, () => JSON.stringify(pScl));
+	check('côté SCL : ni liste SCL, ni valeurs, ni bit — seulement de quoi ôter le décodage',
+		() => pScl && pScl.libelles.length === 1 && !pScl.bit && pScl.boutons.join() === 'Remove', () => JSON.stringify(pScl));
 	await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`);
 	await attendre(80);
 	const d2 = await reglages();
 	check('toujours un seul décodage après le second « P »', () => d2.length === 1, () => JSON.stringify(d2));
+
+	// --- 3. Le panneau côté SDA : la liste SCL en numéros de GPIO ---
+	etape = 'panneau SDA';
+	await clicBus('SDA', 'I²C');
+	const opt = await optionsScl();
+	check('côté SDA : la liste SCL écrit les GPIO SCL, une entrée par broche (GP9, GP11)',
+		() => opt?.textes.join() === 'GP9,GP11', () => JSON.stringify(opt));
+	check('par défaut la broche voisine : GP9, sur la voie réglée (7)', () => opt?.valeur === '7', () => JSON.stringify(opt));
+	check('ni la voie SDA ni une broche paire (GP10) dans la liste', () => opt && !opt.voies.includes('2') && !opt.voies.includes('5'), () => JSON.stringify(opt));
+	const pSda = await panneau();
+	check('côté SDA : la case s\'appelle « Bit », sans s', () => pSda?.bit === true, () => JSON.stringify(pSda));
+	await ev(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`);
+	await attendre(80);
 
 	// --- 4. Cas symétrique : « P » de SDA ---
 	etape = 'pose depuis SDA';
@@ -245,7 +286,7 @@ try {
 	await attendre(300);
 	try { rmSync(tmp, { recursive: true, force: true }); } catch { /* */ }
 }
-const MIN = 8;
+const MIN = 12;
 if (controles < MIN) {
 	echecs++;
 	console.log(`  ❌ ${controles} contrôles joués, ${MIN} attendus`);
