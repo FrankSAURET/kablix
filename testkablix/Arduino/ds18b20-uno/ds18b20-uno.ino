@@ -9,6 +9,9 @@
 OneWire fil(2);
 DallasTemperature capteurs(&fil);
 
+float t;
+int i;
+
 void setup() {
   Serial.begin(115200);
   capteurs.begin();
@@ -18,8 +21,8 @@ void setup() {
 
 void loop() {
   capteurs.requestTemperatures();   // 750 ms de conversion en 12 bits
-  for (int i = 0; i < capteurs.getDeviceCount(); i++) {
-    float t = capteurs.getTempCByIndex(i);
+  for (i = 0; i < capteurs.getDeviceCount(); i++) {
+    t = capteurs.getTempCByIndex(i);
     Serial.print("T");
     Serial.print(i);
     Serial.print(" = ");

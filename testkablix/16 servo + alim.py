@@ -44,10 +44,12 @@ time.sleep(2)
 
 # --- hola ---
 print("Hola !")
+Cpt=0
 for i in range(4):
     for ch in range(0,8):
         pwm.servo_angle(ch, 180)
         time.sleep(0.1)
+        Cpt=Cpt+1
     time.sleep(0.6)
 
     for ch in range(0,8):
