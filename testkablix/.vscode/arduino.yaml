@@ -1,4 +1,4 @@
 board: arduino:avr:uno
-sketch: Arduino/led-uno/led-uno.ino
+sketch: Arduino/dmx-uno/dmx-uno.ino
 port: COM3
 output: .build
