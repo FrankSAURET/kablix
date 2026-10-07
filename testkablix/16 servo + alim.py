@@ -41,6 +41,18 @@ for ch in range(0,8):
     pwm.servo_angle(ch, 0)
 time.sleep(2)
 
+# --- hola ---
+print("Tous les servos à 180°")
+for ch in range(0,8):
+    pwm.servo_angle(ch, 180)
+    time.sleep(0.1)
+time.sleep(2)
+
+for ch in range(0,8):
+    pwm.servo_angle(ch, 180)
+    time.sleep(0.1)
+time.sleep(2)
+
 # --- Fin ---
 pwm.all_off()
 print("Terminé.")
