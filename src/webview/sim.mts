@@ -6116,6 +6116,9 @@ labelsBtn.addEventListener('click', () => {
   else openLabelsMenu();
 });
 
+editor.onAnalyseurFenetre = (valeur) => {
+  vscode.postMessage({ type: 'analyseurFenetre', valeur });
+};
 editor.onPaletteStateChange = (state) => {
   paletteState = state;
   saveUiState();
@@ -6312,6 +6315,8 @@ window.addEventListener('message', (event: MessageEvent) => {
       // Repli automatique de la bibliothèque au démarrage de la simulation.
       if (typeof msg.foldLibraryOnRun === 'boolean') foldLibraryOnRun = msg.foldLibraryOnRun;
       if (typeof msg.lintCode === 'boolean') lintEnabled = msg.lintCode;
+      // Réglage modifié ailleurs (paramètres de VS Code) : la case se met à jour.
+      if (typeof msg.analyseurFenetre === 'boolean') editor.reglerAnalyseurFenetre(msg.analyseurFenetre);
       if (!succesCharge) {
         succesCharge = true; // un seul chargement : les « config » suivants ne doivent rien écraser
         if (msg.succes !== undefined) {

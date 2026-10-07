@@ -6,6 +6,15 @@ _(rien pour l'instant)_
 
 ---
 
+# v2026.10.1.214
+1. ✅ **Bouton de capture unique** `#capture-bouton` entre ◀ et ▶, sans texte : ■ en cours, ↻ arrêtée ou pleine (remplace ↻ Restart et ⏹ Stop). Relancer en plein run = ■ puis ↻.
+2. ✅ **Flèches de trame** : ⏮ ⏭ du milieu = TOUTES les trames (`debutsDeTrame`) ; ⏮ ⏭ de couleur (`--vscode-textLink-foreground`) aux extrémités = trame DIFFÉRENTE (`changementsDeTrame`). Trames toutes identiques : pas de saut, bandeau `#avertissement` en gras (couleurs d'alerte du thème, 5 s) « All frames are identical. ». Le seuil de rafale du .213 est retiré (plus utile). Bancs : verify-analyseur, -trames (31), -profondeur (37).
+3. ✅ **Case « Ouvrir l'analyseur dans une nouvelle fenêtre »** (propriété `fenetre` de la sonde) : réglage GLOBAL `kablix.analyseurNouvelleFenetre`, partagé par toutes les sondes, jamais écrit dans le projet ; ouverture via `workbench.action.moveEditorToNewWindow`. ⚠ Taille et position : l'API des extensions ne les lit ni ne les fixe — c'est VS Code qui les choisit. ⚠ Non rejoué dans VS Code (conteneur cloud) : à essayer.
+4. ⏳ Chaînes EN nouvelles (flèches, bouton, bandeau, case, réglage) : traduction à la publication ; `verify:i18n` rouge sur ces seules clés.
+5. 💬 DHT : disproportion 18 ms de départ / bit de 50-70 µs — pistes à discuter avec Frank, rien de fait.
+
+---
+
 # v2026.10.1.213
 1. ✅ **⏮ ⏭ sur les trames identiques espacées** : `changementsDeTrame` ne saute une trame identique à la précédente que dans une rafale (< 50 ms entre deux débuts, `RAFALE_TRAMES_MS`) — [analyseur-decodage.mts](src/webview/analyseur-decodage.mts). Cause : un DHT (ou DS18B20, I²C relu…) répond la même valeur à chaque lecture ; toutes les trames suivantes passaient pour des répétitions et ⏭ ne bougeait plus. Banc : six protocoles × trois trames à 500 ms ([verify-analyseur.mjs](scripts/verify-analyseur.mjs)), contre-épreuve rouge sur l'ancien décodeur, DMX en rafale toujours replié. ⚠ Le firmware Pico n'est pas dans le conteneur cloud : le DHT sur Pico n'a pas été rejoué de bout en bout, seulement des trames fabriquées (via le moteur DHT22).
 2. ✅ **Bouton ⏹ Arrêter la capture** ([analyseur-panel.ts](src/analyseur-panel.ts), [analyseur.mts](src/webview/analyseur.mts), `AnalyseurCapture.arreter()`) : la simulation continue, la mesure est figée, ↻ repart. Banc [verify-analyseur-profondeur.mjs](scripts/verify-analyseur-profondeur.mjs) (vrai clic, 39 contrôles), contre-épreuve rouge. ⏳ Chaînes EN `Stop capture`, `Capture stopped: {0} kept. …`, info-bulle : traduction FR en attente de la publication.

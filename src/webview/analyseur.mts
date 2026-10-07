@@ -38,6 +38,7 @@ import {
 import {
   avanceNecessaireMs,
   changementsDeTrame,
+  debutsDeTrame,
   decoderTous,
   lignesSousVoie,
   reculNecessaireMs,
@@ -570,11 +571,14 @@ function majEtat(): void {
     : capture.aDesDonnees
       ? t('Last capture: {0} ms', fin)
       : '';
-  // Hors simulation, plus rien à capturer : relancer viderait la mesure pour
-  // n'y remettre rien.
-  if (btnRelancer) btnRelancer.disabled = !enCours;
-  // Rien à arrêter sans simulation, ni une fois la capture déjà arrêtée.
-  if (btnArreter) btnArreter.disabled = !enCours || capture.arretee;
+  // Un seul bouton : ■ tant que la capture tourne, ↻ une fois arrêtée ou pleine.
+  // Rien à arrêter ni à relancer hors simulation.
+  if (btnCapture) {
+    btnCapture.disabled = !enCours;
+    const relance = capture.arretee || capture.pleine;
+    btnCapture.textContent = relance ? '↻' : '■';
+    btnCapture.title = (relance ? btnCapture.dataset.titreRelance : btnCapture.dataset.titreArret) ?? '';
+  }
   majProfondeurs();
 }
 
@@ -743,7 +747,7 @@ function reglagesEffectifs(): ReglageDecodage[] {
 function majDecodagesCapture(): void {
   capture.reglerDecodages(reglagesEffectifs());
   // ⏮ ⏭ n'ont rien à chercher sans décodage.
-  for (const id of ['trame-prec', 'trame-suiv']) {
+  for (const id of ['trame-prec', 'trame-suiv', 'trame-diff-prec', 'trame-diff-suiv']) {
     const b = document.getElementById(id) as HTMLButtonElement | null;
     if (b) b.disabled = decodages.length === 0;
   }
@@ -775,9 +779,17 @@ const MARGE_TRAME = 0.02;
  * (Frank, 27/09). Sans ancre (aucun déclenchement, aucun saut), le premier saut
  * les laisse à leur place à l'écran.
  */
-function sauterTrame(sens: -1 | 1): void {
+function sauterTrame(sens: -1 | 1, differente = false): void {
   if (decodages.length === 0 || !capture.aDesDonnees) return;
-  const debuts = changementsDeTrame(trancheCapture(capture.tDebut, capture.tFin), reglagesEffectifs());
+  const tranche = trancheCapture(capture.tDebut, capture.tFin);
+  const toutes = debutsDeTrame(tranche, reglagesEffectifs());
+  // Flèches du milieu : TOUTES les trames (Frank, 07/10). Flèches de couleur :
+  // seulement celles qui diffèrent de leur voisine (Frank, 26/09).
+  const debuts = differente ? changementsDeTrame(tranche, reglagesEffectifs()) : toutes;
+  if (differente && toutes.length > 1 && debuts.length <= 1) {
+    avertir(t('All frames are identical.'));
+    return;
+  }
   // Le bord actuel, là où ⏮ ⏭ posent une trame ; un millième de largeur
   // d'écart pour ne pas retomber sur celle qu'on vient de poser.
   const bord = fenetre.t0 + fenetre.duree * MARGE_TRAME;
@@ -794,13 +806,29 @@ function sauterTrame(sens: -1 | 1): void {
   dessiner();
 }
 
+/** Minuterie qui efface l'avertissement. */
+let minuterieAvertissement: ReturnType<typeof setTimeout> | undefined;
+
+/**
+ * Avertissement très lisible sous la barre (gras, couleurs d'alerte du thème) :
+ * il s'efface seul au bout de quelques secondes (Frank, 07/10 : « Toutes les
+ * trames sont identiques »).
+ */
+function avertir(texte: string): void {
+  const bandeau = document.getElementById('avertissement');
+  if (!bandeau) return;
+  bandeau.textContent = texte;
+  bandeau.hidden = false;
+  if (minuterieAvertissement !== undefined) clearTimeout(minuterieAvertissement);
+  minuterieAvertissement = setTimeout(() => { bandeau.hidden = true; }, 5000);
+}
+
 // --- Barre d'outils ----------------------------------------------------------
 
 const selHorloge = document.getElementById('horloge') as HTMLSelectElement;
 /** Profondeur et bouton « Relancer la capture » : absents d'une page d'avant v2026.9.5.161. */
 const selProfondeur = document.getElementById('profondeur') as HTMLSelectElement | null;
-const btnRelancer = document.getElementById('relancer') as HTMLButtonElement | null;
-const btnArreter = document.getElementById('arreter-capture') as HTMLButtonElement | null;
+const btnCapture = document.getElementById('capture-bouton') as HTMLButtonElement | null;
 const etatTexte = document.getElementById('etat') as HTMLSpanElement;
 const btnReafficher = document.getElementById('reafficher') as HTMLButtonElement | null;
 /** Bouton ☰ des exports, et son menu (posé hors de la barre, voir analyseur-panel.ts). */
@@ -2129,26 +2157,29 @@ selProfondeur?.addEventListener('change', () => {
   dessiner();
   envoyerReglages();
 });
-btnArreter?.addEventListener('click', () => {
-  if (!enCours || capture.arretee) return;
-  capture.arreter();
-  // La mesure ne bouge plus : la vue cesse de courir après la fin.
-  suivi = false;
+btnCapture?.addEventListener('click', () => {
+  if (!enCours) return;
+  if (capture.arretee || capture.pleine) {
+    // Arrêtée ou pleine : ↻ repart d'une capture vide.
+    capture.relancer();
+    // La vue suit la fin jusqu'au front de déclenchement, qui la posera sur lui.
+    suivi = true;
+    suivreFin();
+  } else {
+    // En cours : ■ arrête la capture seule, la simulation continue. La vue
+    // cesse de courir après la fin.
+    capture.arreter();
+    suivi = false;
+  }
   majEtat();
   dessiner();
 });
-btnRelancer?.addEventListener('click', () => {
-  if (!enCours) return;
-  capture.relancer();
-  // La vue suit la fin jusqu'au front de déclenchement, qui la posera sur lui.
-  suivi = true;
-  suivreFin();
-  dessiner();
-});
+document.getElementById('trame-diff-prec')?.addEventListener('click', () => sauterTrame(-1, true));
 document.getElementById('trame-prec')?.addEventListener('click', () => sauterTrame(-1));
 document.getElementById('gauche')?.addEventListener('click', () => defiler(-1));
 document.getElementById('droite')?.addEventListener('click', () => defiler(1));
 document.getElementById('trame-suiv')?.addEventListener('click', () => sauterTrame(1));
+document.getElementById('trame-diff-suiv')?.addEventListener('click', () => sauterTrame(1, true));
 document.getElementById('tout')?.addEventListener('click', ajuster);
 document.getElementById('suivre')?.addEventListener('click', suivreFinDemande);
 btnReafficher?.addEventListener('click', () => {

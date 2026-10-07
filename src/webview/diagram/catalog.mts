@@ -1333,6 +1333,9 @@ export const CATALOG: readonly PartDef[] = [
         options: NOMS_VOIES.map((_, i) => String(i)),
         optionLabels: Object.fromEntries(NOMS_VOIES.map((nom, i) => [String(i), nom])),
       },
+      // Réglage GLOBAL partagé par toutes les sondes, pas un attribut du projet :
+      // l'éditeur le lit et l'écrit lui-même (voir `analyseurFenetre`).
+      { attr: 'fenetre', label: 'Open the analyzer in a new window', kind: 'checkbox' },
       METER_TAG_PROP,
     ],
   },

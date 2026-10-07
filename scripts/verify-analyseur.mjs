@@ -2239,22 +2239,18 @@ const dhtDe = (tempC, humidity, model) => {
   check('⏮ ⏭ : deux bus entrelacés, chacun comparé à ses propres trames (« AB » répété sauté, « AC » gardé)',
     abOuv.length === 3 && memes(melange, attenduMelange), `${melange} / ${attenduMelange}`);
 
-  // ⏮ ⏭ sur des trames IDENTIQUES mais ESPACÉES (Frank, 06/10 : « le saut de
-  // trame ne fonctionne pas avec tous les protocoles, vu avec DHT11/22 sur
-  // pico »). Un capteur répond la même valeur à chaque lecture : trois trames
-  // identiques à 500 ms d'écart sont trois événements, pas une rafale. Seul le
-  // DMX de DmxSimple (2 ms) se replie sur sa première trame.
+  // Trames IDENTIQUES et ESPACÉES (Frank, 06/10 puis 07/10) : un capteur répond
+  // la même valeur à chaque lecture. Les flèches du milieu (`debutsDeTrame`)
+  // parcourent TOUTES les trames ; les flèches de couleur (`changementsDeTrame`)
+  // n'en voient qu'une, puisqu'aucune ne diffère de sa voisine.
   {
     const rep = (paires, n, ecart) => Array.from({ length: n }, (_x, k) => paires.map(([t, v]) => [t + k * ecart, v])).flat();
-    const trois = (voies, reglages) => ({
-      toutes: debutsDeTrame(voies, reglages),
-      changements: changementsDeTrame(voies, reglages),
-    });
-    const verifie = (nom, voies, reglages, attendu = 3) => {
-      const r = trois(voies, reglages);
-      check(`⏮ ⏭ ${nom} : trois trames identiques espacées de 500 ms restent trois sauts`,
-        r.toutes.length === attendu && r.changements.length === attendu && memes(r.toutes, r.changements),
-        `${r.toutes.length} débuts / ${r.changements.length} sauts`);
+    const verifie = (nom, voies, reglages) => {
+      const toutes = debutsDeTrame(voies, reglages);
+      const diff = changementsDeTrame(voies, reglages);
+      check(`⏮ ⏭ ${nom} : trois trames identiques — toutes les trames sautent, la « différente » n'en voit qu'une`,
+        toutes.length === 3 && diff.length === 1 && pres(diff[0], toutes[0]),
+        `${toutes.length} débuts / ${diff.length} différentes`);
     };
     const dht = dhtDe(23.4, 56.7, 'dht22');
     verifie('DHT22', [voieDe(0, 'DATA', rep(dht, 3, 500), 1)], [{ protocole: 'dht', donnees: 0, modele: 'dht22' }]);
@@ -2272,7 +2268,7 @@ const dhtDe = (tempC, humidity, model) => {
     verifie('UART', [voieDe(0, 'TX', rep(ligne, 3, 500), 1)], [{ protocole: 'uart', donnees: 0, bauds: 9600 }]);
     // Et à l'inverse : une rafale DMX de 2 ms reste repliée sur sa première trame.
     const seul = changementsDeTrame([voieDe(0, 'DMX', dmxFronts, 1)], [REG_DMX]);
-    check('⏮ ⏭ DMX en rafale (2 ms) : les répétitions restent sautées', seul.length === 3, String(seul.length));
+    check('⏮ ⏭ « différente » sur le DMX en rafale (2 ms) : trois changements', seul.length === 3, String(seul.length));
   }
 
   // --- Déclenchement « début de trame » dans la capture ---

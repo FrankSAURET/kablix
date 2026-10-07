@@ -10,13 +10,15 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Analyseur logique**
 
-- **Bouton ⏹ Arrêter la capture** : arrête la capture seule, pas la simulation. La mesure reste telle quelle, les fronts suivants ne sont plus gardés ; un déclenchement réglé après coup se cherche dans ce qui est déjà capturé. ↻ Relancer la capture repart d'une capture vide.
+- **Un seul bouton de capture, au centre des flèches** : ■ tant que la capture tourne, ↻ une fois arrêtée ou pleine, sans texte. ■ arrête la capture seule, pas la simulation : la mesure reste telle quelle et un déclenchement réglé après coup se cherche dans ce qui est capturé. ↻ repart d'une capture vide.
+- **Flèches de trame « différente »** : de part et d'autre, ⏮ ⏭ dans une autre couleur du thème, qui ne s'arrêtent que sur une trame différente de sa voisine. Si toutes les trames sont identiques, elles ne bougent pas et un bandeau en gras annonce « Toutes les trames sont identiques ».
+- **Case « Ouvrir l'analyseur dans une nouvelle fenêtre »** dans les propriétés des sondes logiques : la même pour toutes les sondes, posées ou à venir, enregistrée dans les réglages globaux de l'utilisateur.
 
-### Correction
+### Modification
 
 **Analyseur logique**
 
-- **⏮ ⏭ ne restent plus bloquées sur les trames identiques espacées** (DHT11/22, DS18B20, I²C, SPI, UART, 1-Wire). Un capteur qui répond la même valeur à chaque lecture donne des trames identiques à plusieurs centaines de ms d'écart : elles étaient toutes prises pour des répétitions et ⏭ n'avançait plus. Seules les répétitions en rafale (moins de 50 ms entre deux débuts de trame, comme DmxSimple) restent sautées.
+- **Les flèches ⏮ ⏭ du milieu parcourent toutes les trames**, répétitions identiques comprises (DHT, DS18B20, I²C relu…). Le saut des répétitions passe aux flèches de couleur.
 
 ## 2026.10.1 (5 octobre 2026)
 

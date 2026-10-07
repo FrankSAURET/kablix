@@ -414,6 +414,21 @@ function partSearchKey(def: PartDef, label: string): string {
 export class Editor {
   readonly diagram: Diagram = { parts: [], wires: [] };
   onChange: (() => void) | null = null;
+  /**
+   * Case « Ouvrir l'analyseur dans une nouvelle fenêtre » des sondes logiques
+   * (Frank, 07/10) : UN état pour toutes, jamais écrit dans le projet — c'est un
+   * réglage global de l'utilisateur, que l'hôte garde et nous rend (`config`).
+   * Ne change qu'au clic, pour toutes les sondes à la fois, posées ou à venir.
+   */
+  analyseurFenetre = false;
+  onAnalyseurFenetre: ((valeur: boolean) => void) | null = null;
+
+  /** Reçoit le réglage global de l'hôte ; la case de l'inspecteur suit s'il a changé. */
+  reglerAnalyseurFenetre(valeur: boolean): void {
+    if (valeur === this.analyseurFenetre) return;
+    this.analyseurFenetre = valeur;
+    this.renderInspector();
+  }
 
   /** Appelé quand la liste des composants personnalisés change (persistance). */
   onCustomPartsChange: ((parts: CustomPartData[]) => void) | null = null;
@@ -7557,6 +7572,18 @@ export class Editor {
     host.appendChild(label);
 
     const current = first.attrs?.[prop.attr] ?? '';
+    if (prop.attr === 'fenetre' && prop.kind === 'checkbox') {
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.className = 'inspector__checkbox';
+      box.checked = this.analyseurFenetre;
+      box.addEventListener('change', () => {
+        this.analyseurFenetre = box.checked;
+        this.onAnalyseurFenetre?.(box.checked);
+      });
+      label.prepend(box);
+      return;
+    }
     if (prop.kind === 'checkbox') {
       // Case à cocher : attr '1' quand cochée, vidé sinon (removeAttribute côté
       // élément — un attribut booléen Lit absent = false). Insérée DANS le

@@ -171,7 +171,8 @@ export class AnalyseurPanel {
     cle: string,
     titre: string,
     fournirEtat: () => EtatAnalyseur,
-    surReglages: (m: AnalyseurVersHote) => void
+    surReglages: (m: AnalyseurVersHote) => void,
+    nouvelleFenetre = false
   ): AnalyseurPanel {
     const existant = AnalyseurPanel.ouverts.get(cle);
     if (existant) {
@@ -185,7 +186,9 @@ export class AnalyseurPanel {
     const panel = vscode.window.createWebviewPanel(
       AnalyseurPanel.viewType,
       titre,
-      { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
+      // Pour une nouvelle fenêtre, l'onglet doit être ACTIF : la commande de VS
+      // Code déplace l'éditeur actif.
+      { viewColumn: vscode.ViewColumn.Beside, preserveFocus: !nouvelleFenetre },
       {
         enableScripts: true,
         localResourceRoots: [extensionUri],
@@ -194,7 +197,15 @@ export class AnalyseurPanel {
         retainContextWhenHidden: true,
       }
     );
-    return AnalyseurPanel.brancher(panel, extensionUri, cle, fournirEtat, surReglages);
+    const vue = AnalyseurPanel.brancher(panel, extensionUri, cle, fournirEtat, surReglages);
+    if (nouvelleFenetre) {
+      // Frank, 07/10 : « Ouvrir l'analyseur dans une nouvelle fenêtre ». La taille
+      // et la position sont celles que VS Code donne à sa fenêtre auxiliaire :
+      // l'API des extensions ne permet ni de les lire ni de les fixer. Un échec
+      // laisse l'onglet là où il est.
+      void Promise.resolve(vscode.commands.executeCommand('workbench.action.moveEditorToNewWindow')).catch(() => undefined);
+    }
+    return vue;
   }
 
   /**
@@ -427,6 +438,15 @@ export class AnalyseurPanel {
   .barre button { cursor: pointer; }
   .barre button:hover { background: var(--vscode-toolbar-hoverBackground, rgba(128,128,128,.2)); }
   #etat { opacity: .7; margin-left: auto; }
+  /* ⏮ ⏭ « trame différente » : même symbole, autre couleur du thème. */
+  .barre button.trame-diff { color: var(--vscode-textLink-foreground, #3794ff); }
+  #avertissement {
+    margin: 0; padding: 6px 10px; font-weight: 700; text-align: center;
+    color: var(--vscode-inputValidation-warningForeground, var(--vscode-foreground));
+    background: var(--vscode-inputValidation-warningBackground, #352a05);
+    border-bottom: 2px solid var(--vscode-inputValidation-warningBorder, #b89500);
+  }
+  #avertissement[hidden] { display: none; }
   /* Panneau flottant : réglages d'une voie, choix d'un front, choix d'un
      protocole. Il s'ouvre SOUS le bouton dessiné qui l'appelle — les boutons
      vivent dans le canvas, un panneau ancré à la barre du haut aurait obligé à
@@ -475,12 +495,6 @@ export class AnalyseurPanel {
        « T » et « P » sous son nom (demande de Frank, 19/09). Une barre unique
        obligeait à désigner la voie avant de pouvoir régler quoi que ce soit, et
        ne montrait jamais d'un coup d'œil laquelle déclenchait. -->
-  <!-- Nouvelle acquisition tout de suite (Frank, 26/09) : capture vidée,
-       déclenchement réarmé. Grisé hors simulation : plus rien à capturer. -->
-  <!-- Arrêter la capture SEULE (Frank, 06/10) : la simulation continue, la mesure
-       reste telle quelle. Grisé hors simulation, et une fois la capture arrêtée. -->
-  <button id="arreter-capture" type="button" disabled title="${l.t('Stop the capture only: the simulation keeps running, but nothing more is recorded and the measurement stays as it is. Restart capture begins a new one.')}">⏹ ${l.t('Stop capture')}</button>
-  <button id="relancer" type="button" disabled title="${l.t('Start a new acquisition now: the capture is cleared and the trigger waits again for its edge. Available while the simulation runs.')}">↻ ${l.t('Restart capture')}</button>
   <label title="${l.t('Sampling rate of the analyzer: edges closer together than one sample are merged, exactly as on a real instrument. Unlimited shows every edge the simulation produced. It does not change how long the capture lasts: the capture keeps exact edges, and Depth sets how many.')}">${l.t('Sampling')}
     <select id="horloge">
       <option value="0">${l.t('Unlimited')}</option>
@@ -508,13 +522,20 @@ export class AnalyseurPanel {
   </label>
   <!-- Flèches : reculer ou avancer d'une demi-fenêtre sans toucher au zoom
        (Frank, 23/09). Les touches ← → du clavier font la même chose. -->
-  <!-- ⏮ ⏭ : début de la trame décodée précédente ou suivante au bord gauche,
-       zoom inchangé (Frank, 25/09), en sautant les trames identiques
-       (Frank, 26/09). Grisés tant qu'aucune voie n'est décodée. -->
-  <button id="trame-prec" type="button" disabled title="${l.t('Bring the start of the previous decoded frame whose content changes to the left edge. Repeated identical frames are skipped. Needs a decoding on a channel.')}">⏮</button>
+  <!-- Navigation (Frank, 07/10). ⏮ ⏭ du milieu : début de la trame décodée
+       précédente ou suivante, TOUTES les trames, au bord gauche, zoom inchangé.
+       ⏮ ⏭ des extrémités (couleur du thème) : trame précédente ou suivante
+       DIFFÉRENTE de sa voisine. Au centre, un seul bouton pour la capture :
+       ■ pendant qu'elle tourne, ↻ une fois arrêtée (ou pleine) — l'arrêt
+       concerne la capture seule, pas la simulation (Frank, 06/10). Grisé hors
+       simulation. -->
+  <button id="trame-diff-prec" class="trame-diff" type="button" disabled title="${l.t('Bring the start of the previous decoded frame that differs from its neighbour to the left edge. Needs a decoding on a channel.')}">⏮</button>
+  <button id="trame-prec" type="button" disabled title="${l.t('Bring the start of the previous decoded frame to the left edge. Needs a decoding on a channel.')}">⏮</button>
   <button id="gauche" type="button" title="${l.t('Move back in time by half a window. The Left arrow key does the same.')}">◀</button>
+  <button id="capture-bouton" type="button" disabled data-titre-arret="${l.t('Stop the capture only: the simulation keeps running, but nothing more is recorded and the measurement stays as it is.')}" data-titre-relance="${l.t('Start a new acquisition now: the capture is cleared and the trigger waits again for its edge.')}" title="${l.t('Stop the capture only: the simulation keeps running, but nothing more is recorded and the measurement stays as it is.')}">■</button>
   <button id="droite" type="button" title="${l.t('Move forward in time by half a window. The Right arrow key does the same.')}">▶</button>
-  <button id="trame-suiv" type="button" disabled title="${l.t('Bring the start of the next decoded frame whose content changes to the left edge. Repeated identical frames are skipped. Needs a decoding on a channel.')}">⏭</button>
+  <button id="trame-suiv" type="button" disabled title="${l.t('Bring the start of the next decoded frame to the left edge. Needs a decoding on a channel.')}">⏭</button>
+  <button id="trame-diff-suiv" class="trame-diff" type="button" disabled title="${l.t('Bring the start of the next decoded frame that differs from its neighbour to the left edge. Needs a decoding on a channel.')}">⏭</button>
   <!-- Deux boutons nommés en clair : « Fit » et « Follow » ne disaient pas ce
        qu'ils font une fois dans un analyseur (retour Frank, .91). -->
   <button id="tout" type="button" title="${l.t('Zoom out until the whole capture, from the start to the last edge, fits the window.')}">${l.t('Whole capture')}</button>
@@ -537,6 +558,8 @@ export class AnalyseurPanel {
   <button type="button" role="menuitem" data-export="copier-svg" title="${l.t('Copy the curves between M1 and M2 to the clipboard as a picture (SVG and PNG), at the current zoom: paste it into Inkscape, Word… Without both markers, the visible window.')}">${l.t('Copy SVG')}</button>
   <button type="button" role="menuitem" data-export="svg" title="${l.t('Save the curves between M1 and M2 to an SVG file, at the current zoom. Without both markers, the visible window.')}">${l.t('Export SVG')}</button>
 </div>
+<!-- Avertissement très lisible (couleurs du thème, gras) : posé par la page, il disparaît seul. -->
+<div id="avertissement" role="alert" hidden data-identiques="${l.t('All frames are identical.')}"></div>
 <canvas id="trace"></canvas>
 <div class="aide">${l.t('Wheel to zoom, drag to pan. Under each channel name: T sets the trigger edge, P picks the bus to decode.')}</div>
 <script nonce="${n}">window.KABLIX_LANG = ${JSON.stringify(vscode.env.language)};
