@@ -489,6 +489,21 @@ ok('ouverture : le .projix montre le code APRÈS la disposition et le verrou du 
 ok('ouverture : « Ouvrir un projet » (dialogue) montre lui aussi le programme',
   /openProjectFromBytes\(bytes, picked\[0\]\);[\s\S]{0,300}?await this\.revealPendingCodeFile\(\);/.test(panelSrc));
 
+// 15 bis. v2026.10.1.221 — projet DÉJÀ ouvert (Frank : « ça ne marche pas à
+//     tous les coups ») : resolveCustomEditor ne revient pas, seul l'onglet
+//     se réactive. Son programme doit repasser devant à chaque retour au
+//     premier plan, sans focus, et seulement après la première ouverture.
+ok('projet déjà ouvert : le retour au premier plan du .projix rappelle revealCodeOnActivate',
+  /onDidChangeViewState\(\(\) => \{[\s\S]{0,400}?devientActif && ouvert\) void session\.revealCodeOnActivate\(devientVisible\)/.test(editorSrc));
+ok('projet déjà ouvert : rien avant la fin de la première ouverture (drapeau posé dans le finally de la disposition)',
+  /settleLayoutAfterCode[\s\S]{0,200}?\.finally\(\(\) => \{\s*ouvert = true;/.test(editorSrc));
+ok('projet déjà ouvert : programme montré SANS focus, jamais un binaire, ni un fichier supprimé',
+  /public async revealCodeOnActivate\([\s\S]{0,900}?\\\.\(hex\|uf2\|elf\|bin\)\$[\s\S]{0,200}?this\.gone\.has\('code'\)[\s\S]{0,900}?this\.revealSource\(uri, true\)/.test(panelSrc));
+ok('projet déjà ouvert : un clic DANS le simulateur ne recouvre pas un fichier du même dossier (.h) ouvert devant',
+  /if \(!devientVisible\) \{[\s\S]{0,400}?TabInputText && dossier\(devant\.uri\) === dossier\(uri\)\) return;/.test(panelSrc));
+ok('projet déjà ouvert : pas de relance en boucle quand le focus revient à Kablix (revealingCode)',
+  /this\.revealingCode = true;[\s\S]{0,300}?finally \{\s*this\.revealingCode = false;/.test(panelSrc));
+
 // 16. v2026.7.188 — le panneau d'accueil est réduit à UN bouton. La VUE reste
 //     déclarée : c'est elle qui porte l'icône de la barre d'activité et le
 //     déclencheur d'ouverture (extension.ts, onDidChangeVisibility).

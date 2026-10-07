@@ -42,6 +42,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Arduino : un point d'arrêt conditionnel s'arrêtait à chaque passage**, la condition étant ignorée. Elle est maintenant évaluée.
 - **Un point de journalisation (« Message de journal ») arrêtait la simulation** comme un point d'arrêt ordinaire, sur Arduino comme sur Pico.
 
+**Projets**
+
+- **Revenir sur un projet déjà ouvert ne montrait pas son programme.** Un clic sur le .projix, dans l'explorateur ou sur son onglet, ramène maintenant aussi son code au premier plan, et le rouvre s'il avait été fermé.
+
 ## 2026.10.1 (5 octobre 2026)
 
 ### Nouveauté

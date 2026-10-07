@@ -214,6 +214,19 @@ export class ProjixEditorProvider implements vscode.CustomEditorProvider<ProjixD
     // vient seulement d'apparaître (tous les fichiers de code étaient fermés) :
     // la grille posée sur une zone vide ne survit pas, VS Code refermant les
     // groupes vides (voir settleLayoutAfterCode).
+    // Première ouverture terminée (disposition posée, code montré) : à partir de
+    // là, chaque retour de l'onglet au premier plan ramène AUSSI son programme
+    // devant (revealCodeOnActivate). Avant, il ne se montrait qu'une fois.
+    let ouvert = false;
+    let actif = panel.active;
+    let visible = panel.visible;
+    panel.onDidChangeViewState(() => {
+      const devientActif = panel.active && !actif;
+      const devientVisible = panel.visible && !visible;
+      actif = panel.active;
+      visible = panel.visible;
+      if (devientActif && ouvert) void session.revealCodeOnActivate(devientVisible);
+    });
     const layout = () => {
       void applyDefaultLayout(this.context)
         .then(() => lockSimulatorGroup())
@@ -221,6 +234,9 @@ export class ProjixEditorProvider implements vscode.CustomEditorProvider<ProjixD
           const groupsBefore = editorGroupCount();
           await session.revealPendingCodeFile();
           await settleLayoutAfterCode(this.context, groupsBefore);
+        })
+        .finally(() => {
+          ouvert = true;
         });
     };
     if (panel.active) {

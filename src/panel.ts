@@ -1329,6 +1329,44 @@ export class SimulatorPanel {
     }
   }
 
+  /** Vrai pendant `revealCodeOnActivate` : le focus rendu à Kablix le relancerait. */
+  private revealingCode = false;
+
+  /**
+   * Onglet du .projix ramené au premier plan (clic dans l'explorateur sur un
+   * projet DÉJÀ ouvert, clic sur son onglet) : son programme repasse devant
+   * dans la colonne de code, rouvert s'il avait été fermé, sans prendre le
+   * focus (Frank, 07/10/2026 : « ça ne marche pas à tous les coups » — seule la
+   * PREMIÈRE ouverture montrait le code, `resolveCustomEditor` ne revenant pas
+   * pour un onglet existant).
+   *
+   * `devientVisible` : l'onglet était caché (autre .projix devant, ou clic
+   * dans l'explorateur). Sinon il était déjà à l'écran et ne fait que reprendre
+   * le focus — un clic dans le simulateur — : un fichier du MÊME dossier
+   * (bibliothèque `.h`, module `.py`) ouvert devant côté code y reste, on ne
+   * le recouvre pas du programme à chaque clic.
+   */
+  public async revealCodeOnActivate(devientVisible: boolean): Promise<void> {
+    const uri = this.codeFileUri;
+    if (!uri || this.revealingCode || this.pendingCodeReveal) return;
+    if (/\.(hex|uf2|elf|bin)$/i.test(uri.fsPath)) return;
+    if (this.gone.has('code')) return; // supprimé du disque : rien à rouvrir
+    if (!devientVisible) {
+      const dossier = (u: vscode.Uri): string => u.fsPath.replace(/[\\/][^\\/]*$/, '').toLowerCase();
+      const groupe = vscode.window.tabGroups.all.find((g) => g.viewColumn === codeColumn(this.context));
+      const devant = groupe?.activeTab?.input;
+      if (devant instanceof vscode.TabInputText && dossier(devant.uri) === dossier(uri)) return;
+    }
+    this.revealingCode = true;
+    try {
+      await this.revealSource(uri, true);
+    } catch {
+      // fichier illisible / disparu entre-temps : on n'ouvre rien
+    } finally {
+      this.revealingCode = false;
+    }
+  }
+
   /** Ouvre le fichier de code courant dans le volet d'édition (côté code, opposé à Kablix). */
   public async openCodeFile(): Promise<void> {
     if (!this.codeFileUri) return;

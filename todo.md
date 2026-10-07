@@ -1,7 +1,17 @@
 # À faire
-
+1. Pdt le debogage de 16 servp + alim-pico2, il affiche 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.1.221
+1. ✅ **Code du projet au premier plan** (Frank : clic sur un .projix → son code s'ouvre, ou passe devant s'il est déjà ouvert ; « ça ne marche pas à tous les coups »). Cause : seul `resolveCustomEditor` montrait le code (`revealPendingCodeFile`) ; un .projix déjà ouvert ne fait que réactiver son onglet. [projix-editor.ts](src/projix-editor.ts) : `onDidChangeViewState`, passage à actif après la première ouverture (drapeau `ouvert` dans le `finally` de la disposition) → [panel.ts](src/panel.ts) `revealCodeOnActivate(devientVisible)` : `revealSource(uri, true)`, rouvre si fermé, ni binaire ni fichier supprimé, garde `revealingCode` contre la boucle du focus rendu. Onglet déjà visible qui reprend seulement le focus (clic dans le simulateur) : un fichier du même dossier (.h, module .py) devant côté code n'est pas recouvert.
+2. ✅ [verify-layout.mjs](scripts/verify-layout.mjs) section 15 bis : 5 contrôles de source, 76 au total, contre-épreuve 5 échecs. Pas de banc dans un vrai VS Code : à essayer en F5.
+3. ⏳ Limite : un .projix DÉJÀ actif recliqué dans l'explorateur ne déclenche aucun événement côté extension — le code ne bouge pas dans ce cas précis.
+
+**À vérifier par Frank**
+- Deux projets ouverts : passer de l'un à l'autre (onglet ou explorateur) → le code de chacun passe devant. Code fermé → rouvert. Un .h du projet ouvert devant, clic dans Kablix → le .h reste.
 
 ---
 
