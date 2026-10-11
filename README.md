@@ -1,3 +1,5 @@
+⭐ **Merci de mettre des étoiles si vous aimez ce logiciel, ça compte !**
+
 ![Kablix](https://raw.githubusercontent.com/FrankSAURET/kablix/main/media/accroche.webp)
 
 ---

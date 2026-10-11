@@ -1,3 +1,5 @@
+⭐ **Si te gusta este software, ¡deja una estrella, cuenta mucho!**
+
  <img src="https://raw.githubusercontent.com/FrankSAURET/kablix/main/media/accroche.webp" alt="Kablix" width="1000" />
 
 ---
