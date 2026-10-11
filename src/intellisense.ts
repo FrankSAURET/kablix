@@ -148,8 +148,16 @@ async function miseAuPointMicroPython(folder: vscode.WorkspaceFolder): Promise<b
   // des déclarations qu'on vient de lui montrer) ou analyser en mode strict.
   // Quand un type n'est pas résolu, la complétion meurt en chaîne : `I2C`
   // inconnu → `i2c` de type inconnu → `i2c.writeto_mem` jamais proposé.
-  ecrit = (await poserSiAbsent(cfg, 'python.languageServer', 'Pylance', cible)) || ecrit;
-  ecrit = (await poserSiAbsent(cfg, 'python.analysis.typeCheckingMode', 'basic', cible)) || ecrit;
+  // `python.languageServer` n'accepte PAS l'échelle « dossier » (mesuré : l'écriture
+  // lève une exception) — et comme tout est avalé plus haut, elle faisait avorter
+  // la suite, `reportMissingModuleSource` compris. On l'écrit donc à l'échelle de
+  // l'espace de travail, et chaque réglage échoue seul.
+  try {
+    ecrit = (await poserSiAbsent(cfg, 'python.languageServer', 'Pylance', vscode.ConfigurationTarget.Workspace)) || ecrit;
+  } catch { /* confort : on continue avec les autres réglages */ }
+  try {
+    ecrit = (await poserSiAbsent(cfg, 'python.analysis.typeCheckingMode', 'basic', cible)) || ecrit;
+  } catch { /* idem */ }
 
   // Import résolu par une déclaration seule : ce n'est pas un défaut ici.
   const vue = cfg.inspect<Record<string, string>>('python.analysis.diagnosticSeverityOverrides');

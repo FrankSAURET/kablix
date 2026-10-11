@@ -4,6 +4,13 @@
 
 ---
 
+# v2026.10.1.224
+1. ✅ **`machine` et `time` soulignés dans un .py Pico** (Frank, VS Code isolé de démo `V:\DemoKablix`). Cause mesurée dans un VS Code vide avec Pylance + MicroPico : `cfg.update('python.languageServer', …, WorkspaceFolder)` LÈVE « does not support the folder resource scope » ; le `catch` global de `syncIntelliSense` avalait l'erreur et `typeCheckingMode` + `reportMissingModuleSource: none` (qui supprime le trait jaune des modules en `.pyi` seul) n'étaient jamais écrits. [intellisense.ts](src/intellisense.ts) : `languageServer` écrit à l'échelle `Workspace`, chaque réglage dans son propre `try`.
+2. ℹ️ Pas de banc : l'API `vscode` n'existe pas hors VS Code. Vérifié par une extension jetable lancée dans un dossier vide (`typeshedPaths`, `extraPaths`, `typeCheckingMode`, `diagnosticSeverityOverrides` : OK ; `languageServer` : refusé au niveau dossier).
+3. ℹ️ `V:\DemoKablix\.vscode\settings.json` : `reportMissingModuleSource` ajouté à la main (accord de Frank).
+
+---
+
 # v2026.10.1.223
 1. ✅ **LED + résistance sur un GBF : rien ne s'allumait** (Frank, 11/10). Cause : `ledOn` ne connaît que des niveaux LOGIQUES (broche de carte, rail, alim) ; la sortie `Vs` du GBF, tension variable, n'en a pas. [model.mts](src/webview/diagram/model.mts) : `ledGbfFeed` (chemin LED → `Vs` + masse, 50 Ω de sortie, montage inversé) et `ledGbfBrightness` (courant moyen > 5 Hz, instantané en dessous, surintensité > 35 mA) ; [sim.mts](src/webview/sim.mts) : branche GBF dans le cas `led`. Réglage d'usine (5 Vpp, 0 V) : crête 2,5 V, LED rouge faible mais allumée.
 2. ✅ [verify-gbf.mjs](scripts/verify-gbf.mjs) : 9 contrôles ; contre-épreuve sur l'ancien code : `ledGbfFeed is not a function`.

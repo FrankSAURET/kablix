@@ -54,6 +54,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - **Revenir sur un projet déjà ouvert ne montrait pas son programme.** Un clic sur le .projix, dans l'explorateur ou sur son onglet, ramène maintenant aussi son code au premier plan, et le rouvre s'il avait été fermé.
 
+**Code MicroPython**
+
+- **`machine` et `time` restaient soulignés dans un programme Pico.** Un réglage refusé par VS Code interrompait la mise au point automatique de l'analyse de code : elle va maintenant jusqu'au bout.
+
 ## 2026.10.1 (5 octobre 2026)
 
 ### Nouveauté
