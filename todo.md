@@ -4,6 +4,11 @@
 
 ---
 
+# v2026.10.1.225
+1. ✅ **Multimètre : le « V » / « A » touchait le bord droit de l'écran** (Frank, 11/10). [multimetre-element.mts](src/webview/composants/multimetre-element.mts) : `DISPLAY_RIGHT` passe de 224 à 222 (−2 px du dessin, avant la division par le `scale` du texte). Pas de banc : réglage de position, à voir à l'œil.
+
+---
+
 # v2026.10.1.224
 1. ✅ **`machine` et `time` soulignés dans un .py Pico** (Frank, VS Code isolé de démo `V:\DemoKablix`). Cause mesurée dans un VS Code vide avec Pylance + MicroPico : `cfg.update('python.languageServer', …, WorkspaceFolder)` LÈVE « does not support the folder resource scope » ; le `catch` global de `syncIntelliSense` avalait l'erreur et `typeCheckingMode` + `reportMissingModuleSource: none` (qui supprime le trait jaune des modules en `.pyi` seul) n'étaient jamais écrits. [intellisense.ts](src/intellisense.ts) : `languageServer` écrit à l'échelle `Workspace`, chaque réglage dans son propre `try`.
 2. ℹ️ Pas de banc : l'API `vscode` n'existe pas hors VS Code. Vérifié par une extension jetable lancée dans un dossier vide (`typeshedPaths`, `extraPaths`, `typeCheckingMode`, `diagnosticSeverityOverrides` : OK ; `languageServer` : refusé au niveau dossier).

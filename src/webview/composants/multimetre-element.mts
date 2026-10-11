@@ -31,8 +31,9 @@ const SWITCH_ZONE = { x: 220.5, y: 9.2, w: 39, h: 42 };
 /** Bord DROIT de la mesure sur l'écran. Le texte du dessin porte un
  *  `scale(0.99169514, …)` : la coordonnée écrite est donc divisée par ce
  *  facteur pour tomber au bon endroit une fois la mise à l'échelle appliquée
- *  (écran : 171,98 → 224,90 ; on garde un cheveu de marge à droite). */
-const DISPLAY_RIGHT = 224 / 0.99169514;
+ *  (écran : 171,98 → 224,90 ; marge de 2 px à droite pour que le « V » ou le
+ *  « A » ne touche pas le bord). */
+const DISPLAY_RIGHT = 222 / 0.99169514;
 
 /** Corps de la mesure et de son unité (px du dessin). Un vrai multimètre écrit
  *  la valeur en gros et l'unité en petit à côté : sans ça « 999,9 mA » déborde

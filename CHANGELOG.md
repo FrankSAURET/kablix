@@ -33,6 +33,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - **Pico : le panneau Variables ne montre plus les objets** (bus I²C, PWM, objets de bibliothèque), qui n'apprenaient rien. Une broche reste affichée par son état, 0 ou 1.
 
+**Multimètre**
+
+- **L'unité (V, A) de l'écran ne touche plus le bord droit**, elle est décalée de 2 px vers la gauche.
+
 ### Correction
 
 **Générateur BF**
