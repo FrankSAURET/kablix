@@ -129,29 +129,95 @@ Tu travail dans V:\DemoKablix
 
 ## Scénario 5 : debogage
 
-1. Reprendre le montage de LED et introduire une erreur simple : connecter la LED à une mauvaise broche.
-2. Lancer la simulation et constater que le comportement attendu ne se produit pas.
-3. Inspecter les connexions depuis la carte et suivre le fil jusqu'à la LED.
-4. Afficher les broches impliquées et comparer avec le numéro défini dans le programme.
-5. Corriger le câblage ou le programme.
-6. Relancer la simulation pour confirmer la correction.
+1. on utilisera le fichier V:\DemoKablix\8Servos.projix
+2. Hors enregistrement ouvrir le fichier Zoom à 100% dans kablix
+3. Fermer le moniteur série maintenant et quand il s'ouvre
+4. N'oublie pas keyviz
+5. &gt;>> Lancer l'enregistrement
+6. Lancer une simulation qui montre le fonctionnement
+7. Placer un point d'arret ligne 49 en cliquant dans la gouttière légende : je place un point d'arrêt
+8. Lancer la simulation. Quand il s'arrête légende : Le programme s'arrête au point d'arrêt
+9. Utiliser le mode pas à pas en cliquant sur le bouton de kablix. Légende : on peut avancer le programme pas à pas
+10. cliquer 9 fois sur le bouton pas à pas pour voir avancer le programme (pas trop vite)
+11. Stopper la simulation
+12. Légende : Kablix supporte les points d'arrêt de VsCode
+13. Ajouter un point d'arrêt conditionnel expression avec l'espression ch>4 > Légende : on  ajoute un point d'arrêt conditionel qui arrêtera le programme quand ch sera supérieur à 4.
+14. Lancer la simulation. Quand la simulation s'arrète, montrer ch dans les variable . Légende : arrêt de la simulation quand ch=5.
+15. Retirer le point d'arrêt
+16. Ajouter un point d'arrêt conditionnel nombre d'accés et mettre 3. 
+17. Lancer la simulation. 
+18. Montre ch. Légende : le programme s'arrête avant d'éxécuter la ligne 
+19. Montrer ch. Légende ch=2
+20. Retirer le point d'arrêt
+21. Ajouter un point d'arrêt de journalisation ch={ch}
+22. LA fenetre de sortie s'ouvre 
+23. Laisser le programme se terminer
+24. Fin de ce scenario
 
 ## Scénario 6 : appareil de mesure
 
-1. Reprendre un montage qui produit un signal numérique, comme le clignotement de LED.
-2. Ajouter les appareils de mesure disponibles sur le fil à observer.
-3. Lancer la simulation et afficher la tension ou l'état logique en direct.
-4. Modifier la fréquence du signal dans le programme.
-5. Vérifier que les mesures et les courbes suivent la nouvelle fréquence.
-6. Utiliser les mesures pour expliquer le lien entre le programme, le câblage et le signal observé.
+1. on utilisera le fichier V:\DemoKablix\mesure.projix
+2. Hors enregistrement ouvrir le fichier Zoom à 100% dans kablix
+3. Fermer le moniteur série maintenant et quand il s'ouvre
+4. &gt;>> début du scenario
+5. Lancer la simulation
+6. Poser un multimetre au bornes de la diode et un autre aux bornes de la résistance. LEs 2 alignés horizontalement et au dessus de résistance et led
+7. Colorer les fils de noeud 2 en jaune (clic sur un fil du noeud, puis clic que le nom du noeud dans le propriété puis jaune.
+8. Autoroutage
+9. Lancer la simulation
+10. Le pauser à un moment ou les 2 voltmètres affichent une tension
+11. stopper la simulation
+12. Ajouter en dessous un autre muiltimetre en ampermetre (propriété courant continue)
+13. supprimer le fil de masse GND.4
+14. Relier la borne rouge de lamperemetre à k de la diode et la noier à la masse.
+15. Passser noeud 3 en violet
+16. Lancer la simulation
+17. Le pauser à un moment ou les 2 voltmètres affichent une tension
+18. stopper la simulation
+19. Ajouter un oscilloscope à droite de la carte pico pi et cliquer sur ajuster la vue
+20. Relier le + à noeud 1 et GND à la masse du montage
+21. Autoroutage
+22. Lancer la simulation
+23. Laisser la courbe remplire l'oscillo puis ajuster la tension  volts/div sur 2 V
+24. Ajuster s/div à 500ms/div
+25. Basculer le déclenchement sur front descendant
+26. Bouger la fleche de déclenchement vers le bas pour la sortir de la courbe
+27. stopper la simulation
+28. Supprimer tous les appareils de mseure
+29. rebrancher la masse de la LED à GND.4
+30. Par un  clic droit et glisser, sélectionner la led et la résistance
+31. CTRL+C pour copier et CTRL V pour coller 
+32. Déplacer le groupe à droite de la carte pico pi/
+33. Poser au dessus un  GBF
+34. Relier le + à R2.1 et la masse à LED2.K
+35. Lancer la simulation
+36. Mettre la fréquence à 1Hz sur le GBF
+37. Changer la forme, triangle puis carré
+38. Changer le rapport cyclique à 20% puiis 80 %
+39. stopper la simulation
+40. Fin de ce scenario
 
 ## Scénario 7 : Importer un composant Kablix
 
-1. Ouvrir un montage existant avec une carte et de la place sur le plan de câblage.
-2. Ouvrir la bibliothèque de composants Kablix.
-3. Rechercher un composant par son nom ou parcourir les catégories.
-4. Ouvrir sa fiche d'aide pour vérifier ses broches, ses propriétés et son exemple de câblage.
-5. Ajouter le composant au montage.
-6. Le positionner, le raccorder à la carte et régler ses propriétés.
-7. Adapter le programme si nécessaire.
-8. Lancer la simulation pour valider son intégration.
+1. on utilisera le fichier V:\DemoKablix\DMX\DMX.projix
+2. Hors enregistrement ouvrir le fichier Zoom à 100% dans kablix
+3. Fermer le moniteur série maintenant et quand il s'ouvre
+4. &gt;>> début du scenario
+5. Ouvrir la bibliothèque en cliquant sur Gérer les composants
+6. sélectionner Grove DMX512 et Projecteur DMX PAR 38 puis télécharger.
+7. Fermer l'onglet bibliothèque
+8. cliquer dans la barre d'activité sur Arduino
+9. Dans le panneau qui s'ouvre, cliquer sur le bouton gestionnaire de bibliothèque
+10. dans le filtre de recherche tapper dmx
+11. Montrer que DmxSimple est installé. Légende : on vérifie que la bibliothèque est installé et on peut dirtectement l'inclure dans le programme
+12. Fermer l'ongle bibliothèque et réduire l'explorateur
+13. En haut du programme montrer la ligne #include &lt;DmxSimple.h>
+14. Posser en dessous de la carte arduino une carte grove DMX512 et un projecteur à sa droite
+15. Relier la carte grove au projecteur et à la carte arduino masse; vcc et sig sur gpio3
+16. Autoroutage
+17. Recentrage
+18. Lancer la simulation
+19. Laisser le programme se terminer
+20. stopper la simulation
+21. Fin de ce scenario
+22. Artêter l'enregistrement et procéder au découpage et à la mise en forme
