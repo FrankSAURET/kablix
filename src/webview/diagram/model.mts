@@ -1088,6 +1088,90 @@ export function ledPowerCircuit(
   return { ohms: up + down, supplyVolts };
 }
 
+/**
+ * LED alimentée par un GÉNÉRATEUR BF : chemin résistif de la LED jusqu'à la
+ * sortie `Vs` d'un GBF d'un côté, jusqu'à une masse de l'autre.
+ *
+ * Le GBF n'est ni un rail ni une broche de carte : sa tension change à chaque
+ * instant, il n'entre donc pas dans les sources « logiques » de `ledOn`. Sans
+ * cette recherche, une LED + une résistance sur un GBF ne s'allumaient JAMAIS
+ * (retour Frank, 11/10/2026).
+ *
+ * `ohms` = résistances en série, résistance de sortie du GBF (50 Ω) comprise.
+ * `reversed` = la LED est montée à l'envers (cathode côté `Vs`) : elle ne
+ * conduit alors que sur l'alternance NÉGATIVE. null = pas alimentée par un GBF.
+ */
+export function ledGbfFeed(
+  diagram: Diagram,
+  ledId: string
+): { gbfId: string; ohms: number; reversed: boolean; diodeDrop: number } | null {
+  const gbfs = diagram.parts.filter((p) => p.type === 'gbf');
+  if (gbfs.length === 0) return null;
+  const { nets, adj, gndNets } = resistiveGraph(diagram);
+  const type = partType(diagram, ledId);
+  const vsNets = new Map<string, string>();
+  for (const g of gbfs) vsNets.set(nets.netOf({ partId: g.id, pin: 'Vs' }), g.id);
+  const targets = new Set(vsNets.keys());
+  const netA = nets.netOf({ partId: ledId, pin: rolePin(type, 'A') });
+  const netK = nets.netOf({ partId: ledId, pin: rolePin(type, 'C') });
+  for (const reversed of [false, true]) {
+    const reached: { net?: string; drop?: number } = {};
+    const sink: { drop?: number } = {};
+    // Sens normal : Vs → … → anode, cathode → … → masse. À l'envers, l'inverse.
+    const up = minOhmsPath(reversed ? netK : netA, targets, adj, undefined, reached, 'source');
+    const down = minOhmsPath(reversed ? netA : netK, gndNets, adj, undefined, sink, 'sink');
+    if (up === null || down === null || reached.net === undefined) continue;
+    const gbfId = vsNets.get(reached.net);
+    if (gbfId === undefined) continue;
+    return {
+      gbfId,
+      ohms: up + down + GBF_OUT_OHMS,
+      reversed,
+      diodeDrop: (reached.drop ?? 0) + (sink.drop ?? 0),
+    };
+  }
+  return null;
+}
+
+/** Fréquence (Hz) en dessous de laquelle une LED sur GBF CLIGNOTE (l'œil suit). */
+export const GBF_LED_CLIGNOTE_HZ = 5;
+
+/**
+ * Luminosité (0..1) d'une LED alimentée par un GBF. Au-dessus de
+ * `GBF_LED_CLIGNOTE_HZ` l'œil ne suit plus : la LED brille de son courant MOYEN
+ * sur une période (un sinus sans décalage ne la fait conduire qu'une
+ * alternance sur deux). En dessous elle clignote : on lit l'instant `tMs`.
+ * Un courant de crête > 35 mA la grille (`surintensite`).
+ * `volts(t)` = tension de sortie du GBF à l'instant t (ms).
+ */
+export function ledGbfBrightness(
+  feed: { ohms: number; reversed: boolean; diodeDrop: number },
+  color: string | undefined,
+  freq: number,
+  volts: (tMs: number) => number,
+  tMs: number
+): { lum: number; surintensite: boolean } {
+  const at = (t: number): ReturnType<typeof ledElectrical> => {
+    const v = volts(t) * (feed.reversed ? -1 : 1);
+    return ledElectrical(feed.ohms, Math.max(0, v - feed.diodeDrop), color);
+  };
+  if (freq <= GBF_LED_CLIGNOTE_HZ) {
+    const e = at(tMs);
+    return { lum: e.lum, surintensite: e.overCurrent };
+  }
+  const N = 64;
+  const periode = 1000 / freq;
+  let somme = 0;
+  let surintensite = false;
+  for (let k = 0; k < N; k++) {
+    const e = at((k / N) * periode);
+    somme += e.amps;
+    if (e.overCurrent) surintensite = true;
+  }
+  const moyen = somme / N;
+  return { lum: moyen < 0.0002 ? 0 : Math.min(1, moyen / 0.01), surintensite };
+}
+
 /** Tension de seuil (V) d'une LED, d'après sa couleur (2,0 V par défaut). */
 function ledForwardV(part: Part): number {
   return LED_FORWARD_V[(part.attrs?.color ?? 'red').toLowerCase()] ?? 2.0;

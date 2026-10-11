@@ -4,6 +4,12 @@
 
 ---
 
+# v2026.10.1.223
+1. ✅ **LED + résistance sur un GBF : rien ne s'allumait** (Frank, 11/10). Cause : `ledOn` ne connaît que des niveaux LOGIQUES (broche de carte, rail, alim) ; la sortie `Vs` du GBF, tension variable, n'en a pas. [model.mts](src/webview/diagram/model.mts) : `ledGbfFeed` (chemin LED → `Vs` + masse, 50 Ω de sortie, montage inversé) et `ledGbfBrightness` (courant moyen > 5 Hz, instantané en dessous, surintensité > 35 mA) ; [sim.mts](src/webview/sim.mts) : branche GBF dans le cas `led`. Réglage d'usine (5 Vpp, 0 V) : crête 2,5 V, LED rouge faible mais allumée.
+2. ✅ [verify-gbf.mjs](scripts/verify-gbf.mjs) : 9 contrôles ; contre-épreuve sur l'ancien code : `ledGbfFeed is not a function`.
+
+---
+
 # v2026.10.1.222
 1. ✅ **Objets masqués dans les Variables MicroPython** (Frank, « 16 servo + alim-pico2 » : Pin, i2c, pwm affichés — intérêt ?). Seul intérêt réel : l'état d'une broche (0/1), déjà réduit à `nom.value`. I2C/PWM : repr de configuration figé ; objet de bibliothèque (Grove16PWM) : adresse mémoire. [pydebug.ts](src/shared/pydebug.ts) : `__kx_simple` (nombres, textes, booléens, None, conteneurs) ; tout autre objet sans `.value()` est masqué. Les classes (`Pin`, `I2C`) l'étaient déjà.
 2. ✅ [verify-debug-py.mjs](scripts/verify-debug-py.mjs) : lignes 13-17 en fin de boucle (`led`, `bus`, `pwm`), 2 contrôles (`led.value` = 0 ; ni `bus` ni `pwm` ni classe). Firmware réel, tout vert ; contre-épreuve sur l'ancien pydebug : `bus, pwm` affichés → échec.

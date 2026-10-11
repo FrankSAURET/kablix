@@ -35,6 +35,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Correction
 
+**Générateur BF**
+
+- **Une LED + une résistance branchées sur un GBF ne s'allumaient jamais.** La LED est maintenant alimentée par l'onde du générateur (sa résistance de sortie de 50 Ω comprise). À partir de 5 Hz elle brille de son courant moyen sur une période ; en dessous elle clignote. Une crête sous le seuil de la LED (1,8 V pour une rouge) la laisse éteinte, un courant de crête de plus de 35 mA la grille, et montée à l'envers elle ne conduit que sur l'alternance négative. Au réglage d'usine (sinus 1 kHz, 5 Vpp, sans décalage) elle brille donc faiblement : ajouter un décalage positif pour l'éclairer pleinement.
+
 **Analyseur logique**
 
 - **Le bus I²C restait plat** : SDA et SCL ne bougeaient pas, l'analyseur attendait son front de déclenchement pour toujours. Les échanges s'affichent et se décodent maintenant sur Arduino comme sur Pico.

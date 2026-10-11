@@ -81,6 +81,8 @@ import {
   ledOn,
   ledMcuPin,
   ledPowerCircuit,
+  ledGbfFeed,
+  ledGbfBrightness,
   ledElectrical,
   psuLoadAmps,
   psuCourtCircuit,
@@ -2345,6 +2347,15 @@ function reportBoardOvervoltage(): void {
   }
 }
 
+function ledGbfLuminosite(
+  r: GbfReglages,
+  feed: { ohms: number; reversed: boolean; diodeDrop: number },
+  color: string | undefined,
+  tMs: number
+): { lum: number; surintensite: boolean } {
+  return ledGbfBrightness(feed, color, r.freq, (t) => gbfVoltsInstant(r, t), tMs);
+}
+
 function refreshVisualsInner(): void {
   if (!engine) return;
   observerFronts();
@@ -2382,6 +2393,30 @@ function refreshVisualsInner(): void {
     try {
     switch (def.kind) {
       case 'led': {
+        // LED alimentée par un GÉNÉRATEUR BF (résistance en série comprise) : sa
+        // tension n'a pas de niveau logique, elle se calcule à partir de l'onde.
+        const gbfFeed = gbfParts.length > 0 && !def.custom ? ledGbfFeed(editor.diagram, part.id) : null;
+        if (gbfFeed) {
+          if (!burnedLeds.has(part.id)) {
+            const r = gbfReglages(gbfFeed.gbfId);
+            if (r) {
+              const g = ledGbfLuminosite(r, gbfFeed, part.attrs?.color, engine?.simulatedMs?.() ?? performance.now());
+              if (g.surintensite) burnedLeds.add(part.id);
+              else ledLumFactor.set(part.id, g.lum);
+            } else ledLumFactor.set(part.id, 0);
+          }
+          if (burnedLeds.has(part.id)) {
+            markBurned(part.id, el, true, BURN_NOTE.led);
+            el.value = false;
+            el.brightness = 0;
+            break;
+          }
+          markBurned(part.id, el, false);
+          const lumG = ledLumFactor.get(part.id) ?? 0;
+          el.value = lumG > 0;
+          el.brightness = lumG;
+          break;
+        }
         const on = ledOn(editor.diagram, part.id, read);
         // LED pilotée en PWM (variateur de luminosité) : le niveau instantané
         // alterne 0/1 à haute fréquence → la LED « clignote » au rythme du

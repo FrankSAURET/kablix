@@ -31,7 +31,7 @@ const buildTo = async (entry, outfile) => {
 };
 const { gbfWaveform, evalAnalogWave } = await buildTo('src/webview/engines/analog-waves.mts', 'waves.mjs');
 const { partDef, partCategory, CATEGORY_ORDER } = await buildTo('src/webview/diagram/catalog.mts', 'catalog.mjs');
-const { analogSourceBindings, meterReadings, scopeGbfSources, scopeProbePins, gbfBoardStress, maxPinVolts } =
+const { ledGbfFeed, ledGbfBrightness, ledElectrical, analogSourceBindings, meterReadings, scopeGbfSources, scopeProbePins, gbfBoardStress, maxPinVolts } =
   await buildTo('src/webview/diagram/model.mts', 'model.mjs');
 
 let failures = 0;
@@ -738,6 +738,58 @@ if (!chrome) {
     try { proc.kill(); } catch { /* déjà mort */ }
   }
 }
+
+// --- LED + résistance sur un GBF (Frank, 11/10/2026 : « rien ne s'allume ») -------
+//
+// Une LED n'était allumée que si son anode voyait un niveau LOGIQUE (broche de
+// carte, rail, alim). La sortie `Vs` du GBF n'en a pas : la LED restait éteinte
+// quels que soient les réglages. `ledGbfFeed` retrouve le générateur derrière la
+// résistance, `ledGbfBrightness` en tire la luminosité.
+{
+  const W = (id, a, b) => ({ id, a, b, path: [] });
+  const monte = (renverse) => ({
+    parts: [
+      { id: 'G1', type: 'gbf', x: 0, y: 0, attrs: {} },
+      { id: 'r1', type: 'resistor', x: 0, y: 0, attrs: { value: '220' } },
+      { id: 'led', type: 'led', x: 0, y: 0, attrs: { color: 'red' } },
+    ],
+    wires: [
+      W('w1', { partId: 'G1', pin: 'Vs' }, { partId: 'r1', pin: '1' }),
+      W('w2', { partId: 'r1', pin: '2' }, { partId: 'led', pin: renverse ? 'C' : 'A' }),
+      W('w3', { partId: 'led', pin: renverse ? 'A' : 'C' }, { partId: 'G1', pin: 'GND' }),
+    ],
+  });
+  const feed = ledGbfFeed(monte(false), 'led');
+  check('LED+R sur GBF : alimentation par le GBF reconnue (220 Ω + 50 Ω de sortie)',
+    feed && feed.gbfId === 'G1' && !feed.reversed && Math.abs(feed.ohms - 270) < 1e-6,
+    JSON.stringify(feed));
+  check('LED+R sur GBF : montée à l\'envers → reversed',
+    ledGbfFeed(monte(true), 'led')?.reversed === true);
+  check('LED+R sur GBF : non câblée → rien (contre-épreuve)',
+    ledGbfFeed({ parts: monte(false).parts, wires: [] }, 'led') === null);
+  // 1 kHz, 5 Vpp sans décalage (réglage d'usine) : crête 2,5 V > 1,8 V → elle brille (faible).
+  const usine = ledGbfBrightness(feed, 'red', 1000, (t) => 2.5 * Math.sin(2 * Math.PI * t), 0);
+  check('LED+R sur GBF : réglage d\'usine (1 kHz, 5 Vpp) → allumée, mais faible',
+    usine.lum > 0 && usine.lum < 0.3 && !usine.surintensite, JSON.stringify(usine));
+  // Crête sous le seuil (2 Vpp → 1 V < 1,8 V) : éteinte, c'est la physique.
+  const sous = ledGbfBrightness(feed, 'red', 1000, (t) => 1 * Math.sin(2 * Math.PI * t / 1), 0);
+  check('LED+R sur GBF : crête sous le seuil de la LED → éteinte (physique)', sous.lum === 0);
+  // Sinus décalé de +3 V, 4 Vpp : toujours positif, plein éclairage.
+  const decale = ledGbfBrightness(feed, 'red', 1000, (t) => 3 + 2 * Math.sin(2 * Math.PI * t), 0);
+  check('LED+R sur GBF : décalage +3 V → bien allumée', decale.lum > 0.5, JSON.stringify(decale));
+  // Lent (1 Hz) : elle clignote, l'instant décide.
+  const hautLent = ledGbfBrightness(feed, 'red', 1, () => 5, 0);
+  const basLent = ledGbfBrightness(feed, 'red', 1, () => 0, 500);
+  check('LED+R sur GBF : 1 Hz → clignote (allumée en haut, éteinte en bas)',
+    hautLent.lum > 0 && basLent.lum === 0);
+  // Trop de tension sur 270 Ω : crête > 35 mA, elle grille.
+  const brule = ledGbfBrightness(feed, 'red', 1000, () => 12, 0);
+  check('LED+R sur GBF : crête > 35 mA → surintensité', brule.surintensite === true);
+  // À l'envers, l'alternance positive ne la fait pas conduire.
+  const env = ledGbfBrightness({ ...feed, reversed: true }, 'red', 1000, () => 3, 0);
+  check('LED+R sur GBF : à l\'envers, tension positive → éteinte', env.lum === 0);
+}
+
 
 console.log(failures === 0 ? '\nverify:gbf OK' : `\n${failures} échec(s)`);
 process.exit(failures === 0 ? 0 : 1);
