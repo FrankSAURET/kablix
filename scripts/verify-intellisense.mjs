@@ -78,6 +78,8 @@ const conf = (scope) => ({
     workspaceFolderValue: scope ? (globalThis.__is.folderSettings[norm(scope.fsPath)] ?? {})[key] : undefined,
   }),
   update: async (key, value, target) => {
+    // Mesuré dans VS Code : python.languageServer refuse l'échelle « dossier ».
+    if (target === 3 && key === 'python.languageServer') throw new Error('does not support WorkspaceFolder');
     if (target === 3 && scope) {
       const f = norm(scope.fsPath);
       globalThis.__is.folderSettings[f] = { ...(globalThis.__is.folderSettings[f] ?? {}), [key]: value };
@@ -159,7 +161,9 @@ const world = (over = {}) => {
   resetIntelliSenseCache();
   return globalThis.__is;
 };
-const reglagesDu = (f = 'W:/projet') => globalThis.__is.folderSettings[f] ?? {};
+// Réglages posés par l'extension : dossier de travail + espace de travail (où
+// python.languageServer doit être écrit, il refuse l'échelle dossier).
+const reglagesDu = (f = 'W:/projet') => ({ ...globalThis.__is.workspaceSettings, ...(globalThis.__is.folderSettings[f] ?? {}) });
 
 check(MICROPICO_EXTENSION_ID === 'paulober.pico-w-go', 'identifiant MicroPico exporté (une seule vérité)');
 
@@ -205,8 +209,8 @@ check(
   'Pico : plus de trait ondulé « source introuvable » sous l’import (le module vit dans la puce)'
 );
 check(
-  globalThis.__is.updates.every((u) => u.target === 3),
-  'Pico : écrit dans le DOSSIER de travail (.vscode/settings.json), pas dans les réglages généraux'
+  globalThis.__is.updates.every((u) => u.target === (u.key === 'python.languageServer' ? 2 : 3)),
+  'Pico : écrit dans le DOSSIER de travail (.vscode/settings.json), sauf le serveur d’analyse (espace de travail), jamais dans les réglages généraux'
 );
 check(!globalThis.__is.executed.includes(REBUILD), 'Pico : la commande Arduino n’est pas lancée');
 
@@ -324,7 +328,7 @@ check((await syncIntelliSense('uno')) === false, 'aucun dossier ouvert : rien, e
 world({ folders: ['W:/autre', 'W:/projet'] });
 await syncIntelliSense('pico', { fsPath: 'W:/projet/main.py', scheme: 'file' });
 check(Object.keys(reglagesDu('W:/projet')).length > 0, 'multi-dossiers : les réglages vont dans le dossier du programme');
-check(Object.keys(reglagesDu('W:/autre')).length === 0, 'multi-dossiers : l’autre dossier n’est pas touché');
+check(Object.keys(globalThis.__is.folderSettings['W:/autre'] ?? {}).length === 0, 'multi-dossiers : l’autre dossier n’est pas touché');
 
 if (fails.length) {
   console.log(`\nintellisense : ${fails.length} ÉCHEC(S) sur ${ok + fails.length} contrôles.`);

@@ -1011,6 +1011,15 @@ const FR: Record<string, string> = {
     'Cette pile a été détruite : son + est relié directement à son − (court-circuit). Une vraie pile aurait chauffé en quelques secondes, puis pris feu ou explosé.',
   'This board was destroyed: {0} gave {1} V on {2}, which takes at most {3} V. A 9 V battery on VSYS/VBUS has no regulator to protect it.':
     'Cette carte a été détruite : {0} a donné {1} V sur {2}, qui accepte {3} V au plus. Une pile 9 V sur VSYS/VBUS n\'a aucun régulateur pour la protéger.',
+  'Open the analyzer in a new window': "Ouvrir l'analyseur dans une nouvelle fenêtre",
+  'Capture stopped: {0} kept. Click Restart capture to capture anew.':
+    'Capture arrêtée : {0} de mesure conservés. Cliquez sur Relancer la capture pour capturer à nouveau.',
+  'All frames are identical.':
+    'Toutes les trames sont identiques.',
+  'Clock of the I²C decoding: settings are on the SDA channel.':
+    'Horloge du décodage I²C : les réglages sont sur la voie SDA.',
+  'Bit':
+    'Bit',
 };
 
 // `zh` : chinois simplifié (VS Code : zh-cn). zh-tw retombe aussi dessus.

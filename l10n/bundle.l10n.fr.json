@@ -284,5 +284,16 @@
   "Protect cells and batteries from extreme temperatures.": "Protégez les piles et les batteries des températures extrêmes.",
   "Never use a swollen or damaged cell or battery.": "N'utilisez jamais une pile ou une batterie gonflée ou abîmée.",
   "Never throw them in the bin: take them to a collection point.": "Ne les jetez jamais à la poubelle : apportez-les à un point de collecte.",
-  "Achievements": "Succès"
+  "Achievements": "Succès",
+  "Bring the end of the capture to the right edge, zoom unchanged.": "Amène la fin de la capture au bord droit, zoom inchangé.",
+  "Bring the start of the capture to the left edge, zoom unchanged.": "Amène le début de la capture au bord gauche, zoom inchangé.",
+  "Bring the start of the next decoded frame that differs from its neighbour to the left edge. Needs a decoding on a channel.": "Amène au bord gauche le début de la prochaine trame décodée qui diffère de sa voisine. Demande un décodage sur une voie.",
+  "Bring the start of the next decoded frame to the left edge. Needs a decoding on a channel.": "Amène au bord gauche le début de la prochaine trame décodée. Demande un décodage sur une voie.",
+  "Bring the start of the previous decoded frame that differs from its neighbour to the left edge. Needs a decoding on a channel.": "Amène au bord gauche le début de la trame décodée précédente qui diffère de sa voisine. Demande un décodage sur une voie.",
+  "Bring the start of the previous decoded frame to the left edge. Needs a decoding on a channel.": "Amène au bord gauche le début de la trame décodée précédente. Demande un décodage sur une voie.",
+  "Stop the capture only: the simulation keeps running, but nothing more is recorded and the measurement stays as it is.": "Arrête seulement la capture : la simulation continue, mais plus rien n'est enregistré et la mesure reste telle quelle.",
+  "Start a new acquisition now: the capture is cleared and the trigger waits again for its edge.": "Lance une nouvelle acquisition maintenant : la capture est effacée et le déclenchement attend de nouveau son front.",
+  "All frames are identical.": "Toutes les trames sont identiques.",
+  "Kablix — Logpoints": "Kablix — Points de journalisation",
+  "Breakpoint error: {0}": "Erreur de point d'arrêt : {0}"
 }

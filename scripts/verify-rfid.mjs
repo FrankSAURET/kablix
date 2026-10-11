@@ -225,7 +225,7 @@ console.log('Mise en garde « série muette sur Pico » :');
 	check('elle ne se dit qu’une fois, et se réarme si le cavalier revient',
 		/if \(!prevenu\)/.test(zone) && /prevenu = false/.test(zone));
 	check('le message est traduisible et nomme le composant',
-		/flashStatus\(t\('\{0\}: this board cannot hear a UART reader/.test(zone) &&
+		/signalerMessage\(t\('\{0\}: this board cannot hear a UART reader/.test(zone) &&
 		/part\.id\)/.test(zone));
 	// La zone de texte du dessin s'écrit par une MÉTHODE de l'élément : rangée dans
 	// une variable sans son objet, elle lève dès le premier appel — et comme le
@@ -241,7 +241,7 @@ console.log('Mise en garde « série muette sur Pico » :');
 		/try \{\s*rebind\(\);\s*\} catch/.test(lancement) && /engine\.start\(\);/.test(lancement));
 	check('un câblage en échec est dit à l’élève (console + barre d’état)',
 		/appendSerial\(`\s*── \$\{t\('Wiring error'\)\}/.test(lancement) &&
-		/flashStatus\(t\('Error: \{0\}', detail\)\)/.test(lancement));
+		/signalerMessage\(t\('Error: \{0\}', detail\)\)/.test(lancement));
 }
 
 // --- 3. Les trames sur le VRAI moteur AVR --------------------------------------

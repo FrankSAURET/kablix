@@ -72,8 +72,6 @@ La liste **Échantillonnage** ne change rien à cette durée. Un analyseur du co
 
 Au centre de la barre, entre ◀ et ▶, **un seul bouton** pilote la capture : **■** tant qu'elle tourne, **↻** une fois arrêtée (ou pleine). **■** arrête la capture seule : la simulation continue, mais plus aucun front n'est gardé et la mesure reste telle quelle, le temps de l'examiner ; un déclenchement réglé ensuite se cherche dans ce qui est capturé. **↻** efface la mesure et repart à zéro sans arrêter la simulation ; un déclenchement réglé se réarme et attend son prochain front. Le bouton n'est actif que pendant la simulation.
 
-Le bouton **⏹ Arrêter la capture** arrête la capture seule : la simulation continue, mais plus aucun front n'est gardé et la mesure reste telle quelle, le temps de l'examiner. Un déclenchement réglé ensuite se cherche dans ce qui est capturé. **↻ Relancer la capture** repart d'une capture vide.
-
 ## Exporter
 
 Le bouton **☰** de la barre ouvre le menu des exports :
@@ -146,10 +144,10 @@ La case **Bits** ajoute, elle aussi pour tous les protocoles, l'**affichage bina
   Au démarrage, le programme cherche d'abord les capteurs présents (`SEARCH ROM`) : pour chaque bit de l'adresse, deux bits lus puis un bit écrit. Ces slots se suivent sans former d'octets, et ce qui s'écrit dessous n'a pas de sens — c'est normal, il ne sert qu'une fois.
 - **DHT11 / DHT22** — un seul fil lui aussi, mais **ce n'est pas du 1-Wire** : ici le bit est porté par la durée du palier **HAUT** (environ 28 µs pour un `0`, 70 µs pour un `1`), et il n'y a ni ROM ni commande. Vous voyez d'abord le `DÉPART` du microcontrôleur, puis le `PRÉSENT` du capteur qui accuse réception, puis la mesure, sur **deux lignes** sous la courbe. La première découpe les cinq octets, chacun dans sa case, séparée de la suivante par un trait vertical : `0x02` `0x37` `0x00` `0xEA` `0x23`. La seconde donne, sous les octets qui les portent, l'humidité (`56,7 %HR`, sous les deux premiers), la température (`23,4 °C`, sous les deux suivants) et la somme de contrôle (`somme ✓`, sous le dernier). Quand la place manque, la somme se réduit à sa coche. Vue de loin, la trame ne fait que quelques pixels : la mesure s'écrit alors d'un bloc juste à sa droite, `56,7 %HR · 23,4 °C · somme ✓`, et reste lisible tant que le `DÉPART` l'est. La **somme de contrôle** est recalculée et annoncée : un `SOMME ✗` désigne une liaison douteuse — fil trop long, résistance de tirage absente — bien mieux que cinq octets en hexadécimal ne le feraient. Une trame coupée en route est signalée telle quelle (`17/40 bits`) plutôt que complétée au hasard.
 
----
-
-*Dessin de la pince réalisé par Frank pour Kablix.*
-
 ## Ouvrir l'analyseur dans une nouvelle fenêtre
 
 La case **Ouvrir l'analyseur dans une nouvelle fenêtre** des propriétés d'une sonde est la même pour **toutes** les sondes, posées ou à venir : elle ne change que quand on la clique, et pour toutes en même temps. Cochée, l'onglet de l'analyseur s'ouvre dans une fenêtre à part. L'état de la case est un réglage global de l'utilisateur (`kablix.analyseurNouvelleFenetre`), il ne s'écrit pas dans le projet. La taille et la position de la fenêtre sont celles que VS Code donne à ses fenêtres auxiliaires.
+
+---
+
+*Dessin de la pince réalisé par Frank pour Kablix.*

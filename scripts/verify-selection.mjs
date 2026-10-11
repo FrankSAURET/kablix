@@ -1230,8 +1230,10 @@ async function run() {
 	const nCs = noteEl ? getComputedStyle(noteEl) : null;
 	ok('explication : étiquette posée sur le composant en défaut',
 		!!noteEl && noteEl.textContent === "Diode à l'envers", noteEl && noteEl.textContent);
-	ok('explication : texte JAUNE sur fond ROUGE',
-		nCs && nCs.color === 'rgb(255, 224, 0)' && nCs.backgroundColor === 'rgb(192, 0, 0)',
+	// Défaut non destructif (ici une diode à l'envers) : étiquette BLEUE
+	// d'information ; jaune sur rouge est réservé au composant grillé.
+	ok('explication : texte BLEU sur fond bleu clair (défaut non destructif)',
+		nCs && nCs.color === 'rgb(33, 95, 154)' && nCs.backgroundColor === 'rgb(149, 201, 240)',
 		nCs && (nCs.color + ' sur ' + nCs.backgroundColor));
 	ok('explication : posée À CÔTÉ du cadre, sans le recouvrir',
 		nRect && faultRect && nRect.l >= faultRect.l + faultRect.w,
@@ -1520,7 +1522,7 @@ rows.push({
 const sim = readFileSync(join(ROOT, 'src', 'webview', 'sim.mts'), 'utf8');
 rows.push({
 	name: 'défaut : le message qui nomme le coupable pose le cadre (setFaulty)',
-	ok: /const blame = \([\s\S]{0,200}?setStatus\(`\$\{msg\} \(\$\{id\}\)`\);[\s\S]{0,120}?editor\.setFaulty\(id, true, note\)/.test(sim),
+	ok: /const blame = \([\s\S]{0,200}?signalerMessage\(`\$\{msg\} \(\$\{id\}\)`\);[\s\S]{0,120}?editor\.setFaulty\(id, true, note\)/.test(sim),
 	detail: 'blame() ne marque pas le composant',
 });
 // Chaque défaut de relais s'explique : le cadre seul ne dit pas quoi corriger.
@@ -1542,8 +1544,8 @@ rows.push({
 	// La borne du bloc suit le nombre d'entrées : chaque composant qui peut
 	// griller en ajoute une (la résistance de puissance, v2026.9.3.70 ; la carte
 	// attaquée au-dessus de sa tension d'entrée, v2026.9.4.97 — note longue).
-	ok: /const BURN_NOTE = \{[\s\S]{0,1600}?\} as const;/.test(sim) &&
-		/function markBurned\([\s\S]{0,400}?editor\.setFaulty\(partId, !!note, note\)/.test(sim) &&
+	ok: /const BURN_NOTE = \{[\s\S]{0,3200}?\} as const;/.test(sim) &&
+		/function markBurned\([\s\S]{0,400}?editor\.setFaulty\(partId, !!note, note, true\)/.test(sim) &&
 		(sim.match(/markBurned\([^;]{0,160}?BURN_NOTE\.(led|cap|pca|resistor|board)\b/g) ?? []).length >= 8,
 	detail: 'BURN_NOTE absent, ou points d appel non câblés',
 });
@@ -1564,12 +1566,12 @@ rows.push({
 const ed = readFileSync(join(ROOT, 'src', 'webview', 'diagram', 'editor.mts'), 'utf8');
 rows.push({
 	name: 'éditeur : setFaulty / clearFaults exposés',
-	ok: /setFaulty\(id: string, faulty: boolean, note = ''\): void/.test(ed) && /clearFaults\(\): void/.test(ed),
+	ok: /setFaulty\(id: string, faulty: boolean, note = '', destructive = false\): void/.test(ed) && /clearFaults\(\): void/.test(ed),
 	detail: 'méthodes absentes de l éditeur',
 });
 rows.push({
 	name: 'éditeur : l explication vit dans sa couche, pas dans le composant tourné',
-	ok: /private setFaultNote\(id: string, container: HTMLElement, text: string\): void/.test(ed) &&
+	ok: /private setFaultNote\(id: string, container: HTMLElement, text: string, destructive = false\): void/.test(ed) &&
 		/this\.faultLayer\.appendChild\(note\)/.test(ed) && /part__selbox'\) as HTMLElement \| null\) \?\? body/.test(ed),
 	detail: 'setFaultNote absente, ou raccrochée au composant (recouvrable, et elle tournerait avec lui)',
 });

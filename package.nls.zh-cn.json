@@ -46,5 +46,6 @@
   "kablix.config.componentsFolder": "存放自定义元件 (.kompix) 的文件夹。本机所有 Kablix 项目共用。如需其他位置可更改。\n\n留空（默认）：VS Code 全局存储中的一个子文件夹 —\n- Windows：`%APPDATA%\\Code\\User\\globalStorage\\electropol-fr.kablix\\kablix_components`\n- macOS：`~/Library/Application Support/Code/User/globalStorage/electropol-fr.kablix/kablix_components`\n- Linux：`~/.config/Code/User/globalStorage/electropol-fr.kablix/kablix_components`\n\n命令 **Kablix：打开元件库** 会打开实际使用的文件夹，无论它在哪里。",
   "kablix.config.componentRepositories": "可下载 .kompix 元件的远程仓库 (URL) 列表。默认指向 GitHub 上的 Kablix 官方元件库。",
   "kablix.config.checkComponentsOnStartup": "启动时读取元件仓库的索引，当已安装的元件有新版本，或自上次检查以来出现了新元件时，显示一条通知。每个更新和每个新元件只提示一次。没有变化或没有网络时不显示任何内容。默认开启。",
-  "kablix.config.lintCode": "在仿真开始时对照原理图检查代码，并提示可能的错误（对没有 PWM 的引脚使用 analogWrite、读取了却从未接线的引脚、已接线但代码从未使用的引脚……）。仿真过程中，悬空的输入引脚会随机跳变，阻塞的等待循环也会被指出。警告不会停止仿真。默认开启。"
+  "kablix.config.lintCode": "在仿真开始时对照原理图检查代码，并提示可能的错误（对没有 PWM 的引脚使用 analogWrite、读取了却从未接线的引脚、已接线但代码从未使用的引脚……）。仿真过程中，悬空的输入引脚会随机跳变，阻塞的等待循环也会被指出。警告不会停止仿真。默认开启。",
+  "kablix.config.analyseurNouvelleFenetre": "在新窗口中打开逻辑分析仪标签页。也可通过任意逻辑探头属性中的“在新窗口中打开分析仪”复选框设置：所有探头共用同一个复选框。默认关闭。"
 }

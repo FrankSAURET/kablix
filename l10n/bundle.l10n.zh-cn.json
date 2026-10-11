@@ -284,5 +284,16 @@
   "Never throw them in the bin: take them to a collection point.": "切勿丢进垃圾桶：请送到回收点。",
   "Beta": "测试版",
   "Rules to follow without exception when using cells and batteries:": "使用电池时必须遵守的规则：",
-  "Achievements": "成就"
+  "Achievements": "成就",
+  "Bring the end of the capture to the right edge, zoom unchanged.": "将采集的末尾移到右边缘，缩放不变。",
+  "Bring the start of the capture to the left edge, zoom unchanged.": "将采集的开头移到左边缘，缩放不变。",
+  "Bring the start of the next decoded frame that differs from its neighbour to the left edge. Needs a decoding on a channel.": "将下一个与相邻帧不同的已解码帧的起点移到左边缘。需要在某个通道上设置解码。",
+  "Bring the start of the next decoded frame to the left edge. Needs a decoding on a channel.": "将下一个已解码帧的起点移到左边缘。需要在某个通道上设置解码。",
+  "Bring the start of the previous decoded frame that differs from its neighbour to the left edge. Needs a decoding on a channel.": "将上一个与相邻帧不同的已解码帧的起点移到左边缘。需要在某个通道上设置解码。",
+  "Bring the start of the previous decoded frame to the left edge. Needs a decoding on a channel.": "将上一个已解码帧的起点移到左边缘。需要在某个通道上设置解码。",
+  "Stop the capture only: the simulation keeps running, but nothing more is recorded and the measurement stays as it is.": "仅停止采集：仿真继续运行，但不再记录任何数据，测量结果保持不变。",
+  "Start a new acquisition now: the capture is cleared and the trigger waits again for its edge.": "立即开始新的采集：清除当前采集，触发器重新等待其边沿。",
+  "All frames are identical.": "所有帧都相同。",
+  "Kablix — Logpoints": "Kablix — 日志点",
+  "Breakpoint error: {0}": "断点错误：{0}"
 }

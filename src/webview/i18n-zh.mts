@@ -1473,4 +1473,13 @@ export const ZH: Record<string, string> = {
     'Vgs(th) 最大值 (V)',
   'Max power (W)':
     '最大功率 (W)',
+  'Open the analyzer in a new window': '在新窗口中打开分析仪',
+  'Capture stopped: {0} kept. Click Restart capture to capture anew.':
+    '采集已停止：保留了 {0} 的数据。单击 “重新采集” 可再次采集。',
+  'All frames are identical.':
+    '所有帧都相同。',
+  'Clock of the I²C decoding: settings are on the SDA channel.':
+    'I²C 解码的时钟：设置位于 SDA 通道。',
+  'Bit':
+    '位',
 };

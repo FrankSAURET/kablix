@@ -4,6 +4,14 @@
 
 ---
 
+# v2026.10.2.226 — publication 2026.10.2 préparée (11 octobre 2026)
+1. ✅ **Version 2026.10.2** : `package.json`, `package-lock.json`, CLAUDE.md (état), CHANGELOG daté du 11 octobre 2026 (déjà rangé par thèmes). ⏳ **Reste à Frank : empaquetage (`npm run package`) et publication** (`electropol-fr`). La `2026.10.1` étant déjà en ligne (5 octobre), la prochaine est bien la `2026.10.2`.
+2. ✅ **Lot de traduction** : tous les ⏳ des lots .212 à .225 soldés. Interface FR / ES / ZH (`i18n*.mts`, `bundle.l10n.*.json`, `package.nls.*.json` : analyseur, points de journalisation, case « nouvelle fenêtre ») ; aide EN / ES / ZH (`USAGE.md` : points d'arrêt, fiche `sonde-logique.md`). `verify:i18n` vert.
+3. ✅ Fiche FR `sonde-logique.md` : paragraphe « Arrêter la capture » en double retiré, section « nouvelle fenêtre » remise avant le pied de page.
+4. ✅ **Trois bancs périmés remis d'équerre** (rouges sur `main` avant ce lot, code juste) : `verify:selection` (étiquette de défaut désormais bleue hors destruction, signatures `setFaulty`/`setFaultNote`, `BURN_NOTE` plus long), `verify:rfid` (`flashStatus` devenu `signalerMessage`), `verify:intellisense` (`python.languageServer` écrit à l'échelle de l'espace de travail ; le faux `vscode` refuse maintenant l'échelle dossier comme le vrai).
+
+---
+
 # v2026.10.1.225
 1. ✅ **Multimètre : le « V » / « A » touchait le bord droit de l'écran** (Frank, 11/10). [multimetre-element.mts](src/webview/composants/multimetre-element.mts) : `DISPLAY_RIGHT` passe de 224 à 222 (−2 px du dessin, avant la division par le `scale` du texte). Pas de banc : réglage de position, à voir à l'œil.
 

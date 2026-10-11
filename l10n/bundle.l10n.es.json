@@ -284,5 +284,16 @@
   "Never throw them in the bin: take them to a collection point.": "Nunca las tire a la basura: llévelas a un punto de recogida.",
   "Beta": "Beta",
   "Rules to follow without exception when using cells and batteries:": "Reglas que se deben seguir sin excepción al usar pilas y baterías :",
-  "Achievements": "Logros"
+  "Achievements": "Logros",
+  "Bring the end of the capture to the right edge, zoom unchanged.": "Lleva el final de la captura al borde derecho, sin cambiar el zoom.",
+  "Bring the start of the capture to the left edge, zoom unchanged.": "Lleva el inicio de la captura al borde izquierdo, sin cambiar el zoom.",
+  "Bring the start of the next decoded frame that differs from its neighbour to the left edge. Needs a decoding on a channel.": "Lleva al borde izquierdo el inicio de la siguiente trama decodificada que difiere de su vecina. Requiere una decodificación en un canal.",
+  "Bring the start of the next decoded frame to the left edge. Needs a decoding on a channel.": "Lleva al borde izquierdo el inicio de la siguiente trama decodificada. Requiere una decodificación en un canal.",
+  "Bring the start of the previous decoded frame that differs from its neighbour to the left edge. Needs a decoding on a channel.": "Lleva al borde izquierdo el inicio de la trama decodificada anterior que difiere de su vecina. Requiere una decodificación en un canal.",
+  "Bring the start of the previous decoded frame to the left edge. Needs a decoding on a channel.": "Lleva al borde izquierdo el inicio de la trama decodificada anterior. Requiere una decodificación en un canal.",
+  "Stop the capture only: the simulation keeps running, but nothing more is recorded and the measurement stays as it is.": "Detiene solo la captura: la simulación continúa, pero ya no se registra nada y la medida se queda como está.",
+  "Start a new acquisition now: the capture is cleared and the trigger waits again for its edge.": "Inicia ahora una nueva adquisición: la captura se borra y el disparo vuelve a esperar su flanco.",
+  "All frames are identical.": "Todas las tramas son idénticas.",
+  "Kablix — Logpoints": "Kablix — Logpoints",
+  "Breakpoint error: {0}": "Error de punto de interrupción: {0}"
 }

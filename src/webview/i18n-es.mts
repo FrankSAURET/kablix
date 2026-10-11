@@ -1473,4 +1473,13 @@ export const ES: Record<string, string> = {
     'Vgs(th) máx (V)',
   'Max power (W)':
     'Potencia máx (W)',
+  'Open the analyzer in a new window': 'Abrir el analizador en una ventana nueva',
+  'Capture stopped: {0} kept. Click Restart capture to capture anew.':
+    'Captura detenida: se conservan {0}. Haga clic en Reiniciar la captura para capturar de nuevo.',
+  'All frames are identical.':
+    'Todas las tramas son idénticas.',
+  'Clock of the I²C decoding: settings are on the SDA channel.':
+    'Reloj de la decodificación I²C: los ajustes están en el canal SDA.',
+  'Bit':
+    'Bit',
 };

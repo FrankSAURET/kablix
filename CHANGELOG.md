@@ -4,7 +4,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 [Voir en ligne](https://github.com/FrankSAURET/kablix/blob/main/CHANGELOG.md) · [View online](https://github.com/FrankSAURET/kablix/blob/main/CHANGELOG.md)
 
-## 2026.10.2 (prochaine publication)
+## 2026.10.2 (11 octobre 2026)
 
 ### Nouveauté
 
