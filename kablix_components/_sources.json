@@ -612,6 +612,28 @@
       }
     },
     {
+      "group": "LM35A",
+      "type": "lm35a",
+      "experimental": true,
+      "label": "Temperature sensor LM35A (TO-92)",
+      "description": "Texas Instruments LM35A analog temperature sensor (-55 to +150 °C, ±0.5 °C): the output voltage is 10 mV per °C. It needs at least 4 V on Vs — on a Pico, power it from VSYS, not from 3V3. Between Vs and GND it only reads positive temperatures; for negative ones, add a negative supply -Vs and a resistor from Vout to -Vs (R = -Vs / 50 µA). In simulation a slider sets the temperature; the output is clipped at 0 V.",
+      "version": "2026.10.0",
+      "author": "Frank Sauret",
+      "reference": "https://www.ti.com/product/LM35",
+      "kind": "analog-source",
+      "category": "Sensors",
+      "pinRoles": { "AO": "Vout" },
+      "control": {
+        "type": "slider",
+        "label": "T°",
+        "unit": "°C",
+        "min": -55,
+        "max": 150,
+        "step": 0.5,
+        "expr": "x * 0.01"
+      }
+    },
+    {
       "group": "DSB1820-Etanche",
       "type": "ds18b20-etanche",
       "label": "Temperature sensor DS18B20 (waterproof probe)",

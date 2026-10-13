@@ -1,9 +1,18 @@
 # À faire
-- Crée un composant LM35a en bpoitier TO92. Attention s'il est entre Vs et GND il ne donne que des températures positive mais s'il est entre Vs et - Vs avec une résistance entre Vout et -Vs (R=-Vs/50µA) il donne aussi des tensions négatives. Il nécessite un alim de 4V donc précise dans sa doc que pour une pico il faut l'alimenter via Vsys. Tu le mettra en version béta dans la bibliothèque kablix_component. Il apparaitre dans la catégorie capteur.
 - Rajoute au même endroit un L78SxxCV. Régulateur xxV. Propriété xx tension en volt (5; 6; 8; 8.5; 9; 12; 15; 18; 24) et courant. Si on dépasse le courant la tension s'effondre.  Boitier TO220. Vdropout=2V si pas possible signalement. Il apparaitra dans la catégorie Circuit intégrés.
 - 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.2.228 — composant LM35A (Béta)
+1. ✅ **Dessin** : groupe `LM35A` ajouté à `Composants2D.svg` (copie du boîtier de `DSB1820-CI`, inscription « LM35A », pattes Vs / Vout / GND). À déplacer sur la planche si Frank le souhaite : posé à 40 mm à droite du DS18B20.
+2. ✅ **Bibliothèque** : entrée `lm35a` dans `kablix_components/_sources.json` — `"experimental": true`, catégorie Sensors, `analog-source`, curseur −55 à +150 °C, `expr` = `x * 0.01` (10 mV/°C), version `2026.10.0`. `lm35a.kompix`, index, README, vignette reconstruits ; `verify:kompix` 43/43.
+3. ✅ **Fiche d'aide FR** `kablix_components/help/lm35a/fr.md` : 4 V minimum (VSYS sur Pico, pas 3V3), Vs/GND = températures positives, Vs/−Vs + R = −Vs / 50 µA = négatives, limites de la simulation. L'illustration `help/lm35a.webp` est ajoutée par `build-kompix` (pas de `_capture-part`, réservé aux composants natifs).
+4. ✅ **Tests** : `lm35a-uno`, `lm35a-pico`, `lm35a-pico2` (via `_spec.mjs` + `_generate.mjs`, ces trois seulement) + ligne dans `testkablix/README.md`.
+5. ℹ️ **Simulation** : sortie coupée à 0 V (pas de rail négatif dans le solveur) — le montage Vs / −Vs n'est pas reproduit ; l'alimentation à 4 V n'est pas contrôlée. Dit dans la fiche.
+6. ⏳ Traductions (`l10n` EN-base déjà en place ; ES / ZH, fiche d'aide EN / ES / ZH) : avant publication.
 
 ---
 

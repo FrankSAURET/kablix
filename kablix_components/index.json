@@ -255,6 +255,18 @@
       }
     },
     {
+      "type": "lm35a",
+      "label": "Temperature sensor LM35A (TO-92)",
+      "version": "2026.10.0",
+      "author": "Frank Sauret",
+      "description": "Texas Instruments LM35A analog temperature sensor (-55 to +150 °C, ±0.5 °C): the output voltage is 10 mV per °C. It needs at least 4 V on Vs — on a Pico, power it from VSYS, not from 3V3. Between Vs and GND it only reads positive temperatures; for negative ones, add a negative supply -Vs and a resistor from Vout to -Vs (R = -Vs / 50 µA). In simulation a slider sets the temperature; the output is clipped at 0 V.",
+      "category": "Sensors",
+      "kind": "analog-source",
+      "file": "lm35a.kompix",
+      "thumbnail": "data:image/webp;base64,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",
+      "experimental": true
+    },
+    {
       "type": "pile-4aa",
       "label": "Battery pack 4 × AA",
       "version": "2026.10.0",
@@ -425,5 +437,5 @@
       }
     }
   ],
-  "generated": "2026-10-03T12:44:36.629Z"
+  "generated": "2026-10-13T10:12:36.261Z"
 }

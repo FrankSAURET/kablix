@@ -8,6 +8,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Nouveauté
 
+**Capteurs**
+
+- **Capteur de température LM35A (Béta)**, dans la bibliothèque de composants : sortie analogique de 10 mV par °C, curseur de −55 à +150 °C. La fiche d'aide rappelle qu'il lui faut 4 V (VSYS sur une Pico) et explique le montage Vs / −Vs pour les températures négatives.
+
 **Grove Shield Pico**
 
 - **Brochage complet avec le bouton ☢** : le schéma des connecteurs Grove et des GPIO s'affiche en surimpression du shield, comme sur les cartes Arduino et Pico.

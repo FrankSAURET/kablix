@@ -145,6 +145,9 @@ export const PART_PINS = {
   // TO-92 et la sonde étanche), « Data » étant la ligne 1-Wire.
   ds18b20: ['GND', 'Data', 'VDD'],
   'ds18b20-etanche': ['GND', 'Data', 'VDD'],
+  // Capteur de température LM35A (TO-92) : alimentation, sortie ANALOGIQUE
+  // (10 mV par °C), masse — dans l'ordre du boîtier vu de face.
+  lm35a: ['Vs', 'Vout', 'GND'],
   'pile-4aa': ['+', '-'],
   'pile-9v': ['+', '-'],
   'pile-cr2032': ['+', '-'],
@@ -3644,6 +3647,41 @@ void loop() {
 `,
   }),
 
+  // Capteur de température LM35A : sortie ANALOGIQUE de 10 mV par °C, sur A0.
+  // Il veut 4 V au moins : le 5 V de l'Uno convient. En simulation, le curseur
+  // va de -55 à +150 °C ; la sortie est coupée à 0 V (pas de tension négative).
+  test({
+    name: 'lm35a-uno', board: 'uno', ext: 'ino',
+    kompix: ['lm35a'],
+    parts: [
+      MCU('uno'),
+      { id: 'Capt1', type: 'lm35a', x: 620, y: 60 },
+    ],
+    wires: () => [
+      w('Capt1', 'Vs', 'U1', '5V', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Capt1', 'Vout', 'U1', 'A0', 'yellow'),
+    ],
+    expect: { kind: 'analog-source', partId: 'Capt1', mcuPin: 'A0' },
+    code: `// Test capteur de température LM35A : lecture analogique sur A0.
+// 10 mV par °C : 25 °C donne 250 mV, soit une valeur de 51 (5 V sur 1023 pas).
+const int CAPTEUR = A0;
+
+void setup() {
+  Serial.begin(115200);
+}
+
+void loop() {
+  float volts = analogRead(CAPTEUR) * 5.0 / 1023.0;
+  float degres = volts * 100.0;
+  Serial.print("temperature = ");
+  Serial.print(degres, 1);
+  Serial.println(" C");
+  delay(500);
+}
+`,
+  }),
+
   // Lecteur RFID Grove 125 kHz : le composant qui PARLE au microcontrôleur. Le
   // cavalier est ici à gauche (mode UART) : le module envoie le numéro du badge
   // en clair sur son fil « Tx », à 9600 bauds, tant que le badge reste dans la
@@ -6604,6 +6642,33 @@ while True:
     mesure = capteur.read_u16()
     print("lumiere =", mesure, "-> SOMBRE, on allume" if mesure < SEUIL_SOMBRE else "-> assez clair")
     time.sleep(0.3)
+`,
+  }),
+
+  // Même capteur LM35A côté Pico : la sortie va sur GP27 (ADC1). Il veut 4 V au
+  // moins — le 3V3 de la Pico ne suffit pas, d'où l'alimentation par VSYS.
+  test({
+    name: 'lm35a-pico', board: 'pico', ext: 'py',
+    kompix: ['lm35a'],
+    parts: [MCU('pico'), { id: 'Capt1', type: 'lm35a', x: 680, y: 60 }],
+    wires: () => [
+      w('Capt1', 'Vs', 'U1', 'VSYS', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.7', 'black'),
+      w('Capt1', 'Vout', 'U1', 'GP27', 'yellow'),
+    ],
+    expect: { kind: 'analog-source', partId: 'Capt1', mcuPin: 'GP27' },
+    code: `# Test capteur de température LM35A : lecture analogique sur GP27 (ADC1).
+# 10 mV par °C : 25 °C donne 250 mV. Le capteur est alimenté par VSYS (il lui
+# faut 4 V au moins), pas par 3V3.
+from machine import ADC
+import time
+
+capteur = ADC(27)
+
+while True:
+    volts = capteur.read_u16() * 3.3 / 65535
+    print("temperature =", round(volts * 100, 1), "C")
+    time.sleep(0.5)
 `,
   }),
 
