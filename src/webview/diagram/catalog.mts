@@ -316,6 +316,17 @@ export interface CustomBattery {
 }
 
 /**
+ * Tension d'alimentation minimale d'un capteur : sous `volts` entre les pattes
+ * `vcc` et `gnd` (ou si l'une n'atteint aucun rail), la puce ne fonctionne pas
+ * et sa sortie reste à 0 V (voir sim.mts, updateSupplyChecks).
+ */
+export interface CustomMinSupply {
+  vcc: string;
+  gnd: string;
+  volts: number;
+}
+
+/**
  * Régulateur de tension linéaire (kind `psu`) : la sortie suit `voltage` tant
  * que l'entrée `in` dépasse cette tension de `dropout` volts ; en dessous elle
  * suit l'entrée moins `dropout`. Au-delà du courant `maxcurrent`, la tension
@@ -469,6 +480,8 @@ export interface PartDef {
     battery?: CustomBattery;
     /** Régulateur linéaire : entrée, chute minimale, tensions proposées. */
     regulator?: CustomRegulator;
+    /** Alimentation minimale du capteur (voir CustomMinSupply). */
+    minSupply?: CustomMinSupply;
   };
   /**
    * Variante d'un composant déjà listé : le type reste parfaitement valide
@@ -532,6 +545,8 @@ export interface CustomPartData {
   battery?: CustomBattery;
   /** Régulateur linéaire (voir CustomRegulator). */
   regulator?: CustomRegulator;
+  /** Alimentation minimale du capteur (voir CustomMinSupply). */
+  minSupply?: CustomMinSupply;
   /** Script behavior.mjs embarqué (optionnel) : comportement de simulation. */
   behaviorScript?: string;
   /** Métadonnées provenance + confiance (kompix uniquement, Lot 2). */
@@ -1748,6 +1763,7 @@ export function registerCustomPart(data: CustomPartData): PartDef {
       rfid: data.rfid,
       battery: data.battery,
       regulator: data.regulator,
+      minSupply: data.minSupply,
     },
     analogPin: data.kind === 'analog-source' ? data.pinRoles?.['AO'] ?? 'AO' : undefined,
     digitalPin: data.kind === 'digital-source' ? data.pinRoles?.['OUT'] ?? 'OUT' : undefined,

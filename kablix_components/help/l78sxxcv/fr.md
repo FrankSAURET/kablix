@@ -39,8 +39,11 @@ Si la charge réclame plus que le courant max, la tension de sortie **s'effondre
 
 La tension de sortie se recalcule à chaque changement du montage : réglage, tension d'entrée, charge. L'entrée peut venir d'une alimentation de laboratoire, d'une pile ou d'un autre régulateur en cascade, ou d'un rail de la carte (VIN, 5V…).
 
+- Une **diode** en série sur l'entrée retire son seuil (0,6 V par défaut) ; montée à l'envers, rien n'arrive.
+- Une **résistance** en série retire `R × I` : le courant d'entrée est celui que le régulateur débite. Trop de résistance, et la marge de 2 V disparaît : la sortie baisse.
+- Le courant débité est **reporté sur la source** d'entrée (alimentation, pile ou régulateur amont). Une pile se vide donc plus vite, une alimentation dépasse son courant max.
+
 Limites de la simulation :
 
-- Le courant tiré par le régulateur n'est pas compté sur sa source d'entrée.
-- Le courant de repos et l'échauffement ne sont pas simulés.
+- Le courant de repos (quelques mA) et l'échauffement ne sont pas simulés : le courant d'entrée égale le courant de sortie.
 - Les condensateurs conseillés sur l'entrée et la sortie ne sont pas nécessaires.

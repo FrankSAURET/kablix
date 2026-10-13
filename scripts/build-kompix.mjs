@@ -295,6 +295,8 @@ async function main() {
       battery: comp.battery,
       // Régulateur linéaire : entrée, chute minimale, tensions proposées.
       regulator: comp.regulator,
+      // Alimentation minimale d'un capteur (sortie à 0 V en dessous).
+      minSupply: comp.minSupply,
       // Traductions des libellés du composant : le catalogue de Kablix ne
       // connaît que ses composants natifs, un composant de bibliothèque emporte
       // donc les siennes dans son paquet (voir kompix_specification.md).

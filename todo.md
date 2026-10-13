@@ -5,6 +5,18 @@
 
 ---
 
+# v2026.10.2.230 — régulateur : chute à l'entrée, courant reporté ; LM35A : 4 V contrôlés
+1. ✅ **Chute à l'entrée du régulateur** : `railVoltsAtNet` (`model.mts`) remonte du net `IN` jusqu'à un rail (source `psu`, régulateur amont, broche d'alimentation de carte) en traversant fils, résistances et diodes — seuil de chaque diode et `R × I` retirés. `psuOutVolts` fait deux passes (courant trouvé par la première). Diode à l'envers = 0 V.
+2. ✅ **Courant du régulateur reporté sur sa source** : `psuLoadAmps` ajoute le courant débité par chaque régulateur dont l'entrée rejoint le V+ de la source (cascades comprises, garde anti-boucle `regulateursEnCours`). Une pile se vide plus vite, une alim peut dépasser son courant max.
+3. ✅ **LM35A : 4 V contrôlés** : bloc manifeste générique `minSupply {vcc, gnd, volts}` (`catalog.mts` `CustomMinSupply`, `kompixLibrary.ts`, `build-kompix.mjs`, `_sources.json`). `partSupplyVolts` (`model.mts`) lit la tension de Vs diodes/résistances déduites ; `updateSupplyChecks` (`sim.mts`, 5 fois par seconde) met la sortie à 0 V et encadre le composant en rouge sous le minimum ou sans câblage.
+4. ✅ **Banc** `verify:regulateur` : 34 contrôles (diode, diode inversée, résistance, report du courant, cascade, surcharge, LM35A 5 V / 3,3 V / non câblé / diode / régulateur).
+5. ✅ **Fiches FR** `l78sxxcv` et `lm35a` mises à jour ; paquets `.kompix` et index reconstruits, `verify:kompix` 43/43.
+6. ✅ **`testkablix/ECHECS-A-DECIDER.md`** : liste des 61 échecs de `_verify.mjs --quick` (écarts `.projix` / spec, préexistants) et ce que Frank doit trancher, groupe par groupe. Rien corrigé en attendant ses décisions.
+7. ℹ️ Reste non simulé : rail négatif du LM35A (limite du solveur), courant de repos et échauffement du régulateur.
+8. ⏳ Traductions : 4 chaînes EN neuves de `sim.mts` (`verify:i18n` rouge sur ces seules clés), `l10n` ES / ZH, fiches EN / ES / ZH : avant publication.
+
+---
+
 # v2026.10.2.229 — composant L78SxxCV (Béta)
 1. ✅ **Dessin** : groupe `L78SxxCV` de `Composants2D.svg` (TO-220, pattes IN / GND / OUT), déjà en place.
 2. ✅ **Bibliothèque** : entrée `l78sxxcv` dans `_sources.json` — `"experimental": true`, `kind: psu`, catégorie Integrated circuits, `pinRoles {"V+":"OUT","GND":"GND"}`, nouveau bloc `regulator {in, dropout: 2, voltages}`, version `2026.10.0`. `.kompix`, index, README reconstruits ; `verify:kompix` 43/43.

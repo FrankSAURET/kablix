@@ -39,7 +39,7 @@ Un curseur sur le composant règle la température de −55 à +150 °C. Sa sort
 Limites de la simulation :
 
 - La sortie est **coupée à 0 V** : une température négative se lit comme 0 °C. Le simulateur n'a pas de tension négative, le montage Vs / −Vs n'est donc pas reproduit.
-- L'alimentation n'est pas contrôlée : le capteur répond même sous 4 V. Respecter la règle ci-dessus, la vraie puce ne le ferait pas.
+- L'alimentation est **contrôlée** : tant que Vs n'atteint pas **4 V** (3V3 d'une Pico, Vs non câblé, diode ou résistance qui fait trop chuter), la sortie reste à **0 V** et le composant s'encadre en rouge avec l'explication. Les diodes et résistances en série sont prises en compte ; un régulateur 5 V en amont convient.
 
 ## Lire la température
 
