@@ -14,6 +14,7 @@ import {
   type CustomParam,
   type CustomToggle,
   type PartDef,
+  regulatorVoltCode,
 } from '../diagram/catalog.mjs';
 import { shieldOption, type ShieldSwitch } from '../diagram/shield.mjs';
 import { render } from 'lit';
@@ -180,6 +181,7 @@ export class CustomPartElement extends HTMLElement {
     this.setupShieldSwitch();
     this.setupToggles();
     this.setupParamWatcher();
+    this.setupMarking(def.custom.regulator?.marking, def.attrs?.voltage);
     if (this.control?.type === 'slider') {
       const min = this.control.min ?? 0;
       this.controlValue = (min + this.sliderMax()) / 2;
@@ -686,6 +688,32 @@ export class CustomPartElement extends HTMLElement {
       attributeFilter: this.toggles.map((tg) => tg.attr),
     });
     this.applyToggles();
+  }
+
+  /** Surveille l'attribut `voltage` : l'inscription du boîtier suit la tension réglée. */
+  private markingWatcher: MutationObserver | null = null;
+
+  /**
+   * Inscription dépendante de la tension (régulateur : 78xx). Le groupe désigné
+   * garde sa première ligne de texte, centrée sur l'ensemble des lignes d'origine.
+   */
+  private setupMarking(marking: { group: string; template: string } | undefined, defaultVolts?: string): void {
+    this.markingWatcher?.disconnect();
+    this.markingWatcher = null;
+    const group = marking ? this.svgPiece(marking.group) : null;
+    if (!marking || !group) return;
+    const lines = Array.from(group.querySelectorAll('text'));
+    if (lines.length === 0) return;
+    const ys = lines.map((l) => Number(l.getAttribute('y')) || 0);
+    lines[0].setAttribute('y', String((Math.min(...ys) + Math.max(...ys)) / 2));
+    for (const extra of lines.slice(1)) extra.remove();
+    const apply = (): void => {
+      const volts = Number(this.getAttribute('voltage') ?? defaultVolts);
+      lines[0].textContent = marking.template.replace('{v}', regulatorVoltCode(volts));
+    };
+    this.markingWatcher = new MutationObserver(apply);
+    this.markingWatcher.observe(this, { attributes: true, attributeFilter: ['voltage'] });
+    apply();
   }
 
   /** Une pièce du dessin par son id (chaîne vide = aucune). */

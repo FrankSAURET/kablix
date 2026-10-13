@@ -465,7 +465,9 @@ function railVoltsAtNet(
     if (graph.nets.netOf({ partId: psu.id, pin: psuPlus(psu) }) !== reached.net) continue;
     // Garde de profondeur : deux régulateurs bouclés l'un sur l'autre.
     const v = depth >= 3 ? 0 : psuOutVolts(diagram, psu, psuVolts, liveOhms, depth + 1);
-    if (Number.isFinite(v)) source = Math.max(source, v);
+    if (Number.isFinite(v)) {
+      source = Math.max(source, v + psuBaseVolts(diagram, psu, stackedPsus(diagram, graph.nets), psuVolts, liveOhms));
+    }
   }
   for (const { part, board } of mcuParts(diagram)) {
     for (const pin of mcuPins(board)) {
@@ -493,9 +495,26 @@ export function partSupplyVolts(
   liveOhms?: (part: Part) => number | null
 ): number | null {
   const graph = resistiveGraph(diagram, liveOhms);
-  const gnd = minOhmsPath(graph.nets.netOf({ partId, pin: gndPin }), graph.gndNets, graph.adj, undefined, undefined, 'sink');
+  // Masse du composant : une masse de montage, ou le point milieu de deux alims
+  // empilées (alors la tension d'alim est mesurée depuis ce point-là).
+  const empilees = stackedPsus(diagram, graph.nets);
+  const milieux = new Map<string, Part>();
+  for (const [bId, a] of empilees) {
+    const b = diagram.parts.find((p) => p.id === bId);
+    if (b) milieux.set(graph.nets.netOf({ partId: b.id, pin: psuMoins(b) }), a);
+  }
+  const gndNet = graph.nets.netOf({ partId, pin: gndPin });
+  const reached: { net?: string } = {};
+  let gnd = minOhmsPath(gndNet, graph.gndNets, graph.adj, undefined, undefined, 'sink');
+  let base = 0;
+  if (gnd === null && milieux.size > 0) {
+    gnd = minOhmsPath(gndNet, new Set(milieux.keys()), graph.adj, undefined, reached, 'sink');
+    const porteuse = reached.net === undefined ? undefined : milieux.get(reached.net);
+    if (porteuse) base = psuOutVolts(diagram, porteuse, psuVolts, liveOhms) + psuBaseVolts(diagram, porteuse, empilees, psuVolts, liveOhms);
+  }
   if (gnd === null) return null;
-  return railVoltsAtNet(diagram, graph, graph.nets.netOf({ partId, pin: vccPin }), vcc, psuVolts, liveOhms, 0, 0);
+  const rail = railVoltsAtNet(diagram, graph, graph.nets.netOf({ partId, pin: vccPin }), vcc, psuVolts, liveOhms, 0, 0);
+  return rail === null ? null : Math.max(0, rail - base);
 }
 
 /** Température ambiante supposée (°C) pour l'échauffement des composants. */
@@ -1053,13 +1072,8 @@ interface ResistiveGraph {
   gndNets: Set<string>;
 }
 
-/**
- * Alimentations montées en RAIL NÉGATIF : leur + touche la masse du montage
- * (broche GND d'une carte, d'un générateur) et leur − n'y touche pas. Le net du
- * − est alors à −V par rapport à la masse. Les piles et alims ordinaires (− à la
- * masse) ne sont pas concernées.
- */
-function negativePsuRails(diagram: Diagram, nets: Nets): Array<{ psu: Part; net: string }> {
+/** Masses « de montage » : broches GND des cartes et du générateur BF. */
+function boardGroundNets(diagram: Diagram, nets: Nets): Set<string> {
   const masses = new Set<string>();
   for (const { part, board } of mcuParts(diagram)) {
     for (const pin of mcuPins(board)) {
@@ -1069,6 +1083,51 @@ function negativePsuRails(diagram: Diagram, nets: Nets): Array<{ psu: Part; net:
   for (const part of diagram.parts) {
     if (part.type === 'gbf') masses.add(nets.netOf({ partId: part.id, pin: 'GND' }));
   }
+  return masses;
+}
+
+/**
+ * Alimentations EMPILÉES (en série) : le − de B touche le + de A (et aucune masse
+ * de montage). B flotte alors à la tension de A : son − n'est pas une masse, son
+ * + est à V(A) + V(B). Sert au montage symétrique ±5 V à deux alims. Rend, pour
+ * chaque alim empilée, celle qui la porte.
+ */
+function stackedPsus(diagram: Diagram, nets: Nets): Map<string, Part> {
+  const masses = boardGroundNets(diagram, nets);
+  const out = new Map<string, Part>();
+  const psus = psuParts(diagram);
+  for (const b of psus) {
+    const minus = nets.netOf({ partId: b.id, pin: psuMoins(b) });
+    if (masses.has(minus)) continue;
+    const porteuse = psus.find((a) => a.id !== b.id && nets.netOf({ partId: a.id, pin: psuPlus(a) }) === minus);
+    if (porteuse) out.set(b.id, porteuse);
+  }
+  return out;
+}
+
+/** Potentiel (V) du − d'une alim empilée : somme des alims qui la portent. */
+function psuBaseVolts(
+  diagram: Diagram,
+  psu: Part,
+  stacked: Map<string, Part>,
+  psuVolts?: (partId: string) => number | null,
+  liveOhms?: (part: Part) => number | null,
+  depth = 0
+): number {
+  const sous = stacked.get(psu.id);
+  if (!sous || depth >= 4) return 0;
+  const v = psuOutVolts(diagram, sous, psuVolts, liveOhms);
+  return (Number.isFinite(v) ? v : 0) + psuBaseVolts(diagram, sous, stacked, psuVolts, liveOhms, depth + 1);
+}
+
+/**
+ * Alimentations montées en RAIL NÉGATIF : leur + touche la masse du montage
+ * (broche GND d'une carte, d'un générateur) et leur − n'y touche pas. Le net du
+ * − est alors à −V par rapport à la masse. Les piles et alims ordinaires (− à la
+ * masse) ne sont pas concernées.
+ */
+function negativePsuRails(diagram: Diagram, nets: Nets): Array<{ psu: Part; net: string }> {
+  const masses = boardGroundNets(diagram, nets);
   const out: Array<{ psu: Part; net: string }> = [];
   for (const psu of psuParts(diagram)) {
     const plus = nets.netOf({ partId: psu.id, pin: psuPlus(psu) });
@@ -1244,10 +1303,12 @@ function computeResistiveGraph(
   // Sauf une alimentation montée en rail NÉGATIF (son + sur la masse du montage,
   // son − en l'air) : son − est à −V, ni masse ni rail haut (circuitSources).
   const negatifs = new Set(negativePsuRails(diagram, nets).map((r) => r.psu.id));
+  const empilees = stackedPsus(diagram, nets);
   for (const part of psuParts(diagram)) {
     if (negatifs.has(part.id)) continue;
     vccNets.add(nets.netOf({ partId: part.id, pin: psuPlus(part) }));
-    gndNets.add(nets.netOf({ partId: part.id, pin: psuMoins(part) }));
+    // Alim empilée : son − est le + d'une autre alim, déjà un rail haut.
+    if (!empilees.has(part.id)) gndNets.add(nets.netOf({ partId: part.id, pin: psuMoins(part) }));
   }
   // Générateur BF : sa borne GND est une masse comme les autres. Sa sortie `Vs`
   // n'est PAS un rail — sa tension change à chaque instant — et n'entre donc
@@ -1888,9 +1949,10 @@ function circuitSources(
       railVolts.set(net, Math.max(railVolts.get(net) ?? 0, v));
     }
   }
+  const empilees = stackedPsus(diagram, nets);
   for (const psu of psuParts(diagram)) {
     const net = nets.netOf({ partId: psu.id, pin: psuPlus(psu) });
-    const v = psuOutVolts(diagram, psu, psuVolts);
+    const v = psuOutVolts(diagram, psu, psuVolts) + psuBaseVolts(diagram, psu, empilees, psuVolts);
     if (Number.isFinite(v)) railVolts.set(net, Math.max(railVolts.get(net) ?? 0, v));
   }
   // Résistance NULLE : un rail est une source idéale. Lui donner une résistance
@@ -1935,7 +1997,10 @@ function circuitSources(
       if (def.kind !== 'analog-source' || !def.analogPin || !def.custom?.minSupply) continue;
       const v = sensorVolts(part.id);
       if (v === null || !Number.isFinite(v)) continue;
-      sources.push({ net: nets.netOf({ partId: part.id, pin: def.analogPin }), volts: v, ohms: SENSOR_OUT_OHMS });
+      // `v` est relatif à la masse du capteur ; celle-ci peut flotter (alims empilées).
+      const gnd = nets.netOf({ partId: part.id, pin: def.custom.minSupply.gnd });
+      const decalage = gndNets.has(gnd) ? 0 : railVolts.get(gnd) ?? 0;
+      sources.push({ net: nets.netOf({ partId: part.id, pin: def.analogPin }), volts: v + decalage, ohms: SENSOR_OUT_OHMS });
     }
   }
   const pinsOnNet = new Map<string, string[]>();

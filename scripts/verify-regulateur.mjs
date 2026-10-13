@@ -213,5 +213,28 @@ check('rail négatif LM35A : −5 V à travers 100 kΩ', rail && near(rail.volts
 check('sans alim négative : pas de rail', model.negativeRailFrom(lmNeg(false), 'T1', 'Vout') === null);
 check('alim ordinaire (− à la masse) : jamais prise pour un rail négatif', model.negativeRailFrom(direct(5), 'T1', 'Vout') === null);
 
+// Inscription du boîtier : 78 + tension sur deux chiffres.
+check('inscription : 5 → 05, 12 → 12, 8,5 → 85, 24 → 24',
+  ['5', '12', '8.5', '24'].map((v) => catalog.regulatorVoltCode(Number(v))).join(',') === '05,12,85,24');
+
+// Deux alims EMPILÉES (montage symétrique, test lm35a-uno de Frank) : Alim1 GND
+// → Capt2 GND, Alim1 V+ → Alim2 GND (point milieu), Alim2 V+ → Capt2 Vs.
+const pile = () => ({
+  parts: [
+    alim('A1', 5), alim('A2', 5), { id: 'T2', type: 'lm35a', x: 0, y: 0, attrs: {} },
+    { id: 'M1', type: 'multimetre', x: 0, y: 0, attrs: { mode: 'voltage' } },
+  ],
+  wires: [
+    w(1, 'A1', 'GND', 'T2', 'GND'), w(2, 'A1', 'V+', 'A2', 'GND'), w(3, 'A2', 'V+', 'T2', 'Vs'),
+    w(4, 'M1', '+', 'T2', 'Vout'), w(5, 'M1', 'GND', 'A1', 'V+'),
+  ],
+});
+check('alims empilées : pas de court-circuit annoncé sur A1', model.psuCourtCircuit(pile(), 'A1') === false);
+check('alims empilées : pas de court-circuit annoncé sur A2', model.psuCourtCircuit(pile(), 'A2') === false);
+check('alims empilées : A1 ne débite rien (pas de « courant limite »)', near(model.psuLoadAmps(pile(), 'A1', 5), 0, 0.01), String(model.psuLoadAmps(pile(), 'A1', 5)));
+check('alims empilées : LM35A alimenté sous 10 V (Vs → GND)', near(model.partSupplyVolts(pile(), 'T2', 'Vs', 'GND', 5), 10), String(model.partSupplyVolts(pile(), 'T2', 'Vs', 'GND', 5)));
+const lu = model.meterReadings(pile(), 5, () => 'hiz', undefined, undefined, undefined, undefined, (id) => (id === 'T2' ? 0.25 : null));
+check('alims empilées : voltmètre entre Vout et le milieu = −5 + 0,25 = −4,75 V', lu[0] && near(lu[0].value, -4.75, 0.05), JSON.stringify(lu));
+
 console.log(failures === 0 ? '\nRESULTAT: OK' : `\nRESULTAT: ECHEC (${failures})`);
 process.exit(failures === 0 ? 0 : 1);

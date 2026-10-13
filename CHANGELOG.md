@@ -20,6 +20,18 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - **Brochage complet avec le bouton ꓘ** : le schéma des connecteurs Grove et des GPIO s'affiche en surimpression du shield, comme sur les cartes Arduino et Pico.
 
+### Modification
+
+**Alimentation**
+
+- **Inscription du L78SxxCV** : le boîtier affiche 78xx avec la tension réglée sur deux chiffres (7805, 7812…).
+
+### Correction
+
+**Alimentation**
+
+- **Deux alimentations en série** (montage symétrique ±5 V) ne déclenchent plus un faux « courant limite » ; le LM35A y est alimenté et mesuré correctement.
+
 ## 2026.10.2 (11 octobre 2026)
 
 ### Nouveauté

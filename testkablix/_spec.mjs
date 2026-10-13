@@ -2882,7 +2882,7 @@ void loop() {
       MCU('uno'),
       { id: 'R1', type: 'resistor', x: 620, y: 90, attrs: { value: '1000' } },
       { id: 'R2', type: 'resistor', x: 620, y: 200, attrs: { value: '1000' } },
-      { id: 'M1', type: 'oscillo', x: 540, y: 300, attrs: { voltsdiv: '1', sdiv: '0.5' } },
+      { id: 'M1', type: 'oscillo', x: 540, y: 300, attrs: { voltsdiv: '1', sdiv: '0.005' } },
     ],
     wires: () => [
       w('R1', '1', 'U1', '9', 'green'),
@@ -3425,7 +3425,7 @@ while True:
       w('M1', '+', 'Act1', '1', 'red'),
       w('M1', 'GND', 'Act1', '2', 'blue'),
       w('O1', '+', 'T1', '2', 'yellow'),
-      w('O1', 'GND', 'U1', 'GND.4', 'black'),
+      w('O1', 'GND', 'U1', 'GND.1', 'black'),
     ],
     expect: {
       kind: 'meter', volts: 5, bridges: true,
@@ -6438,7 +6438,7 @@ while True:
       MCU('pico'),
       { id: 'R1', type: 'resistor', x: 680, y: 90, attrs: { value: '1000' } },
       { id: 'R2', type: 'resistor', x: 680, y: 200, attrs: { value: '1000' } },
-      { id: 'M1', type: 'oscillo', x: 600, y: 300, attrs: { voltsdiv: '1', sdiv: '0.5' } },
+      { id: 'M1', type: 'oscillo', x: 600, y: 300, attrs: { voltsdiv: '5', sdiv: '0.005' } },
     ],
     wires: () => [
       w('R1', '1', 'U1', 'GP15', 'green'),

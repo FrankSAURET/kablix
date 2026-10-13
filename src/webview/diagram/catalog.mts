@@ -344,6 +344,19 @@ export interface CustomRegulator {
   /** Échauffement : résistances thermiques (°C/W) et seuils (°C). Sans ce bloc,
    *  le régulateur ne chauffe pas. */
   thermal?: CustomRegulatorThermal;
+  /**
+   * Inscription du boîtier, recalculée avec la tension réglée : le groupe SVG
+   * `group` ne garde que sa première ligne de texte, réécrite d'après `template`
+   * où `{v}` = tension sur deux chiffres (5 → 05, 12 → 12, 8,5 → 85).
+   */
+  marking?: { group: string; template: string };
+}
+
+/** Code à deux chiffres d'une tension de régulateur : 5 → « 05 », 12 → « 12 », 8,5 → « 85 ». */
+export function regulatorVoltCode(volts: number): string {
+  if (!Number.isFinite(volts)) return '00';
+  const s = Number.isInteger(volts) ? String(volts) : String(volts).replace('.', '');
+  return s.padStart(2, '0');
 }
 
 /**

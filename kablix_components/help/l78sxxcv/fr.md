@@ -10,7 +10,7 @@ Composant de bibliothèque : il s'installe par le gestionnaire de composants, il
 
 ## Broches
 
-Vu de face, côté inscription tourné vers soi :
+Vu de face, côté inscription tourné vers soi. L'inscription suit la tension réglée : `78xx`, xx sur deux chiffres (5 V → 7805, 12 V → 7812) :
 
 | Broche | Rôle |
 | --- | --- |

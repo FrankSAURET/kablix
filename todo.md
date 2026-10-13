@@ -1,12 +1,17 @@
 # À faire
 
--  Sur le boitier des L78SxxCV tu notes seulement 78xx avec xx qui est la tension en volts avec 2 chiffres -> 5->05 et 12->12
-- `variateur-pnp-uno` (son `.projix` garde le fil `O1/GND → U1/GND.4`, broche inconnue sur Uno. je ne vois pas ce fil sur le schéma donc corrige
-- `oscillo-uno` / `oscillo-pico` (`M1.sdiv` mesuré à la main 0,003751 / 0,006675 contre 0,5 en spec ; `oscillo-pico2` réglé par son jumeau) -> Corrige
-- `verify:multimetre` (« mesure DANS l'écran, ampèremètre » après le réglage `DISPLAY_RIGHT` du 11/10), `verify:analyseur-regle` et `verify:analyseur-sans-declenchement` (erreur `sessionStorage` du Chrome d'essai). -> je ne comprends pas
-- Dans le fichier lm35a-uno j'ai fais un montage avec 2 alim en 5v reliées le + au moins pour avoir une alimentation symétrique +- 5v et tester le LM35a en négatif. Ca mets une erreur (courant limite). Pourquoi ?
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.2.232 — inscription 78xx ; alims en série ; échecs testkablix à 0
+1. ✅ **Inscription du L78SxxCV** : le boîtier affiche `78xx`, xx = tension sur deux chiffres (5 → `7805`, 12 → `7812`, 8,5 → `7885`). Bloc manifeste `regulator.marking {group, template}` ; `regulatorVoltCode` (`catalog.mts`) ; `setupMarking` (`custom-part.mts`) garde la 1re ligne du groupe `txt-L78S` et la réécrit à chaque changement de `voltage`.
+2. ✅ **Alims en série (montage symétrique ±5 V)** : `stackedPsus` / `psuBaseVolts` (`model.mts`). Le − d'une alim posée sur le + d'une autre n'est plus une masse (cause du faux « courant limite » de `lm35a-uno`). Rail haut = sortie + base ; `partSupplyVolts` prend le point milieu pour masse ; la source du capteur suit sa masse flottante.
+3. ✅ **Banc** `verify:regulateur` : cas empilé (pas de court-circuit, A1 ne débite rien, LM35A sous 10 V, voltmètre −4,75 V) + `regulatorVoltCode`.
+4. ✅ **testkablix** : `oscillo-uno` / `oscillo-pico` alignés sur les réglages de Frank (`sdiv 0.005`, `voltsdiv 5` pour la Pico) ; `variateur-pnp-uno` : fil parasite `O1/GND → GND.4` retiré du `.projix` (le fil `GND.1` reste) et spec corrigée. `_verify.mjs --quick` : 0 échec (7631 contrôles).
+5. ℹ️ **Bancs rouges d'environnement** : `verify:multimetre` (rendu « mesure DANS l'écran, ampèremètre » après le réglage `DISPLAY_RIGHT` 224 → 222 du 11/10 : le banc attend l'ancienne position) ; `verify:analyseur-regle` et `verify:analyseur-sans-declenchement` (le Chrome d'essai refuse `sessionStorage` : « Access is denied », sans lien avec le code).
+6. ⏳ Traductions : fiche FR `l78sxxcv` à compléter sur l'inscription ; `docs/en`, `l10n` : avant publication.
 
 ---
 

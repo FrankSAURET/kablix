@@ -175,4 +175,4 @@ Le point décisif est le dernier : tant qu'un composant de bibliothèque peut d�
 
 ---
 
-Généré le 13/10/2026 15:04:40 — Kablix v2026.10.2
+Généré le 13/10/2026 17:33:00 — Kablix v2026.10.2

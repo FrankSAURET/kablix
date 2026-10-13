@@ -201,6 +201,7 @@ interface KompixManifest {
     voltages: number[];
     quiescentMilliamps?: number;
     thermal?: { rthJA: number; rthJC: number; tjMax: number; shutdown: number };
+    marking?: { group: string; template: string };
   };
   /** Alimentation minimale d'un capteur : pattes vcc/gnd et tension (V). Voir
    *  CustomMinSupply (catalog.mts). */
