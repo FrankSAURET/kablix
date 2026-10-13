@@ -18,7 +18,7 @@ Principe commun : le `.projix` est le schéma que tu as retouché dans l'éditeu
 | 8 | `variateur-pnp-uno` | 2 | broche `GND.4` inconnue sur Uno | Je pense que j'ai corrigé |
 | 9 | `moteur-dc-pico` | 1 | courant max retouché | Confirmé |
 | 10 | Sondes logiques (`sonde-logique-*`) | 20 | sondes déplacées, renommées, retirées | On laisse tel quel |
-| 11 | Analyseur UART (`uart-*`) | 3 | réglages d'analyseur retouchés | A |
+| 11 | Analyseur UART (`uart-*`) | 3 | réglages d'analyseur retouchés | On laisse tel quel |
 | 12 | `buzzer-pico2` | 1 | variante `pico2` au lieu de `pico` | A |
 | 13 | `pot-pico2` | 1 | oscilloscope M1 absent | A |
 | 14 | `dht11-pico2` | 1 | sonde SD2 absente | A |
