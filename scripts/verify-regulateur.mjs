@@ -98,5 +98,67 @@ avecLed.wires.push(w(5, 'Reg1', 'OUT', 'R1', '1'), w(6, 'R1', '2', 'L1', 'A'), w
 const circ = model.ledPowerCircuit(avecLed, 'L1');
 check('LED derrière le régulateur : alimentée sous 5 V', near(circ.supplyVolts, 5), JSON.stringify(circ));
 
+// Diode en série à l’entrée : 12 V − 0,6 V − 2 V de marge → 5 V tenus ; 7,3 V → 4,7 V.
+const diode = (id, vf = 0.6) => ({ id, type: 'diode', x: 0, y: 0, attrs: { vf: String(vf) } });
+const viaDiode = (vin, vset) => {
+  const d = { parts: [alim('P1', vin), diode('D1'), reg('Reg1', vset)], wires: [
+    w(1, 'P1', 'V+', 'D1', 'A'), w(2, 'D1', 'K', 'Reg1', 'IN'), w(3, 'P1', 'GND', 'Reg1', 'GND')] };
+  return d;
+};
+check('diode à l’entrée : 12 V → 5 V tenus', near(volts(viaDiode(12, 5), 'Reg1'), 5), String(volts(viaDiode(12, 5), 'Reg1')));
+check('diode à l’entrée : 7,3 V − 0,6 V − 2 V = 4,7 V', near(volts(viaDiode(7.3, 5), 'Reg1'), 4.7), String(volts(viaDiode(7.3, 5), 'Reg1')));
+// Diode montée à l’envers : rien n'arrive.
+const inverse = viaDiode(12, 5);
+inverse.wires[0] = w(1, 'P1', 'V+', 'D1', 'K'); inverse.wires[1] = w(2, 'D1', 'A', 'Reg1', 'IN');
+check('diode à l’envers : 0 V', near(volts(inverse, 'Reg1'), 0), String(volts(inverse, 'Reg1')));
+
+// Résistance en série à l’entrée : 10 Ω, charge 10 Ω sur 5 V = 0,5 A → 5 V perdus dans la résistance.
+const viaR = (vin, ohmsEntree, charge) => {
+  const d = { parts: [alim('P1', vin), resistor('Re', ohmsEntree), reg('Reg1', 5), resistor('R1', charge)], wires: [
+    w(1, 'P1', 'V+', 'Re', '1'), w(2, 'Re', '2', 'Reg1', 'IN'), w(3, 'P1', 'GND', 'Reg1', 'GND'),
+    w(4, 'Reg1', 'OUT', 'R1', '1'), w(5, 'R1', '2', 'Reg1', 'GND')] };
+  return d;
+};
+check('résistance 4 Ω à l’entrée, 0,5 A : 12 − 2 − 2 = 8 V → 5 V tenus', near(volts(viaR(12, 4, 10), 'Reg1'), 5), String(volts(viaR(12, 4, 10), 'Reg1')));
+check('résistance 10 Ω à l’entrée, 0,5 A : 12 − 5 − 2 = 5 V → 5 V juste', near(volts(viaR(12, 10, 10), 'Reg1'), 5), String(volts(viaR(12, 10, 10), 'Reg1')));
+check('résistance 14 Ω à l’entrée, 0,5 A : 12 − 7 − 2 = 3 V', near(volts(viaR(12, 14, 10), 'Reg1'), 3, 0.1), String(volts(viaR(12, 14, 10), 'Reg1')));
+
+// Courant reporté sur la source : 5 V sur 10 Ω = 0,5 A sortent du régulateur, 0,5 A sortent de l’alim.
+const dCharge = charge(10);
+const aSource = model.psuLoadAmps(dCharge, 'P1', 12);
+check('courant du régulateur reporté sur sa source : 0,5 A', near(aSource, 0.5, 0.01), String(aSource));
+const cas = { ...cascade, parts: [...cascade.parts, resistor('R1', 10)], wires: [...cascade.wires, w(5, 'Reg2', 'OUT', 'R1', '1'), w(6, 'R1', '2', 'Reg2', 'GND')] };
+check('cascade : 0,5 A remonte jusqu’à l’alim', near(model.psuLoadAmps(cas, 'P1', 24), 0.5, 0.01), String(model.psuLoadAmps(cas, 'P1', 24)));
+// Régulateur en surcharge : l’alim ne débite que le courant limité (2 A).
+const dSurcharge = charge(1);
+check('surcharge : l’alim débite 2 A (courant max)', near(model.psuLoadAmps(dSurcharge, 'P1', 12), 2, 0.05), String(model.psuLoadAmps(dSurcharge, 'P1', 12)));
+
+// LM35A : alimentation minimale 4 V (tension lue sur Vs, diodes et résistances déduites).
+catalog.registerCustomPart({
+  type: 'lm35a', label: 'LM35A', kind: 'analog-source', svg, category: 'Sensors',
+  pins: [pin('Vs', 20), pin('Vout', 30), pin('GND', 40)],
+  pinRoles: { AO: 'Vout' },
+  minSupply: { vcc: 'Vs', gnd: 'GND', volts: 4 },
+  control: { type: 'slider', label: 'T', unit: '°C', min: -55, max: 150, step: 0.5, expr: 'x * 0.01' },
+});
+check('LM35A : alimentation minimale déclarée', catalog.partDef('lm35a').custom?.minSupply?.volts === 4);
+const lm = { id: 'T1', type: 'lm35a', x: 0, y: 0, attrs: {} };
+const alimente = (vin, entre = []) => {
+  const d = { parts: [alim('P1', vin), lm, ...entre.map((e) => e.part)], wires: [] };
+  return d;
+};
+const sup = (d) => model.partSupplyVolts(d, 'T1', 'Vs', 'GND', 5);
+const direct = (vin) => { const d = alimente(vin); d.wires.push(w(1, 'P1', 'V+', 'T1', 'Vs'), w(2, 'P1', 'GND', 'T1', 'GND')); return d; };
+check('LM35A sur 5 V : 5 V', near(sup(direct(5)), 5), String(sup(direct(5))));
+check('LM35A sur 3,3 V : 3,3 V (< 4 V)', near(sup(direct(3.3)), 3.3), String(sup(direct(3.3))));
+const nonCable = { parts: [alim('P1', 5), lm], wires: [] };
+check('LM35A non câblé : null', sup(nonCable) === null, String(sup(nonCable)));
+const sansMasse = { parts: [alim('P1', 5), lm], wires: [w(1, 'P1', 'V+', 'T1', 'Vs')] };
+check('LM35A sans masse : null', sup(sansMasse) === null, String(sup(sansMasse)));
+const dioded = { parts: [alim('P1', 5), diode('D1'), lm], wires: [w(1, 'P1', 'V+', 'D1', 'A'), w(2, 'D1', 'K', 'T1', 'Vs'), w(3, 'P1', 'GND', 'T1', 'GND')] };
+check('LM35A derrière une diode : 4,4 V', near(sup(dioded), 4.4), String(sup(dioded)));
+const regule = { parts: [alim('P1', 12), reg('Reg1', 5), lm], wires: [w(1, 'P1', 'V+', 'Reg1', 'IN'), w(2, 'P1', 'GND', 'Reg1', 'GND'), w(3, 'Reg1', 'OUT', 'T1', 'Vs'), w(4, 'Reg1', 'GND', 'T1', 'GND')] };
+check('LM35A derrière un régulateur 5 V : 5 V', near(sup(regule), 5), String(sup(regule)));
+
 console.log(failures === 0 ? '\nRESULTAT: OK' : `\nRESULTAT: ECHEC (${failures})`);
 process.exit(failures === 0 ? 0 : 1);

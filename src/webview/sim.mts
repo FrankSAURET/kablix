@@ -103,6 +103,7 @@ import {
   joystickBindings,
   digitalSourceBindings,
   analogSourceBindings,
+  partSupplyVolts,
   aoDoSensorBindings,
   customOpenDrainBindings,
   customRfidBindings,
@@ -421,6 +422,13 @@ const hallFaults = new Map<string, string>();
 let openDrainTargets: Array<{ binding: HallBinding; el: SimElement }> = [];
 /** Défaut de câblage courant de chaque sortie collecteur ouvert de bibliothèque. */
 const openDrainFaults = new Map<string, string>();
+/**
+ * Capteurs à alimentation minimale (LM35A : 4 V) : `ok` vaut false tant que
+ * leur patte Vs n'atteint pas `volts` ; leur sortie reste alors à 0 V.
+ */
+let supplyChecks: Array<{ partId: string; vcc: string; gnd: string; volts: number; ok: boolean; apply: () => void }> = [];
+const supplyFaults = new Map<string, string>();
+let supplyLastMs = 0;
 /** Défaut de montage courant de chaque composant photosensible (phototransistor, photodiode). */
 const photoFaults = new Map<string, string>();
 // LED RGB : partId → broches MCU des canaux R/G/B (rapport cyclique PWM).
@@ -1027,6 +1035,7 @@ function renderTick(): void {
   updateMotion();
   updateHall();
   updateOpenDrain();
+  updateSupplyChecks();
   refreshVisuals();
   flushAnalogWaves(); // après stepCapacitors (dans refreshVisuals) : la liste est complète
   tickBehaviors();
@@ -1307,6 +1316,46 @@ function updateOpenDrain(): void {
     // mais rien ne le remonte non plus tant que le défaut est là.
     if (pin) engine.setInput(pin, fault ? false : Boolean(el.switchOn));
     reportOpenDrainFault(binding.partId, fault);
+  }
+}
+
+/**
+ * Alimentation des capteurs à tension minimale. La tension lue tient compte des
+ * diodes et résistances de passage (partSupplyVolts). Relue 5 fois par seconde
+ * seulement : le résultat ne change qu'avec le câblage ou une alim réglée.
+ */
+function updateSupplyChecks(): void {
+  if (!engine || supplyChecks.length === 0) return;
+  const now = performance.now();
+  if (now - supplyLastMs < 200) return;
+  supplyLastMs = now;
+  const vcc = isPicoBoard(board) ? 3.3 : 5;
+  for (const chk of supplyChecks) {
+    const v = partSupplyVolts(editor.diagram, chk.partId, chk.vcc, chk.gnd, vcc, psuLiveVolts, liveVariableOhms);
+    const ok = v !== null && v >= chk.volts - 1e-6;
+    const fault = ok ? '' : v === null ? 'unpowered' : 'low';
+    if (ok !== chk.ok) {
+      chk.ok = ok;
+      chk.apply();
+    }
+    if ((supplyFaults.get(chk.partId) ?? '') === fault) continue;
+    supplyFaults.set(chk.partId, fault);
+    if (!fault) {
+      editor.setFaulty(chk.partId, false);
+      continue;
+    }
+    const volts = v === null ? 0 : Math.round(v * 100) / 100;
+    const msg = fault === 'unpowered'
+      ? t('This part is not powered')
+      : t('Supply too low: {0} V, {1} V minimum', String(volts), String(chk.volts));
+    signalerMessage(`${msg} (${chk.partId})`);
+    editor.setFaulty(
+      chk.partId,
+      true,
+      fault === 'unpowered'
+        ? t('This part is not powered: its supply pin must reach a supply rail and its GND a ground.')
+        : t('The supply is below the {0} V the chip needs, so its output stays at 0 V. Raise the supply (on a Pico use VSYS, not 3V3).', String(chk.volts))
+    );
   }
 }
 
@@ -1976,6 +2025,8 @@ function clearRelayFaults(): void {
   hallFaults.clear();
   openDrainTargets = [];
   openDrainFaults.clear();
+  supplyChecks = [];
+  supplyFaults.clear();
   photoFaults.clear();
   meterFaults.clear();
   meterFrame = new Map();
@@ -3787,6 +3838,9 @@ function bindInputs(): void {
   // Idem pour les sorties à collecteur ouvert venues de la bibliothèque .kompix.
   openDrainTargets = [];
   openDrainFaults.clear();
+  supplyChecks = [];
+  supplyFaults.clear();
+  supplyLastMs = 0;
   for (const binding of customOpenDrainBindings(editor.diagram)) {
     const el = editor.elementOf(binding.partId);
     if (el) openDrainTargets.push({ binding, el });
@@ -3868,7 +3922,16 @@ function bindInputs(): void {
           }
         }
         const vref = isPicoBoard(board) ? 3.3 : 5;
+        const minSupply = partDef(part.type).custom?.minSupply;
+        const chk = minSupply
+          ? { partId: part.id, vcc: minSupply.vcc, gnd: minSupply.gnd, volts: minSupply.volts, ok: false, apply: () => {} }
+          : null;
         const apply = () => {
+          // Sous la tension minimale la puce est éteinte : sortie à 0 V.
+          if (chk && !chk.ok) {
+            engine?.setAnalog(pin, 0);
+            return;
+          }
           const x = Number(el.controlValue ?? 0);
           let level: number;
           if (fn) {
@@ -3886,6 +3949,10 @@ function bindInputs(): void {
           }
           engine?.setAnalog(pin, level);
         };
+        if (chk) {
+          chk.apply = apply;
+          supplyChecks.push(chk);
+        }
         apply();
         el.addEventListener('input', apply);
         inputRemovers.push(() => el.removeEventListener('input', apply));

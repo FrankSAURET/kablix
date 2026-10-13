@@ -10,11 +10,11 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Alimentation**
 
-- **Régulateur de tension L78SxxCV (Béta)**, dans la bibliothèque de composants : 5, 6, 8, 8,5, 9, 12, 15, 18 ou 24 V au choix dans les propriétés, avec un courant maximal. Il lui faut 2 V de marge à l'entrée ; au-delà du courant maximal, la tension de sortie s'effondre.
+- **Régulateur de tension L78SxxCV (Béta)**, dans la bibliothèque de composants : 5, 6, 8, 8,5, 9, 12, 15, 18 ou 24 V au choix dans les propriétés, avec un courant maximal. Il lui faut 2 V de marge à l'entrée ; au-delà du courant maximal, la tension de sortie s'effondre. Une diode ou une résistance en série à l'entrée fait chuter la tension, et le courant débité est reporté sur la source qui l'alimente.
 
 **Capteurs**
 
-- **Capteur de température LM35A (Béta)**, dans la bibliothèque de composants : sortie analogique de 10 mV par °C, curseur de −55 à +150 °C. La fiche d'aide rappelle qu'il lui faut 4 V (VSYS sur une Pico) et explique le montage Vs / −Vs pour les températures négatives.
+- **Capteur de température LM35A (Béta)**, dans la bibliothèque de composants : sortie analogique de 10 mV par °C, curseur de −55 à +150 °C. Il lui faut 4 V : en dessous (3V3 d'une Pico, Vs non câblé, chute dans une diode), la sortie reste à 0 V et le composant s'encadre en rouge avec l'explication. La fiche d'aide explique aussi le montage Vs / −Vs pour les températures négatives.
 
 **Grove Shield Pico**
 

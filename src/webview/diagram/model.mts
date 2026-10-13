@@ -440,14 +440,75 @@ function psuParts(diagram: Diagram): Part[] {
 }
 
 /**
+ * Tension (V) que les rails apportent à un net, et résistance (Ω) du chemin
+ * pour y arriver. Le chemin part du net, traverse fils, résistances et diodes
+ * (le seuil de chaque diode est retiré) jusqu'à un rail haut : une source `psu`
+ * (régulateurs en cascade compris) ou une broche d'alimentation de carte.
+ * `amps` : courant qui traverse ce chemin — chute ohmique = amps × ohms.
+ * Rend null si aucun rail n'est atteint.
+ */
+function railVoltsAtNet(
+  diagram: Diagram,
+  graph: ResistiveGraph,
+  net: string,
+  vcc: number,
+  psuVolts: ((partId: string) => number | null) | undefined,
+  liveOhms: ((part: Part) => number | null) | undefined,
+  amps: number,
+  depth: number
+): number | null {
+  const reached: { net?: string; drop?: number } = {};
+  const ohms = minOhmsPath(net, graph.vccNets, graph.adj, undefined, reached, 'source');
+  if (ohms === null || reached.net === undefined) return null;
+  let source = -1;
+  for (const psu of psuParts(diagram)) {
+    if (graph.nets.netOf({ partId: psu.id, pin: psuPlus(psu) }) !== reached.net) continue;
+    // Garde de profondeur : deux régulateurs bouclés l'un sur l'autre.
+    const v = depth >= 3 ? 0 : psuOutVolts(diagram, psu, psuVolts, liveOhms, depth + 1);
+    if (Number.isFinite(v)) source = Math.max(source, v);
+  }
+  for (const { part, board } of mcuParts(diagram)) {
+    for (const pin of mcuPins(board)) {
+      if (mcuPinRole(board, pin).role !== 'vcc') continue;
+      if (graph.nets.netOf({ partId: part.id, pin }) === reached.net) source = Math.max(source, railPinVolts(pin, vcc));
+    }
+  }
+  if (source < 0) return null;
+  return Math.max(0, source - (reached.drop ?? 0) - amps * ohms);
+}
+
+/**
+ * Tension d'alimentation (V) d'un composant, entre sa patte `vccPin` et sa patte
+ * `gndPin` : le rail atteint par `vccPin`, diodes et résistances de passage
+ * déduites. Null si `vccPin` n'atteint aucun rail ou `gndPin` aucune masse —
+ * le composant n'est alors pas alimenté.
+ */
+export function partSupplyVolts(
+  diagram: Diagram,
+  partId: string,
+  vccPin: string,
+  gndPin: string,
+  vcc: number,
+  psuVolts?: (partId: string) => number | null,
+  liveOhms?: (part: Part) => number | null
+): number | null {
+  const graph = resistiveGraph(diagram, liveOhms);
+  const gnd = minOhmsPath(graph.nets.netOf({ partId, pin: gndPin }), graph.gndNets, graph.adj, undefined, undefined, 'sink');
+  if (gnd === null) return null;
+  return railVoltsAtNet(diagram, graph, graph.nets.netOf({ partId, pin: vccPin }), vcc, psuVolts, liveOhms, 0, 0);
+}
+
+/**
  * Tension de sortie (V) d'une source `psu`. Alim de laboratoire et pile : la
  * tension vive (`psuVolts`) à défaut l'attribut `voltage`. RÉGULATEUR linéaire
  * (L78SxxCV) : la tension réglée, rabotée par l'entrée — il lui faut `dropout`
  * volts de marge, sinon la sortie suit l'entrée moins cette marge — puis
  * EFFONDRÉE si la charge réclame plus que `maxcurrent` (courant limité sur
- * charge résistive : U = Imax × R, donc U × Imax / I). L'entrée est lue sur le
- * net de la patte `in` : autre source `psu` (régulateurs en cascade compris),
- * ou rail d'alimentation d'une carte. Sans source à l'entrée, la sortie est nulle.
+ * charge résistive : U = Imax × R, donc U × Imax / I).
+ *
+ * L'entrée est lue sur le net de la patte `in` par railVoltsAtNet : une diode
+ * en série retire son seuil, une résistance retire (courant d'entrée = courant
+ * de sortie) R × I. Sans rail à l'entrée, la sortie est nulle.
  */
 export function psuOutVolts(
   diagram: Diagram,
@@ -462,22 +523,17 @@ export function psuOutVolts(
   const attrs = { ...def.attrs, ...psu.attrs };
   const vset = Number(attrs.voltage) || 0;
   const imax = Math.max(0.05, Number(attrs.maxcurrent ?? 2) || 2);
-  const nets = buildNets(diagram);
-  const inNet = nets.netOf({ partId: psu.id, pin: reg.in });
-  let vin = 0;
-  for (const other of psuParts(diagram)) {
-    if (other.id === psu.id || depth >= 3) continue;
-    if (nets.netOf({ partId: other.id, pin: psuPlus(other) }) !== inNet) continue;
-    const v = psuOutVolts(diagram, other, psuVolts, liveOhms, depth + 1);
-    if (Number.isFinite(v)) vin = Math.max(vin, v);
-  }
-  for (const { part, board } of mcuParts(diagram)) {
-    for (const pin of mcuPins(board)) {
-      if (mcuPinRole(board, pin).role !== 'vcc') continue;
-      if (nets.netOf({ partId: part.id, pin }) === inNet) vin = Math.max(vin, railPinVolts(pin, 5));
-    }
-  }
-  const vout = Math.min(vset, Math.max(0, vin - reg.dropout));
+  const graph = resistiveGraph(diagram, liveOhms);
+  const inNet = graph.nets.netOf({ partId: psu.id, pin: reg.in });
+  const sortie = (amps: number): number => {
+    const vin = railVoltsAtNet(diagram, graph, inNet, 5, psuVolts, liveOhms, amps, depth);
+    return vin === null ? 0 : Math.min(vset, Math.max(0, vin - reg.dropout));
+  };
+  // Deux passes : la chute dans une résistance d'entrée dépend du courant, qui
+  // dépend de la sortie. La seconde utilise le courant trouvé par la première.
+  const v0 = sortie(0);
+  if (v0 <= 0) return 0;
+  const vout = sortie(Math.min(psuLoadAmps(diagram, psu.id, v0, liveOhms), imax));
   if (vout <= 0) return 0;
   const load = psuLoadAmps(diagram, psu.id, vout, liveOhms);
   return load > imax ? (vout * imax) / load : vout;
@@ -1261,6 +1317,9 @@ export function psuCourtCircuit(
  *  - `extraAmps` : consommateurs calculés par l'appelant (PCA9685…).
  * `liveOhms` : valeur courante des résistances variables (curseurs de simulation).
  */
+/** Régulateurs dont on calcule déjà le courant (évite les boucles). */
+const regulateursEnCours = new Set<string>();
+
 export function psuLoadAmps(
   diagram: Diagram,
   psuId: string,
@@ -1281,6 +1340,23 @@ export function psuLoadAmps(
   const bridge = gndNets.has(vplus) ? 0 : minOhmsPath(vplus, gndNets, adj, undefined, viaDiode);
   if (bridge !== null && !(viaDiode.drop > 0)) {
     amps += bridge <= 0.5 ? PSU_SHORT_AMPS : volts / bridge;
+  }
+  // Régulateurs linéaires alimentés par cette source : leur courant d'entrée
+  // est celui qu'ils débitent (le courant de repos n'est pas simulé). Cascades
+  // comprises. `volts` remplace la tension de CETTE source, la seule dont on
+  // connaisse la valeur vive ; `enCours` coupe les boucles de régulateurs.
+  for (const reg of diagram.parts) {
+    const def = partDef(reg.type).custom?.regulator;
+    if (!def || reg.id === psuId || regulateursEnCours.has(reg.id)) continue;
+    const entree = nets.netOf({ partId: reg.id, pin: def.in });
+    if (minOhmsPath(entree, new Set([vplus]), adj, undefined, undefined, 'source') === null) continue;
+    regulateursEnCours.add(reg.id);
+    try {
+      const vout = psuOutVolts(diagram, reg, (id) => (id === psuId ? volts : null), liveOhms);
+      if (vout > 0) amps += psuLoadAmps(diagram, reg.id, vout, liveOhms);
+    } finally {
+      regulateursEnCours.delete(reg.id);
+    }
   }
   for (const part of diagram.parts) {
     const kind = partDef(part.type).kind;
