@@ -93,6 +93,7 @@ import { hasPinout, pinoutPoster, loadPinoutSvg } from '../../src/webview/diagra
 import '../../src/webview/composants/pico-board.mjs';
 import '../../src/webview/composants/arduino-uno-element.mjs';
 import '../../src/webview/composants/arduino-mega-element.mjs';
+import '../../src/webview/composants/grove-shield-element.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
 const ok = (name, cond, detail = '') => checks.push({ name, ok: !!cond, detail: String(detail) });
@@ -225,6 +226,38 @@ async function run() {
 			Math.abs(dx) < 1 && Math.abs(dy) < 1, 'dx=' + dx.toFixed(2) + ' dy=' + dy.toFixed(2));
 		ok('pico2 : posé sans étirement vertical (mode align)',
 			!/scaleY/.test(ov3.style.transform || ''), ov3.style.transform || '(aucun)');
+	}
+	editor.toggleSelectedSchema();
+	await wait(60);
+
+	// --- affichage réel : Grove Shield (Pico) — poster calé sur 2 repères -----
+	// Frank a dessiné le brochage avec deux pastilles de repère (I2C0.GND en
+	// (70.57, 30.81) et D20.GND en (189.53, 210.87) dans le poster) qui doivent
+	// tomber sur les trous (60, 20) et (180, 200) de la carte.
+	ok('grove-pico : hasPinout vrai, pose alignée sans déformation',
+		hasPinout('grove-pico') === true && pinoutPoster('grove-pico').mode === 'align' &&
+		pinoutPoster('grove-pico').s === 1 && pinoutPoster('grove-pico').cardW === 220);
+	const grove = editor.addPart('grove-pico', 100, 700);
+	await wait(150);
+	selectPart(editor, grove.id);
+	editor.toggleSelectedSchema();
+	await wait(400);
+	const rG = editor.rendered.get(grove.id);
+	const ovG = rG.container.querySelector('.part__pinout');
+	ok('grove-pico : poster posé et non vide', !!ovG && !!ovG.querySelector('svg'));
+	if (ovG) {
+		const geo = pinoutPoster('grove-pico');
+		const board = (rG.el.shadowRoot ?? rG.el).querySelector('svg').getBoundingClientRect();
+		const po = ovG.getBoundingClientRect();
+		const k = po.width / geo.w;
+		const kb = board.width / geo.cardW;
+		const d1x = (po.left + 70.57 * k) - (board.left + 60 * kb);
+		const d1y = (po.top + 30.81 * k) - (board.top + 20 * kb);
+		const d2x = (po.left + 189.53 * k) - (board.left + 180 * kb);
+		const d2y = (po.top + 210.87 * k) - (board.top + 200 * kb);
+		ok('grove-pico : repères I2C0.GND et D20.GND sur leurs trous (< 1 px)',
+			[d1x, d1y, d2x, d2y].every((d) => Math.abs(d) < 1),
+			[d1x, d1y, d2x, d2y].map((d) => d.toFixed(2)).join(' '));
 	}
 	editor.toggleSelectedSchema();
 	await wait(60);

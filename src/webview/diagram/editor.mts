@@ -52,7 +52,7 @@ import { colorDisplayName, colorSwatchBackground } from './colors.mjs';
 import { couleurVoie, themeSombre, voiesProchesDuFil } from '../voies-couleurs.mjs';
 import { breadboardPins, normalizeSize, stripOfPin } from './breadboard.mjs';
 import { embedClipboardInSvg, encodeClipboard, extractClipboard, type ClipboardPayload } from './clipboard.mjs';
-import { groveSignalGpio, groveSocketPins } from './grove-shield.mjs';
+import { GROVE_H, GROVE_W, groveSignalGpio, groveSocketPins } from './grove-shield.mjs';
 import { shieldSignalTarget } from './shield.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
 import { hasPinout, pinoutPoster, loadPinoutSvg } from './pinout.mjs';
@@ -6599,7 +6599,7 @@ export class Editor {
     let top = 0;
     // Taille nominale de CETTE variante : les Pico 2 sont dessinées en portrait,
     // les Pico 1 en paysage.
-    const nominal = boardSize(r.part.type);
+    const nominal = r.part.type === 'grove-pico' ? { w: GROVE_W, h: GROVE_H } : boardSize(r.part.type);
     let width = nominal.w;
     let height = nominal.h;
     const rotated = (r.part.rotation ?? 0) % 360 !== 0 || !!r.part.flipH || !!r.part.flipV;

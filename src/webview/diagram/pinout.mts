@@ -71,6 +71,11 @@ const POSTERS: Record<string, PinoutPoster> = {
   // carte (ty = -115.07 ; la rangée basse donne -115.08, écart sous 0,02 px).
   uno: { mode: 'align', w: 280, h: 450, cardW: 300, s: 1, tx: 42.52, ty: -115.07 },
   mega: { mode: 'align', w: 142.70264, h: 130.34598, cardW: 430, s: 3.7795, tx: 4.32, ty: -140.34 },
+  // Grove Shield (Pico) : brochage dessiné par Frank dans Composants2D.svg
+  // (Grove-Pico-Pi-Interne), extrait en px (s = 1). Calé sur ses deux pastilles
+  // de repère I2C0.GND (60, 20) et D20.GND (180, 200) de la carte : écart
+  // résiduel ±0,5 px en x (le dessin fait 1 px de moins entre les deux).
+  'grove-pico': { mode: 'align', w: 240, h: 272, cardW: 220, s: 1, tx: -10.05, ty: -10.84 },
 };
 
 /** La carte a-t-elle un poster de brochage ? (test synchrone : bouton ☢) */

@@ -4,6 +4,14 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 [Voir en ligne](https://github.com/FrankSAURET/kablix/blob/main/CHANGELOG.md) · [View online](https://github.com/FrankSAURET/kablix/blob/main/CHANGELOG.md)
 
+## 2026.10.3 (prochaine publication)
+
+### Nouveauté
+
+**Grove Shield Pico**
+
+- **Brochage complet avec le bouton ☢** : le schéma des connecteurs Grove et des GPIO s'affiche en surimpression du shield, comme sur les cartes Arduino et Pico.
+
 ## 2026.10.2 (11 octobre 2026)
 
 ### Nouveauté

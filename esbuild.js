@@ -38,6 +38,7 @@ const PINOUTS = {
   'uno.svg': 'src/webview/composants/interne/uno-pinout.svg',
   'mega.svg': 'src/webview/composants/interne/mega pinout.svg',
   'nano.svg': 'src/webview/composants/interne/nano pinout.svg',
+  'grove-pico.svg': 'src/webview/composants/interne/grove-pico-pinout.svg',
 };
 
 function copyPinouts() {

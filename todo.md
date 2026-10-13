@@ -1,10 +1,17 @@
 # À faire
-- J'ai ajouté le brochage de la Grove Shield (Pico). Il s'appelle Grove-Pico-Pi-Interne dans composant2D.svg. Il n'y a que 2 pastilles rouges pour le positionnement, I2C0.GND et D20.GND. Tu les supprime une fois aligné.
 - Crée un composant LM35a en bpoitier TO92. Attention s'il est entre Vs et GND il ne donne que des températures positive mais s'il est entre Vs et - Vs avec une résistance entre Vout et -Vs (R=-Vs/50µA) il donne aussi des tensions négatives. Il nécessite un alim de 4V donc précise dans sa doc que pour une pico il faut l'alimenter via Vsys. Tu le mettra en version béta dans la bibliothèque kablix_component. Il apparaitre dans la catégorie capteur.
 - Rajoute au même endroit un L78SxxCV. Régulateur xxV. Propriété xx tension en volt (5; 6; 8; 8.5; 9; 12; 15; 18; 24) et courant. Si on dépasse le courant la tension s'effondre.  Boitier TO220. Vdropout=2V si pas possible signalement. Il apparaitra dans la catégorie Circuit intégrés.
 - 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.2.227 — brochage ☢ du Grove Shield Pico
+1. ✅ **Poster `grove-pico`** : `Grove-Pico-Pi-Interne` extrait de `Composants2D.svg` en `src/webview/composants/interne/grove-pico-pinout.svg` (240×272 px, s = 1), copié par `esbuild.js` dans `dist/pinout/`. Pose `align` dans `pinout.mts`, calée sur I2C0.GND (60, 20) et D20.GND (180, 200) : écart ±0,5 px en x (le dessin de Frank fait 1 px de moins entre les deux).
+2. ✅ `editor.mts` : taille nominale du shield (`GROVE_W` × `GROVE_H`) pour le calcul de pose.
+3. ✅ Les 2 pastilles de repère supprimées de `Composants2D.svg`.
+4. ✅ Banc `verify:pinout` : bloc grove-pico (pose + repères à moins de 1 px).
 
 ---
 
