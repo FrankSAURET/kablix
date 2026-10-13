@@ -634,6 +634,21 @@
       }
     },
     {
+      "group": "L78SxxCV",
+      "type": "l78sxxcv",
+      "experimental": true,
+      "label": "Voltage regulator L78SxxCV (TO-220)",
+      "description": "STMicroelectronics L78S positive linear regulator, 2 A, TO-220. Pick the output voltage (5, 6, 8, 8.5, 9, 12, 15, 18 or 24 V) and the maximum current in the inspector. The input must stay at least 2 V above the output (dropout): below that the output follows the input minus 2 V. Past the maximum current the output voltage collapses.",
+      "version": "2026.10.0",
+      "author": "Frank Sauret",
+      "reference": "https://www.st.com/en/power-management/l78s.html",
+      "kind": "psu",
+      "category": "Integrated circuits",
+      "pinRoles": { "V+": "OUT", "GND": "GND" },
+      "attrs": { "voltage": "5", "maxcurrent": "2" },
+      "regulator": { "in": "IN", "dropout": 2, "voltages": [5, 6, 8, 8.5, 9, 12, 15, 18, 24] }
+    },
+    {
       "group": "DSB1820-Etanche",
       "type": "ds18b20-etanche",
       "label": "Temperature sensor DS18B20 (waterproof probe)",

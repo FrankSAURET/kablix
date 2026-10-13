@@ -315,6 +315,21 @@ export interface CustomBattery {
   empty: number;
 }
 
+/**
+ * Régulateur de tension linéaire (kind `psu`) : la sortie suit `voltage` tant
+ * que l'entrée `in` dépasse cette tension de `dropout` volts ; en dessous elle
+ * suit l'entrée moins `dropout`. Au-delà du courant `maxcurrent`, la tension
+ * s'effondre (voir psuOutVolts, model.mts).
+ */
+export interface CustomRegulator {
+  /** Patte d'entrée (le V+ du `psu` est la sortie). */
+  in: string;
+  /** Tension d'entrée minimale au-dessus de la sortie, en volts. */
+  dropout: number;
+  /** Tensions de sortie proposées dans l'inspecteur. */
+  voltages: number[];
+}
+
 export interface CustomRfidMode {
   /** Valeur de l'attribut de mode qui choisit cette liaison. */
   value: string;
@@ -452,6 +467,8 @@ export interface PartDef {
     rfid?: CustomRfid;
     /** Pile ou batterie : tension pleine et tension à vide (voir sim.mts, majBatteries). */
     battery?: CustomBattery;
+    /** Régulateur linéaire : entrée, chute minimale, tensions proposées. */
+    regulator?: CustomRegulator;
   };
   /**
    * Variante d'un composant déjà listé : le type reste parfaitement valide
@@ -513,6 +530,8 @@ export interface CustomPartData {
   rfid?: CustomRfid;
   /** Pile ou batterie (voir CustomBattery). */
   battery?: CustomBattery;
+  /** Régulateur linéaire (voir CustomRegulator). */
+  regulator?: CustomRegulator;
   /** Script behavior.mjs embarqué (optionnel) : comportement de simulation. */
   behaviorScript?: string;
   /** Métadonnées provenance + confiance (kompix uniquement, Lot 2). */
@@ -1693,7 +1712,14 @@ export function registerCustomPart(data: CustomPartData): PartDef {
     optionLabels: Object.fromEntries(tg.options.map((o) => [o.value, o.label])),
   }));
   const toggleAttrs = Object.fromEntries(toggles.map((tg) => [tg.attr, tg.options[0]?.value ?? '']));
-  const props = [...baseProps, ...switchProps, ...toggleProps, ...paramProps];
+  // Régulateur : choix de la tension de sortie (liste fermée) et courant max.
+  // `maxcurrent` est l'attribut déjà lu par la détection de surcourant des alims.
+  const reg = data.regulator;
+  const regProps: PropDef[] = reg ? [
+    { attr: 'voltage', label: 'Output voltage (V)', kind: 'select', options: reg.voltages.map(String) },
+    { attr: 'maxcurrent', label: 'Max current supplied (A)', kind: 'number', min: 0.1, max: 10, step: 0.1 },
+  ] : [];
+  const props = [...baseProps, ...switchProps, ...toggleProps, ...regProps, ...paramProps];
   const def: PartDef = {
     type: data.type,
     label: data.label,
@@ -1721,6 +1747,7 @@ export function registerCustomPart(data: CustomPartData): PartDef {
       toggles: data.toggles,
       rfid: data.rfid,
       battery: data.battery,
+      regulator: data.regulator,
     },
     analogPin: data.kind === 'analog-source' ? data.pinRoles?.['AO'] ?? 'AO' : undefined,
     digitalPin: data.kind === 'digital-source' ? data.pinRoles?.['OUT'] ?? 'OUT' : undefined,

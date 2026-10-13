@@ -1,8 +1,19 @@
 # À faire
-- Rajoute au même endroit un L78SxxCV. Régulateur xxV. Propriété xx tension en volt (5; 6; 8; 8.5; 9; 12; 15; 18; 24) et courant. Si on dépasse le courant la tension s'effondre.  Boitier TO220. Vdropout=2V si pas possible signalement. Il apparaitra dans la catégorie Circuit intégrés.
 - 
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.2.229 — composant L78SxxCV (Béta)
+1. ✅ **Dessin** : groupe `L78SxxCV` de `Composants2D.svg` (TO-220, pattes IN / GND / OUT), déjà en place.
+2. ✅ **Bibliothèque** : entrée `l78sxxcv` dans `_sources.json` — `"experimental": true`, `kind: psu`, catégorie Integrated circuits, `pinRoles {"V+":"OUT","GND":"GND"}`, nouveau bloc `regulator {in, dropout: 2, voltages}`, version `2026.10.0`. `.kompix`, index, README reconstruits ; `verify:kompix` 43/43.
+3. ✅ **Moteur** : bloc `regulator` transporté (`catalog.mts` `CustomRegulator`, `kompixLibrary.ts`, `build-kompix.mjs`). Inspecteur : tension de sortie en liste fermée (5 ; 6 ; 8 ; 8,5 ; 9 ; 12 ; 15 ; 18 ; 24 V) et courant max (`maxcurrent`, 2 A par défaut).
+4. ✅ **Modèle** : `psuOutVolts` (`model.mts`) remplace les 4 lectures `psuVolts ?? attrs.voltage`. Sortie = min(tension réglée, entrée − 2 V), 0 V sans entrée ; entrée lue sur une autre source `psu` (cascade) ou un rail de carte ; au-delà de `maxcurrent`, U × Imax / I (courant limité sur charge résistive).
+5. ✅ **Banc** `verify:regulateur` (16 contrôles : catalogue, marge, entrée en l'air, cascade, effondrement, LED en aval) + cas `regulateur` dans `testkablix/_verify.mjs`.
+6. ✅ **Fiche d'aide FR** `help/l78sxxcv/fr.md`. **Tests** `l78sxxcv-uno`, `l78sxxcv-pico`, `l78sxxcv-pico2` + ligne `testkablix/README.md`.
+7. ℹ️ **Limites** : le courant tiré par le régulateur n'est pas compté sur sa source d'entrée ; pas de courant de repos ni d'échauffement ; la tension d'entrée n'est pas lue à travers un composant intermédiaire (résistance, diode) ; pas de signalement visuel de la marge insuffisante (la sortie baisse, c'est tout).
+8. ⏳ Traductions (`l10n` ES / ZH, fiche d'aide EN / ES / ZH) : avant publication.
 
 ---
 

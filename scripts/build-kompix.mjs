@@ -293,6 +293,8 @@ async function main() {
       rfid: comp.rfid,
       // Pile ou batterie : tension pleine et tension à vide (v2026.9.7.180).
       battery: comp.battery,
+      // Régulateur linéaire : entrée, chute minimale, tensions proposées.
+      regulator: comp.regulator,
       // Traductions des libellés du composant : le catalogue de Kablix ne
       // connaît que ses composants natifs, un composant de bibliothèque emporte
       // donc les siennes dans son paquet (voir kompix_specification.md).

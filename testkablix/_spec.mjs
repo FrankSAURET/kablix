@@ -148,6 +148,8 @@ export const PART_PINS = {
   // Capteur de température LM35A (TO-92) : alimentation, sortie ANALOGIQUE
   // (10 mV par °C), masse — dans l'ordre du boîtier vu de face.
   lm35a: ['Vs', 'Vout', 'GND'],
+  // Régulateur linéaire L78SxxCV (TO-220) : entrée, masse, sortie.
+  l78sxxcv: ['IN', 'GND', 'OUT'],
   'pile-4aa': ['+', '-'],
   'pile-9v': ['+', '-'],
   'pile-cr2032': ['+', '-'],
@@ -3682,6 +3684,45 @@ void loop() {
 `,
   }),
 
+  // Régulateur L78SxxCV réglé sur 5 V, alimenté par une pile 9 V (9,5 V neuve,
+  // donc 7,5 V de marge au-dessus de la sortie). La sortie va sur A0 : on lit
+  // 5 V, soit 1023.
+  test({
+    name: 'l78sxxcv-uno', board: 'uno', ext: 'ino',
+    kompix: ['l78sxxcv', 'pile-9v'],
+    parts: [
+      MCU('uno'),
+      { id: 'Bat1', type: 'pile-9v', x: 620, y: 60 },
+      { id: 'Reg1', type: 'l78sxxcv', x: 520, y: 200, attrs: { voltage: '5', maxcurrent: '2' } },
+    ],
+    wires: () => [
+      w('Bat1', '+', 'Reg1', 'IN', 'red'),
+      w('Bat1', '-', 'Reg1', 'GND', 'black'),
+      w('Bat1', '-', 'U1', 'GND.1', 'black'),
+      w('Reg1', 'OUT', 'U1', 'A0', 'yellow'),
+    ],
+    expect: { kind: 'regulateur', partId: 'Reg1', volts: 5 },
+    code: `// Test régulateur L78SxxCV (5 V) : sortie lue sur A0.
+// Entrée : pile 9 V (9,5 V). Sortie attendue : 5 V, soit 1023 pas.
+// Essais : mettre la tension sur 12 V dans l'inspecteur (la pile ne donne que
+// 9,5 V : la sortie tombe à 7,5 V, marge de 2 V) ; ajouter une charge qui tire
+// plus que le courant max : la tension s'effondre.
+const int SORTIE = A0;
+
+void setup() {
+  Serial.begin(115200);
+}
+
+void loop() {
+  float volts = analogRead(SORTIE) * 5.0 / 1023.0;
+  Serial.print("sortie = ");
+  Serial.print(volts, 2);
+  Serial.println(" V");
+  delay(500);
+}
+`,
+  }),
+
   // Lecteur RFID Grove 125 kHz : le composant qui PARLE au microcontrôleur. Le
   // cavalier est ici à gauche (mode UART) : le module envoie le numéro du badge
   // en clair sur son fil « Tx », à 9600 bauds, tant que le badge reste dans la
@@ -6668,6 +6709,42 @@ capteur = ADC(27)
 while True:
     volts = capteur.read_u16() * 3.3 / 65535
     print("temperature =", round(volts * 100, 1), "C")
+    time.sleep(0.5)
+`,
+  }),
+
+  // Même régulateur côté Pico : la sortie de 5 V dépasse les 3,3 V de l'ADC, un
+  // pont diviseur 20 kΩ / 10 kΩ la ramène à 1,67 V sur GP27.
+  test({
+    name: 'l78sxxcv-pico', board: 'pico', ext: 'py',
+    kompix: ['l78sxxcv', 'pile-9v'],
+    parts: [
+      MCU('pico'),
+      { id: 'Bat1', type: 'pile-9v', x: 700, y: 60 },
+      { id: 'Reg1', type: 'l78sxxcv', x: 600, y: 200, attrs: { voltage: '5', maxcurrent: '2' } },
+      { id: 'R1', type: 'resistor', x: 520, y: 300, attrs: { value: '20000' } },
+      { id: 'R2', type: 'resistor', x: 520, y: 360, attrs: { value: '10000' } },
+    ],
+    wires: () => [
+      w('Bat1', '+', 'Reg1', 'IN', 'red'),
+      w('Bat1', '-', 'Reg1', 'GND', 'black'),
+      w('Bat1', '-', 'U1', 'GND.7', 'black'),
+      w('Reg1', 'OUT', 'R1', '1', 'red'),
+      w('R1', '2', 'R2', '1', 'yellow'),
+      w('R1', '2', 'U1', 'GP27', 'yellow'),
+      w('R2', '2', 'U1', 'GND.7', 'black'),
+    ],
+    expect: { kind: 'regulateur', partId: 'Reg1', volts: 5 },
+    code: `# Test régulateur L78SxxCV (5 V) : sortie lue sur GP27 (ADC1) par un pont
+# diviseur 20 kΩ / 10 kΩ (1/3 de la sortie, soit 1,67 V attendus).
+from machine import ADC
+import time
+
+capteur = ADC(27)
+
+while True:
+    volts = capteur.read_u16() * 3.3 / 65535 * 3
+    print("sortie =", round(volts, 2), "V")
     time.sleep(0.5)
 `,
   }),

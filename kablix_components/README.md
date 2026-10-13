@@ -32,7 +32,7 @@ Deux scénarios de bout en bout, dessin compris :
 Composants de cette bibliothèque, à installer depuis Kablix (**⚙ Gérer les composants**).
 
 <details>
-<summary><strong>14 composant(s) à télécharger</strong></summary>
+<summary><strong>15 composant(s) à télécharger</strong></summary>
 
 | | Type | Label | Version | Catégorie | Description |
 |---|------|-------|---------|-----------|-------------|
@@ -44,6 +44,7 @@ Composants de cette bibliothèque, à installer depuis Kablix (**⚙ Gérer les 
 | <img src="thumbnails/grove-rfid.webp" alt="Grove 125 kHz RFID reader" width="64"> | `grove-rfid` | Grove 125 kHz RFID reader | 2026.9.2 | Sensors | Grove 125 kHz RFID reader (EM4100 tags): while a tag sits in the antenna loop the module keeps sending its… |
 | <img src="thumbnails/grove-uno.webp" alt="Grove Shield (Uno)" width="64"> | `grove-uno` | Grove Shield (Uno) | 2026.9.2 | Boards | Grove Base Shield V2 for Arduino Uno: 16 Grove sockets (4 analog, 7 digital, 4 I2C, 1 UART) wired to the… |
 | <img src="thumbnails/ir-barrier.webp" alt="Through-beam IR barrier" width="64"> | `ir-barrier` | Through-beam IR barrier | 2026.9.1 | Sensors | Through-beam infrared barrier (emitter + receiver): while the beam reaches the receiver its output transistor… |
+| <img src="thumbnails/l78sxxcv.webp" alt="Voltage regulator L78SxxCV (TO-220)" width="64"> | `l78sxxcv` | Voltage regulator L78SxxCV (TO-220) **(expérimental)** | 2026.10.0 | Integrated circuits | STMicroelectronics L78S positive linear regulator, 2 A, TO-220. Pick the output voltage (5, 6, 8, 8.5, 9, 12… |
 | <img src="thumbnails/lm35a.webp" alt="Temperature sensor LM35A (TO-92)" width="64"> | `lm35a` | Temperature sensor LM35A (TO-92) **(expérimental)** | 2026.10.0 | Sensors | Texas Instruments LM35A analog temperature sensor (-55 to +150 °C, ±0.5 °C): the output voltage is 10 mV per… |
 | <img src="thumbnails/pile-4aa.webp" alt="Battery pack 4 × AA" width="64"> | `pile-4aa` | Battery pack 4 × AA | 2026.10.0 | Batteries | Holder of four AA alkaline cells in series: 6.4 V when new, down to 4.4 V when flat, 2500 mAh. It drains at… |
 | <img src="thumbnails/pile-9v.webp" alt="Battery 9 V" width="64"> | `pile-9v` | Battery 9 V | 2026.10.0 | Batteries | 9 V alkaline battery (6LR61): 9.5 V when new, down to 6.0 V when flat, 500 mAh. It drains at the pace of what… |
@@ -159,7 +160,7 @@ Pour proposer un composant :
 
 La question se pose : un dépôt séparé ne serait-il pas plus propre ? **Non, pas au volume actuel.**
 
-Ce dossier **n'est pas livré dans l'extension** (il est écarté par `.vscodeignore`) : il est servi directement depuis GitHub, en `raw`, et l'extension le télécharge à la demande. Il ne pèse donc rien pour l'utilisateur, et ses 14 composants tiennent dans quelques centaines de kilo-octets.
+Ce dossier **n'est pas livré dans l'extension** (il est écarté par `.vscodeignore`) : il est servi directement depuis GitHub, en `raw`, et l'extension le télécharge à la demande. Il ne pèse donc rien pour l'utilisateur, et ses 15 composants tiennent dans quelques centaines de kilo-octets.
 
 | Ce qu'un dépôt dédié apporterait | Ce qu'il coûterait |
 |---|---|
@@ -174,4 +175,4 @@ Le point décisif est le dernier : tant qu'un composant de bibliothèque peut d�
 
 ---
 
-Généré le 13/10/2026 12:12:37 — Kablix v2026.10.2
+Généré le 13/10/2026 12:20:19 — Kablix v2026.10.2

@@ -193,6 +193,9 @@ interface KompixManifest {
    *  Sa sortie baisse de l'une à l'autre à mesure qu'elle se vide (v2026.9.7.180).
    *  Une version qui ignore ce bloc la traite comme une source fixe. */
   battery?: { full: number; empty: number };
+  /** Régulateur linéaire (kind `psu`) : patte d'entrée, chute minimale (V) et
+   *  tensions de sortie proposées. Voir CustomRegulator (catalog.mts). */
+  regulator?: { in: string; dropout: number; voltages: number[] };
   /** Lecteur de badges : code envoyé au microcontrôleur quand le badge passe.
    *  Détaillé dans src/webview/diagram/catalog.mts (CustomRfid). */
   rfid?: {
@@ -253,6 +256,8 @@ interface CustomPartData {
   rfid?: KompixManifest['rfid'];
   /** Pile ou batterie (voir KompixManifest.battery). */
   battery?: KompixManifest['battery'];
+  /** Régulateur linéaire (voir KompixManifest.regulator). */
+  regulator?: KompixManifest['regulator'];
   category?: string;
   /** Le .kompix embarque une fiche d'aide : l'inspecteur montre alors son
    *  bouton « Aide du composant ». Le texte, lui, reste dans le paquet — il est
@@ -521,6 +526,7 @@ export class KompixLibrary {
         toggles: manifest.toggles,
         rfid: manifest.rfid,
         battery: manifest.battery,
+        regulator: manifest.regulator,
         category: manifest.category,
         hasHelp: langs.length > 0 || undefined,
         behaviorScript: behaviorScript,
@@ -956,6 +962,7 @@ export class KompixLibrary {
       toggles: data.toggles,
       rfid: data.rfid,
       battery: data.battery,
+      regulator: data.regulator,
       innerOffset: data.innerOffset ?? null,
       extAnchor: data.extAnchor ?? null,
       intAnchor: data.intAnchor ?? null,

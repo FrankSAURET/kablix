@@ -777,6 +777,14 @@ for (const t of TESTS) {
         }
         break;
       }
+      case 'regulateur': {
+        // Régulateur linéaire : tension de sortie lue par le modèle (marge de
+        // 2 V sur l'entrée, courant limité), avec la source réelle à l'entrée.
+        const reg = diagram.parts.find((p) => p.id === e.partId);
+        const v = reg ? model.psuOutVolts(diagram, reg) : NaN;
+        check(`${t.name} : ${e.partId} sort ${e.volts} V`, Math.abs(v - e.volts) < 0.05, `lu=${v}`);
+        break;
+      }
       case 'nets':
         // Continuité pure : aucun modèle de simulation derrière le composant
         // (liaison DMX512, câblage passif).

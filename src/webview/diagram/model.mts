@@ -439,6 +439,50 @@ function psuParts(diagram: Diagram): Part[] {
   return diagram.parts.filter((p) => partDef(p.type).kind === 'psu');
 }
 
+/**
+ * Tension de sortie (V) d'une source `psu`. Alim de laboratoire et pile : la
+ * tension vive (`psuVolts`) à défaut l'attribut `voltage`. RÉGULATEUR linéaire
+ * (L78SxxCV) : la tension réglée, rabotée par l'entrée — il lui faut `dropout`
+ * volts de marge, sinon la sortie suit l'entrée moins cette marge — puis
+ * EFFONDRÉE si la charge réclame plus que `maxcurrent` (courant limité sur
+ * charge résistive : U = Imax × R, donc U × Imax / I). L'entrée est lue sur le
+ * net de la patte `in` : autre source `psu` (régulateurs en cascade compris),
+ * ou rail d'alimentation d'une carte. Sans source à l'entrée, la sortie est nulle.
+ */
+export function psuOutVolts(
+  diagram: Diagram,
+  psu: Part,
+  psuVolts?: (partId: string) => number | null,
+  liveOhms?: (part: Part) => number | null,
+  depth = 0
+): number {
+  const def = partDef(psu.type);
+  const reg = def.custom?.regulator;
+  if (!reg) return psuVolts?.(psu.id) ?? Number(psu.attrs?.voltage ?? def.attrs?.voltage ?? 0);
+  const attrs = { ...def.attrs, ...psu.attrs };
+  const vset = Number(attrs.voltage) || 0;
+  const imax = Math.max(0.05, Number(attrs.maxcurrent ?? 2) || 2);
+  const nets = buildNets(diagram);
+  const inNet = nets.netOf({ partId: psu.id, pin: reg.in });
+  let vin = 0;
+  for (const other of psuParts(diagram)) {
+    if (other.id === psu.id || depth >= 3) continue;
+    if (nets.netOf({ partId: other.id, pin: psuPlus(other) }) !== inNet) continue;
+    const v = psuOutVolts(diagram, other, psuVolts, liveOhms, depth + 1);
+    if (Number.isFinite(v)) vin = Math.max(vin, v);
+  }
+  for (const { part, board } of mcuParts(diagram)) {
+    for (const pin of mcuPins(board)) {
+      if (mcuPinRole(board, pin).role !== 'vcc') continue;
+      if (nets.netOf({ partId: part.id, pin }) === inNet) vin = Math.max(vin, railPinVolts(pin, 5));
+    }
+  }
+  const vout = Math.min(vset, Math.max(0, vin - reg.dropout));
+  if (vout <= 0) return 0;
+  const load = psuLoadAmps(diagram, psu.id, vout, liveOhms);
+  return load > imax ? (vout * imax) / load : vout;
+}
+
 /** Entrées d'alimentation d'une carte : régulateur (VIN, VSYS) ou rail direct (5V, VBUS). */
 const ENTREES_CARTE = ['VIN', 'VSYS', 'VBUS', '5V'];
 
@@ -1076,8 +1120,7 @@ export function ledPowerCircuit(
   if (reached.net !== undefined) {
     for (const psu of psuParts(diagram)) {
       if (nets.netOf({ partId: psu.id, pin: psuPlus(psu) }) !== reached.net) continue;
-      const live = psuVolts?.(psu.id);
-      const v = live ?? Number(psu.attrs?.voltage ?? 0);
+      const v = psuOutVolts(diagram, psu, psuVolts);
       supplyVolts = Number.isFinite(v) ? v : 0;
       break;
     }
@@ -1305,8 +1348,7 @@ export function pca9685PowerState(
       if (nets.netOf({ partId: psu.id, pin: psuPlus(psu) }) !== vNet) continue;
       if (nets.netOf({ partId: psu.id, pin: psuMoins(psu) }) !== gNet) continue;
       psuId = psu.id;
-      const live = psuVolts?.(psu.id);
-      const v = live ?? (Number(psu.attrs?.voltage ?? 0) || 0);
+      const v = psuOutVolts(diagram, psu, psuVolts, liveOhms) || 0;
       // Surtension : au-delà de 5,5 V sur le bornier V+, la carte grille
       // (demande de Frank — comportement réel : les servos/le PCA n'encaissent
       // pas plus). Signalé à part de la sous-tension (qui rend juste inerte).
@@ -1638,7 +1680,7 @@ function circuitSources(
   }
   for (const psu of psuParts(diagram)) {
     const net = nets.netOf({ partId: psu.id, pin: psuPlus(psu) });
-    const v = psuVolts?.(psu.id) ?? Number(psu.attrs?.voltage ?? 0);
+    const v = psuOutVolts(diagram, psu, psuVolts);
     if (Number.isFinite(v)) railVolts.set(net, Math.max(railVolts.get(net) ?? 0, v));
   }
   // Résistance NULLE : un rail est une source idéale. Lui donner une résistance
@@ -2266,7 +2308,7 @@ function netSupply(
 ): { volts: number; amps: number; mcuPin: string | null } {
   for (const psu of psuParts(diagram)) {
     if (nets.netOf({ partId: psu.id, pin: psuPlus(psu) }) !== net) continue;
-    const v = psuVolts?.(psu.id) ?? Number(psu.attrs?.voltage ?? 0);
+    const v = psuOutVolts(diagram, psu, psuVolts);
     const a = Number(psu.attrs?.maxcurrent);
     return {
       volts: Number.isFinite(v) ? v : 0,
