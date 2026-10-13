@@ -1,5 +1,10 @@
 # À faire
-- 
+
+-  Sur le boitier des L78SxxCV tu notes seulement 78xx avec xx qui est la tension en volts avec 2 chiffres -> 5->05 et 12->12
+- `variateur-pnp-uno` (son `.projix` garde le fil `O1/GND → U1/GND.4`, broche inconnue sur Uno. je ne vois pas ce fil sur le schéma donc corrige
+- `oscillo-uno` / `oscillo-pico` (`M1.sdiv` mesuré à la main 0,003751 / 0,006675 contre 0,5 en spec ; `oscillo-pico2` réglé par son jumeau) -> Corrige
+- `verify:multimetre` (« mesure DANS l'écran, ampèremètre » après le réglage `DISPLAY_RIGHT` du 11/10), `verify:analyseur-regle` et `verify:analyseur-sans-declenchement` (erreur `sessionStorage` du Chrome d'essai). -> je ne comprends pas
+- Dans le fichier lm35a-uno j'ai fais un montage avec 2 alim en 5v reliées le + au moins pour avoir une alimentation symétrique +- 5v et tester le LM35a en négatif. Ca mets une erreur (courant limite). Pourquoi ?
 ## ne pas faire pour l'instant
 - Ruban led extensible
 

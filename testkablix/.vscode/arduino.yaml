@@ -1,4 +1,4 @@
 board: arduino:avr:uno
-sketch: Arduino/variateur-pnp-uno/variateur-pnp-uno.ino
+sketch: Arduino/lm35a-uno/lm35a-uno.ino
 port: COM3
 output: .build
