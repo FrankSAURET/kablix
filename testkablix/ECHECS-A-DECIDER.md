@@ -8,16 +8,16 @@ Principe commun : le `.projix` est le schéma que tu as retouché dans l'éditeu
 
 | N° | Groupe | Échecs | Nature | Recommandation |
 | --- | --- | --- | --- | --- |
-| 1 | Capacités des batteries | 3 | spec = capacité réduite pour la démonstration, `.projix` = capacité réelle | à décider |
-| 2 | `autonomie-uno` | 3 | batterie absente du `.projix` | B (défaut réel) |
-| 3 | `joystick-uno` | 1 | `.projix` enregistré pour une `nano` | à décider |
-| 4 | Générateur BF (`gbf-*`) | 10 | réglages retouchés | A |
-| 5 | DS18B20 (`ds18b20-*`) | 5 | capteur supplémentaire et sonde déplacée | A |
-| 6 | Oscilloscope (`oscillo-*`) | 4 | base de temps retouchée, voie M2 absente | A |
+| 1 | Capacités des batteries | 3 | spec = capacité réduite pour la démonstration, `.projix` = capacité réelle | Laisser comme c'est |
+| 2 | `autonomie-uno` | 3 | batterie absente du `.projix` |c'est corrigé |
+| 3 | `joystick-uno` | 1 | `.projix` enregistré pour une `nano` | B |
+| 4 | Générateur BF (`gbf-*`) | 10 | réglages retouchés | Ne rien changer |
+| 5 | DS18B20 (`ds18b20-*`) | 5 | capteur supplémentaire et sonde déplacée | Ne rien changer |
+| 6 | Oscilloscope (`oscillo-*`) | 4 | base de temps retouchée, voie M2 absente | détaille encore le problème |
 | 7 | Mesure (`mesure-*`) | 2 | calibre et tension retouchés | A |
-| 8 | `variateur-pnp-uno` | 2 | broche `GND.4` inconnue sur Uno | B (défaut réel) |
-| 9 | `moteur-dc-pico` | 1 | courant max retouché | A |
-| 10 | Sondes logiques (`sonde-logique-*`) | 20 | sondes déplacées, renommées, retirées | A |
+| 8 | `variateur-pnp-uno` | 2 | broche `GND.4` inconnue sur Uno | Je pense que j'ai corrigé |
+| 9 | `moteur-dc-pico` | 1 | courant max retouché | Confirmé |
+| 10 | Sondes logiques (`sonde-logique-*`) | 20 | sondes déplacées, renommées, retirées | On laisse tel quel |
 | 11 | Analyseur UART (`uart-*`) | 3 | réglages d'analyseur retouchés | A |
 | 12 | `buzzer-pico2` | 1 | variante `pico2` au lieu de `pico` | A |
 | 13 | `pot-pico2` | 1 | oscilloscope M1 absent | A |
