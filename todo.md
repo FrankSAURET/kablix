@@ -1,4 +1,8 @@
 # À faire
+- J'ai ajouté le brochage de la Grove Shield (Pico). Il s'appelle Grove-Pico-Pi-Interne dans composant2D.svg. Il n'y a que 2 pastilles rouges pour le positionnement, I2C0.GND et D20.GND. Tu les supprime une fois aligné.
+- Crée un composant LM35a en bpoitier TO92. Attention s'il est entre Vs et GND il ne donne que des températures positive mais s'il est entre Vs et - Vs avec une résistance entre Vout et -Vs (R=-Vs/50µA) il donne aussi des tensions négatives. Il nécessite un alim de 4V donc précise dans sa doc que pour une pico il faut l'alimenter via Vsys. Tu le mettra en version béta dans la bibliothèque kablix_component. Il apparaitre dans la catégorie capteur.
+- Rajoute au même endroit un L78SxxCV. Régulateur xxV. Propriété xx tension en volt (5; 6; 8; 8.5; 9; 12; 15; 18; 24) et courant. Si on dépasse le courant la tension s'effondre.  Boitier TO220. Vdropout=2V si pas possible signalement. Il apparaitra dans la catégorie Circuit intégrés.
+- 
 ## ne pas faire pour l'instant
 - Ruban led extensible
 
