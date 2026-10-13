@@ -18,7 +18,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Grove Shield Pico**
 
-- **Brochage complet avec le bouton ☢** : le schéma des connecteurs Grove et des GPIO s'affiche en surimpression du shield, comme sur les cartes Arduino et Pico.
+- **Brochage complet avec le bouton ꓘ** : le schéma des connecteurs Grove et des GPIO s'affiche en surimpression du shield, comme sur les cartes Arduino et Pico.
 
 ## 2026.10.2 (11 octobre 2026)
 
