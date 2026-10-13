@@ -104,6 +104,8 @@ import {
   digitalSourceBindings,
   analogSourceBindings,
   partSupplyVolts,
+  negativeRailFrom,
+  regulatorThermal,
   aoDoSensorBindings,
   customOpenDrainBindings,
   customRfidBindings,
@@ -429,6 +431,13 @@ const openDrainFaults = new Map<string, string>();
 let supplyChecks: Array<{ partId: string; vcc: string; gnd: string; volts: number; ok: boolean; apply: () => void }> = [];
 const supplyFaults = new Map<string, string>();
 let supplyLastMs = 0;
+// Tension signée de la sortie des capteurs actifs (LM35) : relue par les
+// multimètres / l'oscilloscope branchés dessus (meterReadings).
+const sensorVoltsMap = new Map<string, number>();
+const sensorVoltsAt = (id: string): number | null => sensorVoltsMap.get(id) ?? null;
+// Échauffement des régulateurs : coupure thermique et alerte, relus à 5 Hz.
+const thermalState = new Map<string, 'ok' | 'hot' | 'cut'>();
+let thermalLastMs = 0;
 /** Défaut de montage courant de chaque composant photosensible (phototransistor, photodiode). */
 const photoFaults = new Map<string, string>();
 // LED RGB : partId → broches MCU des canaux R/G/B (rapport cyclique PWM).
@@ -1036,6 +1045,7 @@ function renderTick(): void {
   updateHall();
   updateOpenDrain();
   updateSupplyChecks();
+  updateRegulatorThermal();
   refreshVisuals();
   flushAnalogWaves(); // après stepCapacitors (dans refreshVisuals) : la liste est complète
   tickBehaviors();
@@ -1356,6 +1366,45 @@ function updateSupplyChecks(): void {
         ? t('This part is not powered: its supply pin must reach a supply rail and its GND a ground.')
         : t('The supply is below the {0} V the chip needs, so its output stays at 0 V. Raise the supply (on a Pico use VSYS, not 3V3).', String(chk.volts))
     );
+  }
+}
+
+/**
+ * Échauffement des régulateurs linéaires : avertit quand la jonction dépasse la
+ * température conseillée, et signale la coupure de la protection thermique (la
+ * sortie tombe alors à 0 V, voir psuOutVolts). Relu 5 fois par seconde.
+ */
+function updateRegulatorThermal(): void {
+  const now = performance.now();
+  if (now - thermalLastMs < 200) return;
+  thermalLastMs = now;
+  for (const part of editor.diagram.parts) {
+    if (!partDef(part.type).custom?.regulator?.thermal) continue;
+    const th = regulatorThermal(editor.diagram, part, psuLiveVolts, liveVariableOhms);
+    const etat = !th ? 'ok' : th.cut ? 'cut' : th.hot ? 'hot' : 'ok';
+    if ((thermalState.get(part.id) ?? 'ok') === etat) continue;
+    thermalState.set(part.id, etat);
+    if (etat === 'ok') {
+      editor.setFaulty(part.id, false);
+      continue;
+    }
+    const watts = Math.round((th?.watts ?? 0) * 10) / 10;
+    const tj = Math.round(th?.tj ?? 0);
+    if (etat === 'cut') {
+      signalerMessage(`${t('Thermal shutdown: {0} W dissipated, junction at {1} °C', String(watts), String(tj))} (${part.id})`);
+      editor.setFaulty(
+        part.id,
+        true,
+        t('The regulator dissipates (Vin − Vout) × I as heat and its protection cut the output. Lower the input voltage or the current, or add a heatsink (Heatsink property).')
+      );
+    } else {
+      signalerMessage(`${t('Regulator too hot: {0} W dissipated, junction at {1} °C', String(watts), String(tj))} (${part.id})`);
+      editor.setFaulty(
+        part.id,
+        true,
+        t('The regulator dissipates (Vin − Vout) × I as heat. Lower the input voltage or the current, or add a heatsink (Heatsink property).')
+      );
+    }
   }
 }
 
@@ -1966,7 +2015,8 @@ function refreshMeters(): void {
     psuLiveVolts,
     liveVariableOhms,
     moyennePwm,
-    gbfVoltsAt
+    gbfVoltsAt,
+    sensorVoltsAt
   );
   if (lus.length === 0 && meterFrame.size === 0) return;
   meterFrame = new Map(lus.map((m) => [m.partId, m]));
@@ -1987,7 +2037,8 @@ function refreshMeters(): void {
         psuLiveVolts,
         liveVariableOhms,
         moyennePwm,
-        gbfVoltsAt
+        gbfVoltsAt,
+        sensorVoltsAt
       ).find((m) => m.partId === sonde.partId);
       return r && r.value !== null && Number.isFinite(r.value) ? r.value : null;
     };
@@ -2027,6 +2078,8 @@ function clearRelayFaults(): void {
   openDrainFaults.clear();
   supplyChecks = [];
   supplyFaults.clear();
+  sensorVoltsMap.clear();
+  thermalState.clear();
   photoFaults.clear();
   meterFaults.clear();
   meterFrame = new Map();
@@ -3841,6 +3894,9 @@ function bindInputs(): void {
   supplyChecks = [];
   supplyFaults.clear();
   supplyLastMs = 0;
+  sensorVoltsMap.clear();
+  thermalState.clear();
+  thermalLastMs = 0;
   for (const binding of customOpenDrainBindings(editor.diagram)) {
     const el = editor.elementOf(binding.partId);
     if (el) openDrainTargets.push({ binding, el });
@@ -3922,6 +3978,7 @@ function bindInputs(): void {
           }
         }
         const vref = isPicoBoard(board) ? 3.3 : 5;
+        const ctrlPin = (p: Part): string => partDef(p.type).analogPin ?? 'AO';
         const minSupply = partDef(part.type).custom?.minSupply;
         const chk = minSupply
           ? { partId: part.id, vcc: minSupply.vcc, gnd: minSupply.gnd, volts: minSupply.volts, ok: false, apply: () => {} }
@@ -3929,6 +3986,7 @@ function bindInputs(): void {
         const apply = () => {
           // Sous la tension minimale la puce est éteinte : sortie à 0 V.
           if (chk && !chk.ok) {
+            sensorVoltsMap.set(part.id, 0);
             engine?.setAnalog(pin, 0);
             return;
           }
@@ -3939,7 +3997,17 @@ function bindInputs(): void {
             for (const p of params) {
               vars[p.name] = Number(part.attrs?.[`${PARAM_ATTR_PREFIX}${p.name}`] ?? p.value);
             }
-            level = Math.min(1, Math.max(0, fn(vars) / vref));
+            let volts = fn(vars);
+            // Sortie négative (LM35 en pleine gamme) : possible seulement si une
+            // résistance de la sortie tire vers un rail −Vs. Sinon la sortie
+            // reste coincée à 0 V. L'entrée analogique de la carte lit 0 dans
+            // les deux cas ; seul un multimètre voit le négatif.
+            if (chk && volts < 0) {
+              const rail = negativeRailFrom(editor.diagram, part.id, ctrlPin(part), psuLiveVolts, liveVariableOhms);
+              if (!rail) volts = 0;
+            }
+            if (chk) sensorVoltsMap.set(part.id, volts);
+            level = Math.min(1, Math.max(0, volts / vref));
           } else {
             const min = ctrl.min ?? 0;
             // Borne haute figée, ou réglée dans l'inspecteur (`maxParam`) : le

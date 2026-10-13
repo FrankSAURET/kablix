@@ -1731,17 +1731,20 @@ void loop() {
     kompix: ['ds18b20', 'ds18b20-etanche'],
     parts: [
       MCU('uno'),
-      { id: 'Capt1', type: 'ds18b20', x: 600, y: 80 },
-      { id: 'Capt2', type: 'ds18b20-etanche', x: 600, y: 200 },
-      { id: 'R1', type: 'resistor', x: 460, y: 60, attrs: { value: '4700' } },
+      // REPRIS DU .projix de Frank : le second capteur est devenu Mod1, chaîné
+      // sur Capt1 (VDD, GND et Data en parallèle), et une pince SD1 écoute Data.
+      { id: 'Capt1', type: 'ds18b20', x: 420, y: 100 },
+      { id: 'Mod1', type: 'ds18b20-etanche', x: 480, y: 100 },
+      { id: 'R1', type: 'resistor', x: 410, y: 290, attrs: { value: '4700' } },
+      { id: 'SD1', type: 'sonde-logique', x: 290, y: 10, attrs: { voie: '0', accroche: 'U1/2', etiquette: '' } },
     ],
     wires: () => [
       w('Capt1', 'VDD', 'U1', '5V', 'red'),
       w('Capt1', 'GND', 'U1', 'GND.1', 'black'),
       w('Capt1', 'Data', 'U1', '2', 'yellow'),
-      w('Capt2', 'VDD', 'U1', '5V', 'red'),
-      w('Capt2', 'GND', 'U1', 'GND.2', 'black'),
-      w('Capt2', 'Data', 'U1', '2', 'yellow'),
+      w('Mod1', 'VDD', 'Capt1', 'VDD', 'red'),
+      w('Mod1', 'GND', 'Capt1', 'GND', 'black'),
+      w('Mod1', 'Data', 'Capt1', 'Data', 'yellow'),
       w('R1', '1', 'U1', '2', 'orange'),
       w('R1', '2', 'U1', '5V', 'red'),
     ],
@@ -1749,7 +1752,7 @@ void loop() {
       kind: 'onewire-temp',
       sensors: [
         { partId: 'Capt1', mcuPin: '2' },
-        { partId: 'Capt2', mcuPin: '2' },
+        { partId: 'Mod1', mcuPin: '2' },
       ],
     },
     code: `// Test DS18B20 : deux capteurs de température sur le MÊME fil (1-Wire Dallas).
@@ -2933,7 +2936,7 @@ void loop() {
       { id: 'L1', type: 'led', x: 400, y: 420, attrs: { color: 'red' } },
       { id: 'SD1', type: 'sonde-logique', x: 220, y: 10, attrs: { voie: '0', accroche: 'U1/8', etiquette: 'horloge' } },
       { id: 'SD2', type: 'sonde-logique', x: 300, y: 10, attrs: { voie: '1', accroche: 'U1/9' } },
-      { id: 'SD3', type: 'sonde-logique', x: 380, y: 10, attrs: { voie: '2', accroche: 'U1/GND.3' } },
+      { id: 'SD3', type: 'sonde-logique', x: 380, y: 10, attrs: { voie: '2', accroche: 'U1/GND.1' } },
       { id: 'SD4', type: 'sonde-logique', x: 460, y: 240, attrs: { voie: '3', accroche: 'U1/A0' } },
     ],
     wires: () => [
@@ -3004,8 +3007,9 @@ void loop() {
     ],
     wires: () => [],
     analyseur: {
+      declenchement: { voie: 1, sens: 'trame' },
       decodages: [
-        { protocole: 'uart', id: 'd1', donnees: 0, bauds: 9600 },
+        { protocole: 'uart', id: 'd1', donnees: 0, bauds: 9600, bits: true },
         { protocole: 'uart', id: 'd2', donnees: 1, bauds: 4800 },
       ],
       voiesReglages: { 0: { bauds: 9600 }, 1: { bauds: 4800 } },
@@ -3077,7 +3081,7 @@ void loop() {
       { id: 'D1', type: 'diode', x: 820, y: 140, attrs: { vf: '0.6' } },
       { id: 'M1', type: 'multimetre', x: 960, y: 40, attrs: { mode: 'voltage' } },
       { id: 'M2', type: 'multimetre', x: 960, y: 300, attrs: { mode: 'current' } },
-      { id: 'O1', type: 'oscillo', x: 260, y: 400, attrs: { voltsdiv: '1', sdiv: '0.001' } },
+      { id: 'O1', type: 'oscillo', x: 260, y: 400, attrs: { voltsdiv: '2', sdiv: '0.001' } },
       // 2. ventilateur
       { id: 'Act2', type: 'ventilo', x: 1280, y: 40, attrs: { voltage: '5', current: '0.85' } },
       { id: 'M3', type: 'multimetre', x: 1540, y: 40, attrs: { mode: 'voltage' } },
@@ -3266,7 +3270,7 @@ void loop() {
       { id: 'M3', type: 'multimetre', x: 1540, y: 40, attrs: { mode: 'voltage' } },
       { id: 'R2', type: 'resistor', x: 300, y: 760, attrs: { value: '1000' } },
       { id: 'T2', type: 'pn2222a', x: 440, y: 780 },
-      { id: 'Rl1', type: 'relais', x: 640, y: 900, attrs: { voltage: '5' } },
+      { id: 'Rl1', type: 'relais', x: 640, y: 900, attrs: { voltage: '3' } },
       { id: 'D2', type: 'diode', x: 820, y: 840 },
       { id: 'M4', type: 'multimetre', x: 960, y: 900, attrs: { mode: 'voltage' } },
       { id: 'Pot1', type: 'pot', x: 1280, y: 640, attrs: { min: '0', max: '100', value: '50' } },
@@ -3937,7 +3941,7 @@ void loop() {
     name: 'consommation-pico', board: 'pico', ext: 'py',
     parts: [
       MCU('pico', 160, 100),
-      { id: 'Bat1', type: 'powerbank', x: 700, y: 60, attrs: { voltage: '5', maxcurrent: '2', capacity: '1' } },
+      { id: 'Bat1', type: 'powerbank', x: 700, y: 60, attrs: { voltage: '5', maxcurrent: '2', capacity: '5000' } },
     ],
     wires: () => [
       w('Bat1', 'V+', 'U1', 'VSYS', 'red'),
@@ -3971,7 +3975,7 @@ while True:
   ...[
     { type: 'pile-4aa', board: 'uno', broche: 'VIN', demarre: true,
       note: "6,4 V neuves sur VIN : la Uno démarre, puis s'éteint sous 6,2 V (quelques secondes avec 1 mAh)." },
-    { type: 'pile-9v', board: 'uno', broche: 'VIN', demarre: true,
+    { type: 'pile-9v', board: 'uno', broche: 'VIN', demarre: true, capacite: '500',
       note: "9,5 V neuve sur VIN : la Uno tourne jusqu'à ce que la pile passe sous 6,2 V." },
     { type: 'pile-cr2032', board: 'uno', broche: '5V', demarre: false,
       note: '3 V sur la broche 5V : la Uno refuse de démarrer (il faut 4,5 à 5,5 V).' },
@@ -3982,7 +3986,7 @@ while True:
     kompix: [c.type],
     parts: [
       MCU('uno', 200, 80),
-      { id: 'Bat1', type: c.type, x: 700, y: 60, attrs: c.demarre ? { prm_capacity: '1' } : {} },
+      { id: 'Bat1', type: c.type, x: 700, y: 60, attrs: c.demarre ? { prm_capacity: c.capacite ?? '1' } : {} },
     ],
     wires: () => [
       w('Bat1', '+', 'U1', c.broche, 'red'),
@@ -4015,14 +4019,14 @@ void loop() {
       note: '9,5 V sur VSYS (il faut 1,8 a 5,5 V) : hors plage, comme un refus au demarrage -- en simulation reelle (sim.mts) la carte demarre et grille, VSYS n\'a pas de regulateur protecteur.' },
     { type: 'pile-cr2032', broche: 'VSYS', demarre: true,
       note: "3 V sur VSYS : la Pico tourne jusqu'a ce que la pile soit vide." },
-    { type: 'batterie-lipo', broche: 'VSYS', demarre: true,
+    { type: 'batterie-lipo', broche: 'VSYS', demarre: true, capacite: '1000',
       note: "4,2 V sur VSYS : la Pico tourne jusqu'a ce que la batterie soit vide." },
   ].map((c) => test({
     name: `${c.type}-pico`, board: 'pico', ext: 'py',
     kompix: [c.type],
     parts: [
       MCU('pico', 160, 100),
-      { id: 'Bat1', type: c.type, x: 700, y: 60, attrs: c.demarre ? { prm_capacity: '1' } : {} },
+      { id: 'Bat1', type: c.type, x: 700, y: 60, attrs: c.demarre ? { prm_capacity: c.capacite ?? '1' } : {} },
     ],
     wires: () => [
       w('Bat1', '+', 'U1', c.broche, 'red'),
@@ -4055,19 +4059,21 @@ while True:
     name: 'autonomie-uno', board: 'uno', ext: 'ino',
     kompix: ['pile-9v'],
     parts: [
-      MCU('uno', 200, 80),
-      { id: 'Bat1', type: 'pile-9v', x: 700, y: 60, attrs: { prm_capacity: '2' } },
-      { id: 'R1', type: 'resistor', x: 560, y: 300, attrs: { value: '220' } },
-      { id: 'L1', type: 'led', x: 700, y: 300, attrs: { color: 'green' } },
+      // REPRIS DU .projix de Frank : pile renommée Alim1, 9,5 V, 500 mAh, planche
+      // redisposée.
+      MCU('uno', 380, 90),
+      { id: 'Alim1', type: 'pile-9v', x: 180, y: 50, attrs: { voltage: '9.5', prm_capacity: '500' } },
+      { id: 'R1', type: 'resistor', x: 560, y: 70, attrs: { value: '220' } },
+      { id: 'L1', type: 'led', x: 650, y: 40, flipH: true, attrs: { color: 'green' } },
     ],
     wires: () => [
-      w('Bat1', '+', 'U1', 'VIN', 'red'),
-      w('Bat1', '-', 'U1', 'GND.1', 'black'),
+      w('Alim1', '+', 'U1', 'VIN', 'red'),
+      w('Alim1', '-', 'U1', 'GND.2', 'black'),
       w('R1', '1', 'U1', '8', 'green'),
       w('L1', 'A', 'R1', '2', 'green'),
       w('L1', 'C', 'U1', 'GND.2', 'black'),
     ],
-    expect: { kind: 'batterie', partId: 'Bat1', broche: 'VIN', demarre: true },
+    expect: { kind: 'batterie', partId: 'Alim1', broche: 'VIN', demarre: true },
     code: `// Scénario autonomie (Uno sur pile 9 V, capacité réduite à 2 mAh).
 // Cycle : 1 s de mesure (LED D8 allumée), puis 4 s d'attente.
 //   VEILLE 1 : attente en veille profonde (power-down, réveil par le chien
@@ -5235,7 +5241,7 @@ while True:
       MCU('pico'),
       {
         id: 'Gen1', type: 'gbf', x: 680, y: 90,
-        attrs: { waveform: 'triangle', frequency: '20', amplitude: '3', offset: '1.65', duty: '30' },
+        attrs: { waveform: 'triangle', frequency: '1000', amplitude: '1.5', offset: '1.5', duty: '50' },
       },
     ],
     wires: () => [
@@ -5450,6 +5456,17 @@ while True:
     expect: {
       kind: 'onewire-temp',
       sensors: [{ partId: 'Capt1', mcuPin: 'GP14' }],
+    },
+    // Jumeau Pico 2 : deux modules Mod1 et Mod2 chaînés sur Capt1.
+    jumeau: {
+      expect: {
+        kind: 'onewire-temp',
+        sensors: [
+          { partId: 'Capt1', mcuPin: 'GP14' },
+          { partId: 'Mod1', mcuPin: 'GP14' },
+          { partId: 'Mod2', mcuPin: 'GP14' },
+        ],
+      },
     },
     code: `# Test DS18B20 : sonde etanche sur GP14 (1-Wire Dallas).
 # En simulation, le curseur « Temperature » du composant donne la valeur lue.
@@ -5710,7 +5727,7 @@ while True:
     name: 'moteur-dc-pico', board: 'pico', ext: 'py',
     parts: [
       MCU('pico'),
-      { id: 'Alim1', type: 'alim', x: 620, y: 460, attrs: { voltage: '5', maxcurrent: '1' } },
+      { id: 'Alim1', type: 'alim', x: 620, y: 460, attrs: { voltage: '5', maxcurrent: '3' } },
       { id: 'R1', type: 'resistor', x: 300, y: 180, attrs: { value: '470' } },
       { id: 'T1', type: 'pn2222a', x: 440, y: 200 },
       { id: 'D1', type: 'diode', x: 620, y: 180, attrs: { vf: '0.6' } },
@@ -6484,10 +6501,14 @@ while True:
       // prochaine régénération défoncerait sa retouche — et la voie SD3 ne
       // montre plus « broche d'alimentation » mais une broche que le programme
       // ne pilote pas : piste tracée, et plate.
-      { id: 'SD1', type: 'sonde-logique', x: 190, y: 210, rotation: 180, attrs: { voie: '0', accroche: 'U1/GP14', etiquette: 'horloge' } },
-      { id: 'SD2', type: 'sonde-logique', x: 260, y: 150, rotation: 270, flipH: true, flipV: false, attrs: { voie: '1', accroche: 'U1/GP15' } },
-      { id: 'SD3', type: 'sonde-logique', x: 250, y: 80, rotation: 90, flipV: true, attrs: { voie: '2', accroche: 'U1/GP17' } },
-      { id: 'SD4', type: 'sonde-logique', x: 160, y: 80, rotation: 90, flipH: false, flipV: true, attrs: { voie: '3', accroche: 'U1/GP26' } },
+      //
+      // REPRIS DU .projix (13/10, décision de Frank « on laisse tel quel ») :
+      // quatre pinces SD1, SD3, SD4, SD5 (SD2 retirée, les voies gardent leur
+      // numéro 0, 2, 3, 4), aucune étiquette, SD3 sur GP15.
+      { id: 'SD1', type: 'sonde-logique', x: 190, y: 210, rotation: 180, attrs: { voie: '0', accroche: 'U1/GP14', etiquette: '' } },
+      { id: 'SD3', type: 'sonde-logique', x: 260, y: 150, attrs: { voie: '2', accroche: 'U1/GP15', etiquette: '' } },
+      { id: 'SD4', type: 'sonde-logique', x: 250, y: 80, attrs: { voie: '3', accroche: 'U1/GP17', etiquette: '' } },
+      { id: 'SD5', type: 'sonde-logique', x: 160, y: 80, attrs: { voie: '4', accroche: 'U1/GP26', etiquette: '' } },
     ],
     wires: () => [
       w('R1', '1', 'U1', 'GP15', 'green'),
@@ -6497,15 +6518,28 @@ while True:
     expect: {
       kind: 'sonde-logique',
       voies: [
-        { partId: 'SD1', pin: 'GP14', voie: 0, etiquette: 'horloge' },
-        { partId: 'SD2', pin: 'GP15', voie: 1, etiquette: '' },
+        { partId: 'SD1', pin: 'GP14', voie: 0, etiquette: '' },
+        { partId: 'SD3', pin: 'GP15', voie: 2, etiquette: '' },
         // Broche libre, jamais pilotée par le programme : la voie est bel et
         // bien traçable (aucun `probleme`), elle restera simplement plate.
-        { partId: 'SD3', pin: 'GP17', voie: 2 },
-        { partId: 'SD4', pin: 'GP26', voie: 3 },
+        { partId: 'SD4', pin: 'GP17', voie: 3 },
+        { partId: 'SD5', pin: 'GP26', voie: 4 },
       ],
       // Même remarque que côté Uno : la résistance fusionne ses deux pattes.
       nets: [['U1/GP15', 'R1/1', 'R1/2', 'L1/A'], ['L1/C', 'U1/GND.1']],
+    },
+    // Jumeau Pico 2 : sa planche à lui (SD1 « horloge », SD2 posée sur R1, 4 voies).
+    jumeau: {
+      expect: {
+        kind: 'sonde-logique',
+        voies: [
+          { partId: 'SD1', pin: 'GP14', voie: 0, etiquette: 'horloge' },
+          { partId: 'SD2', pin: 'GP15', voie: 4, etiquette: '' },
+          { partId: 'SD3', pin: 'GP17', voie: 2 },
+          { partId: 'SD4', pin: 'GP26', voie: 3 },
+        ],
+        nets: [['U1/GP15', 'R1/1', 'R1/2', 'L1/A'], ['L1/C', 'U1/GND.1']],
+      },
     },
     code: `# Test analyseur logique : les pinces (SD1..SD4) sont POSEES sur des
 # pastilles de la carte, il n'y a AUCUN fil a tirer vers elles.
@@ -6555,11 +6589,23 @@ while True:
     ],
     wires: () => [],
     analyseur: {
+      declenchement: { voie: 1, sens: 'trame' },
       decodages: [
         { protocole: 'uart', id: 'd1', donnees: 0, bauds: 9600 },
-        { protocole: 'uart', id: 'd2', donnees: 1, bauds: 4800 },
+        { protocole: 'uart', id: 'd2', donnees: 1, bauds: 4800, bits: true },
       ],
       voiesReglages: { 0: { bauds: 9600 }, 1: { bauds: 4800 } },
+    },
+    // Le jumeau Pico 2 n'affiche les bits sur aucun décodeur.
+    jumeau: {
+      analyseur: {
+        declenchement: { voie: 1, sens: 'trame' },
+        decodages: [
+          { protocole: 'uart', id: 'd1', donnees: 0, bauds: 9600 },
+          { protocole: 'uart', id: 'd2', donnees: 1, bauds: 4800 },
+        ],
+        voiesReglages: { 0: { bauds: 9600 }, 1: { bauds: 4800 } },
+      },
     },
     expect: {
       kind: 'sonde-logique',
@@ -6970,8 +7016,24 @@ async function jumeauPico2(t) {
   // translation en bloc ne suffit pas. Une pince posée sur une broche de la
   // carte doit rester sur SA pastille, or la Pico 2 est en portrait : la
   // translation la laisserait pendre à 160 px de là (mesuré sur uart-pico2).
-  const { code, poseJumeau, ...reste } = t; // le programme est partagé, pas recopié
+  const { code, poseJumeau, jumeau, ...reste } = t; // le programme est partagé, pas recopié
   const name = `${t.name.replace(/-picow?$/, '')}-${JUMEAU_RP2350[t.board]}`;
+  // Le .projix du jumeau existe déjà ET Frank l'a retouché à la main : il fait
+  // foi tel quel (positions, pièces, fils), sans retraduire celui de l'aîné.
+  // `jumeau` du banc aîné = ce qui change dans le jumeau (attentes, analyseur…).
+  const propre = testProjix({ ...t, name, board: JUMEAU_RP2350[t.board], codeFrom: undefined });
+  if (existsSync(propre)) {
+    const own = JSON.parse(await (await JSZip.loadAsync(readFileSync(propre))).file('diagram.json').async('string'));
+    return {
+      ...reste,
+      ...jumeau,
+      name,
+      board: JUMEAU_RP2350[t.board],
+      codeFrom: t.name,
+      parts: own.parts,
+      wires: own.wires,
+    };
+  }
   // Les points de passage de l'aîné ont été tracés autour d'une carte PAYSAGE :
   // les garder ferait entrer les fils DANS la carte portrait. On leur substitue
   // le tracé calculé par l'autoroutage (_routage.json), retrouvé par ses

@@ -44,8 +44,8 @@ Composants de cette bibliothèque, à installer depuis Kablix (**⚙ Gérer les 
 | <img src="thumbnails/grove-rfid.webp" alt="Grove 125 kHz RFID reader" width="64"> | `grove-rfid` | Grove 125 kHz RFID reader | 2026.9.2 | Sensors | Grove 125 kHz RFID reader (EM4100 tags): while a tag sits in the antenna loop the module keeps sending its… |
 | <img src="thumbnails/grove-uno.webp" alt="Grove Shield (Uno)" width="64"> | `grove-uno` | Grove Shield (Uno) | 2026.9.2 | Boards | Grove Base Shield V2 for Arduino Uno: 16 Grove sockets (4 analog, 7 digital, 4 I2C, 1 UART) wired to the… |
 | <img src="thumbnails/ir-barrier.webp" alt="Through-beam IR barrier" width="64"> | `ir-barrier` | Through-beam IR barrier | 2026.9.1 | Sensors | Through-beam infrared barrier (emitter + receiver): while the beam reaches the receiver its output transistor… |
-| <img src="thumbnails/l78sxxcv.webp" alt="Voltage regulator L78SxxCV (TO-220)" width="64"> | `l78sxxcv` | Voltage regulator L78SxxCV (TO-220) **(expérimental)** | 2026.10.0 | Integrated circuits | STMicroelectronics L78S positive linear regulator, 2 A, TO-220. Pick the output voltage (5, 6, 8, 8.5, 9, 12… |
-| <img src="thumbnails/lm35a.webp" alt="Temperature sensor LM35A (TO-92)" width="64"> | `lm35a` | Temperature sensor LM35A (TO-92) **(expérimental)** | 2026.10.0 | Sensors | Texas Instruments LM35A analog temperature sensor (-55 to +150 °C, ±0.5 °C): the output voltage is 10 mV per… |
+| <img src="thumbnails/l78sxxcv.webp" alt="Voltage regulator L78SxxCV (TO-220)" width="64"> | `l78sxxcv` | Voltage regulator L78SxxCV (TO-220) **(expérimental)** | 2026.10.1 | Integrated circuits | STMicroelectronics L78S positive linear regulator, 2 A, TO-220. Pick the output voltage (5, 6, 8, 8.5, 9, 12… |
+| <img src="thumbnails/lm35a.webp" alt="Temperature sensor LM35A (TO-92)" width="64"> | `lm35a` | Temperature sensor LM35A (TO-92) **(expérimental)** | 2026.10.1 | Sensors | Texas Instruments LM35A analog temperature sensor (-55 to +150 °C, ±0.5 °C): the output voltage is 10 mV per… |
 | <img src="thumbnails/pile-4aa.webp" alt="Battery pack 4 × AA" width="64"> | `pile-4aa` | Battery pack 4 × AA | 2026.10.0 | Batteries | Holder of four AA alkaline cells in series: 6.4 V when new, down to 4.4 V when flat, 2500 mAh. It drains at… |
 | <img src="thumbnails/pile-9v.webp" alt="Battery 9 V" width="64"> | `pile-9v` | Battery 9 V | 2026.10.0 | Batteries | 9 V alkaline battery (6LR61): 9.5 V when new, down to 6.0 V when flat, 500 mAh. It drains at the pace of what… |
 | <img src="thumbnails/pile-cr2032.webp" alt="Coin cell CR2032" width="64"> | `pile-cr2032` | Coin cell CR2032 | 2026.10.0 | Batteries | CR2032 lithium coin cell: 3.0 V when new, down to 2.0 V when flat, 220 mAh. Enough for a Pico on VSYS, not… |
@@ -175,4 +175,4 @@ Le point décisif est le dernier : tant qu'un composant de bibliothèque peut d�
 
 ---
 
-Généré le 13/10/2026 13:57:43 — Kablix v2026.10.2
+Généré le 13/10/2026 15:04:40 — Kablix v2026.10.2

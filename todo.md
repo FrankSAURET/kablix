@@ -5,6 +5,19 @@
 
 ---
 
+# v2026.10.2.231 — régulateur : repos et échauffement ; LM35A : rail négatif ; échecs testkablix réglés
+1. ✅ **Courant de repos** : `quiescentMilliamps` (bloc `regulator`, 5 mA pour le L78SxxCV). Compté dans `regulatorPoint` (chute d'une résistance d'entrée) et dans `psuLoadAmps` (reporté sur la source, cascades comprises).
+2. ✅ **Échauffement** : bloc `thermal {rthJA 50, rthJC 3, tjMax 125, shutdown 150}`, propriété `heatsink` (°C/W, 0 = aucun) ; `regulatorThermal` (`model.mts`) donne P = (Vin − Vout) × I + Vin × Iq et Tj = 25 + P × Rth (Rth = min(rthJA, rthJC + radiateur)). `psuOutVolts` met la sortie à 0 V à la coupure. `updateRegulatorThermal` (`sim.mts`, 5 Hz) : alerte « trop chaud » au-dessus de 125 °C, cadre rouge + message à la coupure.
+3. ✅ **Rail négatif du LM35A** : `negativePsuRails` (alim dont le + est sur la masse d'une carte / d'un GBF et le − ailleurs) ; ce − n'est plus ni masse ni rail haut (`resistiveGraph`) et devient une source à −V (`circuitSources`). `negativeRailFrom` cherche ce rail depuis Vout à travers les résistances. Le curseur (`sim.mts`) garde la tension signée (`sensorVoltsMap` → `meterReadings`/`circuitSources`, nouveau paramètre `sensorVolts`, source de 1 Ω) : un multimètre lit le négatif, l'entrée analogique de la carte lit 0 V, et sans rail −Vs la sortie reste coincée à 0 V.
+4. ✅ **Composants** `l78sxxcv` et `lm35a` en version `2026.10.1` ; descriptions, `.kompix`, index reconstruits ; `verify:kompix` 43/43. Fiches FR mises à jour.
+5. ✅ **Banc** `verify:regulateur` : repos, échauffement (alerte, coupure, radiateur), rail négatif LM35A ; les cas existants ont un petit radiateur pour isoler la tension de la thermique, et les attentes tiennent compte des 5 mA de repos.
+6. ✅ **Échecs testkablix 61 → 3** (décisions de Frank dans `ECHECS-A-DECIDER.md`) : `_spec.mjs` aligné sur ses `.projix` (capacités, autonomie, ds18b20, sondes logiques, uart, mesure, moteur-dc, gbf, jumeaux Pico 2) ; `joystick-uno.projix` régénéré (choix B).
+7. ℹ️ **Restent 3 échecs, à trancher par Frank** : `oscillo-uno` / `oscillo-pico` (`M1.sdiv` mesuré à la main 0,003751 / 0,006675 contre 0,5 en spec ; `oscillo-pico2` réglé par son jumeau) et `variateur-pnp-uno` (son `.projix` garde le fil `O1/GND → U1/GND.4`, broche inconnue sur Uno).
+8. ℹ️ **Bancs rouges non liés** : `verify:multimetre` (« mesure DANS l'écran, ampèremètre » après le réglage `DISPLAY_RIGHT` du 11/10), `verify:analyseur-regle` et `verify:analyseur-sans-declenchement` (erreur `sessionStorage` du Chrome d'essai).
+9. ⏳ Traductions : 8 chaînes EN de `sim.mts` (`verify:i18n` rouge sur ces clés, dont 4 du lot .230), libellé « Heatsink (°C/W, 0 = none) », `l10n` ES / ZH, fiches EN / ES / ZH : avant publication.
+
+---
+
 # v2026.10.2.230 — régulateur : chute à l'entrée, courant reporté ; LM35A : 4 V contrôlés
 1. ✅ **Chute à l'entrée du régulateur** : `railVoltsAtNet` (`model.mts`) remonte du net `IN` jusqu'à un rail (source `psu`, régulateur amont, broche d'alimentation de carte) en traversant fils, résistances et diodes — seuil de chaque diode et `R × I` retirés. `psuOutVolts` fait deux passes (courant trouvé par la première). Diode à l'envers = 0 V.
 2. ✅ **Courant du régulateur reporté sur sa source** : `psuLoadAmps` ajoute le courant débité par chaque régulateur dont l'entrée rejoint le V+ de la source (cascades comprises, garde anti-boucle `regulateursEnCours`). Une pile se vide plus vite, une alim peut dépasser son courant max.

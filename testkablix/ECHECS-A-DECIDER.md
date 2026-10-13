@@ -109,3 +109,7 @@ Les sondes ont été déplacées, renumérotées et rebranchées. Les trois `.pr
 - `dmx-pico2` (4) : sondes `SD1` à `SD4` toutes absentes. Même question ; la liaison DMX avait quatre voies à observer.
 
 **À décider** pour chacun : retrait voulu (A) ou oubli à rétablir (B).
+
+## État au lot .231
+
+61 échecs → 3 après tes décisions. Restent : `oscillo-uno` et `oscillo-pico` (`M1.sdiv` mesuré à la main contre 0,5 en spec) et `variateur-pnp-uno` (fil `O1/GND → U1/GND.4` encore dans ton `.projix`, broche inconnue sur Uno).

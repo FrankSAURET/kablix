@@ -195,7 +195,13 @@ interface KompixManifest {
   battery?: { full: number; empty: number };
   /** Régulateur linéaire (kind `psu`) : patte d'entrée, chute minimale (V) et
    *  tensions de sortie proposées. Voir CustomRegulator (catalog.mts). */
-  regulator?: { in: string; dropout: number; voltages: number[] };
+  regulator?: {
+    in: string;
+    dropout: number;
+    voltages: number[];
+    quiescentMilliamps?: number;
+    thermal?: { rthJA: number; rthJC: number; tjMax: number; shutdown: number };
+  };
   /** Alimentation minimale d'un capteur : pattes vcc/gnd et tension (V). Voir
    *  CustomMinSupply (catalog.mts). */
   minSupply?: { vcc: string; gnd: string; volts: number };

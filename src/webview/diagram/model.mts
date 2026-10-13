@@ -1,6 +1,6 @@
 // Modèle de schéma (pur, sans DOM) : composants, fils, calcul de la netlist et
 // résolution logique des composants. Entièrement testable hors navigateur.
-import { isPicoBoard, mcuInternalStrips, mcuPinRole, mcuPins, partDef, resistorPowerRating, rolePin, PARAM_ATTR_PREFIX, type BoardId, type PartKind } from './catalog.mjs';
+import { isPicoBoard, mcuInternalStrips, mcuPinRole, mcuPins, partDef, resistorPowerRating, rolePin, PARAM_ATTR_PREFIX, type BoardId, type CustomRegulator, type PartKind } from './catalog.mjs';
 import { breadboardStrips, normalizeSize } from './breadboard.mjs';
 import { groveShieldStrips, normalizePower } from './grove-shield.mjs';
 import { shieldStrips } from './shield.mjs';
@@ -498,17 +498,92 @@ export function partSupplyVolts(
   return railVoltsAtNet(diagram, graph, graph.nets.netOf({ partId, pin: vccPin }), vcc, psuVolts, liveOhms, 0, 0);
 }
 
+/** Température ambiante supposée (°C) pour l'échauffement des composants. */
+export const AMBIENT_C = 25;
+
+/**
+ * Échauffement d'un régulateur linéaire. `watts` = puissance dissipée,
+ * (Vin − Vout) × Iout + Vin × Iq ; `tj` = température de jonction.
+ */
+export interface RegulatorThermal {
+  watts: number;
+  tj: number;
+  vin: number;
+  vout: number;
+  /** Courant débité (A), borné par `maxcurrent`. */
+  amps: number;
+  /** Jonction au-dessus de la température conseillée (`tjMax`). */
+  hot: boolean;
+  /** Protection thermique déclenchée : la sortie est coupée. */
+  cut: boolean;
+}
+
+/** Point de fonctionnement d'un régulateur, AVANT la protection thermique. */
+interface RegulatorPoint {
+  vin: number;
+  vout: number;
+  iout: number;
+}
+
+function regulatorPoint(
+  diagram: Diagram,
+  psu: Part,
+  reg: CustomRegulator,
+  psuVolts: ((partId: string) => number | null) | undefined,
+  liveOhms: ((part: Part) => number | null) | undefined,
+  depth: number
+): RegulatorPoint {
+  const attrs = { ...partDef(psu.type).attrs, ...psu.attrs };
+  const vset = Number(attrs.voltage) || 0;
+  const imax = Math.max(0.05, Number(attrs.maxcurrent ?? 2) || 2);
+  // Courant de repos : il traverse l'entrée même sans charge.
+  const iq = (reg.quiescentMilliamps ?? 0) / 1000;
+  const graph = resistiveGraph(diagram, liveOhms);
+  const inNet = graph.nets.netOf({ partId: psu.id, pin: reg.in });
+  const lire = (amps: number): { vin: number; vout: number } => {
+    const vin = railVoltsAtNet(diagram, graph, inNet, 5, psuVolts, liveOhms, amps, depth);
+    return vin === null ? { vin: 0, vout: 0 } : { vin, vout: Math.min(vset, Math.max(0, vin - reg.dropout)) };
+  };
+  // Deux passes : la chute dans une résistance d'entrée dépend du courant, qui
+  // dépend de la sortie. La seconde utilise le courant trouvé par la première.
+  const p0 = lire(iq);
+  if (p0.vout <= 0) return { vin: p0.vin, vout: 0, iout: 0 };
+  const p1 = lire(Math.min(psuLoadAmps(diagram, psu.id, p0.vout, liveOhms), imax) + iq);
+  if (p1.vout <= 0) return { vin: p1.vin, vout: 0, iout: 0 };
+  const load = psuLoadAmps(diagram, psu.id, p1.vout, liveOhms);
+  return load > imax
+    ? { vin: p1.vin, vout: (p1.vout * imax) / load, iout: imax }
+    : { vin: p1.vin, vout: p1.vout, iout: load };
+}
+
+/** Échauffement au point de fonctionnement `p` ; null si le régulateur ne chauffe pas. */
+function regulatorHeat(psu: Part, reg: CustomRegulator, p: RegulatorPoint): RegulatorThermal | null {
+  const th = reg.thermal;
+  if (!th) return null;
+  const attrs = { ...partDef(psu.type).attrs, ...psu.attrs };
+  const iq = (reg.quiescentMilliamps ?? 0) / 1000;
+  const watts = p.vout > 0 ? Math.max(0, p.vin - p.vout) * p.iout + p.vin * iq : 0;
+  // Radiateur (°C/W, attribut `heatsink`) : jonction → boîtier + radiateur.
+  // Jamais pire que l'air libre.
+  const hs = Number(attrs.heatsink) || 0;
+  const rth = hs > 0 ? Math.min(th.rthJA, th.rthJC + hs) : th.rthJA;
+  const tj = AMBIENT_C + watts * rth;
+  return { watts, tj, vin: p.vin, vout: p.vout, amps: p.iout, hot: tj > th.tjMax, cut: tj >= th.shutdown };
+}
+
 /**
  * Tension de sortie (V) d'une source `psu`. Alim de laboratoire et pile : la
  * tension vive (`psuVolts`) à défaut l'attribut `voltage`. RÉGULATEUR linéaire
  * (L78SxxCV) : la tension réglée, rabotée par l'entrée — il lui faut `dropout`
  * volts de marge, sinon la sortie suit l'entrée moins cette marge — puis
  * EFFONDRÉE si la charge réclame plus que `maxcurrent` (courant limité sur
- * charge résistive : U = Imax × R, donc U × Imax / I).
+ * charge résistive : U = Imax × R, donc U × Imax / I). Si la jonction atteint la
+ * température de coupure (échauffement, voir regulatorThermal), la protection
+ * thermique éteint la sortie.
  *
  * L'entrée est lue sur le net de la patte `in` par railVoltsAtNet : une diode
  * en série retire son seuil, une résistance retire (courant d'entrée = courant
- * de sortie) R × I. Sans rail à l'entrée, la sortie est nulle.
+ * de sortie + courant de repos) R × I. Sans rail à l'entrée, la sortie est nulle.
  */
 export function psuOutVolts(
   diagram: Diagram,
@@ -520,23 +595,25 @@ export function psuOutVolts(
   const def = partDef(psu.type);
   const reg = def.custom?.regulator;
   if (!reg) return psuVolts?.(psu.id) ?? Number(psu.attrs?.voltage ?? def.attrs?.voltage ?? 0);
-  const attrs = { ...def.attrs, ...psu.attrs };
-  const vset = Number(attrs.voltage) || 0;
-  const imax = Math.max(0.05, Number(attrs.maxcurrent ?? 2) || 2);
-  const graph = resistiveGraph(diagram, liveOhms);
-  const inNet = graph.nets.netOf({ partId: psu.id, pin: reg.in });
-  const sortie = (amps: number): number => {
-    const vin = railVoltsAtNet(diagram, graph, inNet, 5, psuVolts, liveOhms, amps, depth);
-    return vin === null ? 0 : Math.min(vset, Math.max(0, vin - reg.dropout));
-  };
-  // Deux passes : la chute dans une résistance d'entrée dépend du courant, qui
-  // dépend de la sortie. La seconde utilise le courant trouvé par la première.
-  const v0 = sortie(0);
-  if (v0 <= 0) return 0;
-  const vout = sortie(Math.min(psuLoadAmps(diagram, psu.id, v0, liveOhms), imax));
-  if (vout <= 0) return 0;
-  const load = psuLoadAmps(diagram, psu.id, vout, liveOhms);
-  return load > imax ? (vout * imax) / load : vout;
+  const p = regulatorPoint(diagram, psu, reg, psuVolts, liveOhms, depth);
+  if (p.vout <= 0) return 0;
+  return regulatorHeat(psu, reg, p)?.cut ? 0 : p.vout;
+}
+
+/**
+ * Échauffement d'un régulateur linéaire au point de fonctionnement courant :
+ * puissance dissipée, température de jonction, alerte « trop chaud » et coupure
+ * thermique. Null si `psu` n'est pas un régulateur qui chauffe.
+ */
+export function regulatorThermal(
+  diagram: Diagram,
+  psu: Part,
+  psuVolts?: (partId: string) => number | null,
+  liveOhms?: (part: Part) => number | null
+): RegulatorThermal | null {
+  const reg = partDef(psu.type).custom?.regulator;
+  if (!reg?.thermal) return null;
+  return regulatorHeat(psu, reg, regulatorPoint(diagram, psu, reg, psuVolts, liveOhms, 0));
 }
 
 /** Entrées d'alimentation d'une carte : régulateur (VIN, VSYS) ou rail direct (5V, VBUS). */
@@ -976,6 +1053,55 @@ interface ResistiveGraph {
   gndNets: Set<string>;
 }
 
+/**
+ * Alimentations montées en RAIL NÉGATIF : leur + touche la masse du montage
+ * (broche GND d'une carte, d'un générateur) et leur − n'y touche pas. Le net du
+ * − est alors à −V par rapport à la masse. Les piles et alims ordinaires (− à la
+ * masse) ne sont pas concernées.
+ */
+function negativePsuRails(diagram: Diagram, nets: Nets): Array<{ psu: Part; net: string }> {
+  const masses = new Set<string>();
+  for (const { part, board } of mcuParts(diagram)) {
+    for (const pin of mcuPins(board)) {
+      if (mcuPinRole(board, pin).role === 'gnd') masses.add(nets.netOf({ partId: part.id, pin }));
+    }
+  }
+  for (const part of diagram.parts) {
+    if (part.type === 'gbf') masses.add(nets.netOf({ partId: part.id, pin: 'GND' }));
+  }
+  const out: Array<{ psu: Part; net: string }> = [];
+  for (const psu of psuParts(diagram)) {
+    const plus = nets.netOf({ partId: psu.id, pin: psuPlus(psu) });
+    const minus = nets.netOf({ partId: psu.id, pin: psuMoins(psu) });
+    if (masses.has(plus) && !masses.has(minus)) out.push({ psu, net: minus });
+  }
+  return out;
+}
+
+/**
+ * Rail négatif atteint depuis la broche `pin` de `partId` à travers des
+ * résistances : tension du rail (négative, en volts) et résistance du chemin.
+ * Null s'il n'y en a pas. Sert au LM35 : sa sortie ne descend sous zéro que si
+ * une résistance la tire vers −Vs.
+ */
+export function negativeRailFrom(
+  diagram: Diagram,
+  partId: string,
+  pin: string,
+  psuVolts?: (partId: string) => number | null,
+  liveOhms?: (part: Part) => number | null
+): { volts: number; ohms: number } | null {
+  const graph = resistiveGraph(diagram, liveOhms);
+  const rails = negativePsuRails(diagram, graph.nets);
+  if (rails.length === 0) return null;
+  const reached: { net?: string } = {};
+  const ohms = minOhmsPath(graph.nets.netOf({ partId, pin }), new Set(rails.map((r) => r.net)), graph.adj, undefined, reached);
+  if (ohms === null || reached.net === undefined) return null;
+  const rail = rails.find((r) => r.net === reached.net);
+  if (!rail) return null;
+  return { volts: -psuOutVolts(diagram, rail.psu, psuVolts, liveOhms), ohms };
+}
+
 function resistiveGraph(diagram: Diagram, liveOhms?: (part: Part) => number | null): ResistiveGraph {
   // Le graphe dépend du callback `liveOhms` (curseur d'une résistance variable) :
   // une entrée de cache PAR callback. Dans une même frame ses valeurs sont figées.
@@ -1115,7 +1241,11 @@ function computeResistiveGraph(
   }
   // Alimentations de laboratoire : V+ = rail haut, GND = masse (mêmes rôles que
   // les broches d'alimentation des cartes dans tous les calculs résistifs).
+  // Sauf une alimentation montée en rail NÉGATIF (son + sur la masse du montage,
+  // son − en l'air) : son − est à −V, ni masse ni rail haut (circuitSources).
+  const negatifs = new Set(negativePsuRails(diagram, nets).map((r) => r.psu.id));
   for (const part of psuParts(diagram)) {
+    if (negatifs.has(part.id)) continue;
     vccNets.add(nets.netOf({ partId: part.id, pin: psuPlus(part) }));
     gndNets.add(nets.netOf({ partId: part.id, pin: psuMoins(part) }));
   }
@@ -1342,7 +1472,7 @@ export function psuLoadAmps(
     amps += bridge <= 0.5 ? PSU_SHORT_AMPS : volts / bridge;
   }
   // Régulateurs linéaires alimentés par cette source : leur courant d'entrée
-  // est celui qu'ils débitent (le courant de repos n'est pas simulé). Cascades
+  // est celui qu'ils débitent plus leur courant de repos. Cascades
   // comprises. `volts` remplace la tension de CETTE source, la seule dont on
   // connaisse la valeur vive ; `enCours` coupe les boucles de régulateurs.
   for (const reg of diagram.parts) {
@@ -1353,7 +1483,7 @@ export function psuLoadAmps(
     regulateursEnCours.add(reg.id);
     try {
       const vout = psuOutVolts(diagram, reg, (id) => (id === psuId ? volts : null), liveOhms);
-      if (vout > 0) amps += psuLoadAmps(diagram, reg.id, vout, liveOhms);
+      if (vout > 0) amps += psuLoadAmps(diagram, reg.id, vout, liveOhms) + (def.quiescentMilliamps ?? 0) / 1000;
     } finally {
       regulateursEnCours.delete(reg.id);
     }
@@ -1726,6 +1856,9 @@ interface CircuitSource {
  * `pinsOnNet` recense au passage, pour chaque net, les broches numériques qui
  * l'observent (l'appelant s'en sert pour savoir qui LIT une tension).
  */
+/** Résistance de sortie (Ω) d'un capteur analogique actif (LM35 : 0,1 Ω typique). */
+const SENSOR_OUT_OHMS = 1;
+
 function circuitSources(
   diagram: Diagram,
   vcc: number,
@@ -1735,7 +1868,8 @@ function circuitSources(
   drive?: (pin: string) => PinDrive,
   psuVolts?: (partId: string) => number | null,
   pwmVolts?: (pin: string) => number | null,
-  gbfVolts?: (partId: string) => number | null
+  gbfVolts?: (partId: string) => number | null,
+  sensorVolts?: (partId: string) => number | null
 ): { sources: CircuitSource[]; pinsOnNet: Map<string, string[]> } {
   const sources: CircuitSource[] = [];
   // Tension PROPRE à chaque rail. Une carte n'a pas UN rail mais plusieurs, à
@@ -1786,6 +1920,22 @@ function circuitSources(
       const v = gbfVolts(part.id);
       if (v === null || !Number.isFinite(v)) continue;
       sources.push({ net: nets.netOf({ partId: part.id, pin: 'Vs' }), volts: v, ohms: GBF_OUT_OHMS });
+    }
+  }
+  // Rail NÉGATIF : le − d'une alimentation dont le + est à la masse est à −V.
+  for (const { psu, net } of negativePsuRails(diagram, nets)) {
+    const v = psuOutVolts(diagram, psu, psuVolts);
+    if (Number.isFinite(v)) sources.push({ net, volts: -v, ohms: 0 });
+  }
+  // Sortie d'un capteur analogique à tension propre (LM35) : source de basse
+  // impédance, signée — l'appelant (sim.mts) tient l'état du capteur.
+  if (sensorVolts) {
+    for (const part of diagram.parts) {
+      const def = partDef(part.type);
+      if (def.kind !== 'analog-source' || !def.analogPin || !def.custom?.minSupply) continue;
+      const v = sensorVolts(part.id);
+      if (v === null || !Number.isFinite(v)) continue;
+      sources.push({ net: nets.netOf({ partId: part.id, pin: def.analogPin }), volts: v, ohms: SENSOR_OUT_OHMS });
     }
   }
   const pinsOnNet = new Map<string, string[]>();
@@ -1990,7 +2140,9 @@ export function meterReadings(
   pwmVolts?: (pin: string) => number | null,
   /** Tension INSTANTANÉE de la sortie d'un générateur BF (l'appelant tient
    *  l'heure simulée). Absent = le GBF n'impose rien, comme avant .92. */
-  gbfVolts?: (partId: string) => number | null
+  gbfVolts?: (partId: string) => number | null,
+  /** Tension signée de la sortie d'un capteur analogique actif (LM35). */
+  sensorVolts?: (partId: string) => number | null
 ): MeterReading[] {
   // L'oscilloscope (kind 'scope') se lit EXACTEMENT comme un voltmètre : deux
   // prises, la différence des tensions de repos, aucune consommation. Seul son
@@ -2004,7 +2156,7 @@ export function meterReadings(
   // temporelle des deux circuits, pont fermé et pont ouvert. Un appareil qui ne
   // lit rien dans l'un des deux (prise en l'air) ne lit rien du tout.
   return averagedOverChopping(
-    () => readMetersOnce(diagram, meters, vcc, drive, psuVolts, liveOhms, pwmVolts, gbfVolts),
+    () => readMetersOnce(diagram, meters, vcc, drive, psuVolts, liveOhms, pwmVolts, gbfVolts, sensorVolts),
     (ferme, ouvert, duty) => {
       const parOuvert = new Map(ouvert.map((m) => [m.partId, m]));
       return ferme.map((m) => {
@@ -2048,7 +2200,8 @@ function readMetersOnce(
   psuVolts?: (partId: string) => number | null,
   liveOhms?: (part: Part) => number | null,
   pwmVolts?: (pin: string) => number | null,
-  gbfVolts?: (partId: string) => number | null
+  gbfVolts?: (partId: string) => number | null,
+  sensorVolts?: (partId: string) => number | null
 ): MeterReading[] {
   const out: MeterReading[] = [];
   for (const meter of meters) {
@@ -2058,7 +2211,7 @@ function readMetersOnce(
     // Le multimètre lisse le hachage, l'oscilloscope surtout PAS : son métier est
     // justement de montrer les créneaux un par un.
     const lisse = partDef(meter.type).kind === 'meter' ? pwmVolts : undefined;
-    const { sources } = circuitSources(source, vcc, nets, vccNets, gndNets, drive, psuVolts, lisse, gbfVolts);
+    const { sources } = circuitSources(source, vcc, nets, vccNets, gndNets, drive, psuVolts, lisse, gbfVolts, sensorVolts);
     const sourceNets = new Set(sources.map((s) => s.net));
     const plus = theveninNode(nets.netOf({ partId: meter.id, pin: '+' }), sources, sourceNets, adj);
     const minus = theveninNode(nets.netOf({ partId: meter.id, pin: 'GND' }), sources, sourceNets, adj);

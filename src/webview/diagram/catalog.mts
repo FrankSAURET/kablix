@@ -339,6 +339,29 @@ export interface CustomRegulator {
   dropout: number;
   /** Tensions de sortie proposées dans l'inspecteur. */
   voltages: number[];
+  /** Courant de repos (mA) : tiré sur l'entrée même sans charge. */
+  quiescentMilliamps?: number;
+  /** Échauffement : résistances thermiques (°C/W) et seuils (°C). Sans ce bloc,
+   *  le régulateur ne chauffe pas. */
+  thermal?: CustomRegulatorThermal;
+}
+
+/**
+ * Thermique d'un régulateur linéaire. Puissance dissipée P = (Vin − Vout) × Iout
+ * + Vin × Iq ; température de jonction Tj = ambiante + P × (résistance
+ * thermique). Sans radiateur c'est `rthJA` ; avec un radiateur (attribut
+ * `heatsink`, °C/W) c'est `rthJC` + radiateur. Au-delà de `shutdown` la
+ * protection thermique coupe la sortie.
+ */
+export interface CustomRegulatorThermal {
+  /** Résistance jonction → air libre (°C/W). */
+  rthJA: number;
+  /** Résistance jonction → boîtier (°C/W). */
+  rthJC: number;
+  /** Température de jonction maximale conseillée (°C) : au-delà, avertissement. */
+  tjMax: number;
+  /** Température de coupure de la protection thermique (°C). */
+  shutdown: number;
 }
 
 export interface CustomRfidMode {
@@ -1733,6 +1756,9 @@ export function registerCustomPart(data: CustomPartData): PartDef {
   const regProps: PropDef[] = reg ? [
     { attr: 'voltage', label: 'Output voltage (V)', kind: 'select', options: reg.voltages.map(String) },
     { attr: 'maxcurrent', label: 'Max current supplied (A)', kind: 'number', min: 0.1, max: 10, step: 0.1 },
+    ...(reg.thermal
+      ? [{ attr: 'heatsink', label: 'Heatsink (°C/W, 0 = none)', kind: 'number' as const, min: 0, max: 100, step: 1 }]
+      : []),
   ] : [];
   const props = [...baseProps, ...switchProps, ...toggleProps, ...regProps, ...paramProps];
   const def: PartDef = {

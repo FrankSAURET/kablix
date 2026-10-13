@@ -22,6 +22,7 @@ Vu de face, côté inscription tourné vers soi :
 
 - **Tension de sortie (V)** : 5, 6, 8, 8,5, 9, 12, 15, 18 ou 24 V.
 - **Courant max (A)** : 2 A par défaut. Au-delà, la tension s'effondre.
+- **Radiateur (°C/W)** : 0 = aucun (air libre, 50 °C/W). Un radiateur de 5 °C/W ramène la résistance thermique à 8 °C/W (3 °C/W du boîtier + 5).
 
 ## Marge de 2 V (dropout)
 
@@ -43,7 +44,17 @@ La tension de sortie se recalcule à chaque changement du montage : réglage, te
 - Une **résistance** en série retire `R × I` : le courant d'entrée est celui que le régulateur débite. Trop de résistance, et la marge de 2 V disparaît : la sortie baisse.
 - Le courant débité est **reporté sur la source** d'entrée (alimentation, pile ou régulateur amont). Une pile se vide donc plus vite, une alimentation dépasse son courant max.
 
-Limites de la simulation :
+## Courant de repos
 
-- Le courant de repos (quelques mA) et l'échauffement ne sont pas simulés : le courant d'entrée égale le courant de sortie.
-- Les condensateurs conseillés sur l'entrée et la sortie ne sont pas nécessaires.
+Le régulateur tire environ **5 mA** sur son entrée, même sans charge. Ce courant s'ajoute à celui de la sortie : il est reporté sur la source (une pile se vide un peu plus vite) et il fait chuter une résistance placée à l'entrée.
+
+## Échauffement
+
+Un régulateur linéaire transforme en chaleur ce qu'il retire à la tension : **P = (Vin − Vout) × I + Vin × Iq**. La température de la jonction vaut **25 °C + P × résistance thermique** (50 °C/W sans radiateur).
+
+- Au-dessus de **125 °C** : alerte « trop chaud », la sortie tient encore.
+- À **150 °C** : la protection thermique **coupe la sortie** (0 V) et le composant s'encadre en rouge.
+
+Exemple : 12 V → 5 V sous 0,5 A dissipe 3,6 W, soit 205 °C sans radiateur : coupure. Avec un radiateur de 5 °C/W, la jonction reste à 53 °C.
+
+Limite de la simulation : les condensateurs conseillés sur l'entrée et la sortie ne sont pas nécessaires.

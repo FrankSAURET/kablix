@@ -38,7 +38,8 @@ Un curseur sur le composant règle la température de −55 à +150 °C. Sa sort
 
 Limites de la simulation :
 
-- La sortie est **coupée à 0 V** : une température négative se lit comme 0 °C. Le simulateur n'a pas de tension négative, le montage Vs / −Vs n'est donc pas reproduit.
+- **Sans rail −Vs**, la sortie est **coupée à 0 V** : une température négative se lit comme 0 °C.
+- **Avec un rail −Vs** (une alimentation dont le + est sur la masse de la carte, son − relié à Vout par la résistance), la sortie descend sous 0 V : un multimètre ou l'oscilloscope sur Vout lit la tension négative. L'entrée analogique de la carte, elle, lit toujours 0 V : elle ne mesure pas les tensions négatives.
 - L'alimentation est **contrôlée** : tant que Vs n'atteint pas **4 V** (3V3 d'une Pico, Vs non câblé, diode ou résistance qui fait trop chuter), la sortie reste à **0 V** et le composant s'encadre en rouge avec l'explication. Les diodes et résistances en série sont prises en compte ; un régulateur 5 V en amont convient.
 
 ## Lire la température
