@@ -2732,6 +2732,17 @@ export class SimulatorPanel {
         column
       );
       // Ferme l'onglet untitled remplacé (après l'ouverture du fichier réel).
+      // `panel.dispose()` seul le ferme sans passer par VS Code : son document
+      // « Nouveau projet.projix » reste marqué modifié (●) dans le gestionnaire de
+      // copies de travail, et la fermeture de la fenêtre réclame alors son
+      // enregistrement (signalé par Frank). On le réverse donc d'abord, par la
+      // commande native : le document redevient propre, puis l'onglet se ferme.
+      try {
+        this.panel.reveal(column, false);
+        await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
+      } catch {
+        // repli : fermeture brute
+      }
       this.panel.dispose();
     } catch {
       // Ouverture impossible : on laisse l'onglet untitled en place (le fichier

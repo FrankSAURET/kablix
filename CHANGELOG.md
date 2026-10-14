@@ -51,6 +51,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 **Schéma**
 
 - **Nouveau projet avec un seul texte libre** : à la fermeture de VS Code, il est désormais proposé à l'enregistrement (il était considéré comme vide et perdu sans question).
+- **Nouveau projet enregistré sous le nom du code** : fermer VS Code ne réclame plus l'enregistrement d'un « Nouveau projet » déjà enregistré.
 
 **Alimentation**
 

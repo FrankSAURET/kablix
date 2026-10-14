@@ -1,7 +1,14 @@
 # À faire
-- il recommence à vouloir sauvegarder un projet sois disant ouvert quand je quitte. je pense que c'est lié au fait que j'ai fait un nouveau projet. Je cré un fichier test.py -> nouveau projet projix -> association avec le code test.py -> enregistrement avec le nom par defaut (test.projix). Plus aucun fichier non sauvegardé ne reste. Pour vérifier je fais en plus enregistrer tout. -> fermetur brutal de vscode (clic sur la croix en haut à droite de la fenetre) -> boite modale voulez vous enregistrer le nouveau projet.projix
+- il recommence à vouloir sauvegarder un projet sois disant ouvert quand je quitte. je pense que c'est lié au fait que j'ai fait un nouveau projet. Je cré un fichier test.py -> nouveau projet projix -> association avec le code test.py -> enregistrement avec le nom par defaut (test.projix). Plus aucun fichier non sauvegardé ne reste. Pour vérifier je fais en plus enregistrer tout. -> fermetur brutal de vscode (clic sur la croix en haut à droite de la fenetre) -> boite modale voulez vous enregistrer le nouveau projet.projix (⏳ correction .247 à confirmer par Frank)
+- Patte : tu la baisse de 70 px
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.2.247 — remplacement de l'onglet untitled : plus de ● fantôme
+1. ✅ **Cause probable** ([panel.ts](src/panel.ts) `reopenAsFile`) : après « enregistrer » d'un nouveau projet associé à un code, l'onglet untitled était fermé par `panel.dispose()`. VS Code n'en sait rien : son document « Nouveau projet.projix » reste modifié dans le gestionnaire de copies de travail, d'où la boîte « enregistrer ? » à la fermeture de la fenêtre. Correction : l'onglet est d'abord réversé par `workbench.action.revertAndCloseActiveEditor`, puis `dispose()` en repli.
+2. ℹ️ **Non vérifié en vrai** : aucun banc ne pilote le gestionnaire de copies de travail de VS Code. À confirmer par Frank : mêmes étapes (test.py → nouveau projet → association → enregistrement par défaut → Enregistrer tout → croix de la fenêtre). Si la boîte revient, item à rouvrir.
 
 ---
 
