@@ -296,6 +296,11 @@ const sanitizeTextStyle = (n: Partial<TextNote>): Partial<TextNote> => {
   const s = Number(n.size);
   if (Number.isFinite(s) && s >= 6 && s <= 96) out.size = Math.round(s);
   if (typeof n.font === 'string' && TEXT_NOTE_FONTS.some((f) => f.value === n.font)) out.font = n.font;
+  const r = Number(n.rotation);
+  if (Number.isFinite(r)) {
+    const deg = ((Math.round(r) % 360) + 360) % 360;
+    if (deg !== 0) out.rotation = deg;
+  }
   return out;
 };
 /** Échappe un texte destiné à un nœud XML (export SVG). */
@@ -3292,6 +3297,15 @@ export class Editor {
   /** Tourne le(s) composant(s) sélectionné(s) de ±45° (touches + / -). */
   rotateSelection(deltaDeg: number): void {
     const ids = this.transformTargets();
+    // Étiquettes de texte : elles tournent aussi (autour de leur centre).
+    const textes = this.selectedTexts.size > 0 ? [...this.selectedTexts] : this.selection?.kind === 'text' ? [this.selection.id] : [];
+    if (textes.length > 0) {
+      this.rotateTexts(textes, deltaDeg);
+      if (ids.length === 0) {
+        this.notify();
+        return;
+      }
+    }
     if (ids.length === 0) return;
     // PIVOT = LA BROCHE, pas le centre du dessin (demande de Frank, 17/09 :
     // « la sonde doit tourner autour de sa broche de connection »). Le navigateur
@@ -8058,6 +8072,22 @@ export class Editor {
     // une valeur en pixels.
     body.style.fontSize = note.size === undefined ? '' : `${note.size}px`;
     body.style.fontFamily = note.font === undefined || note.font === 'inherit' ? '' : note.font;
+    // Rotation autour du centre de la zone (origine par défaut du navigateur).
+    node.style.transform = note.rotation ? `rotate(${note.rotation}deg)` : '';
+  }
+
+  /** Tourne des étiquettes de `deltaDeg` ; le champ disparaît à 0. */
+  private rotateTexts(ids: string[], deltaDeg: number): void {
+    for (const id of ids) {
+      const note = this.diagram.texts?.find((n) => n.id === id);
+      const node = this.textNodes.get(id);
+      if (!note || !node) continue;
+      const deg = (((note.rotation ?? 0) + deltaDeg) % 360 + 360) % 360;
+      if (deg === 0) delete note.rotation;
+      else note.rotation = deg;
+      const body = node.querySelector('.text-note__body') as HTMLElement | null;
+      if (body) this.applyTextStyle(note, node, body);
+    }
   }
 
   /** Change une propriété de style d'une étiquette (inspecteur). */
@@ -8362,6 +8392,25 @@ export class Editor {
       }
       this.inspector.appendChild(box);
     };
+
+    label(t('Orientation'));
+    const rot = document.createElement('div');
+    rot.className = 'inspector__transform';
+    for (const [glyph, titre, delta] of [
+      ['↺', t('Rotate left (−90°)'), -90],
+      ['↻', t('Rotate right (+90°)'), 90],
+    ] as const) {
+      const btn = document.createElement('button');
+      btn.className = 'inspector__transform-btn';
+      btn.textContent = glyph;
+      btn.title = titre;
+      btn.addEventListener('click', () => {
+        this.rotateTexts([id], delta);
+        this.notify();
+      });
+      rot.appendChild(btn);
+    }
+    this.inspector.appendChild(rot);
 
     label(t('Text color'));
     nuancier(TEXT_NOTE_INKS, textNoteInk(note), (c) => this.setTextStyle(id, { color: c }));
@@ -8674,11 +8723,25 @@ export class Editor {
       for (const note of this.diagram.texts ?? []) {
         const node = this.textNodes.get(note.id);
         if (!node || !note.text) continue;
+        // Tournée, la boîte à l'écran est celle de l'étiquette ENGLOBANTE : la
+        // taille propre se lit sur la mise en page (offset*), hors rotation.
         const rect = node.getBoundingClientRect();
-        const w = rect.width / this.zoom;
-        const h = rect.height / this.zoom;
-        grow(note.x, note.y);
-        grow(note.x + w, note.y + h);
+        const rot = note.rotation ?? 0;
+        const w = rot ? node.offsetWidth : rect.width / this.zoom;
+        const h = rot ? node.offsetHeight : rect.height / this.zoom;
+        if (rot) {
+          const cx = note.x + w / 2;
+          const cy = note.y + h / 2;
+          const a = (rot * Math.PI) / 180;
+          for (const [px, py] of [[0, 0], [w, 0], [0, h], [w, h]]) {
+            const dx = px - w / 2;
+            const dy = py - h / 2;
+            grow(cx + dx * Math.cos(a) - dy * Math.sin(a), cy + dx * Math.sin(a) + dy * Math.cos(a));
+          }
+        } else {
+          grow(note.x, note.y);
+          grow(note.x + w, note.y + h);
+        }
         const lignes = note.text.split('\n');
         // Interligne pris sur le rendu réel (hauteur totale / nombre de lignes),
         // sinon un texte multi-lignes s'exporte tassé ou espacé.
@@ -8699,7 +8762,7 @@ export class Editor {
         const famille = note.font ?? (csNote?.fontFamily || 'sans-serif');
         const corps = note.size ?? (parseFloat(csNote?.fontSize ?? '') || TEXT_NOTE_DEFAULTS.size);
         notes.push(
-          `<g><rect x="${note.x}" y="${note.y}" width="${w}" height="${h}" rx="4" ` +
+          `<g${rot ? ` transform="rotate(${rot} ${note.x + w / 2} ${note.y + h / 2})"` : ''}><rect x="${note.x}" y="${note.y}" width="${w}" height="${h}" rx="4" ` +
             `fill="${textNoteBg(note)}"/>` +
             `<text font-family="${escapeXmlAttr(famille === 'inherit' ? 'sans-serif' : famille)}" ` +
             `font-size="${corps}" ` +

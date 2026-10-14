@@ -614,6 +614,28 @@ async function run() {
 		svg2.includes('#c00000') && svg2.includes('font-size="20"') && svg2.includes('serif'),
 		svg2.slice(svg2.indexOf('Debut colle') - 200, svg2.indexOf('Debut colle')).slice(-160));
 
+	// --- 12b. Rotation : touches + / − et boutons ↺ ↻ -----------------------------
+	editor.select({ kind: 'text', id: relu.id });
+	editor.rotateSelection(90);
+	await wait(20);
+	const noeudT = notes().find((n) => corps(n).innerText.startsWith('Debut'));
+	ok('rotation 90° : transform CSS posé et champ gravé', noeudT.style.transform === 'rotate(90deg)'
+		&& editor.diagram.texts.find((n) => n.id === relu.id).rotation === 90, noeudT.style.transform);
+	editor.rotateSelection(-90);
+	await wait(20);
+	ok('retour à 0° : transform et champ disparaissent', noeudT.style.transform === ''
+		&& editor.diagram.texts.find((n) => n.id === relu.id).rotation === undefined,
+		JSON.stringify(editor.diagram.texts.find((n) => n.id === relu.id)));
+	editor.rotateSelection(45);
+	await wait(20);
+	const dumpR = editor.serialize();
+	ok('la rotation part dans le fichier', dumpR.texts.find((n) => n.text.includes('Debut colle')).rotation === 45);
+	ok('l export SVG tourne l étiquette', editor.exportSvg().includes('rotate(45 '));
+	editor.loadDiagram(JSON.parse(JSON.stringify(dumpR)));
+	await wait(120);
+	const noeudR2 = notes().find((n) => corps(n).innerText.startsWith('Debut'));
+	ok('et elle revient au rechargement', noeudR2.style.transform === 'rotate(45deg)', noeudR2.style.transform);
+
 	// --- 13. Le curseur du mode texte porte un T ---------------------------------
 	editor.toggleTextMode(true);
 	await wait(20);

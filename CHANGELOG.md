@@ -17,6 +17,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - **Capteur de température LM35A**, dans la bibliothèque de composants : sortie analogique de 10 mV par °C, curseur de −55 à +150 °C. Il lui faut 4 V : en dessous (3V3 d'une Pico, Vs non câblé, chute dans une diode), la sortie reste à 0 V et le composant s'encadre en rouge avec l'explication. Avec un rail −Vs relié à Vout par une résistance, la sortie devient négative : un multimètre ou l'oscilloscope lit la tension négative (l'entrée de la carte lit 0 V).
 
+**Schéma**
+
+- **Les textes libres tournent** : touches + et − (pas de 45°) ou boutons ↺ ↻ de l'inspecteur (quart de tour), seuls ou en sélection multiple. La rotation est enregistrée dans le fichier et reprise à l'export SVG.
+
 **Grove Shield Pico**
 
 - **Brochage complet avec le bouton ꓘ** : le schéma des connecteurs Grove et des GPIO s'affiche en surimpression du shield, comme sur les cartes Arduino et Pico.

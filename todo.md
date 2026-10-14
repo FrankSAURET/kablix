@@ -1,7 +1,15 @@
 # À faire
-1. ⬜ Un texte (étiquette) doit pouvoir tourner.
+Rien en attente.
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.2.240 — textes libres : rotation
+1. ✅ **`TextNote.rotation`** (degrés, 0 = absent) : `rotateTexts` (`editor.mts`) ; `rotateSelection` (touches + / −, boutons ↺ ↻) tourne aussi les textes sélectionnés ; boutons ↺ ↻ dans l'inspecteur du texte. CSS `rotate()` autour du centre ; champ gravé dans le fichier (`sanitizeTextStyle`), repris au rechargement et à l'export SVG (`<g transform="rotate(…)">`, encombrement recalculé).
+2. ✅ **Banc** `verify:texte` : 96 contrôles (90°, retour à 0, fichier, export, rechargement).
+3. ℹ️ La sélection au rectangle d'un texte tourné utilise sa boîte non tournée.
+4. ⏳ Traduction : aucune chaîne neuve (libellés « Orientation », « Rotate… » existants).
 
 ---
 

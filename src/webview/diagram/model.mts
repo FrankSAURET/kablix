@@ -61,6 +61,8 @@ export interface TextNote {
   size?: number;
   /** Police. Absent = celle de l'atelier. */
   font?: string;
+  /** Rotation en degrés (0-359) autour du centre de la zone. Absent = 0. */
+  rotation?: number;
 }
 
 /** Valeurs d'origine d'une étiquette : ce qu'on obtient en la posant, et ce que
