@@ -535,6 +535,12 @@ export interface RegulatorThermal {
   hot: boolean;
   /** Protection thermique déclenchée : la sortie est coupée. */
   cut: boolean;
+  /** Entrée sous tension réglée + `dropout` : la régulation décroche, la sortie suit l'entrée. */
+  low: boolean;
+  /** Tension réglée (V). */
+  vset: number;
+  /** Marge d'entrée exigée (V). */
+  dropout: number;
 }
 
 /** Point de fonctionnement d'un régulateur, AVANT la protection thermique. */
@@ -587,7 +593,9 @@ function regulatorHeat(psu: Part, reg: CustomRegulator, p: RegulatorPoint): Regu
   const hs = Number(attrs.heatsink) || 0;
   const rth = hs > 0 ? Math.min(th.rthJA, th.rthJC + hs) : th.rthJA;
   const tj = AMBIENT_C + watts * rth;
-  return { watts, tj, vin: p.vin, vout: p.vout, amps: p.iout, hot: tj > th.tjMax, cut: tj >= th.shutdown };
+  const vset = Number(attrs.voltage) || 0;
+  const low = p.vin > 0 && p.vin < vset + reg.dropout - 1e-6;
+  return { watts, tj, vin: p.vin, vout: p.vout, amps: p.iout, hot: tj > th.tjMax, cut: tj >= th.shutdown, low, vset, dropout: reg.dropout };
 }
 
 /**

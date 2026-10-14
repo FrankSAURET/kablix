@@ -437,7 +437,7 @@ let supplyLastMs = 0;
 const sensorVoltsMap = new Map<string, number>();
 const sensorVoltsAt = (id: string): number | null => sensorVoltsMap.get(id) ?? null;
 // Échauffement des régulateurs : coupure thermique et alerte, relus à 5 Hz.
-const thermalState = new Map<string, 'ok' | 'hot' | 'cut'>();
+const thermalState = new Map<string, 'ok' | 'low' | 'hot' | 'cut'>();
 let thermalLastMs = 0;
 /** Défaut de montage courant de chaque composant photosensible (phototransistor, photodiode). */
 const photoFaults = new Map<string, string>();
@@ -1413,7 +1413,7 @@ function updateRegulatorThermal(): void {
   for (const part of editor.diagram.parts) {
     if (!partDef(part.type).custom?.regulator?.thermal) continue;
     const th = regulatorThermal(editor.diagram, part, psuLiveVolts, liveVariableOhms);
-    const etat = !th ? 'ok' : th.cut ? 'cut' : th.hot ? 'hot' : 'ok';
+    const etat = !th ? 'ok' : th.cut ? 'cut' : th.hot ? 'hot' : th.low ? 'low' : 'ok';
     if ((thermalState.get(part.id) ?? 'ok') === etat) continue;
     thermalState.set(part.id, etat);
     if (etat === 'ok') {
@@ -1422,7 +1422,16 @@ function updateRegulatorThermal(): void {
     }
     const watts = Math.round((th?.watts ?? 0) * 10) / 10;
     const tj = Math.round(th?.tj ?? 0);
-    if (etat === 'cut') {
+    if (etat === 'low' && th) {
+      const vin = Math.round(th.vin * 100) / 100;
+      const need = Math.round((th.vset + th.dropout) * 100) / 100;
+      signalerMessage(`${t('Input too low: {0} V, {1} V needed to regulate', String(vin), String(need))} (${part.id})`);
+      editor.setFaulty(
+        part.id,
+        true,
+        t('The regulator needs its input at least {0} V above its output setting. Below that the output drops with the input. Raise the input voltage or lower the Voltage property.', String(th.dropout))
+      );
+    } else if (etat === 'cut') {
       signalerMessage(`${t('Thermal shutdown: {0} W dissipated, junction at {1} °C', String(watts), String(tj))} (${part.id})`);
       editor.setFaulty(
         part.id,

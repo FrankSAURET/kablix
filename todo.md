@@ -1,7 +1,14 @@
 # À faire
-- Si la tension  d'alim du 78xx est inférieur à vout+2 il faut un avertissement.
+1. ⬜ Un texte (étiquette) doit pouvoir tourner.
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.2.239 — 78xx : avertissement d'entrée trop basse
+1. ✅ **Avertissement** quand l'entrée du régulateur est sous tension réglée + `dropout` (2 V pour le L78SxxCV) : cadre rouge + message « Input too low », état `low` dans `updateRegulatorThermal` (`sim.mts`) ; `RegulatorThermal` gagne `low`, `vset`, `dropout` (`model.mts`). Priorité : coupure > trop chaud > entrée basse. Pas d'avertissement sans rail à l'entrée.
+2. ✅ **Banc** `verify:regulateur` : 6 V → avertissement ; 7 V (limite) et 12 V → rien.
+3. ⏳ Traduction : 2 chaînes EN neuves de `sim.mts` (« Input too low… », explication) : avant publication.
 
 ---
 

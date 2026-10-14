@@ -168,6 +168,14 @@ const t12r = th(chaud(12, 5));
 check('radiateur 5 °C/W : 12 V → 5 V, 0,5 A tient (Tj ~53 °C)', t12r && !t12r.cut && !t12r.hot && near(t12r.tj, 53, 3) && near(volts(chaud(12, 5), 'Reg1'), 5), JSON.stringify(t12r));
 check('à vide le repos chauffe à peine', (() => { const r = th(base(12, 5, 2, 0)); return r && near(r.watts, 0.06, 0.01) && !r.hot; })());
 
+// Avertissement d'entrée trop basse : Vin < Vout réglée + dropout (2 V).
+const bas6 = th(chaud(6, 0, 100));
+check('entrée 6 V pour 5 V : avertissement « low » (marge 2 V non tenue)', bas6 && bas6.low && bas6.vset === 5 && bas6.dropout === 2, JSON.stringify(bas6));
+const bas7 = th(chaud(7, 0, 100));
+check('entrée 7 V pour 5 V : pas d’avertissement (marge juste tenue)', bas7 && !bas7.low, JSON.stringify(bas7));
+const bas12 = th(chaud(12, 5));
+check('entrée 12 V pour 5 V : pas d’avertissement', bas12 && !bas12.low, JSON.stringify(bas12));
+
 // LM35A : alimentation minimale 4 V (tension lue sur Vs, diodes et résistances déduites).
 catalog.registerCustomPart({
   type: 'lm35a', label: 'LM35A', kind: 'analog-source', svg, category: 'Sensors',

@@ -25,6 +25,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Alimentation**
 
+- **Régulateur L78SxxCV** : si l'entrée est inférieure à la tension réglée + 2 V, le composant s'encadre en rouge avec un avertissement (la sortie suit alors l'entrée au lieu de tenir sa tension).
+
 **Instruments**
 
 - **Multimètre** : la valeur affichée est un peu plus petite, pour que « -49,9 mA » tienne dans l'écran avec une marge à droite.
