@@ -1,8 +1,13 @@
 # À faire
-- il recommence à vouloir sauvegarder un projet sois disant ouvert quand je quitte. je pense que c'est lié au fait que j'ai fait un nouveau projet. Je cré un fichier test.py -> nouveau projet projix -> association avec le code test.py -> enregistrement avec le nom par defaut (test.projix). Plus aucun fichier non sauvegardé ne reste. Pour vérifier je fais en plus enregistrer tout. -> fermetur brutal de vscode (clic sur la croix en haut à droite de la fenetre) -> boite modale voulez vous enregistrer le nouveau projet.projix (⏳ correction .247 à confirmer par Frank)
-- Patte : tu la baisse de 70 px
+
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.2.248 — patte seule : descendue de 70 px
+1. ✅ **`LEG_DROP` = 70** ([patte-element.mts](src/webview/composants/patte-element.mts)) : la patte est baissée de 70 px sous l'axe des broches. La feuille s'allonge d'autant ; connecteur, échelle et position horizontale inchangés.
+2. ✅ Banc `verify:araignee` : contrôle « descendue de 70 px (±8) » ; `patte.webp` recapturée.
 
 ---
 

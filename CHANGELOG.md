@@ -34,7 +34,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Robot araignée**
 
-- **Patte seule** : la patte affichée est calée à 30 px des pastilles du connecteur et centrée en hauteur sur les broches Coxa et Patella.
+- **Patte seule** : la patte affichée est calée à 30 px des pastilles du connecteur et descendue de 70 px sous l'axe des broches Coxa et Patella.
 
 **Alimentation**
 

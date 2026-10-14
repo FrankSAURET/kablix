@@ -582,7 +582,7 @@ async function run() {
 		const x0 = Math.min(...p.pinInfo.map((q) => q.x));
 		const ym = p.pinInfo.reduce((a, q) => a + q.y, 0) / p.pinInfo.length;
 		ok('patte seule : bord gauche à 30 px des pastilles (±3)', Math.abs(bb.x - x0 - 30) <= 3, \`\${(bb.x - x0).toFixed(1)}\`);
-		ok('patte seule : centrée en hauteur sur les broches (±8)', Math.abs(bb.y + bb.height / 2 - ym) <= 8, \`\${(bb.y + bb.height / 2 - ym).toFixed(1)}\`);
+		ok('patte seule : descendue de 70 px sous l\\'axe des broches (±8)', Math.abs(bb.y + bb.height / 2 - ym - 70) <= 8, \`\${(bb.y + bb.height / 2 - ym).toFixed(1)}\`);
 	}
 	// La patte a AUSSI ses deux cases d'inversion : servo à l'envers = même
 	// consigne, pose miroir. Le repère est le pied EN PLAN (x) et non sa hauteur :

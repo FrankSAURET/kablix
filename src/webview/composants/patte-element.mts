@@ -300,13 +300,17 @@ const ZONE_H = Math.round(((ZONE_W - (PIN_GAP_FEUILLE - PIN_GAP)) * 1.5) / 10) *
  *  mécanique tout le reste. Le bornier, lui, garde sa taille RÉELLE — c'est un
  *  vrai connecteur, il ne grandit pas avec le dessin. */
 const LEFT_PAD = 10; // la pose 90/0 déborde du repos vers la gauche
-const SHEET = { w: LEFT_PAD + 10 + PIN_GAP + ZONE_W + MARGIN, h: ZONE_H + 2 * MARGIN };
+/** La patte est descendue de `LEG_DROP` sous l'axe du connecteur (demande de
+ *  Frank) : la feuille s'allonge d'autant, le connecteur et l'échelle restent. */
+const LEG_DROP = 70;
+const BASE_H = ZONE_H + 2 * MARGIN;
+const SHEET = { w: LEFT_PAD + 10 + PIN_GAP + ZONE_W + MARGIN, h: BASE_H + LEG_DROP };
 /** Le connecteur, calé à gauche et centré sur la hauteur : ses six carrés dorés
  *  doivent tomber sur la grille de 10 px (d'où l'arrondi), sinon aucun fil ne
  *  s'y accroche proprement. */
-const PLUG = { x: LEFT_PAD, y: Math.round((SHEET.h - 80) / 20) * 10, w: 40, h: 80 };
+const PLUG = { x: LEFT_PAD, y: Math.round((BASE_H - 80) / 20) * 10, w: 40, h: 80 };
 /** Zone laissée à la mécanique : à droite du connecteur, marge sur les bords. */
-const ZONE = { x0: PLUG.x + 10 + PIN_GAP, y0: MARGIN, x1: SHEET.w - MARGIN, y1: SHEET.h - MARGIN };
+const ZONE = { x0: PLUG.x + 10 + PIN_GAP, y0: MARGIN, x1: SHEET.w - MARGIN, y1: BASE_H - MARGIN };
 /** Présentation. La patte est seule : on la veut DE PROFIL, fémur et tibia bien
  *  séparés — vue dans son axe, les deux os se confondent en un simple tube. Or
  *  l'isométrie rend HORIZONTALE la direction −45° du monde (x − y maximal,
@@ -393,7 +397,7 @@ function buildView(): LegView | null {
   for (const q of vf) grow(rest, project(xr.femur(q)));
   for (const q of vt) grow(rest, project(xr.tibia(q)));
   const cy = (rest.y0 + rest.y1) / 2;
-  const midY = PLUG.y + PLUG.h / 2;
+  const midY = PLUG.y + PLUG.h / 2 + LEG_DROP;
   const w = Math.max(bb.x1 - bb.x0, 1);
   const h = Math.max(bb.y1 - bb.y0, 1);
   v.k = Math.min((ZONE.x1 - ZONE.x0 - SHADOW_PAD) / w, (ZONE.y1 - ZONE.y0 - 2 * SHADOW_PAD) / h);
