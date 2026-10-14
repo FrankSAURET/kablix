@@ -1,8 +1,13 @@
 # À faire
-- Rajoute des étiquettes aux alims et au gbf
 - **Bancs rouges d'environnement** : `verify:multimetre` (rendu « mesure DANS l'écran, ampèremètre » après le réglage `DISPLAY_RIGHT` 224 → 222 du 11/10 : le banc attend l'ancienne position) ; `verify:analyseur-regle` et `verify:analyseur-sans-declenchement` (le Chrome d'essai refuse `sessionStorage` : « Access is denied », sans lien avec le code). -> explique
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.2.235 — étiquettes sur alim, batterie USB et GBF
+1. ✅ **Propriété `etiquette`** (`METER_TAG_PROP`, déjà utilisée par multimètre, oscilloscope, sonde) ajoutée à `alim`, `powerbank` et `gbf` dans `catalog.mts`. Le mécanisme est générique (`applyPartTag` du bandeau) : rien à toucher dans l'éditeur. `powerbank` ajouté par cohérence avec « alims » : à retirer si non voulu.
+2. ⏳ Traduction du libellé « Label » : déjà existant (multimètre), rien de neuf.
 
 ---
 

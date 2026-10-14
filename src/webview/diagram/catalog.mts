@@ -1273,10 +1273,11 @@ export const CATALOG: readonly PartDef[] = [
   // si le courant débité (psuLoadAmps, model.mts) dépasse `maxcurrent`.
   {
     type: 'alim', label: 'Bench power supply', tag: 'kablix-alim', kind: 'psu',
-    simControl: true, attrs: { voltage: '5', maxcurrent: '1' },
+    simControl: true, attrs: { voltage: '5', maxcurrent: '1', etiquette: '' },
     props: [
       { attr: 'voltage', label: 'Voltage (V)', kind: 'number', min: 0, max: 30, step: 0.1 },
       { attr: 'maxcurrent', label: 'Max current supplied (A)', kind: 'number', min: 0.1, max: 10, step: 0.1 },
+      METER_TAG_PROP,
     ],
   },
   // Générateur BF (dessin de Frank) : source de signal Vs/GND, sinus, triangle
@@ -1297,7 +1298,7 @@ export const CATALOG: readonly PartDef[] = [
     // sur la masse) et rapport cyclique à 50 %. Sur une entrée ADC 0–VREF
     // l'alternance négative est donc écrêtée — c'est exact, et c'est à l'élève
     // d'ajouter le décalage (la fiche d'aide le dit).
-    attrs: { frequency: '1000', amplitude: '5', offset: '0', duty: '50', waveform: 'sinus' },
+    attrs: { frequency: '1000', amplitude: '5', offset: '0', duty: '50', waveform: 'sinus', etiquette: '' },
     props: [
       {
         attr: 'waveform', label: 'Waveform', kind: 'select', options: ['sinus', 'triangle', 'carre'],
@@ -1307,6 +1308,7 @@ export const CATALOG: readonly PartDef[] = [
       { attr: 'amplitude', label: 'Amplitude, peak-to-peak (V)', kind: 'number', min: 0, max: 10, step: 0.1 },
       { attr: 'offset', label: 'DC offset (V)', kind: 'number', min: -5, max: 5, step: 0.1 },
       { attr: 'duty', label: 'Duty cycle (%)', kind: 'number', min: 0, max: 100, step: 1 },
+      METER_TAG_PROP,
     ],
   },
   // Batterie externe USB (dessin de Frank) : source V+/GND comme l'alim de
@@ -1320,10 +1322,11 @@ export const CATALOG: readonly PartDef[] = [
     // sortie se coupe (jauge LED1..4 du dessin, sim.mts).
     // Défauts Frank (v2026.9.8) : 5000 mAh Li-ion, sortie 5 V 2,1 A max
     // (10,5 W) — capacité utile réduite par le rendement du boost (sim.mts).
-    attrs: { voltage: '5', maxcurrent: '2.1', capacity: '5000' },
+    attrs: { voltage: '5', maxcurrent: '2.1', capacity: '5000', etiquette: '' },
     props: [
       { attr: 'maxcurrent', label: 'Max current supplied (A)', kind: 'number', min: 0.1, max: 10, step: 0.1 },
       { attr: 'capacity', label: 'Capacity (mAh)', kind: 'number', min: 1, max: 50000, step: 1 },
+      METER_TAG_PROP,
     ],
   },
   // Multimètre de table (dessin de Frank) : deux prises banane + et GND, et un
