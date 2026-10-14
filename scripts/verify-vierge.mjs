@@ -137,13 +137,13 @@ const { ProjixEditorProvider } = await import(pathToFileURL(out).href);
 const { default: JSZip } = await import('jszip');
 
 /** Fabrique une archive .projix (le vrai format : kablix.json + diagram.json). */
-async function projix({ board = 'uno', dirtyAtExit, parts = [], wires = [] }) {
+async function projix({ board = 'uno', dirtyAtExit, parts = [], wires = [], texts }) {
   const zip = new JSZip();
   zip.file(
     'kablix.json',
     JSON.stringify({ format: 'projix', version: 1, app: 'kablix', board, createdAt: '2026-09-02', dirtyAtExit })
   );
-  zip.file('diagram.json', JSON.stringify({ parts, wires }));
+  zip.file('diagram.json', JSON.stringify({ parts, wires, texts }));
   return zip.generateAsync({ type: 'uint8array' });
 }
 
@@ -226,6 +226,13 @@ async function restaure({ scheme, backup, fichier }) {
   const backup = await projix({ dirtyAtExit: true, parts: CARTE, wires: FIL });
   const { edits } = await restaure({ scheme: 'untitled', backup });
   check('un untitled avec un seul FIL garde son ●', edits > 0);
+}
+
+// --- 4b. Un texte libre seul est du travail, lui aussi --------------------------
+{
+  const backup = await projix({ dirtyAtExit: true, parts: CARTE, texts: [{ id: 't1', x: 10, y: 10, text: 'note' }] });
+  const { edits } = await restaure({ scheme: 'untitled', backup });
+  check('un untitled avec un seul TEXTE LIBRE garde son ●', edits > 0);
 }
 
 // --- 5. Fichier .projix restauré : le drapeau dirtyAtExit fait toujours foi ----

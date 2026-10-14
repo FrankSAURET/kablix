@@ -25,14 +25,16 @@ const l10n = vscode.l10n;
  */
 
 /**
- * Atelier VIERGE : pas un seul fil, et pas une seule pièce en dehors de la carte
- * elle-même. Un projet dans cet état ne contient RIEN à perdre — le fermer sans
+ * Atelier VIERGE : pas un seul fil, aucun texte libre, et pas une seule pièce en
+ * dehors de la carte elle-même. Un projet dans cet état ne contient RIEN à perdre — le fermer sans
  * rien enregistrer ne coûte pas une minute de travail.
  */
 function schemaVierge(diagram: unknown, board: string): boolean {
   if (!diagram || typeof diagram !== 'object') return true;
-  const d = diagram as { parts?: Array<{ type?: string } | null>; wires?: unknown[] };
+  const d = diagram as { parts?: Array<{ type?: string } | null>; wires?: unknown[]; texts?: unknown[] };
   if ((d.wires?.length ?? 0) > 0) return false;
+  // Un texte libre est du travail, même sans pièce ni fil.
+  if ((d.texts?.length ?? 0) > 0) return false;
   return (d.parts ?? []).every((part) => part?.type === board);
 }
 

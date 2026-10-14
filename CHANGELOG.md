@@ -48,6 +48,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Correction
 
+**Schéma**
+
+- **Nouveau projet avec un seul texte libre** : à la fermeture de VS Code, il est désormais proposé à l'enregistrement (il était considéré comme vide et perdu sans question).
+
 **Alimentation**
 
 - **Deux alimentations en série** (montage symétrique ±5 V) ne déclenchent plus un faux « courant limite ».

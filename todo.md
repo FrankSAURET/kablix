@@ -5,6 +5,12 @@
 
 ---
 
+# v2026.10.2.245 — nouveau projet : un texte libre compte comme du travail
+1. ✅ **`schemaVierge`** ([projix-editor.ts](src/projix-editor.ts)) ignorait `texts` : un nouveau projet ne contenant qu'un texte libre était jugé vierge, donc fermé sans ● ni question. Corrigé ; banc `verify:vierge` 8 contrôles (cas texte seul).
+2. ℹ️ **« Il veut enregistrer un projet qui n'est pas ouvert » : cause NON trouvée.** Un nouveau projet vide est bien reconnu vierge (la feuille démarre sans pièce, `sim.mts`), et le faux ● de restauration est déjà coupé depuis le lot .43. Je n'ai pas de reproduction. Item laissé dans « À faire » : il faut les étapes exactes (nouveau projet → ? → quitter VS Code) et le nom du projet réclamé.
+
+---
+
 # v2026.10.2.244 — envoi sur Pico : redémarrage à la suite
 1. ✅ **`reboot(ser)`** ([pico-upload.py](scripts/pico-upload.py)) : après le dernier fichier, `machine.reset()` envoyé en raw REPL, sans attendre de réponse (l'USB tombe). Pas de redémarrage si une erreur a interrompu le transfert ; `exit_raw_repl` n'est plus appelé après un reboot. Résumé : `DONE: n sent, m already up to date, board rebooted`.
 2. ✅ **Message** ([picoUploader.ts](src/picoUploader.ts)) : « {0} file(s) sent. The board rebooted and runs main.py. ».
