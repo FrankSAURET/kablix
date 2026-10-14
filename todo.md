@@ -4,6 +4,13 @@
 
 ---
 
+# v2026.10.2.237 — LM35A pleine gamme sans carte
+1. ✅ **Sortie coincée à 0 V sous 0 °C** dans `lm35a-uno` (Capt2). `negativeRailFrom` ([model.mts](src/webview/diagram/model.mts)) ne voyait un rail négatif que si le + d'une alim touchait la masse d'UNE CARTE ; ici aucune carte. Nouveau paramètre `gndPin` (masse du capteur, passée par `sim.mts`) : potentiel de chaque net d'alim (− = base de la pile, + = base + sortie) ; un − plus bas que la masse du capteur et atteint par résistance depuis Vout est le rail (volts = potentiel du rail − celui de la masse).
+2. ✅ **Banc** `verify:regulateur` : montage de la fiche technique sans carte (rail −5 V à 100 kΩ, voltmètre −0,55 / 0 / 1,5 V, ancien appel sans `gndPin` inchangé, GND sur le − du bas = pas de rail).
+3. ℹ️ **Câblage actuel de `lm35a-uno` (fichier de Frank, non touché)** : `Capt2.GND` est sur `Alim1.GND` (le −5 V). Le capteur flotte alors à −5 V et le voltmètre (masse au milieu) lit −5,55 → −3,5 V : c'est juste pour CE câblage. Pour −0,55 → +1,5 V : `Capt2.GND` sur le point milieu (`Alim1.V+`), et la résistance R1 entre Vout et `Alim1.GND` (déjà en place).
+
+---
+
 # v2026.10.2.236 — trois bancs rouges remis au vert
 1. ✅ **`verify:multimetre`** : vrai défaut, pas le banc. Avec `DISPLAY_RIGHT` 222, « -49,9 mA » débordait de 5,5 px à GAUCHE de l'écran (le 11/10 le décalage de 2 px à droite avait mangé la marge de gauche du pire cas). `VALUE_SIZE` 11,5 → 11 ([multimetre-element.mts](src/webview/composants/multimetre-element.mts)) : le pire cas tient (0,5 px de jeu à gauche), la marge de 2 px à droite demandée par Frank est gardée.
 2. ✅ **`verify:analyseur-sans-declenchement` et `verify:analyseur-regle`** : le « sessionStorage refusé » venait du banc, pas du Chrome. La cible CDP « page » existe avant le chargement du fichier (`about:blank`, sans stockage) ; le banc y lisait `sessionStorage` trop tôt. Attente du protocole `file:` avant le premier accès. (`verify:analyseur-fenetre` y échappait par hasard de timing.)

@@ -4042,7 +4042,7 @@ function bindInputs(): void {
             // reste coincée à 0 V. L'entrée analogique de la carte lit 0 dans
             // les deux cas ; seul un multimètre voit le négatif.
             if (chk && volts < 0) {
-              const rail = negativeRailFrom(editor.diagram, part.id, ctrlPin(part), psuLiveVolts, liveVariableOhms);
+              const rail = negativeRailFrom(editor.diagram, part.id, ctrlPin(part), psuLiveVolts, liveVariableOhms, minSupply?.gnd);
               if (!rail) volts = 0;
             }
             if (chk) sensorVoltsMap.set(part.id, volts);

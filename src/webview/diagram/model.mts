@@ -1142,23 +1142,50 @@ function negativePsuRails(diagram: Diagram, nets: Nets): Array<{ psu: Part; net:
  * résistances : tension du rail (négative, en volts) et résistance du chemin.
  * Null s'il n'y en a pas. Sert au LM35 : sa sortie ne descend sous zéro que si
  * une résistance la tire vers −Vs.
+ *
+ * Deux cas : alim dont le + touche la masse d'une carte (rail négatif franc) ;
+ * ou, sans carte, montage symétrique de deux alims empilées où `gndPin` (la
+ * masse du capteur) est au point milieu : le − de l'alim du bas est alors plus
+ * bas que cette masse (volts = potentiel de ce − moins celui de la masse).
  */
 export function negativeRailFrom(
   diagram: Diagram,
   partId: string,
   pin: string,
   psuVolts?: (partId: string) => number | null,
-  liveOhms?: (part: Part) => number | null
+  liveOhms?: (part: Part) => number | null,
+  gndPin?: string
 ): { volts: number; ohms: number } | null {
   const graph = resistiveGraph(diagram, liveOhms);
   const rails = negativePsuRails(diagram, graph.nets);
-  if (rails.length === 0) return null;
   const reached: { net?: string } = {};
-  const ohms = minOhmsPath(graph.nets.netOf({ partId, pin }), new Set(rails.map((r) => r.net)), graph.adj, undefined, reached);
+  if (rails.length > 0) {
+    const ohms = minOhmsPath(graph.nets.netOf({ partId, pin }), new Set(rails.map((r) => r.net)), graph.adj, undefined, reached);
+    if (ohms !== null && reached.net !== undefined) {
+      const rail = rails.find((r) => r.net === reached.net);
+      if (rail) return { volts: -psuOutVolts(diagram, rail.psu, psuVolts, liveOhms), ohms };
+    }
+  }
+  if (!gndPin) return null;
+  // Sans carte : potentiel de chaque net d'alim (− de l'alim = sa base, + = base + sortie).
+  const empilees = stackedPsus(diagram, graph.nets);
+  const pot = new Map<string, number>();
+  const bas = new Map<string, number>();
+  for (const psu of psuParts(diagram)) {
+    const base = psuBaseVolts(diagram, psu, empilees, psuVolts, liveOhms);
+    const moins = graph.nets.netOf({ partId: psu.id, pin: psuMoins(psu) });
+    const plus = graph.nets.netOf({ partId: psu.id, pin: psuPlus(psu) });
+    pot.set(moins, Math.min(pot.get(moins) ?? Infinity, base));
+    pot.set(plus, Math.max(pot.get(plus) ?? -Infinity, base + psuOutVolts(diagram, psu, psuVolts, liveOhms)));
+    bas.set(moins, base);
+  }
+  const pg = pot.get(graph.nets.netOf({ partId, pin: gndPin }));
+  if (pg === undefined) return null;
+  const dessous = new Set([...bas].filter(([, v]) => v < pg - 1e-9).map(([n]) => n));
+  if (dessous.size === 0) return null;
+  const ohms = minOhmsPath(graph.nets.netOf({ partId, pin }), dessous, graph.adj, undefined, reached);
   if (ohms === null || reached.net === undefined) return null;
-  const rail = rails.find((r) => r.net === reached.net);
-  if (!rail) return null;
-  return { volts: -psuOutVolts(diagram, rail.psu, psuVolts, liveOhms), ohms };
+  return { volts: (bas.get(reached.net) ?? 0) - pg, ohms };
 }
 
 function resistiveGraph(diagram: Diagram, liveOhms?: (part: Part) => number | null): ResistiveGraph {

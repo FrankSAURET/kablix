@@ -236,6 +236,26 @@ check('alims empilées : LM35A alimenté sous 10 V (Vs → GND)', near(model.par
 const lu = model.meterReadings(pile(), 5, () => 'hiz', undefined, undefined, undefined, undefined, (id) => (id === 'T2' ? 0.25 : null));
 check('alims empilées : voltmètre entre Vout et le milieu = −5 + 0,25 = −4,75 V', lu[0] && near(lu[0].value, -4.75, 0.05), JSON.stringify(lu));
 
+// Montage de la fiche technique SANS carte (test lm35a-uno, Capt2) : deux alims
+// empilées, GND du capteur au point milieu, Vout tiré vers le − de l'alim du bas
+// par une résistance. Le voltmètre (masse au milieu) doit couvrir −0,55 → +1,5 V.
+const pleine = () => ({
+  parts: [alim('A1', 5), alim('A2', 5), { id: 'T2', type: 'lm35a', x: 0, y: 0, attrs: {} }, { id: 'M1', type: 'multimetre', x: 0, y: 0, attrs: { mode: 'voltage' } }, resistor('R1', 100000)],
+  wires: [
+    w(1, 'A1', 'V+', 'A2', 'GND'), w(2, 'A2', 'V+', 'T2', 'Vs'), w(3, 'T2', 'GND', 'A1', 'V+'),
+    w(4, 'M1', '+', 'T2', 'Vout'), w(5, 'M1', 'GND', 'A1', 'V+'), w(6, 'R1', '1', 'T2', 'Vout'), w(7, 'R1', '2', 'A1', 'GND'),
+  ],
+});
+const railPleine = model.negativeRailFrom(pleine(), 'T2', 'Vout', undefined, undefined, 'GND');
+check('pleine gamme sans carte : rail −5 V atteint par Vout', railPleine && near(railPleine.volts, -5) && near(railPleine.ohms, 100000, 1), JSON.stringify(railPleine));
+check('pleine gamme sans carte : sans gndPin, pas de rail (ancien appel)', model.negativeRailFrom(pleine(), 'T2', 'Vout') === null);
+for (const [t, attendu] of [[-0.55, -0.55], [0, 0], [1.5, 1.5]]) {
+  const lue = model.meterReadings(pleine(), 5, () => 'hiz', undefined, undefined, undefined, undefined, (id) => (id === 'T2' ? t : null));
+  check(`pleine gamme sans carte : voltmètre à ${t} V = ${attendu} V`, lue[0] && near(lue[0].value, attendu, 0.01), JSON.stringify(lue));
+}
+const surMoins = pile(); surMoins.parts.push(resistor('R1', 100000)); surMoins.wires.push(w(6, 'R1', '1', 'T2', 'Vout'), w(7, 'R1', '2', 'A1', 'GND'));
+check('GND du capteur sur le − du bas : aucun rail sous lui', model.negativeRailFrom(surMoins, 'T2', 'Vout', undefined, undefined, 'GND') === null);
+
 // Alim / régulateur sur une entrée ADC : l'ADC lisait 0 (aucun code ne posait la
 // tension de la source sur la broche).
 const mcu = (type) => ({ id: 'U1', type, x: 0, y: 0 });

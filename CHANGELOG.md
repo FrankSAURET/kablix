@@ -41,6 +41,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 **Capteurs**
 
 - **LM35A non relié à la carte** : sa sortie suit enfin le curseur de température (un voltmètre branché dessus restait bloqué à −5 V dans un montage symétrique ±5 V).
+- **LM35A pleine gamme sans carte** : sur deux alimentations empilées (±5 V), avec la masse du capteur au point milieu et Vout tirée vers le − de l'alim du bas par une résistance, la sortie descend enfin sous 0 V (−0,55 V à −55 °C).
 
 ## 2026.10.2 (11 octobre 2026)
 
