@@ -28,6 +28,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Modification
 
+**Robot araignée**
+
+- **Patte seule** : la patte affichée est calée à 30 px des pastilles du connecteur et centrée en hauteur sur les broches Coxa et Patella.
+
 **Alimentation**
 
 - **Régulateur L78SxxCV** : si l'entrée est inférieure à la tension réglée + 2 V, le composant s'encadre en rouge avec un avertissement (la sortie suit alors l'entrée au lieu de tenir sa tension).

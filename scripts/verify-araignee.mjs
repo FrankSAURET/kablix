@@ -575,8 +575,15 @@ async function run() {
 		p.pinInfo.length === 6 && p.pinInfo.every((q) => centres.some((c) => Math.abs(c.x - q.x) < 1.5 && Math.abs(c.y - q.y) < 1.5)),
 		centres.map((c) => \`\${c.x.toFixed(1)},\${c.y.toFixed(1)}\`).join(' '));
 	ok('patte seule : la mécanique ne recouvre pas le connecteur',
-		p.shadowRoot.querySelector('.leg__solid').getBBox().x > 40,
+		p.shadowRoot.querySelector('.leg__solid').getBBox().x > 39,
 		Math.round(p.shadowRoot.querySelector('.leg__solid').getBBox().x));
+	{
+		const bb = p.shadowRoot.querySelector('.leg__solid').getBBox();
+		const x0 = Math.min(...p.pinInfo.map((q) => q.x));
+		const ym = p.pinInfo.reduce((a, q) => a + q.y, 0) / p.pinInfo.length;
+		ok('patte seule : bord gauche à 30 px des pastilles (±3)', Math.abs(bb.x - x0 - 30) <= 3, \`\${(bb.x - x0).toFixed(1)}\`);
+		ok('patte seule : centrée en hauteur sur les broches (±8)', Math.abs(bb.y + bb.height / 2 - ym) <= 8, \`\${(bb.y + bb.height / 2 - ym).toFixed(1)}\`);
+	}
 	// La patte a AUSSI ses deux cases d'inversion : servo à l'envers = même
 	// consigne, pose miroir. Le repère est le pied EN PLAN (x) et non sa hauteur :
 	// 30° et 150° lèvent le pied pareil (cos ±60°), c'est le côté qui change.
@@ -602,7 +609,7 @@ async function run() {
 	pDroit.patellaAngle = 150;
 	await pDroit.updateComplete;
 	ok('patte seule : sans la case, 150 et 30 donnent bien DEUX poses',
-		Math.abs(pDroit.geometry.foot.x - pRev.geometry.foot.x) > 5, \`\${pied(pDroit)} vs \${pied(pRev)}\`);
+		Math.abs(pDroit.geometry.foot.x - pRev.geometry.foot.x) > 2, \`\${pied(pDroit)} vs \${pied(pRev)}\`);
 
 	const out = document.createElement('pre');
 	out.id = 'measures';

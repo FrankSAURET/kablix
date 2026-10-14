@@ -1,7 +1,16 @@
 # À faire
 - il recommence à vouloir sauvegarder un projet sois disant ouvert quand je quitte. je pense que c'est lié au fait que j'ai fait un nouveau projet.
+- Quand on envoir un programme sur une pico pi il doit envoyer un reboot à suivre
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.2.243 — patte seule : calage sur le connecteur
+1. ✅ **Écart** pastilles → bord gauche de la patte : 40 → 30 px (`PIN_GAP`, [patte-element.mts](src/webview/composants/patte-element.mts)). La hauteur de la feuille ne bouge pas (`PIN_GAP_FEUILLE`) : les broches restent où elles sont dans les schémas câblés.
+2. ✅ **Centrage vertical** de la patte affichée (repos 90/90) sur le milieu du connecteur (broches Coxa / Patella). Repère = faces réellement dessinées (recalage après le calcul des sommets, qui différait de ~6 px).
+3. ✅ **Échelle** : réduite si besoin pour que les 25 poses tiennent, la patte restant ancrée par sa pose de repos. La patte peut donc être un peu plus petite qu'avant.
+4. ✅ **Banc** `verify:araignee` : 114 contrôles (écart 30 ± 3, centrage ± 8, seuil « deux poses » 5 → 2 px car dépendant de l'échelle). Fiche d'aide : `patte.webp` recapturée.
 
 ---
 

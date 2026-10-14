@@ -281,7 +281,10 @@ export class JointAnimator {
 /** Écart voulu entre les PASTILLES du bornier et le bord gauche de la mécanique
  *  (v2026.8.56) : centrée dans ce qui restait de la feuille, la patte partait
  *  loin du connecteur auquel elle se câble. Elle y est maintenant CALÉE. */
-const PIN_GAP = 40;
+const PIN_GAP = 30;
+/** Ancien écart (40 px) : il fixe la HAUTEUR de la feuille, qui ne bouge pas
+ *  quand l'écart rétrécit — les schémas déjà câblés gardent leurs broches. */
+const PIN_GAP_FEUILLE = 40;
 /** Marge gardée sur les bords de la feuille. */
 const MARGIN = 6;
 /** Largeur voulue de la patte finie, connecteur compris — l'autre étiquette de
@@ -292,7 +295,7 @@ const PATTE_PX = systemeLargeur('patte') ?? (10 + PIN_GAP + Math.round(SYSTEME_P
  *  connecteur et les marges retirés. Arrondi à la grille de 10 px, sinon les
  *  carrés dorés du bornier tombent entre deux lignes. */
 const ZONE_W = Math.round((PATTE_PX - (10 + PIN_GAP + MARGIN)) / 10) * 10;
-const ZONE_H = Math.round((ZONE_W * 1.5) / 10) * 10;
+const ZONE_H = Math.round(((ZONE_W - (PIN_GAP_FEUILLE - PIN_GAP)) * 1.5) / 10) * 10;
 /** Feuille de la patte seule : le connecteur occupe la colonne de gauche, la
  *  mécanique tout le reste. Le bornier, lui, garde sa taille RÉELLE — c'est un
  *  vrai connecteur, il ne grandit pas avec le dessin. */
@@ -379,18 +382,37 @@ function buildView(): LegView | null {
       grow(bb, project({ x: f.x, y: f.y, z: 0 }));
     }
   }
-  const w = Math.max(bb.x1 - bb.x0, 1);
-  const h = Math.max(bb.y1 - bb.y0, 1);
-  // La patte est CALÉE À GAUCHE de sa zone (à `PIN_GAP` des pastilles) : l'ombre
-  // ne déborde donc que du côté droit, une seule marge à réserver.
-  const usableW = ZONE.x1 - ZONE.x0 - SHADOW_PAD;
-  const usableH = ZONE.y1 - ZONE.y0 - 2 * SHADOW_PAD;
-  v.k = Math.min(usableW / w, usableH / h);
+  // La patte AFFICHÉE (repos 90/90, sans l'ombre) sert de repère : son bord
+  // gauche est à `PIN_GAP` des pastilles et son milieu en hauteur sur celui du
+  // connecteur, donc sur les broches Coxa et Patella. Les autres poses s'y
+  // accrochent : on réduit l'échelle jusqu'à ce que TOUT le débattement tienne.
+  const rest = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
+  const xr = legPose(rig, placeOf(v), 90, 90);
+  for (const q of vf) grow(rest, project(xr.femur(q)));
+  for (const q of vt) grow(rest, project(xr.tibia(q)));
+  const cy = (rest.y0 + rest.y1) / 2;
+  const midY = PLUG.y + PLUG.h / 2;
+  // Marge à droite : l'ombre déborde. À gauche, la feuille elle-même (MARGIN).
+  const fit = (room: number, extent: number): number => (extent > 0 ? room / extent : Infinity);
+  v.k = Math.min(
+    fit(ZONE.x1 - ZONE.x0 - SHADOW_PAD, bb.x1 - rest.x0),
+    fit(ZONE.x0 - MARGIN - SHADOW_PAD, rest.x0 - bb.x0),
+    fit(midY - ZONE.y0 - SHADOW_PAD, cy - bb.y0),
+    fit(ZONE.y1 - midY - SHADOW_PAD, bb.y1 - cy),
+  );
   v.ground *= v.k;
-  v.origin = {
-    x: ZONE.x0 - bb.x0 * v.k,
-    y: (ZONE.y0 + ZONE.y1) / 2 - ((bb.y0 + bb.y1) / 2) * v.k,
-  };
+  v.origin = { x: ZONE.x0 - rest.x0 * v.k, y: midY - cy * v.k };
+  // Recalage sur les FACES réellement dessinées (épaisseurs, simplification) :
+  // les sommets du calcul ci-dessus ne coïncident pas au pixel avec elles.
+  const xs = legPose(rig, placeOf(v), 90, 90);
+  const opts = { scale: v.k, simplify: SIMPLIFY, grain: GRAIN };
+  const drawn = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
+  for (const f of [
+    ...assemblyFaces(rig.femur, { ...opts, xf: xs.femur }),
+    ...assemblyFaces(rig.tibia, { ...opts, xf: xs.tibia }),
+  ]) for (const q of f.pts) grow(drawn, q);
+  v.origin.x += ZONE.x0 - (v.origin.x + drawn.x0);
+  v.origin.y += midY - (v.origin.y + (drawn.y0 + drawn.y1) / 2);
   return v;
 }
 
