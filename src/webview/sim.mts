@@ -3954,7 +3954,14 @@ function bindInputs(): void {
     el.addEventListener('input', apply);
     inputRemovers.push(() => el.removeEventListener('input', apply));
   }
-  for (const binding of analogSourceBindings(editor.diagram)) {
+  // Capteur à tension propre (LM35A) NON relié à la carte : il n'a pas de liaison ADC,
+  // mais sa sortie doit tout de même alimenter le montage (voltmètre, résistance).
+  // Liaison sans broche (mcuPin vide) : le curseur pose la source, pas l'ADC.
+  const liees = new Set(analogSourceBindings(editor.diagram).map((b) => b.partId));
+  const libres = editor.diagram.parts
+    .filter((p) => !liees.has(p.id) && partDef(p.type).kind === 'analog-source' && partDef(p.type).custom?.minSupply)
+    .map((p) => ({ partId: p.id, mcuPin: '' }));
+  for (const binding of [...analogSourceBindings(editor.diagram), ...libres]) {
     const part = editor.diagram.parts.find((p) => p.id === binding.partId);
     if (part?.type === 'heartbeat') {
       // Pouls : sortie dynamique (courbe cardiaque) générée dans la boucle de rendu.
@@ -4019,7 +4026,7 @@ function bindInputs(): void {
           // Sous la tension minimale la puce est éteinte : sortie à 0 V.
           if (chk && !chk.ok) {
             sensorVoltsMap.set(part.id, 0);
-            engine?.setAnalog(pin, 0);
+            if (pin) engine?.setAnalog(pin, 0);
             return;
           }
           const x = Number(el.controlValue ?? 0);
@@ -4047,7 +4054,7 @@ function bindInputs(): void {
             const max = controlMax(ctrl, params, (attr) => part.attrs?.[attr]);
             level = max > min ? Math.min(1, Math.max(0, (x - min) / (max - min))) : 0;
           }
-          engine?.setAnalog(pin, level);
+          if (pin) engine?.setAnalog(pin, level);
         };
         if (chk) {
           chk.apply = apply;

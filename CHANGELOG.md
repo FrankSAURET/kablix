@@ -33,6 +33,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Deux alimentations en série** (montage symétrique ±5 V) ne déclenchent plus un faux « courant limite ».
 - **Alimentation ou régulateur sur une entrée analogique** : la sortie d'un 78xx branchée sur A0 (ou sur GP27 par un pont diviseur) est enfin lue par le programme, au lieu de toujours donner 0 V.
 
+**Capteurs**
+
+- **LM35A non relié à la carte** : sa sortie suit enfin le curseur de température (un voltmètre branché dessus restait bloqué à −5 V dans un montage symétrique ±5 V).
+
 ## 2026.10.2 (11 octobre 2026)
 
 ### Nouveauté

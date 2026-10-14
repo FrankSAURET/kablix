@@ -1,9 +1,14 @@
 # À faire
-- LM35a dans lm35a-uno. alimenté par une une tension symétrique +-5V. Le voltmetre affiche tjs -5V
 - Rajoute des étiquettes aux alims et au gbf
 - **Bancs rouges d'environnement** : `verify:multimetre` (rendu « mesure DANS l'écran, ampèremètre » après le réglage `DISPLAY_RIGHT` 224 → 222 du 11/10 : le banc attend l'ancienne position) ; `verify:analyseur-regle` et `verify:analyseur-sans-declenchement` (le Chrome d'essai refuse `sessionStorage` : « Access is denied », sans lien avec le code). -> explique
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.2.234 — LM35A sans liaison à la carte : sortie enfin posée
+1. ✅ **Voltmètre bloqué à −5 V sur `lm35a-uno`** (capteur de test sur alims ±5 V, non relié à l'Uno). Cause : `sim.mts` ne posait le curseur d'un capteur à tension propre que pour une liaison ADC ; sans broche de carte, `sensorVoltsMap` restait vide, la sortie n'avait pas de source et la résistance la tirait à −Vs. Correctif : les capteurs `minSupply` non liés reçoivent une liaison à broche vide (`mcuPin: ''`) ; le curseur pose la source, l'ADC n'est pas touché.
+2. ℹ️ Pas de banc : `sim.mts` n'est pas chargeable hors webview. `verify:regulateur` reste vert (modèle déjà juste : −4,75 V). À voir en F5 : curseur du Capt2 de `lm35a-uno`.
 
 ---
 
