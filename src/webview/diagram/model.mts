@@ -67,9 +67,8 @@ export interface TextNote {
   link?: TextLink;
 }
 
-/** Connecteur d'une étiquette. `side` est donné dans le repère de l'étiquette (il tourne avec elle). */
+/** Connecteur d'une étiquette. Le côté de départ n'est pas stocké : le plus proche de l'extrémité est pris à chaque tracé. */
 export interface TextLink {
-  side: 't' | 'r' | 'b' | 'l';
   x: number;
   y: number;
   /** Extrémité : point ou flèche. */

@@ -1,7 +1,14 @@
 # À faire
-Rien en attente.
+- il recommence à vouloir sauvegarder un projet sois disant ouvert quand je quitte. je pense que c'est lié au fait que j'ai fait un nouveau projet.
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.2.242 — connecteur : côté automatique, extrémité libre
+1. ✅ **Côté automatique** : plus de propriété « Côté » ni de champ `side` ; `textLinkAnchor` prend à chaque tracé le milieu du côté (repère tourné compris) le plus proche de l'extrémité. Les anciens fichiers avec `side` sont lus sans erreur (champ ignoré).
+2. ✅ **Extrémité sans grille** : glissé au pixel.
+3. ✅ **Banc** `verify:texte` : 106 contrôles (côté bas pris tout seul).
 
 ---
 

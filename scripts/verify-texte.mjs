@@ -647,7 +647,7 @@ async function run() {
 	await wait(20);
 	const lien = editor.diagram.texts.find((n) => n.id === idL).link;
 	const gL = document.querySelector('.text-link-layer g');
-	ok('connecteur posé : côté droit, flèche, tracé dessiné', lien && lien.side === 'r' && lien.end === 'arrow'
+	ok('connecteur posé : flèche, tracé dessiné', lien && lien.end === 'arrow'
 		&& gL && gL.querySelector('polygon') && gL.querySelector('line'), JSON.stringify(lien));
 	const nL = notes().find((n) => corps(n).innerText.startsWith('Debut'));
 	const xL = parseFloat(gL.querySelector('line').getAttribute('x1'));
@@ -657,11 +657,18 @@ async function run() {
 		Math.abs(xL - (noteL.x + nL.offsetWidth)) < 0.5 && Math.abs(yL - (noteL.y + nL.offsetHeight / 2)) < 0.5, xL + ',' + yL);
 	ok('couleur = fond sans transparence', gL.querySelector('line').getAttribute('stroke') === (noteL.bg ?? '#ffe100'),
 		gL.querySelector('line').getAttribute('stroke'));
-	editor.setTextLink(idL, { end: 'dot', side: 'b' });
+	editor.setTextLink(idL, { end: 'dot' });
 	await wait(20);
 	const gD = document.querySelector('.text-link-layer g');
-	ok('extrémité point + côté bas', gD.querySelector('circle:not(.text-link__grip)') && !gD.querySelector('polygon')
-		&& editor.diagram.texts.find((n) => n.id === idL).link.side === 'b');
+	ok('extrémité point', gD.querySelector('circle:not(.text-link__grip)') && !gD.querySelector('polygon'));
+	// Côté choisi tout seul : extrémité sous l'étiquette → départ au milieu du bas.
+	editor.diagram.texts.find((n) => n.id === idL).link.y = noteL.y + nL.offsetHeight + 80;
+	editor.diagram.texts.find((n) => n.id === idL).link.x = noteL.x + nL.offsetWidth / 2;
+	editor.setTextLink(idL, {});
+	await wait(20);
+	const gB = document.querySelector('.text-link-layer g').querySelector('line');
+	ok('le côté le plus court est pris tout seul (bas)', Math.abs(parseFloat(gB.getAttribute('y1')) - (noteL.y + nL.offsetHeight)) < 0.5
+		&& Math.abs(parseFloat(gB.getAttribute('x1')) - (noteL.x + nL.offsetWidth / 2)) < 0.5, gB.getAttribute('x1') + ',' + gB.getAttribute('y1'));
 	const dumpK = editor.serialize();
 	ok('le connecteur part dans le fichier', dumpK.texts.find((n) => n.text.includes('Debut colle')).link.end === 'dot');
 	ok('et dans l export SVG', editor.exportSvg().includes('<circle'));

@@ -310,8 +310,7 @@ const sanitizeTextLink = (l: unknown): TextLink | undefined => {
   const x = Number(o.x);
   const y = Number(o.y);
   if (!Number.isFinite(x) || !Number.isFinite(y)) return undefined;
-  const side = o.side === 't' || o.side === 'b' || o.side === 'l' ? o.side : 'r';
-  return { side, x, y, end: o.end === 'dot' ? 'dot' : 'arrow' };
+  return { x, y, end: o.end === 'dot' ? 'dot' : 'arrow' };
 };
 /** Couleur du fond d'une étiquette SANS sa transparence (#rrggbb) : celle du connecteur. */
 const textNoteSolid = (n: TextNote): string => n.bg ?? TEXT_NOTE_DEFAULTS.bg;
@@ -8099,16 +8098,24 @@ export class Editor {
     node.style.transform = note.rotation ? `rotate(${note.rotation}deg)` : '';
   }
 
-  /** Départ du connecteur : milieu du côté choisi, étiquette tournée comprise. */
+  /** Départ du connecteur : milieu du côté le plus proche de l'extrémité (donc le trait le plus court), étiquette tournée comprise. */
   private textLinkAnchor(note: TextNote, w: number, h: number): XY {
     const l = note.link!;
-    const lx = l.side === 'r' ? w / 2 : l.side === 'l' ? -w / 2 : 0;
-    const ly = l.side === 'b' ? h / 2 : l.side === 't' ? -h / 2 : 0;
     const a = ((note.rotation ?? 0) * Math.PI) / 180;
-    return {
-      x: note.x + w / 2 + lx * Math.cos(a) - ly * Math.sin(a),
-      y: note.y + h / 2 + lx * Math.sin(a) + ly * Math.cos(a),
-    };
+    let best: XY = { x: note.x + w / 2, y: note.y + h / 2 };
+    let bestD = Infinity;
+    for (const [lx, ly] of [[w / 2, 0], [-w / 2, 0], [0, h / 2], [0, -h / 2]]) {
+      const p = {
+        x: note.x + w / 2 + lx * Math.cos(a) - ly * Math.sin(a),
+        y: note.y + h / 2 + lx * Math.sin(a) + ly * Math.cos(a),
+      };
+      const d = Math.hypot(l.x - p.x, l.y - p.y);
+      if (d < bestD) {
+        bestD = d;
+        best = p;
+      }
+    }
+    return best;
   }
 
   /** Dessine (ou redessine) tous les connecteurs d'étiquettes. */
@@ -8172,8 +8179,9 @@ export class Editor {
     const move = (ev: PointerEvent): void => {
       if (!note.link) return;
       const p = this.canvasPoint(ev.clientX, ev.clientY);
-      note.link.x = Math.max(0, Math.min(SHEET_W, snapToGrid(p.x)));
-      note.link.y = Math.max(0, Math.min(SHEET_H, snapToGrid(p.y)));
+      // Pas d'accrochage à la grille : l'extrémité se pose au pixel.
+      note.link.x = Math.max(0, Math.min(SHEET_W, p.x));
+      note.link.y = Math.max(0, Math.min(SHEET_H, p.y));
       this.redrawTextLinks();
     };
     const up = (): void => {
@@ -8200,7 +8208,6 @@ export class Editor {
       Object.assign(note.link, sanitizeTextLink({ ...note.link, ...patch }));
     } else {
       note.link = sanitizeTextLink({
-        side: 'r',
         end: 'arrow',
         x: snapToGrid(note.x + node.offsetWidth + 60),
         y: snapToGrid(note.y + node.offsetHeight / 2),
@@ -8577,13 +8584,6 @@ export class Editor {
       ['⎯', t('Connector'), !!lien, () => { if (!lien) this.setTextLink(id, {}); }],
     ]);
     if (lien) {
-      label(t('Side'));
-      choix([
-        ['▲', t('Top'), lien.side === 't', () => this.setTextLink(id, { side: 't' })],
-        ['▶', t('Right'), lien.side === 'r', () => this.setTextLink(id, { side: 'r' })],
-        ['▼', t('Bottom'), lien.side === 'b', () => this.setTextLink(id, { side: 'b' })],
-        ['◀', t('Left'), lien.side === 'l', () => this.setTextLink(id, { side: 'l' })],
-      ]);
       label(t('End'));
       choix([
         ['●', t('Dot'), lien.end === 'dot', () => this.setTextLink(id, { end: 'dot' })],
