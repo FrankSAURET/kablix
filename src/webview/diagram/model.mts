@@ -63,6 +63,17 @@ export interface TextNote {
   font?: string;
   /** Rotation en degrés (0-359) autour du centre de la zone. Absent = 0. */
   rotation?: number;
+  /** Connecteur : trait parti du milieu d'un côté de l'étiquette jusqu'au point (x, y) du monde. */
+  link?: TextLink;
+}
+
+/** Connecteur d'une étiquette. `side` est donné dans le repère de l'étiquette (il tourne avec elle). */
+export interface TextLink {
+  side: 't' | 'r' | 'b' | 'l';
+  x: number;
+  y: number;
+  /** Extrémité : point ou flèche. */
+  end: 'dot' | 'arrow';
 }
 
 /** Valeurs d'origine d'une étiquette : ce qu'on obtient en la posant, et ce que

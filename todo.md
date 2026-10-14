@@ -5,6 +5,15 @@ Rien en attente.
 
 ---
 
+# v2026.10.2.241 — textes libres : connecteur
+1. ✅ **`TextNote.link`** `{side, x, y, end}` : trait du milieu d'un côté (repère de l'étiquette, tourne avec elle) jusqu'à un point du monde ; couche SVG `.text-link-layer` (z 45, au-dessus des étiquettes), couleur = fond sans transparence (`textNoteSolid`), extrémité point ou flèche. Poignée glissable (grille) sur l'extrémité. `setTextLink`, `redrawTextLinks` (`editor.mts`).
+2. ✅ **Inspecteur** : Connecteur (aucun / posé), Côté (▲▶▼◀), Extrémité (● point / ➤ flèche). Défaut : côté droit, flèche, 60 px.
+3. ✅ Fichier (`sanitizeTextLink`), rechargement, export SVG. **Banc** `verify:texte` : 105 contrôles.
+4. ℹ️ L'extrémité reste en place quand l'étiquette bouge (elle pointe une cible fixe).
+5. ⏳ Traduction : libellés EN neufs « Connector », « No connector », « Side », « Top/Right/Bottom/Left », « End », « Dot », « Arrow » : avant publication.
+
+---
+
 # v2026.10.2.240 — textes libres : rotation
 1. ✅ **`TextNote.rotation`** (degrés, 0 = absent) : `rotateTexts` (`editor.mts`) ; `rotateSelection` (touches + / −, boutons ↺ ↻) tourne aussi les textes sélectionnés ; boutons ↺ ↻ dans l'inspecteur du texte. CSS `rotate()` autour du centre ; champ gravé dans le fichier (`sanitizeTextStyle`), repris au rechargement et à l'export SVG (`<g transform="rotate(…)">`, encombrement recalculé).
 2. ✅ **Banc** `verify:texte` : 96 contrôles (90°, retour à 0, fichier, export, rechargement).

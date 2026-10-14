@@ -636,6 +636,42 @@ async function run() {
 	const noeudR2 = notes().find((n) => corps(n).innerText.startsWith('Debut'));
 	ok('et elle revient au rechargement', noeudR2.style.transform === 'rotate(45deg)', noeudR2.style.transform);
 
+	// --- 12c. Connecteur : trait collé au milieu d'un côté, point ou flèche -------
+	editor.select({ kind: 'text', id: editor.diagram.texts.find((n) => n.text.includes('Debut colle')).id });
+	editor.rotateSelection(-45);
+	await wait(20);
+	const idL = editor.diagram.texts.find((n) => n.text.includes('Debut colle')).id;
+	const lienAvant = editor.diagram.texts.find((n) => n.id === idL).link;
+	ok('sans connecteur au départ', lienAvant === undefined && !document.querySelector('.text-link-layer g'));
+	editor.setTextLink(idL, {});
+	await wait(20);
+	const lien = editor.diagram.texts.find((n) => n.id === idL).link;
+	const gL = document.querySelector('.text-link-layer g');
+	ok('connecteur posé : côté droit, flèche, tracé dessiné', lien && lien.side === 'r' && lien.end === 'arrow'
+		&& gL && gL.querySelector('polygon') && gL.querySelector('line'), JSON.stringify(lien));
+	const nL = notes().find((n) => corps(n).innerText.startsWith('Debut'));
+	const xL = parseFloat(gL.querySelector('line').getAttribute('x1'));
+	const yL = parseFloat(gL.querySelector('line').getAttribute('y1'));
+	const noteL = editor.diagram.texts.find((n) => n.id === idL);
+	ok('le départ est au milieu du côté droit de l étiquette',
+		Math.abs(xL - (noteL.x + nL.offsetWidth)) < 0.5 && Math.abs(yL - (noteL.y + nL.offsetHeight / 2)) < 0.5, xL + ',' + yL);
+	ok('couleur = fond sans transparence', gL.querySelector('line').getAttribute('stroke') === (noteL.bg ?? '#ffe100'),
+		gL.querySelector('line').getAttribute('stroke'));
+	editor.setTextLink(idL, { end: 'dot', side: 'b' });
+	await wait(20);
+	const gD = document.querySelector('.text-link-layer g');
+	ok('extrémité point + côté bas', gD.querySelector('circle:not(.text-link__grip)') && !gD.querySelector('polygon')
+		&& editor.diagram.texts.find((n) => n.id === idL).link.side === 'b');
+	const dumpK = editor.serialize();
+	ok('le connecteur part dans le fichier', dumpK.texts.find((n) => n.text.includes('Debut colle')).link.end === 'dot');
+	ok('et dans l export SVG', editor.exportSvg().includes('<circle'));
+	editor.loadDiagram(JSON.parse(JSON.stringify(dumpK)));
+	await wait(120);
+	ok('et il revient au rechargement', document.querySelectorAll('.text-link-layer g').length === 1);
+	editor.setTextLink(editor.diagram.texts.find((n) => n.text.includes('Debut colle')).id, null);
+	await wait(20);
+	ok('retiré : plus de tracé', document.querySelectorAll('.text-link-layer g').length === 0);
+
 	// --- 13. Le curseur du mode texte porte un T ---------------------------------
 	editor.toggleTextMode(true);
 	await wait(20);

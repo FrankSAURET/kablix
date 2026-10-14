@@ -57,7 +57,7 @@ import { shieldSignalTarget } from './shield.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
 import { hasPinout, pinoutPoster, loadPinoutSvg } from './pinout.mjs';
 import { boardSize } from '../composants/pico-board.mjs';
-import { buildNets, nameEquipotentials, TEXT_NOTE_DEFAULTS, type Diagram, type Endpoint, type Part, type TextNote, type Wire } from './model.mjs';
+import { buildNets, nameEquipotentials, TEXT_NOTE_DEFAULTS, type Diagram, type Endpoint, type Part, type TextLink, type TextNote, type Wire } from './model.mjs';
 import { DEFAULT_WIRE_COLORS, DUPONT_COLORS, dupontHex, roundedWirePath, snapPoint, type XY } from './geometry.mjs';
 import { startAutoPan, type AutoPan } from './autopan.mjs';
 import { installerListeCrantee } from './liste-crantee.mjs';
@@ -303,6 +303,18 @@ const sanitizeTextStyle = (n: Partial<TextNote>): Partial<TextNote> => {
   }
   return out;
 };
+/** Connecteur valide venu d'un fichier, ou undefined. */
+const sanitizeTextLink = (l: unknown): TextLink | undefined => {
+  const o = l as Partial<TextLink> | null | undefined;
+  if (!o || typeof o !== 'object') return undefined;
+  const x = Number(o.x);
+  const y = Number(o.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return undefined;
+  const side = o.side === 't' || o.side === 'b' || o.side === 'l' ? o.side : 'r';
+  return { side, x, y, end: o.end === 'dot' ? 'dot' : 'arrow' };
+};
+/** Couleur du fond d'une étiquette SANS sa transparence (#rrggbb) : celle du connecteur. */
+const textNoteSolid = (n: TextNote): string => n.bg ?? TEXT_NOTE_DEFAULTS.bg;
 /** Échappe un texte destiné à un nœud XML (export SVG). */
 const escapeXmlText = (s: string): string =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -550,6 +562,8 @@ export class Editor {
    *  Elle reste sous la couche des défauts, qui doit rester lisible en toutes
    *  circonstances. */
   private textLayer!: HTMLDivElement;
+  /** Connecteurs des étiquettes (SVG au-dessus des étiquettes). */
+  private linkLayer!: SVGSVGElement;
   /** Bloc DOM de chaque étiquette, par identifiant. */
   private textNodes = new Map<string, HTMLDivElement>();
   /** Mode texte (bouton T de la barre) : un clic sur le fond pose une étiquette. */
@@ -658,6 +672,9 @@ export class Editor {
     this.textLayer = document.createElement('div');
     this.textLayer.className = 'text-layer';
     this.world.appendChild(this.textLayer);
+    this.linkLayer = document.createElementNS(SVG_NS, 'svg');
+    this.linkLayer.setAttribute('class', 'text-link-layer');
+    this.world.appendChild(this.linkLayer);
     // Couche des explications de défaut : posée EN DERNIER dans le monde, elle
     // couvre tout le reste quoi qu'il arrive (cf. setFaultNote).
     this.faultLayer = document.createElement('div');
@@ -2510,6 +2527,7 @@ export class Editor {
     this.rendered.clear();
     for (const n of this.textNodes.values()) n.remove();
     this.textNodes.clear();
+    this.linkLayer.replaceChildren();
     this.internalShown.clear();
     this.pinoutShown.clear();
     this.selectedParts.clear();
@@ -2623,9 +2641,12 @@ export class Editor {
         text: n.text,
         ...sanitizeTextStyle(n),
       };
+      const lien = sanitizeTextLink(n.link);
+      if (lien) note.link = lien;
       (this.diagram.texts ??= []).push(note);
       this.renderText(note);
     }
+    this.redrawTextLinks();
     this.redrawWires();
     this.scheduleSettle();
     // Caméra enregistrée : restaurée telle quelle (l'appelant ne fera pas fitView).
@@ -7950,6 +7971,7 @@ export class Editor {
       return;
     }
     note.text = texte;
+    this.redrawTextLinks();
     this.notify();
   }
 
@@ -7985,6 +8007,7 @@ export class Editor {
     list.splice(i, 1);
     this.textNodes.get(id)?.remove();
     this.textNodes.delete(id);
+    this.redrawTextLinks();
     this.selectedTexts.delete(id);
     if (this.selection?.kind === 'text' && this.selection.id === id) this.select(null);
     this.notify();
@@ -8076,6 +8099,118 @@ export class Editor {
     node.style.transform = note.rotation ? `rotate(${note.rotation}deg)` : '';
   }
 
+  /** Départ du connecteur : milieu du côté choisi, étiquette tournée comprise. */
+  private textLinkAnchor(note: TextNote, w: number, h: number): XY {
+    const l = note.link!;
+    const lx = l.side === 'r' ? w / 2 : l.side === 'l' ? -w / 2 : 0;
+    const ly = l.side === 'b' ? h / 2 : l.side === 't' ? -h / 2 : 0;
+    const a = ((note.rotation ?? 0) * Math.PI) / 180;
+    return {
+      x: note.x + w / 2 + lx * Math.cos(a) - ly * Math.sin(a),
+      y: note.y + h / 2 + lx * Math.sin(a) + ly * Math.cos(a),
+    };
+  }
+
+  /** Dessine (ou redessine) tous les connecteurs d'étiquettes. */
+  private redrawTextLinks(): void {
+    this.linkLayer.replaceChildren();
+    for (const note of this.diagram.texts ?? []) {
+      const node = this.textNodes.get(note.id);
+      const l = note.link;
+      if (!node || !l) continue;
+      const from = this.textLinkAnchor(note, node.offsetWidth, node.offsetHeight);
+      const dx = l.x - from.x;
+      const dy = l.y - from.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const ux = dx / len;
+      const uy = dy / len;
+      const color = textNoteSolid(note);
+      const g = document.createElementNS(SVG_NS, 'g');
+      g.dataset.textLink = note.id;
+      const baseLen = l.end === 'arrow' ? Math.min(len, 10) : 0;
+      const line = document.createElementNS(SVG_NS, 'line');
+      line.setAttribute('x1', String(from.x));
+      line.setAttribute('y1', String(from.y));
+      line.setAttribute('x2', String(l.x - ux * baseLen));
+      line.setAttribute('y2', String(l.y - uy * baseLen));
+      line.setAttribute('stroke', color);
+      line.setAttribute('stroke-width', '2');
+      g.appendChild(line);
+      if (l.end === 'arrow') {
+        const head = document.createElementNS(SVG_NS, 'polygon');
+        const bx = l.x - ux * 12;
+        const by = l.y - uy * 12;
+        head.setAttribute('points', `${l.x},${l.y} ${bx - uy * 5},${by + ux * 5} ${bx + uy * 5},${by - ux * 5}`);
+        head.setAttribute('fill', color);
+        g.appendChild(head);
+      } else {
+        const dot = document.createElementNS(SVG_NS, 'circle');
+        dot.setAttribute('cx', String(l.x));
+        dot.setAttribute('cy', String(l.y));
+        dot.setAttribute('r', '4');
+        dot.setAttribute('fill', color);
+        g.appendChild(dot);
+      }
+      // Poignée invisible sur l'extrémité : on la glisse où l'on veut.
+      const grip = document.createElementNS(SVG_NS, 'circle');
+      grip.setAttribute('class', 'text-link__grip');
+      grip.setAttribute('cx', String(l.x));
+      grip.setAttribute('cy', String(l.y));
+      grip.setAttribute('r', '9');
+      grip.addEventListener('pointerdown', (e) => this.onTextLinkPointerDown(note, e as PointerEvent));
+      g.appendChild(grip);
+      this.linkLayer.appendChild(g);
+    }
+  }
+
+  private onTextLinkPointerDown(note: TextNote, e: PointerEvent): void {
+    if (this.locked || e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    this.select({ kind: 'text', id: note.id });
+    const release = this.capturePointer(e);
+    const move = (ev: PointerEvent): void => {
+      if (!note.link) return;
+      const p = this.canvasPoint(ev.clientX, ev.clientY);
+      note.link.x = Math.max(0, Math.min(SHEET_W, snapToGrid(p.x)));
+      note.link.y = Math.max(0, Math.min(SHEET_H, snapToGrid(p.y)));
+      this.redrawTextLinks();
+    };
+    const up = (): void => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      release();
+      this.notify();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  /**
+   * Pose, modifie ou retire (`null`) le connecteur d'une étiquette. À la
+   * création, il part du côté droit et finit en flèche, 60 px plus loin.
+   */
+  setTextLink(id: string, patch: Partial<TextLink> | null): void {
+    const note = this.diagram.texts?.find((n) => n.id === id);
+    const node = this.textNodes.get(id);
+    if (!note || !node) return;
+    if (patch === null) {
+      delete note.link;
+    } else if (note.link) {
+      Object.assign(note.link, sanitizeTextLink({ ...note.link, ...patch }));
+    } else {
+      note.link = sanitizeTextLink({
+        side: 'r',
+        end: 'arrow',
+        x: snapToGrid(note.x + node.offsetWidth + 60),
+        y: snapToGrid(note.y + node.offsetHeight / 2),
+        ...patch,
+      });
+    }
+    this.redrawTextLinks();
+    this.notify();
+  }
+
   /** Tourne des étiquettes de `deltaDeg` ; le champ disparaît à 0. */
   private rotateTexts(ids: string[], deltaDeg: number): void {
     for (const id of ids) {
@@ -8088,6 +8223,7 @@ export class Editor {
       const body = node.querySelector('.text-note__body') as HTMLElement | null;
       if (body) this.applyTextStyle(note, node, body);
     }
+    this.redrawTextLinks();
   }
 
   /** Change une propriété de style d'une étiquette (inspecteur). */
@@ -8100,6 +8236,7 @@ export class Editor {
     Object.assign(note, propre);
     const body = node.querySelector('.text-note__body') as HTMLElement | null;
     if (body) this.applyTextStyle(note, node, body);
+    this.redrawTextLinks();
     this.notify();
   }
 
@@ -8112,6 +8249,7 @@ export class Editor {
     delete note[champ];
     const body = node.querySelector('.text-note__body') as HTMLElement | null;
     if (body) this.applyTextStyle(note, node, body);
+    this.redrawTextLinks();
     this.notify();
   }
 
@@ -8188,6 +8326,7 @@ export class Editor {
     if (!node || !note) return;
     node.style.left = `${note.x}px`;
     node.style.top = `${note.y}px`;
+    this.redrawTextLinks();
   }
 
   private onTextPointerDown(
@@ -8273,6 +8412,7 @@ export class Editor {
       const wdx = nx - ox;
       const wdy = ny - oy;
       this.moveTextNotes(autres, wdx, wdy);
+      if (autres.length === 0) this.redrawTextLinks();
       if (parts.length > 0) {
         for (const p of parts) {
           p.rr.part.x = p.ox + wdx;
@@ -8342,6 +8482,7 @@ export class Editor {
       n.node.style.left = `${n.note.x}px`;
       n.node.style.top = `${n.note.y}px`;
     }
+    this.redrawTextLinks();
   }
 
   /** Ctrl+clic sur une étiquette : elle entre ou sort du lot sélectionné. */
@@ -8411,6 +8552,44 @@ export class Editor {
       rot.appendChild(btn);
     }
     this.inspector.appendChild(rot);
+
+    // Connecteur : trait collé au milieu d'un côté, couleur du fond sans transparence.
+    label(t('Connector'));
+    const choix = (items: Array<[string, string, boolean, () => void]>): void => {
+      const row = document.createElement('div');
+      row.className = 'inspector__transform';
+      for (const [glyph, titre, actif, on] of items) {
+        const btn = document.createElement('button');
+        btn.className = 'inspector__transform-btn' + (actif ? ' inspector__transform-btn--active' : '');
+        btn.textContent = glyph;
+        btn.title = titre;
+        btn.addEventListener('click', () => {
+          on();
+          this.renderInspector();
+        });
+        row.appendChild(btn);
+      }
+      this.inspector.appendChild(row);
+    };
+    const lien = note.link;
+    choix([
+      ['∅', t('No connector'), !lien, () => this.setTextLink(id, null)],
+      ['⎯', t('Connector'), !!lien, () => { if (!lien) this.setTextLink(id, {}); }],
+    ]);
+    if (lien) {
+      label(t('Side'));
+      choix([
+        ['▲', t('Top'), lien.side === 't', () => this.setTextLink(id, { side: 't' })],
+        ['▶', t('Right'), lien.side === 'r', () => this.setTextLink(id, { side: 'r' })],
+        ['▼', t('Bottom'), lien.side === 'b', () => this.setTextLink(id, { side: 'b' })],
+        ['◀', t('Left'), lien.side === 'l', () => this.setTextLink(id, { side: 'l' })],
+      ]);
+      label(t('End'));
+      choix([
+        ['●', t('Dot'), lien.end === 'dot', () => this.setTextLink(id, { end: 'dot' })],
+        ['➤', t('Arrow'), lien.end === 'arrow', () => this.setTextLink(id, { end: 'arrow' })],
+      ]);
+    }
 
     label(t('Text color'));
     nuancier(TEXT_NOTE_INKS, textNoteInk(note), (c) => this.setTextStyle(id, { color: c }));
@@ -8768,6 +8947,26 @@ export class Editor {
             `font-size="${corps}" ` +
             `fill="${textNoteInk(note)}" xml:space="preserve">${tspans}</text></g>`
         );
+        // Connecteur : même tracé qu'à l'écran (trait + pointe ou point).
+        const l = note.link;
+        if (l) {
+          const from = this.textLinkAnchor(note, w, h);
+          const len = Math.hypot(l.x - from.x, l.y - from.y) || 1;
+          const ux = (l.x - from.x) / len;
+          const uy = (l.y - from.y) / len;
+          const c = textNoteSolid(note);
+          const base = l.end === 'arrow' ? Math.min(len, 10) : 0;
+          const bx = l.x - ux * 12;
+          const by = l.y - uy * 12;
+          grow(l.x, l.y);
+          notes.push(
+            `<g><line x1="${from.x}" y1="${from.y}" x2="${l.x - ux * base}" y2="${l.y - uy * base}" stroke="${c}" stroke-width="2"/>` +
+              (l.end === 'arrow'
+                ? `<polygon points="${l.x},${l.y} ${bx - uy * 5},${by + ux * 5} ${bx + uy * 5},${by - ux * 5}" fill="${c}"/>`
+                : `<circle cx="${l.x}" cy="${l.y}" r="4" fill="${c}"/>`) +
+              `</g>`
+          );
+        }
       }
     }
 

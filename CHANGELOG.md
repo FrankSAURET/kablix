@@ -19,6 +19,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Schéma**
 
+- **Connecteur sur les textes libres** : propriété « Connecteur » dans l'inspecteur. Le trait part du milieu du côté choisi (haut, droite, bas, gauche), passe par-dessus tout et finit par un point ou une flèche (propriété « Extrémité »). Il prend la couleur de fond de l'étiquette, sans sa transparence. On déplace l'extrémité en la glissant. Enregistré dans le fichier et repris à l'export SVG.
 - **Les textes libres tournent** : touches + et − (pas de 45°) ou boutons ↺ ↻ de l'inspecteur (quart de tour), seuls ou en sélection multiple. La rotation est enregistrée dans le fichier et reprise à l'export SVG.
 
 **Grove Shield Pico**
