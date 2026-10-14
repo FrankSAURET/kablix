@@ -1,4 +1,5 @@
 # À faire
+- Si la tension  d'alim du 78xx est inférieur à vout+2 il faut un avertissement.
 ## ne pas faire pour l'instant
 - Ruban led extensible
 

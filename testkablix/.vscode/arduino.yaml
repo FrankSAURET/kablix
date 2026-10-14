@@ -1,4 +1,4 @@
 board: arduino:avr:uno
-sketch: Arduino/lm35a-uno/lm35a-uno.ino
+sketch: Arduino/78xx-uno/78xx-uno.ino
 port: COM3
 output: .build

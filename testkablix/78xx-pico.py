@@ -6,6 +6,8 @@ import time
 capteur = ADC(27)
 
 while True:
+    aa=capteur.read_u16()
+    bb=capteur.read_u16() * 3.3 / 65535
     volts = capteur.read_u16() * 3.3 / 65535 * 3
     print("sortie =", round(volts, 2), "V")
     time.sleep(0.5)
