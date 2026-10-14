@@ -97,6 +97,21 @@ def exit_raw_repl(ser) -> None:
     time.sleep(0.1)
 
 
+def reboot(ser) -> None:
+    """Redemarre la carte (machine.reset) : main.py tourne aussitot, sans geste.
+
+    Pas de lecture de reponse : la carte coupe l'USB en repartant, donc la
+    liaison tombe avant tout accuse de reception.
+    """
+    ser.write(b"import machine\nmachine.reset()")
+    ser.write(b"\x04")
+    try:
+        ser.flush()
+    except serial.SerialException:
+        pass
+    time.sleep(0.2)
+
+
 def exec_raw(ser, code: str) -> str:
     """Execute du code sur la carte et rend sa sortie. Leve ReplError sur erreur."""
     ser.write(code.encode("utf-8"))
@@ -193,6 +208,7 @@ def main() -> int:
         return 2
 
     sent = skipped = 0
+    redemarre = False
     try:
         time.sleep(0.2)
         try:
@@ -208,15 +224,23 @@ def main() -> int:
                     sent += 1
                 else:
                     skipped += 1
+            # Tout est passe : la carte redemarre et lance main.py toute seule.
+            reboot(ser)
+            redemarre = True
         except ReplError as exc:
             print("ERROR: %s" % exc)
             return 4
         finally:
-            exit_raw_repl(ser)
+            # Apres un reboot, la liaison est deja tombee : rien a rendre au REPL.
+            if not redemarre:
+                exit_raw_repl(ser)
     finally:
-        ser.close()
+        try:
+            ser.close()
+        except (serial.SerialException, OSError):
+            pass
 
-    print("DONE: %d sent, %d already up to date" % (sent, skipped))
+    print("DONE: %d sent, %d already up to date, board rebooted" % (sent, skipped))
     return 0
 
 

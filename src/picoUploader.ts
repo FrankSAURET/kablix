@@ -299,7 +299,7 @@ export class PicoUploader {
         () => this.send(port, items, out)
       );
       void vscode.window.showInformationMessage(
-        vscode.l10n.t('{0} file(s) sent. Reset the board to run main.py.', items.length)
+        vscode.l10n.t('{0} file(s) sent. The board rebooted and runs main.py.', items.length)
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

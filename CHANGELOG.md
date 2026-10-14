@@ -28,6 +28,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Modification
 
+**Pico réelle**
+
+- **Envoi d'un programme** : à la fin du transfert, la carte redémarre toute seule et lance `main.py`. Plus besoin de la réinitialiser à la main.
+
 **Robot araignée**
 
 - **Patte seule** : la patte affichée est calée à 30 px des pastilles du connecteur et centrée en hauteur sur les broches Coxa et Patella.

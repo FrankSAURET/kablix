@@ -175,6 +175,7 @@ if (!pythonOk) {
 
   let out = '';
   let ran = true;
+  rmSync(join(WORK, 'reboot.txt'), { force: true });
   try {
     out = execFileSync(python, [join(WORK, 'faux-pico.py'), payload], {
       encoding: 'utf-8',
@@ -188,6 +189,12 @@ if (!pythonOk) {
   check('le transfert va au bout sur une carte qui répond', () => {
     if (!ran) throw new Error(`le script a échoué :\n${out}`);
     if (!/DONE: 3 sent/.test(out)) throw new Error(`résumé inattendu :\n${out}`);
+  });
+
+  check('la carte REDÉMARRE après l’envoi (machine.reset)', () => {
+    if (!existsSync(join(WORK, 'reboot.txt'))) throw new Error('aucun machine.reset() reçu');
+    if (!/board rebooted/.test(out)) throw new Error(`résumé sans mention du redémarrage :
+${out}`);
   });
 
   const landed = existsSync(join(WORK, 'recu.json'))
@@ -233,6 +240,7 @@ if (!pythonOk) {
     }
   });
 
+  rmSync(join(WORK, 'reboot.txt'), { force: true });
   check('un port muet (pas de MicroPython) est signalé, pas planté', () => {
     let text = '';
     try {
@@ -244,6 +252,7 @@ if (!pythonOk) {
     } catch (err) {
       text = `${err.stdout ?? ''}${err.stderr ?? ''}`;
     }
+    if (existsSync(join(WORK, 'reboot.txt'))) throw new Error('redémarrage envoyé malgré l’échec');
     if (!/ERROR: no MicroPython prompt/.test(text)) {
       throw new Error(`message d'erreur attendu, obtenu :\n${text}`);
     }
@@ -387,7 +396,16 @@ def _mkdir(chemin):
 # Les modules que la « carte » expose. uhashlib/ubinascii n'existent pas en
 # CPython : sans cette table, le script planterait des le calcul d'empreinte.
 FAUX_OS = types.SimpleNamespace(mkdir=_mkdir)
-MODULES = {'os': FAUX_OS, 'uhashlib': hashlib, 'ubinascii': binascii}
+
+
+def _reset():
+    # machine.reset() : la carte repart. On laisse une trace pour le banc.
+    with open('reboot.txt', 'w') as fh:
+        fh.write('reset')
+
+
+MODULES = {'os': FAUX_OS, 'uhashlib': hashlib, 'ubinascii': binascii,
+           'machine': types.SimpleNamespace(reset=_reset)}
 
 
 def _importer(nom, *a, **k):

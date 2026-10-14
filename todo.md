@@ -1,8 +1,15 @@
 # À faire
 - il recommence à vouloir sauvegarder un projet sois disant ouvert quand je quitte. je pense que c'est lié au fait que j'ai fait un nouveau projet.
-- Quand on envoir un programme sur une pico pi il doit envoyer un reboot à suivre
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.2.244 — envoi sur Pico : redémarrage à la suite
+1. ✅ **`reboot(ser)`** ([pico-upload.py](scripts/pico-upload.py)) : après le dernier fichier, `machine.reset()` envoyé en raw REPL, sans attendre de réponse (l'USB tombe). Pas de redémarrage si une erreur a interrompu le transfert ; `exit_raw_repl` n'est plus appelé après un reboot. Résumé : `DONE: n sent, m already up to date, board rebooted`.
+2. ✅ **Message** ([picoUploader.ts](src/picoUploader.ts)) : « {0} file(s) sent. The board rebooted and runs main.py. ».
+3. ✅ **Banc** `verify:picoupload` : faux module `machine`, 15 contrôles (reboot reçu, pas de reboot sur port muet).
+4. ⏳ Traduction : la chaîne EN a changé, les entrées `l10n` FR / ES / ZH de l'ancienne phrase sont à remplacer : avant publication.
 
 ---
 
