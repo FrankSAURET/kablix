@@ -138,6 +138,7 @@ import {
   lcdParallelBindings,
   spiDeviceBindings,
   adcDividerLevels,
+  psuAdcLevels,
   capacitorNodes,
   fanCircuit,
   fanSpeed,
@@ -1046,6 +1047,7 @@ function renderTick(): void {
   updateOpenDrain();
   updateSupplyChecks();
   updateRegulatorThermal();
+  updateSupplyAdc();
   refreshVisuals();
   flushAnalogWaves(); // après stepCapacitors (dans refreshVisuals) : la liste est complète
   tickBehaviors();
@@ -1366,6 +1368,36 @@ function updateSupplyChecks(): void {
         ? t('This part is not powered: its supply pin must reach a supply rail and its GND a ground.')
         : t('The supply is below the {0} V the chip needs, so its output stays at 0 V. Raise the supply (on a Pico use VSYS, not 3V3).', String(chk.volts))
     );
+  }
+}
+
+/**
+ * Tension d'une alimentation ou d'un régulateur sur une entrée ADC (la sortie
+ * d'un 78xx sur A0, ou sur GP27 par un pont diviseur). Relue 5 fois par seconde :
+ * suit le bouton d'une alim, la coupure thermique, un courant qui s'effondre.
+ * Une broche n'est reposée qu'au changement ; une broche qui n'est plus alimentée
+ * revient à 0.
+ */
+const supplyAdcLast = new Map<string, number>();
+let supplyAdcMs = 0;
+function updateSupplyAdc(): void {
+  if (!engine) return;
+  const now = performance.now();
+  if (now - supplyAdcMs < 200) return;
+  supplyAdcMs = now;
+  const vcc = isPicoBoard(board) ? 3.3 : 5;
+  const levels = psuAdcLevels(editor.diagram, vcc, psuLiveVolts, liveVariableOhms);
+  const vues = new Set<string>();
+  for (const { mcuPin, level } of levels) {
+    vues.add(mcuPin);
+    if (supplyAdcLast.get(mcuPin) === level) continue;
+    supplyAdcLast.set(mcuPin, level);
+    engine.setAnalog(mcuPin, level);
+  }
+  for (const pin of [...supplyAdcLast.keys()]) {
+    if (vues.has(pin)) continue;
+    supplyAdcLast.delete(pin);
+    engine.setAnalog(pin, 0);
   }
 }
 

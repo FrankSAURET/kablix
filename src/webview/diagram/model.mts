@@ -1765,6 +1765,75 @@ export function adcDividerLevels(
 }
 
 /**
+ * Tension (fraction de VCC, 0..1) de chaque entrée ADC alimentée par une
+ * ALIMENTATION ou un RÉGULATEUR (kind 'psu') : la sortie d'un 78xx sur A0, ou
+ * sur GP27 à travers un pont diviseur. Sans cela l'ADC lisait toujours 0 : aucun
+ * code ne posait la tension d'une source sur l'entrée analogique.
+ *
+ * Le nœud est lu comme un voltmètre le fait (circuitSources + theveninNode), donc
+ * le pont diviseur, une diode ou la coupure thermique comptent. Sont laissées de
+ * côté les entrées déjà pilotées ailleurs : réseau à résistance variable
+ * (adcDividerLevels) et potentiomètre.
+ */
+export function psuAdcLevels(
+  diagram: Diagram,
+  vcc: number,
+  psuVolts?: (partId: string) => number | null,
+  liveOhms?: (part: Part) => number | null
+): AdcDividerLevel[] {
+  const psus = psuParts(diagram);
+  if (psus.length === 0) return [];
+  const { nets, adj, vccNets, gndNets } = resistiveGraph(diagram, liveOhms);
+  const psuNets = new Set(psus.map((p) => nets.netOf({ partId: p.id, pin: psuPlus(p) })));
+  const { sources } = circuitSources(diagram, vcc, nets, vccNets, gndNets, undefined, psuVolts);
+  const sourceNets = new Set(sources.map((s) => s.net));
+  const dejaPilotees = new Set(adcDividerLevels(diagram, liveOhms).map((l) => l.mcuPin));
+  const out: AdcDividerLevel[] = [];
+  for (const { part, board } of mcuParts(diagram)) {
+    for (const pin of mcuPins(board)) {
+      const role = mcuPinRole(board, pin);
+      if (role.role !== 'digital' || role.adcChannel === undefined || !role.name) continue;
+      if (dejaPilotees.has(role.name)) continue;
+      const net = nets.netOf({ partId: part.id, pin });
+      if (gndNets.has(net) || (vccNets.has(net) && !psuNets.has(net))) continue; // collée à un rail de carte
+      // Le chemin résistif doit mener à une source psu (sinon c'est un autre
+      // montage, déjà traité par les capteurs et les potentiomètres).
+      const reached: { net?: string } = {};
+      if (minOhmsPath(net, psuNets, adj, undefined, reached, 'source') === null) continue;
+      if (touchesPotentiometer(diagram, nets, adj, net, vccNets, gndNets)) continue;
+      const node = theveninNode(net, sources, sourceNets, adj);
+      if (!node || !Number.isFinite(node.volts)) continue;
+      out.push({ mcuPin: role.name, level: Math.max(0, Math.min(1, node.volts / vcc)) });
+    }
+  }
+  return out;
+}
+
+/** Le réseau local du nœud (sans traverser les rails) contient-il un potentiomètre ? */
+function touchesPotentiometer(
+  diagram: Diagram,
+  _nets: Nets,
+  adj: Map<string, ResistiveEdge[]>,
+  start: string,
+  vccNets: ReadonlySet<string>,
+  gndNets: ReadonlySet<string>
+): boolean {
+  const seen = new Set([start]);
+  const queue = [start];
+  while (queue.length > 0) {
+    const cur = queue.pop()!;
+    for (const e of adj.get(cur) ?? []) {
+      if (partDef(partType(diagram, e.partId)).kind === 'potentiometer') return true;
+      if (!seen.has(e.to) && !vccNets.has(e.to) && !gndNets.has(e.to)) {
+        seen.add(e.to);
+        queue.push(e.to);
+      }
+    }
+  }
+  return false;
+}
+
+/**
  * État électrique d'une LED alimentée sous `vsupply` volts à travers `ohms` :
  *  - `amps` : courant direct (I = (Vs − Vf) / R ; Infinity si R = 0) ;
  *  - `overCurrent` : courant de crête destructeur (> 35 mA) — LED grillée ;

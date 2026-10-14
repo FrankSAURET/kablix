@@ -236,5 +236,25 @@ check('alims empilées : LM35A alimenté sous 10 V (Vs → GND)', near(model.par
 const lu = model.meterReadings(pile(), 5, () => 'hiz', undefined, undefined, undefined, undefined, (id) => (id === 'T2' ? 0.25 : null));
 check('alims empilées : voltmètre entre Vout et le milieu = −5 + 0,25 = −4,75 V', lu[0] && near(lu[0].value, -4.75, 0.05), JSON.stringify(lu));
 
+// Alim / régulateur sur une entrée ADC : l'ADC lisait 0 (aucun code ne posait la
+// tension de la source sur la broche).
+const mcu = (type) => ({ id: 'U1', type, x: 0, y: 0 });
+const niveau = (d, vcc, pinName) => model.psuAdcLevels(d, vcc).find((l) => l.mcuPin === pinName)?.level;
+const adcUno = {
+  parts: [mcu('uno'), alim('P1', 9.5), reg('Reg1', 5)],
+  wires: [w(1, 'P1', 'V+', 'Reg1', 'IN'), w(2, 'P1', 'GND', 'Reg1', 'GND'), w(3, 'P1', 'GND', 'U1', 'GND.1'), w(4, 'Reg1', 'OUT', 'U1', 'A0')],
+};
+check('ADC Uno : 78xx 5 V sur A0 = 1,00 de VCC', near(niveau(adcUno, 5, 'A0'), 1), String(niveau(adcUno, 5, 'A0')));
+const adcPico = {
+  parts: [mcu('pico'), alim('P1', 9.5), reg('Reg1', 5), resistor('R1', 20000), resistor('R2', 10000)],
+  wires: [
+    w(1, 'P1', 'V+', 'Reg1', 'IN'), w(2, 'P1', 'GND', 'Reg1', 'GND'), w(3, 'P1', 'GND', 'U1', 'GND.7'),
+    w(4, 'Reg1', 'OUT', 'R1', '1'), w(5, 'R1', '2', 'R2', '1'), w(6, 'R1', '2', 'U1', 'GP27'), w(7, 'R2', '2', 'U1', 'GND.7'),
+  ],
+};
+check('ADC Pico : pont 20 k / 10 k sur 5 V = 1,67 V, soit 0,505 de 3,3 V', near(niveau(adcPico, 3.3, 'GP27'), 5 / 3 / 3.3, 0.01), String(niveau(adcPico, 3.3, 'GP27')));
+const adcSans = { parts: [mcu('uno'), reg('Reg1', 5)], wires: [w(1, 'Reg1', 'OUT', 'U1', 'A0')] };
+check('ADC : régulateur sans entrée, rien à poser', niveau(adcSans, 5, 'A0') === undefined || near(niveau(adcSans, 5, 'A0'), 0));
+
 console.log(failures === 0 ? '\nRESULTAT: OK' : `\nRESULTAT: ECHEC (${failures})`);
 process.exit(failures === 0 ? 0 : 1);

@@ -1,7 +1,16 @@
 # À faire
-
+- LM35a dans lm35a-uno. alimenté par une une tension symétrique +-5V. Le voltmetre affiche tjs -5V
+- Rajoute des étiquettes aux alims et au gbf
+- **Bancs rouges d'environnement** : `verify:multimetre` (rendu « mesure DANS l'écran, ampèremètre » après le réglage `DISPLAY_RIGHT` 224 → 222 du 11/10 : le banc attend l'ancienne position) ; `verify:analyseur-regle` et `verify:analyseur-sans-declenchement` (le Chrome d'essai refuse `sessionStorage` : « Access is denied », sans lien avec le code). -> explique
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.2.233 — alim / régulateur lu par l'ADC ; tests 78xx renommés
+1. ✅ **ADC alimenté par une source** : `psuAdcLevels` (`model.mts`) lit le nœud comme un voltmètre (pont diviseur, diode, coupure thermique compris) ; `updateSupplyAdc` (`sim.mts`, 5 fois par seconde) pose la fraction de VCC sur l'entrée. Avant, la sortie d'un 78xx sur A0 / GP27 lisait toujours 0.
+2. ✅ **Banc** `verify:regulateur` : Uno 5 V sur A0 = 1,00 ; Pico pont 20 k / 10 k = 0,505 de 3,3 V ; régulateur sans entrée.
+3. ✅ **Tests renommés** `l78sxxcv-uno/pico/pico2` → `78xx-uno/pico/pico2` (fichiers, `codeFile` des `.projix`, `_spec.mjs`, README, `arduino.yaml`). Schémas retouchés par Frank conservés.
 
 ---
 
@@ -46,7 +55,7 @@
 3. ✅ **Moteur** : bloc `regulator` transporté (`catalog.mts` `CustomRegulator`, `kompixLibrary.ts`, `build-kompix.mjs`). Inspecteur : tension de sortie en liste fermée (5 ; 6 ; 8 ; 8,5 ; 9 ; 12 ; 15 ; 18 ; 24 V) et courant max (`maxcurrent`, 2 A par défaut).
 4. ✅ **Modèle** : `psuOutVolts` (`model.mts`) remplace les 4 lectures `psuVolts ?? attrs.voltage`. Sortie = min(tension réglée, entrée − 2 V), 0 V sans entrée ; entrée lue sur une autre source `psu` (cascade) ou un rail de carte ; au-delà de `maxcurrent`, U × Imax / I (courant limité sur charge résistive).
 5. ✅ **Banc** `verify:regulateur` (16 contrôles : catalogue, marge, entrée en l'air, cascade, effondrement, LED en aval) + cas `regulateur` dans `testkablix/_verify.mjs`.
-6. ✅ **Fiche d'aide FR** `help/l78sxxcv/fr.md`. **Tests** `l78sxxcv-uno`, `l78sxxcv-pico`, `l78sxxcv-pico2` + ligne `testkablix/README.md`.
+6. ✅ **Fiche d'aide FR** `help/l78sxxcv/fr.md`. **Tests** `78xx-uno`, `78xx-pico`, `78xx-pico2` + ligne `testkablix/README.md`.
 7. ℹ️ **Limites** : le courant tiré par le régulateur n'est pas compté sur sa source d'entrée ; pas de courant de repos ni d'échauffement ; la tension d'entrée n'est pas lue à travers un composant intermédiaire (résistance, diode) ; pas de signalement visuel de la marge insuffisante (la sortie baisse, c'est tout).
 8. ⏳ Traductions (`l10n` ES / ZH, fiche d'aide EN / ES / ZH) : avant publication.
 

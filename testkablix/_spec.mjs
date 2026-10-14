@@ -3692,7 +3692,7 @@ void loop() {
   // donc 7,5 V de marge au-dessus de la sortie). La sortie va sur A0 : on lit
   // 5 V, soit 1023.
   test({
-    name: 'l78sxxcv-uno', board: 'uno', ext: 'ino',
+    name: '78xx-uno', board: 'uno', ext: 'ino',
     kompix: ['l78sxxcv', 'pile-9v'],
     parts: [
       MCU('uno'),
@@ -6762,7 +6762,7 @@ while True:
   // Même régulateur côté Pico : la sortie de 5 V dépasse les 3,3 V de l'ADC, un
   // pont diviseur 20 kΩ / 10 kΩ la ramène à 1,67 V sur GP27.
   test({
-    name: 'l78sxxcv-pico', board: 'pico', ext: 'py',
+    name: '78xx-pico', board: 'pico', ext: 'py',
     kompix: ['l78sxxcv', 'pile-9v'],
     parts: [
       MCU('pico'),
