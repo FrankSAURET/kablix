@@ -38,7 +38,7 @@ const DISPLAY_RIGHT = 222 / 0.99169514;
 /** Corps de la mesure et de son unité (px du dessin). Un vrai multimètre écrit
  *  la valeur en gros et l'unité en petit à côté : sans ça « 999,9 mA » déborde
  *  de l'écran. */
-const VALUE_SIZE = 11.5;
+const VALUE_SIZE = 11;
 const UNIT_SIZE = 6;
 
 /** Pivot du levier, en unités locales du groupe `inter-bascule`. */

@@ -1,7 +1,14 @@
 # À faire
-- **Bancs rouges d'environnement** : `verify:multimetre` (rendu « mesure DANS l'écran, ampèremètre » après le réglage `DISPLAY_RIGHT` 224 → 222 du 11/10 : le banc attend l'ancienne position) ; `verify:analyseur-regle` et `verify:analyseur-sans-declenchement` (le Chrome d'essai refuse `sessionStorage` : « Access is denied », sans lien avec le code). -> explique
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.2.236 — trois bancs rouges remis au vert
+1. ✅ **`verify:multimetre`** : vrai défaut, pas le banc. Avec `DISPLAY_RIGHT` 222, « -49,9 mA » débordait de 5,5 px à GAUCHE de l'écran (le 11/10 le décalage de 2 px à droite avait mangé la marge de gauche du pire cas). `VALUE_SIZE` 11,5 → 11 ([multimetre-element.mts](src/webview/composants/multimetre-element.mts)) : le pire cas tient (0,5 px de jeu à gauche), la marge de 2 px à droite demandée par Frank est gardée.
+2. ✅ **`verify:analyseur-sans-declenchement` et `verify:analyseur-regle`** : le « sessionStorage refusé » venait du banc, pas du Chrome. La cible CDP « page » existe avant le chargement du fichier (`about:blank`, sans stockage) ; le banc y lisait `sessionStorage` trop tôt. Attente du protocole `file:` avant le premier accès. (`verify:analyseur-fenetre` y échappait par hasard de timing.)
+3. ✅ **`verify:analyseur-regle`** : une fois le stockage réglé, un 2e écart apparaissait : la vue de 600 µs donnait un pas de 100 µs, donc des graduations en ms (règle voulue : unité tirée de 10 × le pas). Vue ramenée à 500 µs (pas 50 µs, graduations en µs, témoin des bits toujours ≥ 6 cases). Libellés renommés « 500 µs à 12 s ».
+4. ℹ️ Les 5 autres bancs analyseur qui lisent `sessionStorage` au même endroit passent : à protéger de la même façon seulement s'ils rougissent.
 
 ---
 

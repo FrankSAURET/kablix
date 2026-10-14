@@ -13,7 +13,7 @@
 // Vraie page de l'onglet, vrai bundle, Chrome headless en CDP brut (VRAIE souris
 // pour le réticule). La capture : un DS18B20 lu à 12 s (MATCH ROM, READ
 // SCRATCHPAD), décodé en 1-Wire, case Bits cochée. Trois vues posées par l'état
-// de l'onglet : 600 µs à 12 s, 5 ms au début, 20 s en entier.
+// de l'onglet : 500 µs à 12 s, 5 ms au début, 20 s en entier.
 //
 // Contre-épreuve : `node scripts/verify-analyseur-regle.mjs --ancien` prend les
 // sources de l'analyseur dans HEAD — le banc DOIT échouer.
@@ -130,7 +130,7 @@ const CAPTURE = {
 };
 /** Les trois vues : au cœur de l'adresse du MATCH ROM, au début, en entier. */
 const VUES = [
-	{ nom: '600 µs à 12 s', f: { t0: T12 + 1.6, duree: 0.6 }, unite: 'µs' },
+	{ nom: '500 µs à 12 s', f: { t0: T12 + 1.6, duree: 0.5 }, unite: 'µs' },
 	{ nom: '5 ms au début', f: { t0: 0.5, duree: 5 }, unite: 'ms' },
 	{ nom: '20 s en entier', f: { t0: 0, duree: 21000 }, unite: 's' },
 ];
@@ -191,6 +191,9 @@ if (!chrome) {
 		const X = (x) => Math.round(boite.left + x);
 		const Y = (y) => Math.round(boite.top + y);
 
+		// La cible existe avant que le fichier soit chargé (about:blank, sans stockage) :
+		// on attend le protocole file: avant le premier accès à sessionStorage.
+		for (let i = 0; i < 100 && (await ev('location.protocol')) !== 'file:'; i++) await attendre(100);
 		for (const [i, vue] of VUES.entries()) {
 			console.log(`Vue ${vue.nom}`);
 			await ev(`sessionStorage.setItem('etat', ${JSON.stringify(JSON.stringify({ fenetre: vue.f, suivi: false }))})`);
@@ -209,13 +212,13 @@ if (!chrome) {
 			check(unites.slice(i === 0 ? 1 : 0).every((u) => u === vue.unite), `${vue.nom} : graduations en ${vue.unite}`, g.join(' | '));
 			if (i === 0) {
 				check(/^12[.,]\d{4,} s$/.test(g[0] ?? '') && g.slice(1).every((t) => /^\+\d+ µs$/.test(t)),
-					'600 µs à 12 s : la première donne l’instant entier, les autres leur écart (« +50 µs »)', g.join(' | '));
+					'500 µs à 12 s : la première donne l’instant entier, les autres leur écart (« +50 µs »)', g.join(' | '));
 
 				// `--image=<dossier>` : photo de la vue, pour l'œil.
 				const dossierImage = process.argv.find((a) => a.startsWith('--image='))?.slice('--image='.length);
 				if (dossierImage) {
 					const png = await cdp('Page.captureScreenshot', { format: 'png' });
-					writeFileSync(join(dossierImage, 'regle-600us-a-12s.png'), Buffer.from(png.result.data, 'base64'));
+					writeFileSync(join(dossierImage, 'regle-500us-a-12s.png'), Buffer.from(png.result.data, 'base64'));
 				}
 
 				// Réticule : la VRAIE souris au milieu du tracé, son instant écrit à la précision d'un pixel.

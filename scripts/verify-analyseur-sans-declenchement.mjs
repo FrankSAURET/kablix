@@ -198,6 +198,9 @@ if (!chrome) {
 
 		// --- A. Décodage 1-Wire, aucun déclenchement --------------------------------
 		console.log('A. Décodage 1-Wire, aucun déclenchement : 3 s de run');
+		// La cible existe avant que le fichier soit chargé (about:blank, sans stockage) :
+		// on attend le protocole file: avant le premier accès à sessionStorage.
+		for (let i = 0; i < 100 && (await ev('location.protocol')) !== 'file:'; i++) await attendre(100);
 		const a = await run([DECODAGE], 3000);
 		const posee = a.filter((v) => v.t >= 200);
 		const premiere = posee[0];

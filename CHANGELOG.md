@@ -25,6 +25,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Alimentation**
 
+**Instruments**
+
+- **Multimètre** : la valeur affichée est un peu plus petite, pour que « -49,9 mA » tienne dans l'écran avec une marge à droite.
+
 - **Inscription du L78SxxCV** : le boîtier affiche 78xx avec la tension réglée sur deux chiffres (7805, 7812…).
 
 ### Correction
