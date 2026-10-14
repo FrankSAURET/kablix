@@ -614,10 +614,9 @@
     {
       "group": "LM35A",
       "type": "lm35a",
-      "experimental": true,
       "label": "Temperature sensor LM35A (TO-92)",
       "description": "Texas Instruments LM35A analog temperature sensor (-55 to +150 °C, ±0.5 °C): the output voltage is 10 mV per °C. It needs at least 4 V on Vs — on a Pico, power it from VSYS, not from 3V3. Between Vs and GND it only reads positive temperatures; for negative ones, add a negative supply -Vs and a resistor from Vout to -Vs (R = -Vs / 50 µA). In simulation a slider sets the temperature; the output is clipped at 0 V unless a negative rail -Vs pulls it down (a meter then reads the negative voltage; the board input still reads 0 V), and it stays at 0 V while Vs is below 4 V.",
-      "version": "2026.10.1",
+      "version": "2026.10.2",
       "author": "Frank Sauret",
       "reference": "https://www.ti.com/product/LM35",
       "kind": "analog-source",
@@ -637,10 +636,9 @@
     {
       "group": "L78SxxCV",
       "type": "l78sxxcv",
-      "experimental": true,
       "label": "Voltage regulator L78SxxCV (TO-220)",
       "description": "STMicroelectronics L78S positive linear regulator, 2 A, TO-220. Pick the output voltage (5, 6, 8, 8.5, 9, 12, 15, 18 or 24 V) and the maximum current in the inspector. The input must stay at least 2 V above the output (dropout): below that the output follows the input minus 2 V. Past the maximum current the output voltage collapses. It draws about 5 mA of quiescent current even without load, and it heats up: it dissipates (Vin - Vout) x I, and its protection cuts the output when the junction reaches 150 °C. Without heatsink the case-to-air resistance is 50 °C/W; set a heatsink (°C/W) in the inspector to cool it.",
-      "version": "2026.10.1",
+      "version": "2026.10.2",
       "author": "Frank Sauret",
       "reference": "https://www.st.com/en/power-management/l78s.html",
       "kind": "psu",

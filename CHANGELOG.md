@@ -10,12 +10,12 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Alimentation**
 
-- **Régulateur de tension L78SxxCV (Béta)**, dans la bibliothèque de composants : 5, 6, 8, 8,5, 9, 12, 15, 18 ou 24 V au choix dans les propriétés, avec un courant maximal. Il lui faut 2 V de marge à l'entrée ; au-delà du courant maximal, la tension de sortie s'effondre. Une diode ou une résistance en série à l'entrée fait chuter la tension, et le courant débité est reporté sur la source qui l'alimente. Il tire aussi 5 mA de courant de repos, et il chauffe : puissance dissipée, alerte « trop chaud » au-dessus de 125 °C, coupure de la sortie à 150 °C. Une propriété « Radiateur » (°C/W) le refroidit.
+- **Régulateur de tension L78SxxCV**, dans la bibliothèque de composants : 5, 6, 8, 8,5, 9, 12, 15, 18 ou 24 V au choix dans les propriétés, avec un courant maximal. Il lui faut 2 V de marge à l'entrée ; au-delà du courant maximal, la tension de sortie s'effondre. Une diode ou une résistance en série à l'entrée fait chuter la tension, et le courant débité est reporté sur la source qui l'alimente. Il tire aussi 5 mA de courant de repos, et il chauffe : puissance dissipée, alerte « trop chaud » au-dessus de 125 °C, coupure de la sortie à 150 °C. Une propriété « Radiateur » (°C/W) le refroidit.
 - **Propriété « Label »** sur l'alimentation de laboratoire, la batterie externe USB et le générateur BF : le texte s'affiche dans le bandeau du composant, comme sur le multimètre.
 
 **Capteurs**
 
-- **Capteur de température LM35A (Béta)**, dans la bibliothèque de composants : sortie analogique de 10 mV par °C, curseur de −55 à +150 °C. Il lui faut 4 V : en dessous (3V3 d'une Pico, Vs non câblé, chute dans une diode), la sortie reste à 0 V et le composant s'encadre en rouge avec l'explication. Avec un rail −Vs relié à Vout par une résistance, la sortie devient négative : un multimètre ou l'oscilloscope lit la tension négative (l'entrée de la carte lit 0 V).
+- **Capteur de température LM35A**, dans la bibliothèque de composants : sortie analogique de 10 mV par °C, curseur de −55 à +150 °C. Il lui faut 4 V : en dessous (3V3 d'une Pico, Vs non câblé, chute dans une diode), la sortie reste à 0 V et le composant s'encadre en rouge avec l'explication. Avec un rail −Vs relié à Vout par une résistance, la sortie devient négative : un multimètre ou l'oscilloscope lit la tension négative (l'entrée de la carte lit 0 V).
 
 **Grove Shield Pico**
 

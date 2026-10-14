@@ -5,6 +5,11 @@
 
 ---
 
+# v2026.10.2.238 — LM35A et L78SxxCV validés (fin du Béta)
+1. ✅ Frank valide `lm35a` et `l78sxxcv` : ligne `"experimental": true` retirée de `_sources.json`, versions des deux composants `2026.10.1` → `2026.10.2`. `build-kompix`, `build-components-index` relancés ; `verify:kompix` 43/43.
+
+---
+
 # v2026.10.2.237 — LM35A pleine gamme sans carte
 1. ✅ **Sortie coincée à 0 V sous 0 °C** dans `lm35a-uno` (Capt2). `negativeRailFrom` ([model.mts](src/webview/diagram/model.mts)) ne voyait un rail négatif que si le + d'une alim touchait la masse d'UNE CARTE ; ici aucune carte. Nouveau paramètre `gndPin` (masse du capteur, passée par `sim.mts`) : potentiel de chaque net d'alim (− = base de la pile, + = base + sortie) ; un − plus bas que la masse du capteur et atteint par résistance depuis Vout est le rail (volts = potentiel du rail − celui de la masse).
 2. ✅ **Banc** `verify:regulateur` : montage de la fiche technique sans carte (rail −5 V à 100 kΩ, voltmètre −0,55 / 0 / 1,5 V, ancien appel sans `gndPin` inchangé, GND sur le − du bas = pas de rail).
