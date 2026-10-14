@@ -1,7 +1,15 @@
 # À faire
-- il recommence à vouloir sauvegarder un projet sois disant ouvert quand je quitte. je pense que c'est lié au fait que j'ai fait un nouveau projet.
+- il recommence à vouloir sauvegarder un projet sois disant ouvert quand je quitte. je pense que c'est lié au fait que j'ai fait un nouveau projet. Je cré un fichier test.py -> nouveau projet projix -> association avec le code test.py -> enregistrement avec le nom par defaut (test.projix). Plus aucun fichier non sauvegardé ne reste. Pour vérifier je fais en plus enregistrer tout. -> fermetur brutal de vscode (clic sur la croix en haut à droite de la fenetre) -> boite modale voulez vous enregistrer le nouveau projet.projix
 ## ne pas faire pour l'instant
 - Ruban led extensible
+
+---
+
+# v2026.10.2.246 — patte seule : taille d'origine rétablie
+1. ✅ **Échelle** ([patte-element.mts](src/webview/composants/patte-element.mts)) : retour au calcul d'origine (tout le débattement tient dans la zone). Le lot .243 avait réduit la patte pour garder toutes les poses autour de l'ancre de repos. Position inchangée : bord gauche à 30 px des pastilles, centrée sur Coxa/Patella.
+2. ✅ **`LEFT_PAD` = 10** : la pose 90/0 mordait de 3,6 px à gauche ; le connecteur et la feuille sont décalés de 10 px (échelle intacte).
+3. ✅ **Banc** `verify:araignee` : seuils « deux poses » remis à 5 px, « mécanique après le connecteur » à 49 ; le message de débordement donne la boîte.
+4. ✅ Illustration `patte.webp` recapturée.
 
 ---
 

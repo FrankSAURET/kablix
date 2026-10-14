@@ -539,7 +539,7 @@ async function run() {
 			await p.updateComplete;
 			const b = psvg.getBBox();
 			if (b.x < vb.x || b.y < vb.y || b.x + b.width > vb.x + vb.width || b.y + b.height > vb.y + vb.height) {
-				dehors.push(\`\${h}/\${k}\`);
+				dehors.push(\`\${h}/\${k} [\${b.x.toFixed(1)},\${b.y.toFixed(1)},\${(b.x + b.width).toFixed(1)},\${(b.y + b.height).toFixed(1)}] vb \${vb.width}x\${vb.height}\`);
 			}
 		}
 	}
@@ -575,7 +575,7 @@ async function run() {
 		p.pinInfo.length === 6 && p.pinInfo.every((q) => centres.some((c) => Math.abs(c.x - q.x) < 1.5 && Math.abs(c.y - q.y) < 1.5)),
 		centres.map((c) => \`\${c.x.toFixed(1)},\${c.y.toFixed(1)}\`).join(' '));
 	ok('patte seule : la mécanique ne recouvre pas le connecteur',
-		p.shadowRoot.querySelector('.leg__solid').getBBox().x > 39,
+		p.shadowRoot.querySelector('.leg__solid').getBBox().x > 49,
 		Math.round(p.shadowRoot.querySelector('.leg__solid').getBBox().x));
 	{
 		const bb = p.shadowRoot.querySelector('.leg__solid').getBBox();
@@ -609,7 +609,7 @@ async function run() {
 	pDroit.patellaAngle = 150;
 	await pDroit.updateComplete;
 	ok('patte seule : sans la case, 150 et 30 donnent bien DEUX poses',
-		Math.abs(pDroit.geometry.foot.x - pRev.geometry.foot.x) > 2, \`\${pied(pDroit)} vs \${pied(pRev)}\`);
+		Math.abs(pDroit.geometry.foot.x - pRev.geometry.foot.x) > 5, \`\${pied(pDroit)} vs \${pied(pRev)}\`);
 
 	const out = document.createElement('pre');
 	out.id = 'measures';

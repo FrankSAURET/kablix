@@ -299,11 +299,12 @@ const ZONE_H = Math.round(((ZONE_W - (PIN_GAP_FEUILLE - PIN_GAP)) * 1.5) / 10) *
 /** Feuille de la patte seule : le connecteur occupe la colonne de gauche, la
  *  mécanique tout le reste. Le bornier, lui, garde sa taille RÉELLE — c'est un
  *  vrai connecteur, il ne grandit pas avec le dessin. */
-const SHEET = { w: 10 + PIN_GAP + ZONE_W + MARGIN, h: ZONE_H + 2 * MARGIN };
+const LEFT_PAD = 10; // la pose 90/0 déborde du repos vers la gauche
+const SHEET = { w: LEFT_PAD + 10 + PIN_GAP + ZONE_W + MARGIN, h: ZONE_H + 2 * MARGIN };
 /** Le connecteur, calé à gauche et centré sur la hauteur : ses six carrés dorés
  *  doivent tomber sur la grille de 10 px (d'où l'arrondi), sinon aucun fil ne
  *  s'y accroche proprement. */
-const PLUG = { x: 0, y: Math.round((SHEET.h - 80) / 20) * 10, w: 40, h: 80 };
+const PLUG = { x: LEFT_PAD, y: Math.round((SHEET.h - 80) / 20) * 10, w: 40, h: 80 };
 /** Zone laissée à la mécanique : à droite du connecteur, marge sur les bords. */
 const ZONE = { x0: PLUG.x + 10 + PIN_GAP, y0: MARGIN, x1: SHEET.w - MARGIN, y1: SHEET.h - MARGIN };
 /** Présentation. La patte est seule : on la veut DE PROFIL, fémur et tibia bien
@@ -384,22 +385,18 @@ function buildView(): LegView | null {
   }
   // La patte AFFICHÉE (repos 90/90, sans l'ombre) sert de repère : son bord
   // gauche est à `PIN_GAP` des pastilles et son milieu en hauteur sur celui du
-  // connecteur, donc sur les broches Coxa et Patella. Les autres poses s'y
-  // accrochent : on réduit l'échelle jusqu'à ce que TOUT le débattement tienne.
+  // connecteur, donc sur les broches Coxa et Patella. L'ÉCHELLE, elle, reste
+  // celle d'origine (tout le débattement tient dans la zone) : seule la
+  // position change, les poses extrêmes peuvent mordre sur la marge.
   const rest = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
   const xr = legPose(rig, placeOf(v), 90, 90);
   for (const q of vf) grow(rest, project(xr.femur(q)));
   for (const q of vt) grow(rest, project(xr.tibia(q)));
   const cy = (rest.y0 + rest.y1) / 2;
   const midY = PLUG.y + PLUG.h / 2;
-  // Marge à droite : l'ombre déborde. À gauche, la feuille elle-même (MARGIN).
-  const fit = (room: number, extent: number): number => (extent > 0 ? room / extent : Infinity);
-  v.k = Math.min(
-    fit(ZONE.x1 - ZONE.x0 - SHADOW_PAD, bb.x1 - rest.x0),
-    fit(ZONE.x0 - MARGIN - SHADOW_PAD, rest.x0 - bb.x0),
-    fit(midY - ZONE.y0 - SHADOW_PAD, cy - bb.y0),
-    fit(ZONE.y1 - midY - SHADOW_PAD, bb.y1 - cy),
-  );
+  const w = Math.max(bb.x1 - bb.x0, 1);
+  const h = Math.max(bb.y1 - bb.y0, 1);
+  v.k = Math.min((ZONE.x1 - ZONE.x0 - SHADOW_PAD) / w, (ZONE.y1 - ZONE.y0 - 2 * SHADOW_PAD) / h);
   v.ground *= v.k;
   v.origin = { x: ZONE.x0 - rest.x0 * v.k, y: midY - cy * v.k };
   // Recalage sur les FACES réellement dessinées (épaisseurs, simplification) :
