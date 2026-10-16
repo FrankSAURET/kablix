@@ -31,6 +31,7 @@ async function run() {
   const spi = await make({ leds: '30', protocol: 'apa102' });
   res.spiCount = spi.renderRoot.querySelectorAll('rect.pixel').length;
   res.spiPins = spi.pinInfo.map((p) => p.name);
+  res.w11Pins = (await make({ protocol: 'ws2811' })).pinInfo.map((p) => p.name);
   const one = await make({ leds: '1' });
   res.oneCount = one.renderRoot.querySelectorAll('rect.pixel').length;
   const bad = await make({ leds: '0', protocol: 'zzz' });
@@ -45,7 +46,7 @@ async function run() {
   // Géométrie
   res.geo = [];
   for (const n of [1, 2, 5, 10, 60, 144, 300]) {
-    for (const proto of ['ws2812', 'apa102']) {
+    for (const proto of ['ws2811', 'ws2812', 'apa102', 'ws2801']) {
       const g = stripGeometry(n, proto);
       let minGap = Infinity;
       for (let i = 0; i < g.leds.length; i++) for (let j = i + 2; j < g.leds.length; j++) {
@@ -61,7 +62,8 @@ async function run() {
         entryOutermost: dists[0] >= Math.max(...dists) - 0.01,
         endInnermost: dists[dists.length - 1] <= Math.min(...dists) + 0.01,
         step: g.leds.length > 1 ? Math.hypot(g.leds[0].x - g.leds[1].x, g.leds[0].y - g.leds[1].y) : 0,
-        belowSpiral: g.pins[0].y > g.cy + g.outer,
+        aboveSpiral: g.pins.every((p) => p.y < g.cy - g.outer),
+        pins: g.pins.map((p) => [p.x, p.y]),
       });
     }
   }
@@ -109,6 +111,7 @@ if (!chrome) {
   if (r) {
     check('10 LED par défaut', r.defCount === 10);
     check('un fil : 3 broches GND, 5V, DIN', r.defPins.join() === 'GND,5V,DIN');
+    check('WS2811 : 3 broches GND, 5V, DIN', r.w11Pins.join() === 'GND,5V,DIN');
     check('SPI : 30 LED et 4 broches GND, 5V, DI, CI', r.spiCount === 30 && r.spiPins.join() === 'GND,5V,DI,CI');
     check('minimum 1 LED', r.oneCount === 1);
     check('valeur 0 / protocole inconnu : 10 LED, un fil', r.badCount === 10 && r.badPins === 3);
@@ -117,10 +120,14 @@ if (!chrome) {
     for (const g of r.geo) {
       const tag = `${g.n} LED ${g.proto}`;
       check(`${tag} : broches sur la grille de 10 px et dans la feuille`, g.pinsGrid && g.pinsIn);
-      check(`${tag} : ${g.proto === 'ws2812' ? 3 : 4} broches`, g.pinCount === (g.proto === 'ws2812' ? 3 : 4));
+      const unFil = g.proto === 'ws2811' || g.proto === 'ws2812';
+      check(`${tag} : ${unFil ? 3 : 4} broches`, g.pinCount === (unFil ? 3 : 4));
       check(`${tag} : LED dans la feuille`, g.inside);
       check(`${tag} : entrée à l'extérieur, bout au centre`, g.entryOutermost && g.endInnermost);
-      check(`${tag} : connectique sous la spirale`, g.belowSpiral);
+      check(`${tag} : connectique au-dessus de la spirale`, g.aboveSpiral);
+      // Connectique IMMOBILE : mêmes pastilles que pour 1 LED, quel que soit le nombre de LED.
+      const ref = r.geo.find((o) => o.proto === g.proto && o.n === 1);
+      check(`${tag} : connectique fixe (comme pour 1 LED)`, JSON.stringify(g.pins) === JSON.stringify(ref.pins));
       if (g.n >= 10) check(`${tag} : LED non voisines à ≥ 12 px (spirale sans chevauchement)`, g.minGap >= 12);
       if (g.n > 1) check(`${tag} : pas du ruban ≈ 12 px`, Math.abs(g.step - 12) < 0.6);
     }

@@ -11,8 +11,11 @@ export interface SpiDevice {
   dcPin?: string;
   /** Broche MCU de sélection (CS, actif bas). Absente = toujours sélectionné. */
   csPin?: string;
-  /** Transfert d'un octet : reçoit MOSI + niveau D/C, renvoie l'octet MISO. */
-  transfer(mosi: number, dc: boolean): number;
+  /**
+   * Transfert d'un octet : reçoit MOSI + niveau D/C, renvoie l'octet MISO. `nowUs` = date
+   * du transfert (µs de simulation), pour les puces qui mesurent une pause d'horloge.
+   */
+  transfer(mosi: number, dc: boolean, nowUs?: number): number;
   /** Notifié quand CS change (utile pour réinitialiser un état de trame). */
   onSelect?(selected: boolean): void;
 }

@@ -3,20 +3,25 @@
 // propriété, le ruban est enroulé en SPIRALE pour tenir sur la feuille, son départ (entrée)
 // à l'extérieur, relié par une queue de fils à une connectique de 3 ou 4 broches posées sur
 // la grille de 10 px.
-//  - 'ws2812' : un fil de données — WS2811, WS2812, WS2812B (NeoPixel). Broches GND, 5V, DIN.
+//  - 'ws2811' : un fil de données, ordre RGB, pause de fin de trame 300 µs. Broches GND, 5V, DIN.
+//  - 'ws2812' : un fil de données — WS2812(B), SK6812 (NeoPixel), ordre GRB. Mêmes broches.
 //  - 'apa102' : SPI, données + horloge — APA102 (DotStar). Broches GND, 5V, DI, CI.
-//  - 'ws2801' : SPI, données + horloge — WS2801. Mêmes broches.
-// Simulation : seul le protocole un fil est décodé (cf. neopixelBindings, model.mts). Les
-// protocoles SPI sont câblables mais les LED restent éteintes.
+//  - 'ws2801' : SPI, données + horloge — WS2801 (ordre des couleurs réglable). Mêmes broches.
+// Décodage : cf. neopixelBindings (model.mts) et les décodeurs des moteurs.
 import { css, html, LitElement, svg } from 'lit';
 import { ElementPin, VCC } from './pin.mjs';
 import type { RGB } from './types/rgb.mjs';
 
-export type LedStripProtocol = 'ws2812' | 'apa102' | 'ws2801';
+export type LedStripProtocol = 'ws2811' | 'ws2812' | 'apa102' | 'ws2801';
 
-/** Protocole reconnu, sinon le un-fil (valeur d'un fichier abîmé ou d'une version future). */
+/** Protocole reconnu, sinon WS2812 (valeur d'un fichier abîmé ou d'une version future). */
 export function stripProtocol(value: unknown): LedStripProtocol {
-  return value === 'apa102' || value === 'ws2801' ? value : 'ws2812';
+  return value === 'ws2811' || value === 'apa102' || value === 'ws2801' ? value : 'ws2812';
+}
+
+/** Protocoles SPI (données + horloge) par opposition au fil unique. */
+export function stripIsSpi(protocol: LedStripProtocol): boolean {
+  return protocol === 'apa102' || protocol === 'ws2801';
 }
 
 /** Nombre de LED du ruban : entier ≥ 1, 10 par défaut (aucun maximum). */
@@ -27,7 +32,7 @@ export function stripLedCount(value: unknown): number {
 
 /** Broches du protocole, dans l'ordre de la connectique (de gauche à droite). */
 export function stripPinNames(protocol: LedStripProtocol): string[] {
-  return protocol === 'ws2812' ? ['GND', '5V', 'DIN'] : ['GND', '5V', 'DI', 'CI'];
+  return stripIsSpi(protocol) ? ['GND', '5V', 'DI', 'CI'] : ['GND', '5V', 'DIN'];
 }
 
 const LED_PITCH = 12; // distance entre deux LED, le long du ruban
@@ -36,6 +41,9 @@ const INNER_RADIUS = 14; // rayon de la LED du bout (au centre)
 const RIBBON_WIDTH = 12;
 const LED_SIZE = 8;
 const PIN_PITCH = 10;
+const CONNECTOR_X = 20; // 1re pastille de la connectique (fixe, en haut à gauche)
+const CONNECTOR_Y = 20;
+const CONNECTOR_ZONE = 50; // hauteur réservée en haut pour la connectique et la queue de fils
 
 export interface StripLed {
   x: number;
@@ -79,26 +87,26 @@ export function stripGeometry(count: number, protocol: LedStripProtocol): StripG
   const phiEnd = phis[count - 1];
   const outer = INNER_RADIUS + b * phiEnd;
   const cx = snapUp(outer + 20);
-  const cy = cx;
+  // Connectique FIXE en haut à gauche (même place quel que soit le nombre de LED) : la
+  // spirale grandit vers le bas et la droite, sous la connectique.
+  const cy = snapUp(outer + CONNECTOR_ZONE + 20);
   const leds: StripLed[] = [];
   for (let k = count - 1; k >= 0; k--) {
     const r = INNER_RADIUS + b * phis[k];
-    const theta = phis[k] - phiEnd; // l'entrée tombe à 0 : plein est
+    const theta = phis[k] - phiEnd - Math.PI / 2; // l'entrée tombe au nord
     const x = cx + r * Math.cos(theta);
     const y = cy + r * Math.sin(theta);
     const dx = b * Math.cos(theta) - r * Math.sin(theta);
     const dy = b * Math.sin(theta) + r * Math.cos(theta);
     leds.push({ x, y, deg: (Math.atan2(dy, dx) * 180) / Math.PI });
   }
-  const tail = { x: cx + outer, y: snapUp(cy + outer + 10) };
+  const tail = { x: cx, y: cy - outer - 10 };
   const names = stripPinNames(protocol);
   const span = PIN_PITCH * (names.length - 1);
-  const x0 = Math.max(10, Math.round((tail.x - span / 2) / 10) * 10);
-  const pinY = tail.y + 40;
-  const pins = names.map((name, i) => ({ name, x: x0 + PIN_PITCH * i, y: pinY }));
+  const pins = names.map((name, i) => ({ name, x: CONNECTOR_X + PIN_PITCH * i, y: CONNECTOR_Y }));
   return {
-    width: Math.max(2 * cx, x0 + span + 20),
-    height: pinY + 20,
+    width: Math.max(2 * cx, CONNECTOR_X + span + 20),
+    height: cy + outer + 20,
     cx,
     cy,
     outer,
@@ -214,13 +222,14 @@ export class LEDStripElement extends LitElement {
     const head = g.pins[0].x - 5;
     const headEnd = g.pins[g.pins.length - 1].x + 5;
     const headY = g.pins[0].y - 10;
+    const headBottom = headY + 15;
     return html`
       <svg width=${g.width} height=${g.height} viewBox="0 0 ${g.width} ${g.height}" xmlns="http://www.w3.org/2000/svg">
         ${svg`
           <path d=${ribbon} fill="none" stroke="#8d8d8d" stroke-width=${RIBBON_WIDTH + 2} stroke-linejoin="round" stroke-linecap="round" />
           <path d=${ribbon} fill="none" stroke="#dcdcdc" stroke-width=${RIBBON_WIDTH} stroke-linejoin="round" stroke-linecap="round" />
           ${g.pins.map(
-            (p) => svg`<path d="M${g.tail.x},${g.tail.y} C${g.tail.x},${g.tail.y + 20} ${p.x},${headY - 20} ${p.x},${headY}"
+            (p) => svg`<path d="M${g.tail.x},${g.tail.y} C${g.tail.x},${g.tail.y - 20} ${p.x},${headBottom + 20} ${p.x},${headBottom}"
               fill="none" stroke=${WIRE_COLOR[p.name] ?? '#888'} stroke-width="2" />`
           )}
           <rect x=${head} y=${headY} width=${headEnd - head} height="15" rx="2" fill="#2b2b2b" />

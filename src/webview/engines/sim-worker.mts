@@ -17,6 +17,7 @@ import { PicoEngine, type PicoProgram } from './pico.mjs';
 import { evalAnalogWave, type AnalogWave } from './analog-waves.mjs';
 import { createBusDevices, type BusDevices } from './i2c-devices.mjs';
 import { sampleSevenSeg, type SevenSegMuxSpec } from './sevenseg.mjs';
+import type { NeopixelStripSpec } from './ws2812.mjs';
 import type { AvrDebugInfo, SimEngine } from './types.mjs';
 import {
   DRIVE_NAMES,
@@ -404,7 +405,7 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
         return;
       }
       case 'setNeopixels': {
-        const strips = msg.strips as Array<{ pin: string; count: number }>;
+        const strips = msg.strips as NeopixelStripSpec[];
         neopixelPins = strips.map((s) => s.pin);
         engine?.setNeopixels?.(strips);
         return;

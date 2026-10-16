@@ -1,6 +1,20 @@
 # À faire
+
 ## ne pas faire pour l'instant
 
+
+---
+
+# v2026.10.2.250 — ruban de LED : 4 protocoles, SPI simulé, connectique fixe
+1. ✅ **Connectique immobile** ([led-strip-element.mts](src/webview/composants/led-strip-element.mts)) : broches fixes en haut à gauche, la spirale grandit en dessous. Banc : mêmes pastilles pour 1 et 300 LED.
+2. ✅ **4 protocoles séparés** : WS2811, WS2812(B) / SK6812, APA102, WS2801 (catalogue).
+3. ✅ **Un fil** : pause de 300 µs ; WS2811 ordre RGB, WS2812(B)/SK6812 ordre GRB ([ws2812.mts](src/webview/engines/ws2812.mts)).
+4. ✅ **SPI APA102 / WS2801 simulés** ([spi-led-strip.mts](src/webview/engines/spi-led-strip.mts)) : esclave du bus SPI matériel (AVR et Pico, worker compris), lu via le canal NeoPixel sous le nom `spi:<id>`. WS2801 : verrou après pause d'horloge > 500 µs ; propriété `colorOrder` (RVB / BRV / VRB, RVB par défaut).
+5. ✅ Bancs `verify:ledstrip` et `verify:npchain` étendus. Fiche FR `led-strip.md` et illustration refaites.
+6. ℹ️ **Limites** : SPI logiciel (bit-bang) non décodé ; rubans SPI non chaînés ; pas de CS.
+7. ℹ️ **Fils existants** : la connectique a changé de place, les fils des `.projix` led-strip se reroutent.
+8. ⏳ **Tests testkablix** APA102 / WS2801 (uno + pico) : à créer via `_spec.mjs` + `_generate.mjs`.
+9. ⏳ Traduction : « One wire — WS2811 », « One wire — WS2812(B) / SK6812 (NeoPixel) », « Color order », « RGB / BRG / GRB » ; fiche EN : avant publication.
 
 ---
 

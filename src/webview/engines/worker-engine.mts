@@ -16,6 +16,7 @@
 import type { AnalogWave } from './analog-waves.mjs';
 import type { BusDeviceSpec, BusDevices, I2cDevice, SpiDevice } from './i2c-devices.mjs';
 import type { PicoProgram } from './pico.mjs';
+import type { NeopixelStripSpec } from './ws2812.mjs';
 import type { SevenSegMuxSpec } from './sevenseg.mjs';
 import type {
   Breakpoint,
@@ -629,7 +630,7 @@ export class WorkerEngine implements SimEngine {
     this.post({ t: 'setDs18b20', sensors });
   }
 
-  setNeopixels(strips: Array<{ pin: string; count: number }>): void {
+  setNeopixels(strips: NeopixelStripSpec[]): void {
     this.post({ t: 'setNeopixels', strips });
   }
 

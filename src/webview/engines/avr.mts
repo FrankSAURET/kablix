@@ -68,7 +68,8 @@ import {
 import { Ds18b20 } from './ds18b20.mjs';
 import { DEFAULT_AIR_TEMP_C, echoUsPerCm } from './ultrasonic.mjs';
 import { selectSpiDevice, Hd44780, type I2cDevice, type SpiDevice } from './i2c-devices.mjs';
-import { Ws2812Decoder } from './ws2812.mjs';
+import { Ws2812Decoder, type NeopixelStripSpec } from './ws2812.mjs';
+import { SpiLedStripDevice } from './spi-led-strip.mjs';
 import { DmxDecoder, DmxWire } from './dmx.mjs';
 // Pas de `frontsDeBreak` ici : l'USART de l'AVR n'a pas de bit BREAK (le DMX y
 // passe par bit-bang, décodé sur le fil par DmxWire).
@@ -452,6 +453,8 @@ export class AvrEngine implements SimEngine {
   private keypadPinLevel = new Map<string, boolean>();
   private spiDevices: SpiDevice[] = [];
   private spiSelected = new Map<SpiDevice, boolean>();
+  /** Rubans de LED SPI (APA102, WS2801), esclaves du bus avec les périphériques ci-dessus. */
+  private spiStrips: Array<{ name: string; dev: SpiLedStripDevice }> = [];
 
   // Capteurs DHT22 : surveillance du signal de départ par broche.
   private dht22: Dht22Monitor[] = [];
@@ -1084,22 +1087,32 @@ export class AvrEngine implements SimEngine {
     };
   }
 
-  setNeopixels(strips: Array<{ pin: string; count: number }>): void {
+  setNeopixels(strips: NeopixelStripSpec[]): void {
     this.neopixels = [];
+    this.spiStrips = [];
     for (const s of strips) {
+      if (s.spi) {
+        // Ruban SPI : esclave du bus matériel, sans broche surveillée.
+        const dev = new SpiLedStripDevice(s.count, s.spi, s.order);
+        this.spiStrips.push({ name: s.pin, dev });
+        continue;
+      }
       const m = this.pinMap[s.pin];
       if (!m) continue;
       this.neopixels.push({
         name: s.pin,
         port: m[0],
         bit: m[1],
-        dec: new Ws2812Decoder(s.count, CYCLES_PER_US),
+        dec: new Ws2812Decoder(s.count, CYCLES_PER_US, s.order, s.resetUs),
         last: false,
       });
     }
+    this.installSpi();
   }
 
   readNeopixel(pin: string): Array<{ r: number; g: number; b: number }> {
+    const strip = this.spiStrips.find((s) => s.name === pin);
+    if (strip) return strip.dev.colors;
     const n = this.neopixels.find((np) => np.name === pin);
     if (!n) return [];
     n.dec.flush(); // classe le dernier bit (la trame est terminée à la lecture)
@@ -1171,14 +1184,22 @@ export class AvrEngine implements SimEngine {
   setSpiDevices(devices: SpiDevice[]): void {
     this.spiDevices = devices;
     this.spiSelected.clear();
+    this.installSpi();
+  }
+
+  /** Route chaque octet SPI vers un esclave : périphériques du schéma, puis rubans de LED SPI. */
+  private installSpi(): void {
     this.spi.onByte = (mosi: number) => {
-      const dev = selectSpiDevice(devices, (p) => this.readDigital(p));
+      const bus = this.spiStrips.length
+        ? [...this.spiDevices, ...this.spiStrips.map((s) => s.dev)]
+        : this.spiDevices;
+      const dev = selectSpiDevice(bus, (p) => this.readDigital(p));
       if (!dev) {
         this.spi.completeTransfer(0xff);
         return;
       }
       const dc = dev.dcPin ? this.readDigital(dev.dcPin) : false;
-      this.spi.completeTransfer(dev.transfer(mosi, dc));
+      this.spi.completeTransfer(dev.transfer(mosi, dc, this.cpu.cycles / CYCLES_PER_US));
     };
   }
 

@@ -14,9 +14,36 @@ export interface Rgb {
   b: number;
 }
 
+/** Ordre des octets d'une LED sur le fil : « grb » = vert d'abord (WS2812), « rgb » (WS2811). */
+export type ColorOrder = 'rgb' | 'grb' | 'brg';
+
+/** Ordre reconnu, sinon `repli` (valeur d'un fichier abîmé). */
+export function colorOrderOf(value: unknown, repli: ColorOrder): ColorOrder {
+  return value === 'rgb' || value === 'grb' || value === 'brg' ? value : repli;
+}
+
+/** Rang (0, 1, 2) de l'octet rouge / vert / bleu dans la trame, selon l'ordre. */
+function channelRanks(order: ColorOrder): { r: number; g: number; b: number } {
+  return { r: order.indexOf('r'), g: order.indexOf('g'), b: order.indexOf('b') };
+}
+
+/** Une chaîne à décoder : sur une broche MCU (un fil) ou sur le bus SPI du MCU. */
+export interface NeopixelStripSpec {
+  /** Broche MCU de DIN. Pour un ruban SPI : nom de lecture synthétique (`spi:<id>`). */
+  pin: string;
+  count: number;
+  /** Ordre des couleurs sur le fil (un fil : « grb » par défaut). */
+  order?: ColorOrder;
+  /** Pause de fin de trame (µs) : un BAS plus long ouvre une nouvelle trame. */
+  resetUs?: number;
+  /** Ruban SPI : décodé sur le bus matériel, pas sur une broche. */
+  spi?: 'apa102' | 'ws2801';
+}
+
 export class Ws2812Decoder {
   /** Couleur de chaque LED (composantes 0..1). */
   readonly colors: Rgb[];
+  private readonly rank: { r: number; g: number; b: number };
 
   private high = false;
   private riseCycle = 0;
@@ -30,10 +57,13 @@ export class Ws2812Decoder {
 
   constructor(
     private readonly count: number,
-    cyclesPerUs: number
+    cyclesPerUs: number,
+    order: ColorOrder = 'grb',
+    resetUs = 30 // > BAS d'un bit, < reset (50 µs) ; 300 pour WS2811 / NeoPixel en ruban
   ) {
     this.colors = Array.from({ length: Math.max(1, count) }, () => ({ r: 0, g: 0, b: 0 }));
-    this.resetCycles = Math.round(30 * cyclesPerUs); // > BAS d'un bit, < reset (50 µs)
+    this.resetCycles = Math.round(resetUs * cyclesPerUs);
+    this.rank = channelRanks(order);
   }
 
   /** À appeler à chaque changement de niveau de DIN (cycle = compteur du cœur). */
@@ -78,10 +108,12 @@ export class Ws2812Decoder {
 
   private store(): void {
     if (this.idx >= this.count) return;
-    const g = (this.bits >> 16) & 0xff;
-    const r = (this.bits >> 8) & 0xff;
-    const b = this.bits & 0xff;
-    this.colors[this.idx] = { r: r / 255, g: g / 255, b: b / 255 };
+    const byteAt = (rank: number) => (this.bits >> (16 - 8 * rank)) & 0xff;
+    this.colors[this.idx] = {
+      r: byteAt(this.rank.r) / 255,
+      g: byteAt(this.rank.g) / 255,
+      b: byteAt(this.rank.b) / 255,
+    };
     this.idx++;
   }
 

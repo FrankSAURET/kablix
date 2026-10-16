@@ -81,7 +81,7 @@ Le robot araignée n'a pas de jumeau : sa Pico W est **dans** le châssis, il n'
 | NeoPixel (1 px) | `neopixel-uno` | `neopixel-pico` | `neopixel-pico2` | rouge/vert/bleu |
 | Matrice NeoPixel 8×8 | `neopixel-matrix-uno` | `neopixel-matrix-pico` | `neopixel-matrix-pico2` | diagonale + dégradé |
 | Anneau NeoPixel 16 | `led-ring-uno` | `led-ring-pico` | `led-ring-pico2` | chenillard bleu |
-| Ruban de LED en spirale (30 LED, un fil) | `led-strip-uno` | `led-strip-pico` | `led-strip-pico2` | chenillard vert ; les protocoles SPI (APA102, WS2801) se câblent mais ne sont pas simulés |
+| Ruban de LED en spirale (30 LED, un fil) | `led-strip-uno` | `led-strip-pico` | `led-strip-pico2` | chenillard vert ; les protocoles SPI (APA102, WS2801) sont décodés sur le bus SPI matériel (pas encore de test dédié) |
 | Température NTC | `ntc-temp-uno` | `ntc-temp-pico` | `ntc-temp-pico2` | valeur suit le curseur |
 | Résistances variables LDR + CTN + CTP | — (retiré) | `rv-pico` | `rv-pico2` | trois ponts diviseurs lus d'un coup ; éclairer la LDR ou chauffer la CTN fait monter la lecture, chauffer la CTP la fait descendre |
 | Phototransistor | `phototransistor-uno` | `phototransistor-pico` | `phototransistor-pico2` | pont diviseur avec 1 kΩ en bas, la lecture MONTE avec la lumière (50 % au repos à 1 mW/cm², 83 % curseur à fond) ; la résistance est obligatoire, Kablix signale le montage sans elle |

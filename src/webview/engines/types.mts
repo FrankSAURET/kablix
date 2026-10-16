@@ -1,6 +1,7 @@
 // Interface commune des moteurs de simulation (AVR, RP2040).
 import type { BusDeviceSpec, BusDevices, I2cDevice, SpiDevice } from './i2c-devices.mjs';
 import type { AnalogWave } from './analog-waves.mjs';
+import type { NeopixelStripSpec } from './ws2812.mjs';
 import type { SevenSegMuxSpec } from './sevenseg.mjs';
 import type { DebugLogEntry } from './breakpoints.mjs';
 export type { DebugLogEntry } from './breakpoints.mjs';
@@ -333,8 +334,8 @@ export interface SimEngine {
    * objets par `setI2cDevices` / `setSpiDevices`.
    */
   setBusDevices?(specs: BusDeviceSpec[], mirrors: BusDevices): void;
-  /** Déclare les chaînes NeoPixel (WS2812) : broche DIN + nombre de LED. */
-  setNeopixels?(strips: Array<{ pin: string; count: number }>): void;
+  /** Déclare les chaînes de LED : broche DIN (ou ruban SPI) + nombre de LED + ordre des couleurs. */
+  setNeopixels?(strips: NeopixelStripSpec[]): void;
   /** Couleurs décodées de la chaîne NeoPixel sur `pin` (composantes 0..1). */
   readNeopixel?(pin: string): Array<{ r: number; g: number; b: number }>;
   /**

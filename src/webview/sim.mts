@@ -38,6 +38,7 @@ import './composants/neopixel-element.mjs';
 import './composants/neopixel-matrix-element.mjs';
 import './composants/led-ring-element.mjs';
 import './composants/led-strip-element.mjs';
+import type { NeopixelStripSpec } from './engines/ws2812.mjs';
 import './composants/pushbutton-6mm-element.mjs';
 import './composants/ntc-temperature-sensor-element.mjs';
 import './composants/gas-sensor-element.mjs';
@@ -135,6 +136,7 @@ import {
   logicProbeVoies,
   type LogicProbeVoie,
   neopixelBindings,
+  spiStripBindings,
   dmxBindings,
   lcdParallelBindings,
   spiDeviceBindings,
@@ -3734,9 +3736,25 @@ function bindInputs(): void {
   // broche, longue de toute la chaîne — et chacun lit sa tranche de couleurs.
   const nps = neopixelBindings(editor.diagram);
   neopixelTargets = new Map(nps.map((b) => [b.partId, { pin: b.mcuPin, offset: b.offset, count: b.count }]));
-  const perPin = new Map<string, number>();
-  for (const b of nps) perPin.set(b.mcuPin, Math.max(perPin.get(b.mcuPin) ?? 0, b.offset + b.count));
-  engine.setNeopixels?.([...perPin].map(([pin, count]) => ({ pin, count })));
+  const perPin = new Map<string, NeopixelStripSpec>();
+  for (const b of nps) {
+    const cur = perPin.get(b.mcuPin);
+    perPin.set(b.mcuPin, {
+      pin: b.mcuPin,
+      count: Math.max(cur?.count ?? 0, b.offset + b.count),
+      // La tête de chaîne fixe l'ordre des couleurs ; la pause la plus longue l'emporte.
+      order: cur ? cur.order : b.order,
+      resetUs: Math.max(cur?.resetUs ?? 0, b.resetUs ?? 0) || undefined,
+    });
+  }
+  const strips: NeopixelStripSpec[] = [...perPin.values()];
+  // Rubans SPI : décodés par le bus matériel, lus sous un nom synthétique.
+  for (const s of spiStripBindings(editor.diagram)) {
+    const pin = `spi:${s.partId}`;
+    neopixelTargets.set(s.partId, { pin, offset: 0, count: s.count });
+    strips.push({ pin, count: s.count, order: s.order, spi: s.protocol });
+  }
+  engine.setNeopixels?.(strips);
 
   // Lignes DMX512 : le moteur décode les trames émises par l'UART matériel — la
   // couleur d'un projecteur se lit dans les canaux, jamais dans le niveau du fil

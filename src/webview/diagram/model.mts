@@ -5131,6 +5131,48 @@ export interface NeopixelBinding {
    * couleurs à la suite du précédent.
    */
   offset: number;
+  /** Ordre des octets de couleur sur le fil (ruban WS2811 : « rgb ») ; absent = GRB. */
+  order?: 'rgb' | 'grb';
+  /** Pause de fin de trame (µs) exigée avant de rouvrir une trame ; absent = 30 µs. */
+  resetUs?: number;
+}
+
+/** Ruban de LED en SPI (APA102, WS2801) dont DI et CI sont reliés au MCU. */
+export interface SpiStripBinding {
+  partId: string;
+  count: number;
+  protocol: 'apa102' | 'ws2801';
+  /** Ordre des couleurs (WS2801 réglable ; APA102 fixe, sans objet). */
+  order: 'rgb' | 'grb' | 'brg';
+}
+
+/** Protocole d'un ruban de LED : WS2812 si absent ou inconnu. */
+function stripProtocolOf(part: Part): 'ws2811' | 'ws2812' | 'apa102' | 'ws2801' {
+  const p = part.attrs?.protocol;
+  return p === 'ws2811' || p === 'apa102' || p === 'ws2801' ? p : 'ws2812';
+}
+
+/** Rubans SPI branchés (DI et CI sur des broches du MCU) : décodés par le bus SPI matériel. */
+export function spiStripBindings(diagram: Diagram): SpiStripBinding[] {
+  const nets = buildNets(diagram);
+  const out: SpiStripBinding[] = [];
+  for (const p of diagram.parts) {
+    if (p.type !== 'led-strip') continue;
+    const protocol = stripProtocolOf(p);
+    if (protocol !== 'apa102' && protocol !== 'ws2801') continue;
+    if (
+      !mcuPinForPart(diagram, nets, p.id, rolePin(p.type, 'DI')) ||
+      !mcuPinForPart(diagram, nets, p.id, rolePin(p.type, 'CI'))
+    ) continue;
+    const co = p.attrs?.colorOrder;
+    out.push({
+      partId: p.id,
+      count: neopixelCount(p),
+      protocol,
+      order: protocol === 'ws2801' && (co === 'grb' || co === 'brg') ? co : 'rgb',
+    });
+  }
+  return out;
 }
 
 /** Nombre de LED d'un composant NeoPixel (matrice, anneau ou pixel simple). */
@@ -5155,7 +5197,7 @@ export function neopixelBindings(diagram: Diagram): NeopixelBinding[] {
   const nets = buildNets(diagram);
   // Ruban en SPI (APA102, WS2801) : pas de ligne un-fil, rien à décoder.
   const strips = diagram.parts.filter(
-    (p) => partDef(p.type).kind === 'neopixel' && !(p.type === 'led-strip' && p.attrs?.protocol && p.attrs.protocol !== 'ws2812')
+    (p) => partDef(p.type).kind === 'neopixel' && !(p.type === 'led-strip' && ['apa102', 'ws2801'].includes(stripProtocolOf(p)))
   );
   const dinNet = new Map<string, string>();
   const doutNet = new Map<string, string>();
@@ -5174,7 +5216,13 @@ export function neopixelBindings(diagram: Diagram): NeopixelBinding[] {
     while (cur && !placed.has(cur.id)) {
       placed.add(cur.id);
       const count = neopixelCount(cur);
-      bindings.push({ partId: cur.id, mcuPin, count, offset });
+      const b: NeopixelBinding = { partId: cur.id, mcuPin, count, offset };
+      if (cur.type === 'led-strip') {
+        // Rubans un fil : WS2811 en RGB, WS2812(B)/SK6812 en GRB, pause de fin de trame 300 µs.
+        b.order = stripProtocolOf(cur) === 'ws2811' ? 'rgb' : 'grb';
+        b.resetUs = 300;
+      }
+      bindings.push(b);
       offset += count;
       const out = doutNet.get(cur.id);
       cur = out ? strips.find((p) => !placed.has(p.id) && dinNet.get(p.id) === out) : undefined;

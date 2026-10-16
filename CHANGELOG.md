@@ -19,7 +19,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Ruban de LED**
 
-- **Ruban de LED extensible**, enroulé en spirale pour tenir sur la feuille, connectique à l'extérieur. Nombre de LED au choix (10 par défaut, 1 au minimum, pas de maximum) et protocole au choix : un fil (WS2811, WS2812, WS2812B), SPI APA102 ou SPI WS2801, avec 3 ou 4 broches selon le cas. Seul le un fil est simulé : les protocoles SPI se câblent mais les LED restent éteintes.
+- **Ruban de LED extensible**, enroulé en spirale pour tenir sur la feuille, connectique à l'extérieur. Nombre de LED au choix (10 par défaut, 1 au minimum, pas de maximum) et protocole au choix : un fil WS2811 (ordre RVB), un fil WS2812(B) / SK6812 (ordre VRB), SPI APA102 ou SPI WS2801, avec 3 ou 4 broches selon le cas. Les quatre sont simulés ; le SPI est lu sur le bus SPI matériel de la carte. Pause de 300 µs en fin de trame pour le un fil, pause d'horloge de 500 µs pour le WS2801. Le WS2801 a une propriété « Ordre des couleurs » (RVB, BRV, VRB).
+- **La connectique reste immobile** quand le nombre de LED change : en haut à gauche, la spirale grandit en dessous. Les fils déjà posés sur d'anciens ruban sont reroutés.
 
 **Schéma**
 
