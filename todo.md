@@ -1,7 +1,16 @@
 # À faire
-
 ## ne pas faire pour l'instant
-- Ruban led extensible
+
+
+---
+
+# v2026.10.2.249 — ruban de LED extensible en spirale
+1. ✅ **`kablix-led-strip`** ([led-strip-element.mts](src/webview/composants/led-strip-element.mts)) : composant intégré, dessin procédural. Propriétés `leds` (10 par défaut, ≥ 1, aucun maximum) et `protocol` : un fil WS2811 / WS2812 / WS2812B (NeoPixel), SPI APA102 (DotStar), SPI WS2801. Spirale d'Archimède (pas de LED 12 px, écart des tours 16 px), LED 0 = entrée à l'extérieur, queue de fils vers une connectique sous la spirale. Broches sur la grille de 10 px : un fil GND / 5V / DIN (3), SPI GND / 5V / DI / CI (4).
+2. ✅ **Catalogue** (`led-strip`, kind `neopixel`, « Displays & LEDs ») ; `neopixelCount` lit `leds` ; `neopixelBindings` ignore un ruban SPI. Rendu des LED = celui de l'anneau (blanc éteint, halo allumé).
+3. ✅ **Bancs** : `verify:ledstrip` (nouveau : nombre, broches, grille, spirale sans chevauchement, allumage), `verify:npchain` (+3 contrôles). **Tests** `led-strip-uno / pico / pico2` (spec + README testkablix, jumeau Pico 2 généré). **Fiche d'aide FR** `led-strip.md` + `led-strip.webp` (`_capture-part.mjs`).
+4. ℹ️ **Composant intégré, pas `.kompix`** : un paquet de bibliothèque a un SVG fixe, donc ni nombre de LED variable ni spirale. Du coup pas de drapeau `experimental` (il n'existe que pour la bibliothèque). À dire si Frank veut quand même une pastille Béta sur un composant intégré.
+5. ℹ️ **SPI non simulé** (APA102, WS2801) : aucune règle donnée, rien inventé. À préciser par Frank si la simulation est voulue.
+6. ⏳ Traduction : « LED strip », « LED count », « Protocol » et les trois libellés de protocole (EN) ; fiche `docs/en/composants/led-strip.md` (et ES, ZH) : avant publication.
 
 ---
 

@@ -1180,6 +1180,23 @@ export const CATALOG: readonly PartDef[] = [
   { type: 'neopixel', label: 'NeoPixel', tag: 'kablix-neopixel', kind: 'neopixel' },
   { type: 'neopixel-matrix', label: 'NeoPixel matrix', tag: 'kablix-neopixel-matrix', kind: 'neopixel', attrs: { rows: '8', cols: '8' } },
   { type: 'led-ring', label: 'NeoPixel ring', tag: 'kablix-led-ring', kind: 'neopixel', attrs: { pixels: '16' } },
+  // Ruban de LED extensible, enroulé en spirale : nombre de LED et protocole au choix. Seul le
+  // un-fil est simulé (les protocoles SPI se câblent, les LED restent éteintes).
+  {
+    type: 'led-strip', label: 'LED strip', tag: 'kablix-led-strip', kind: 'neopixel',
+    attrs: { leds: '10', protocol: 'ws2812' },
+    props: [
+      { attr: 'leds', label: 'LED count', kind: 'number', min: 1, step: 1 },
+      {
+        attr: 'protocol', label: 'Protocol', kind: 'select', options: ['ws2812', 'apa102', 'ws2801'],
+        optionLabels: {
+          ws2812: 'One wire — WS2811, WS2812, WS2812B (NeoPixel)',
+          apa102: 'SPI — APA102 (DotStar)',
+          ws2801: 'SPI — WS2801',
+        },
+      },
+    ],
+  },
 
   // Bouton poussoir 6 mm : même modèle que le bouton standard.
   {

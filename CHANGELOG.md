@@ -17,6 +17,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - **Capteur de température LM35A**, dans la bibliothèque de composants : sortie analogique de 10 mV par °C, curseur de −55 à +150 °C. Il lui faut 4 V : en dessous (3V3 d'une Pico, Vs non câblé, chute dans une diode), la sortie reste à 0 V et le composant s'encadre en rouge avec l'explication. Avec un rail −Vs relié à Vout par une résistance, la sortie devient négative : un multimètre ou l'oscilloscope lit la tension négative (l'entrée de la carte lit 0 V).
 
+**Ruban de LED**
+
+- **Ruban de LED extensible**, enroulé en spirale pour tenir sur la feuille, connectique à l'extérieur. Nombre de LED au choix (10 par défaut, 1 au minimum, pas de maximum) et protocole au choix : un fil (WS2811, WS2812, WS2812B), SPI APA102 ou SPI WS2801, avec 3 ou 4 broches selon le cas. Seul le un fil est simulé : les protocoles SPI se câblent mais les LED restent éteintes.
+
 **Schéma**
 
 - **Connecteur sur les textes libres** : propriété « Connecteur » dans l'inspecteur. Le trait part tout seul du milieu du côté le plus proche de l'extrémité (le trait le plus court), passe par-dessus tout et finit par un point ou une flèche (propriété « Extrémité »). Il prend la couleur de fond de l'étiquette, sans sa transparence. On déplace l'extrémité en la glissant, sans accrochage à la grille. Enregistré dans le fichier et repris à l'export SVG.

@@ -37,6 +37,7 @@ import './composants/microsd-card-element.mjs';
 import './composants/neopixel-element.mjs';
 import './composants/neopixel-matrix-element.mjs';
 import './composants/led-ring-element.mjs';
+import './composants/led-strip-element.mjs';
 import './composants/pushbutton-6mm-element.mjs';
 import './composants/ntc-temperature-sensor-element.mjs';
 import './composants/gas-sensor-element.mjs';

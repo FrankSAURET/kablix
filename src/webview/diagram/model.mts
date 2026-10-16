@@ -5138,6 +5138,7 @@ function neopixelCount(part: Part): number {
   const a = part.attrs ?? {};
   if (part.type === 'neopixel-matrix') return (Number(a.rows) || 8) * (Number(a.cols) || 8);
   if (part.type === 'led-ring') return Number(a.pixels) || 16;
+  if (part.type === 'led-strip') return Math.max(1, Math.floor(Number(a.leds)) || 10);
   return Number(a.count) || 1;
 }
 
@@ -5152,7 +5153,10 @@ function neopixelCount(part: Part): number {
  */
 export function neopixelBindings(diagram: Diagram): NeopixelBinding[] {
   const nets = buildNets(diagram);
-  const strips = diagram.parts.filter((p) => partDef(p.type).kind === 'neopixel');
+  // Ruban en SPI (APA102, WS2801) : pas de ligne un-fil, rien à décoder.
+  const strips = diagram.parts.filter(
+    (p) => partDef(p.type).kind === 'neopixel' && !(p.type === 'led-strip' && p.attrs?.protocol && p.attrs.protocol !== 'ws2812')
+  );
   const dinNet = new Map<string, string>();
   const doutNet = new Map<string, string>();
   for (const p of strips) {

@@ -104,6 +104,25 @@ check('deux chaînes : les rangs sont propres à chaque broche',
   JSON.stringify(bt.map((b) => [b.partId, b.mcuPin, b.offset])));
 check('composant dont le DIN n est relié à rien : aucun binding', !at(bt, 'solo'), JSON.stringify(bt));
 
+// --- 3b. Ruban de LED (led-strip) : compte ses LED, un fil seulement ---------
+const rubans = {
+  parts: [
+    { id: 'pico', type: 'pico', x: 0, y: 0 },
+    { id: 'r1', type: 'led-strip', x: 0, y: 0, attrs: { leds: '30', protocol: 'ws2812' } },
+    { id: 'r2', type: 'led-strip', x: 0, y: 0 }, // attributs absents : 10 LED, un fil
+    { id: 'spi', type: 'led-strip', x: 0, y: 0, attrs: { leds: '20', protocol: 'apa102' } },
+  ],
+  wires: [
+    wire(1, 'r1', 'DIN', 'pico', 'GP0'),
+    wire(2, 'r2', 'DIN', 'pico', 'GP1'),
+    wire(3, 'spi', 'DI', 'pico', 'GP2'),
+  ],
+};
+const br = neopixelBindings(rubans);
+check('ruban un fil : 30 LED sur GP0', at(br, 'r1')?.count === 30 && at(br, 'r1')?.mcuPin === 'GP0', JSON.stringify(br));
+check('ruban sans attributs : 10 LED', at(br, 'r2')?.count === 10, JSON.stringify(br));
+check('ruban SPI (APA102) : pas de décodage un fil', !at(br, 'spi'), JSON.stringify(br));
+
 // --- 4. Câblage en boucle : pas de parcours infini ---------------------------
 const loop = {
   parts: [

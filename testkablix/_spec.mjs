@@ -72,6 +72,8 @@ export const PART_PINS = {
   neopixel: ['VDD', 'DOUT', 'VSS', 'DIN'],
   'neopixel-matrix': ['GND', 'VCC', 'DIN', 'DOUT'],
   'led-ring': ['GND', 'VCC', 'DIN', 'DOUT'],
+  // Ruban : 3 broches en un fil (DIN), 4 en SPI (DI + CI) — la liste couvre les deux.
+  'led-strip': ['GND', '5V', 'DIN', 'DI', 'CI'],
   'ntc-temp': ['GND', 'VCC', 'OUT'],
   // Résistances variables nues : deux pattes numérotées, sans polarité. Elles
   // ne « sortent » rien — c'est le pont diviseur qu'elles forment avec une
@@ -1474,6 +1476,36 @@ void loop() {
     anneau.setPixelColor(i, anneau.Color(0, 80, 255));
     anneau.show();
     delay(100);
+  }
+}
+`,
+  }),
+
+  test({
+    name: 'led-strip-uno', board: 'uno', ext: 'ino',
+    parts: [MCU('uno'), { id: 'L1', type: 'led-strip', x: 560, y: 40, attrs: { leds: '30', protocol: 'ws2812' } }],
+    wires: () => [
+      w('L1', '5V', 'U1', '5V', 'red'),
+      w('L1', 'GND', 'U1', 'GND.1', 'black'),
+      w('L1', 'DIN', 'U1', '6', 'green'),
+    ],
+    expect: { kind: 'neopixel', partId: 'L1', mcuPin: '6', count: 30 },
+    code: `// Test ruban de LED en spirale (30 LED, un fil) : chenillard vert.
+#include <Adafruit_NeoPixel.h>
+
+Adafruit_NeoPixel ruban(30, 6, NEO_GRB + NEO_KHZ800);
+
+void setup() {
+  ruban.begin();
+  ruban.setBrightness(80);
+}
+
+void loop() {
+  for (int i = 0; i < 30; i++) {
+    ruban.clear();
+    ruban.setPixelColor(i, ruban.Color(0, 255, 60));
+    ruban.show();
+    delay(60);
   }
 }
 `,
@@ -5207,6 +5239,33 @@ while True:
         anneau[i] = (0, 80, 255)
         anneau.write()
         time.sleep(0.1)
+`,
+  }),
+
+  test({
+    name: 'led-strip-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico', 136.75, 213.6),
+      { id: 'L1', type: 'led-strip', x: 90, y: 20, attrs: { leds: '30', protocol: 'ws2812' } },
+    ],
+    wires: () => [
+      w('L1', '5V', 'U1', 'VBUS', 'red'),
+      w('L1', 'GND', 'U1', 'GND.1', 'black'),
+      w('L1', 'DIN', 'U1', 'GP28', 'green'),
+    ],
+    expect: { kind: 'neopixel', partId: 'L1', mcuPin: 'GP28', count: 30 },
+    code: `# Test ruban de LED en spirale (30 LED, un fil) : chenillard vert.
+from machine import Pin
+import neopixel
+import time
+
+ruban = neopixel.NeoPixel(Pin(28), 30)
+while True:
+    for i in range(30):
+        ruban.fill((0, 0, 0))
+        ruban[i] = (0, 255, 60)
+        ruban.write()
+        time.sleep(0.06)
 `,
   }),
 

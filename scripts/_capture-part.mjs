@@ -108,6 +108,8 @@ const PARTS = {
     module: 'patte-element.mjs', tag: 'kablix-patte', width: 250,
     attrs: { speed: '0', coxaAngle: '75', patellaAngle: '125' },
   },
+  // Ruban de LED : illustré à 30 LED (deux tours de spirale visibles).
+  'led-strip': { module: 'led-strip-element.mjs', tag: 'kablix-led-strip', attrs: { leds: '30' } },
   // Araignée : électronique embarquée toujours dessinée (v2026.8.58), patellas
   // pliées (`speed: 0` = pas d'animation, la pose est atteinte avant la mesure).
   araignee: {
