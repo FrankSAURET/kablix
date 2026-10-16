@@ -1,4 +1,4 @@
 board: arduino:avr:uno
-sketch: Arduino/led-strip-ws2801-uno/led-strip-ws2801-uno.ino
+sketch: Arduino/led-strip-uno/led-strip-uno.ino
 port: COM3
 output: .build
