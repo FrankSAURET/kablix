@@ -1390,6 +1390,25 @@ export class SimulatorPanel {
       title: l10n.t('Choose the code file to run / debug'),
     });
     if (!picked || picked.length === 0) return;
+    // arduino-cli refuse un croquis dont le .ino n'a pas le nom de son dossier :
+    // on bloque ici, à l'association, plutôt qu'à la compilation.
+    const chosen = picked[0].fsPath;
+    if (chosen.toLowerCase().endsWith('.ino')) {
+      const parts = chosen.split(/[\\/]/);
+      const file = parts[parts.length - 1];
+      const folder = parts[parts.length - 2] ?? '';
+      if (file.slice(0, -4) !== folder) {
+        void vscode.window.showErrorMessage(
+          l10n.t(
+            'Sketch "{0}" must sit in a folder of the same name ("{1}"): Arduino refuses to build otherwise. Rename the file or the folder.',
+            file,
+            folder
+          ),
+          { modal: true }
+        );
+        return;
+      }
+    }
     this.setCodeFile(picked[0]);
   }
 

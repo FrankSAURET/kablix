@@ -37,6 +37,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - **Envoi d'un programme** : à la fin du transfert, la carte redémarre toute seule et lance `main.py`. Plus besoin de la réinitialiser à la main.
 
+**Code du projet**
+
+- **Choix d'un fichier `.ino`** : si le fichier n'a pas le nom de son dossier, un message d'erreur bloquant l'explique et le fichier n'est pas associé (Arduino refuse de compiler un croquis dans ce cas).
+
 **Robot araignée**
 
 - **Patte seule** : la patte affichée est calée à 30 px des pastilles du connecteur et descendue de 70 px sous l'axe des broches Coxa et Patella.

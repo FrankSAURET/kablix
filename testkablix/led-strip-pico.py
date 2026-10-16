@@ -3,9 +3,9 @@ from machine import Pin
 import neopixel
 import time
 
-ruban = neopixel.NeoPixel(Pin(28), 30)
+ruban = neopixel.NeoPixel(Pin(28), 300)
 while True:
-    for i in range(30):
+    for i in range(300):
         ruban.fill((0, 0, 0))
         ruban[i] = (0, 255, 60)
         ruban.write()

@@ -5,6 +5,14 @@
 
 ---
 
+# v2026.10.2.253 — .ino : nom du fichier = nom du dossier
+1. ✅ **Erreur bloquante au choix d'un `.ino`** ([panel.ts](src/panel.ts), `pickCodeFile`) : si le nom du fichier diffère du dossier, boîte modale avec explication, fichier non associé. Comparaison sensible à la casse (comme arduino-cli).
+2. ℹ️ **Seul le choix par boîte de dialogue est contrôlé** : un `.ino` associé autrement (compilation directe, rechargement d'un projet) ne l'est pas. Non essayé dans VS Code.
+3. ✅ **Fichiers de test de Frank envoyés tels quels** (`testkablix/` : `.projix`, `led-strip-pico.py`, `Patte-pico-sans 16servo`, suppression des `_tmp.py`, `.vscode`).
+4. ⏳ Traduction FR de la chaîne d'erreur : avant publication.
+
+---
+
 # v2026.10.2.252 — ruban de LED : re-rendu au changement, libellés, tests SPI
 1. ✅ **Re-rendu au changement de `leds` / `protocol`** ([editor.mts](src/webview/diagram/editor.mts), `rebuildsStrip`) : avant, seul `setAttribute` était appelé, donc pastilles et cadre de sélection restaient à l'ancienne place (la connectique « tombait à côté »). Désormais `rerenderPart` + `fitSelectionBox` après le rendu, et le recalage `stripShift` se fait AVANT le re-rendu.
 2. ✅ **Libellés** ([catalog.mts](src/webview/diagram/catalog.mts)) : « One wire — », « SPI — » retirés ; reste WS2811, WS2812(B) / SK6812, APA102, WS2801.
