@@ -671,6 +671,12 @@ for (const t of TESTS) {
           b?.mcuPin === e.mcuPin && b?.count === e.count, JSON.stringify(b));
         break;
       }
+      case 'spi-strip': {
+        const b = model.spiStripBindings(diagram).find((x) => x.partId === e.partId);
+        check(`${t.name} : ruban SPI ${e.protocol}, ${e.count} px (DI/CI câblés)`,
+          b?.protocol === e.protocol && b?.count === e.count, JSON.stringify(b));
+        break;
+      }
       case 'spi-device': {
         const b = model.spiDeviceBindings(diagram).find((x) => x.partId === e.partId);
         check(`${t.name} : D/C=${e.dcPin} CS=${e.csPin}`,

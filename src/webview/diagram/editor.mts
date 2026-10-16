@@ -6884,7 +6884,19 @@ export class Editor {
     // Résistance : `orientation` change de DESSIN (80×20 couchée, 50×70 debout),
     // donc de boîte et de position des pattes — même raison que `ctype`. Le
     // boîtier (`rtype`) fait de même, en plus large : 220×100 pour la RP1.
-    if (movesElectrode || rebuildsTransistor || rebuildsIc || attr === 'ctype' || attr === 'rtype' || attr === 'orientation' || attr === 'angle' || attr === 'flip' || attr === 'size' || attr === 'pins' || attr === 'lcdSize' || attr === 'columns' || attr === 'digits') {
+    // Ruban de LED : le nombre de LED / le protocole changent la boîte ET les pastilles
+    // (re-rendu, comme une taille). La connectique est centrée sur la spirale, donc elle
+    // glisse dans la feuille : on décale la pièce de l'inverse AVANT le re-rendu, pour
+    // qu'elle reste immobile sur le schéma et que le ruban grandisse autour.
+    const rebuildsStrip = r.part.type === 'led-strip' && (attr === 'leds' || attr === 'protocol');
+    if (rebuildsStrip && !(r.part.attrs?.angle) && !(r.part.attrs?.flip)) {
+      const dx = stripShift(prevAttrs, r.part.attrs);
+      if (dx !== 0) {
+        r.part.x += dx;
+        r.container.style.left = `${r.part.x}px`;
+      }
+    }
+    if (rebuildsStrip || movesElectrode || rebuildsTransistor || rebuildsIc || attr === 'ctype' || attr === 'rtype' || attr === 'orientation' || attr === 'angle' || attr === 'flip' || attr === 'size' || attr === 'pins' || attr === 'lcdSize' || attr === 'columns' || attr === 'digits') {
       this.rerenderPart(partId); // renderPart restaure le câblage interne s'il était affiché
       if (this.selection?.kind === 'part' && this.selection.id === partId) {
         const again = this.rendered.get(partId);
@@ -6903,17 +6915,6 @@ export class Editor {
       r.el.removeAttribute(attr);
     } else {
       r.el.setAttribute(attr, value);
-    }
-    // Ruban de LED : la connectique est centrée sur la spirale, donc elle glisse dans la
-    // feuille quand le nombre de LED (ou le protocole) change. On décale la pièce de
-    // l'inverse : la connectique reste immobile sur le schéma, le ruban grandit autour.
-    if (r.part.type === 'led-strip' && (attr === 'leds' || attr === 'protocol')
-      && !(r.part.attrs?.angle) && !(r.part.attrs?.flip)) {
-      const dx = stripShift(prevAttrs, r.part.attrs);
-      if (dx !== 0) {
-        r.part.x += dx;
-        r.container.style.left = `${r.part.x}px`;
-      }
     }
     // Étiquette libre d'un appareil de mesure : elle ne va pas au dessin, elle va
     // au BANDEAU du composant — mise à jour sur place, sans re-rendu.

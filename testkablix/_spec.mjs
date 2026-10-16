@@ -1483,13 +1483,13 @@ void loop() {
 
   test({
     name: 'led-strip-uno', board: 'uno', ext: 'ino',
-    parts: [MCU('uno'), { id: 'L1', type: 'led-strip', x: 560, y: 40, attrs: { leds: '30', protocol: 'ws2812' } }],
+    parts: [MCU('uno'), { id: 'L1', type: 'led-strip', x: 560, y: 40, attrs: { leds: '125', protocol: 'ws2812' } }],
     wires: () => [
       w('L1', '5V', 'U1', '5V', 'red'),
       w('L1', 'GND', 'U1', 'GND.1', 'black'),
       w('L1', 'DIN', 'U1', '6', 'green'),
     ],
-    expect: { kind: 'neopixel', partId: 'L1', mcuPin: '6', count: 30 },
+    expect: { kind: 'neopixel', partId: 'L1', mcuPin: '6', count: 125 },
     code: `// Test ruban de LED en spirale (30 LED, un fil) : chenillard vert.
 #include <Adafruit_NeoPixel.h>
 
@@ -1505,6 +1505,88 @@ void loop() {
     ruban.clear();
     ruban.setPixelColor(i, ruban.Color(0, 255, 60));
     ruban.show();
+    delay(60);
+  }
+}
+`,
+  }),
+
+  test({
+    name: 'led-strip-apa102-uno', board: 'uno', ext: 'ino',
+    parts: [MCU('uno'), { id: 'L1', type: 'led-strip', x: 560, y: 40, attrs: { leds: '30', protocol: 'apa102' } }],
+    wires: () => [
+      w('L1', '5V', 'U1', '5V', 'red'),
+      w('L1', 'GND', 'U1', 'GND.1', 'black'),
+      w('L1', 'DI', 'U1', '11', 'blue'),
+      w('L1', 'CI', 'U1', '13', 'yellow'),
+    ],
+    expect: { kind: 'spi-strip', partId: 'L1', count: 30, protocol: 'apa102' },
+    code: `// Test ruban APA102 (SPI mode 0, 30 LED) : chenillard vert.
+// Trame : début (32 bits à 0), 30 × [111 + luminosité 5 bits, Bleu, Vert, Rouge], fin.
+#include <SPI.h>
+
+const int N = 30;
+
+void envoyer(int allumee) {
+  SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
+  for (int i = 0; i < 4; i++) SPI.transfer(0x00);
+  for (int i = 0; i < N; i++) {
+    SPI.transfer(0xE0 | 16);                 // luminosité 16/31
+    SPI.transfer(i == allumee ? 60 : 0);     // bleu
+    SPI.transfer(i == allumee ? 255 : 0);    // vert
+    SPI.transfer(0);                         // rouge
+  }
+  for (int i = 0; i < 4; i++) SPI.transfer(0xFF);
+  SPI.endTransaction();
+}
+
+void setup() {
+  SPI.begin();
+}
+
+void loop() {
+  for (int i = 0; i < N; i++) {
+    envoyer(i);
+    delay(60);
+  }
+}
+`,
+  }),
+
+  test({
+    name: 'led-strip-ws2801-uno', board: 'uno', ext: 'ino',
+    parts: [MCU('uno'), { id: 'L1', type: 'led-strip', x: 560, y: 40, attrs: { leds: '30', protocol: 'ws2801', colorOrder: 'rgb' } }],
+    wires: () => [
+      w('L1', '5V', 'U1', '5V', 'red'),
+      w('L1', 'GND', 'U1', 'GND.1', 'black'),
+      w('L1', 'DI', 'U1', '11', 'blue'),
+      w('L1', 'CI', 'U1', '13', 'yellow'),
+    ],
+    expect: { kind: 'spi-strip', partId: 'L1', count: 30, protocol: 'ws2801' },
+    code: `// Test ruban WS2801 (SPI mode 0, 30 LED, ordre RVB) : chenillard vert.
+// Trame : 30 × 24 bits, puis pause d'horloge > 500 µs qui verrouille les couleurs.
+#include <SPI.h>
+
+const int N = 30;
+
+void envoyer(int allumee) {
+  SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
+  for (int i = 0; i < N; i++) {
+    SPI.transfer(0);                         // rouge
+    SPI.transfer(i == allumee ? 255 : 0);    // vert
+    SPI.transfer(i == allumee ? 60 : 0);     // bleu
+  }
+  SPI.endTransaction();
+  delayMicroseconds(600);                    // pause > 500 µs
+}
+
+void setup() {
+  SPI.begin();
+}
+
+void loop() {
+  for (int i = 0; i < N; i++) {
+    envoyer(i);
     delay(60);
   }
 }
@@ -5246,14 +5328,14 @@ while True:
     name: 'led-strip-pico', board: 'pico', ext: 'py',
     parts: [
       MCU('pico', 136.75, 213.6),
-      { id: 'L1', type: 'led-strip', x: 90, y: 20, attrs: { leds: '30', protocol: 'ws2812' } },
+      { id: 'L1', type: 'led-strip', x: 90, y: 20, attrs: { leds: '200', protocol: 'ws2812' } },
     ],
     wires: () => [
       w('L1', '5V', 'U1', 'VBUS', 'red'),
       w('L1', 'GND', 'U1', 'GND.1', 'black'),
       w('L1', 'DIN', 'U1', 'GP28', 'green'),
     ],
-    expect: { kind: 'neopixel', partId: 'L1', mcuPin: 'GP28', count: 30 },
+    expect: { kind: 'neopixel', partId: 'L1', mcuPin: 'GP28', count: 200 },
     code: `# Test ruban de LED en spirale (30 LED, un fil) : chenillard vert.
 from machine import Pin
 import neopixel
@@ -5265,6 +5347,78 @@ while True:
         ruban.fill((0, 0, 0))
         ruban[i] = (0, 255, 60)
         ruban.write()
+        time.sleep(0.06)
+`,
+  }),
+
+  test({
+    name: 'led-strip-apa102-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico', 136.75, 213.6),
+      { id: 'L1', type: 'led-strip', x: 90, y: 20, attrs: { leds: '30', protocol: 'apa102' } },
+    ],
+    wires: () => [
+      w('L1', '5V', 'U1', 'VBUS', 'red'),
+      w('L1', 'GND', 'U1', 'GND.1', 'black'),
+      w('L1', 'DI', 'U1', 'GP19', 'blue'),
+      w('L1', 'CI', 'U1', 'GP18', 'yellow'),
+    ],
+    expect: { kind: 'spi-strip', partId: 'L1', count: 30, protocol: 'apa102' },
+    code: `# Test ruban APA102 (SPI mode 0, 30 LED) : chenillard vert.
+# Trame : début (32 bits à 0), 30 x [111 + luminosité 5 bits, Bleu, Vert, Rouge], fin.
+from machine import Pin, SPI
+import time
+
+N = 30
+spi = SPI(0, baudrate=1000000, polarity=0, phase=0, sck=Pin(18), mosi=Pin(19))
+
+def envoyer(allumee):
+    trame = bytearray(4)
+    for i in range(N):
+        on = i == allumee
+        trame += bytes((0xE0 | 16, 60 if on else 0, 255 if on else 0, 0))
+    trame += b'\\xff\\xff\\xff\\xff'
+    spi.write(trame)
+
+while True:
+    for i in range(N):
+        envoyer(i)
+        time.sleep(0.06)
+`,
+  }),
+
+  test({
+    name: 'led-strip-ws2801-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico', 136.75, 213.6),
+      { id: 'L1', type: 'led-strip', x: 90, y: 20, attrs: { leds: '30', protocol: 'ws2801', colorOrder: 'rgb' } },
+    ],
+    wires: () => [
+      w('L1', '5V', 'U1', 'VBUS', 'red'),
+      w('L1', 'GND', 'U1', 'GND.1', 'black'),
+      w('L1', 'DI', 'U1', 'GP19', 'blue'),
+      w('L1', 'CI', 'U1', 'GP18', 'yellow'),
+    ],
+    expect: { kind: 'spi-strip', partId: 'L1', count: 30, protocol: 'ws2801' },
+    code: `# Test ruban WS2801 (SPI mode 0, 30 LED, ordre RVB) : chenillard vert.
+# Trame : 30 x 24 bits, puis pause d'horloge > 500 µs qui verrouille les couleurs.
+from machine import Pin, SPI
+import time
+
+N = 30
+spi = SPI(0, baudrate=1000000, polarity=0, phase=0, sck=Pin(18), mosi=Pin(19))
+
+def envoyer(allumee):
+    trame = bytearray()
+    for i in range(N):
+        on = i == allumee
+        trame += bytes((0, 255 if on else 0, 60 if on else 0))
+    spi.write(trame)
+    time.sleep_us(600)
+
+while True:
+    for i in range(N):
+        envoyer(i)
         time.sleep(0.06)
 `,
   }),

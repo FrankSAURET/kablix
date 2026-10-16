@@ -5,6 +5,17 @@
 
 ---
 
+# v2026.10.2.252 — ruban de LED : re-rendu au changement, libellés, tests SPI
+1. ✅ **Re-rendu au changement de `leds` / `protocol`** ([editor.mts](src/webview/diagram/editor.mts), `rebuildsStrip`) : avant, seul `setAttribute` était appelé, donc pastilles et cadre de sélection restaient à l'ancienne place (la connectique « tombait à côté »). Désormais `rerenderPart` + `fitSelectionBox` après le rendu, et le recalage `stripShift` se fait AVANT le re-rendu.
+2. ✅ **Libellés** ([catalog.mts](src/webview/diagram/catalog.mts)) : « One wire — », « SPI — » retirés ; reste WS2811, WS2812(B) / SK6812, APA102, WS2801.
+3. ✅ **Tests testkablix SPI** : `led-strip-apa102-uno / pico / pico2` et `led-strip-ws2801-uno / pico / pico2` (spec + README ; attente `spi-strip` ajoutée à `_verify.mjs`). Générés par nom, rien d'autre réécrit.
+4. ✅ **Spec resynchronisée** sur les `.projix` de Frank : `led-strip-uno` 125 LED, `led-strip-pico` 200 LED.
+5. ℹ️ **Non vérifié à la souris** : comme au lot .251, pas de banc de geste pour le recalage. À confirmer par Frank.
+6. ℹ️ `patte-pico` : le banc `_verify` signale « board=picow » (fichier de Frank, non touché).
+7. ⏳ Traduction : libellés devenus des noms de puces (plus rien à traduire) ; « Color order », « RGB / BRG / GRB » restent à faire avant publication.
+
+---
+
 # v2026.10.2.251 — ruban de LED : LED rouge fantôme, spirale centrée
 1. ✅ **LED rouge qui clignote** ([ws2812.mts](src/webview/engines/ws2812.mts)) : cause = `flush()` pendant la lecture d'une trame en cours. Début de trame noir → `maxHigh` = T0H, donc le bit en attente (un « 0 ») dépassait 0,6×maxHigh et était rangé « 1 » (MSB du rouge). Correction : seuil plancher de 0,5 µs. Banc `verify:npchain` : contrôle « lecture en cours de trame » (contre-épreuve faite : échoue sur l'ancien code).
 2. ✅ **Spirale centrée sur la connectique** ([led-strip-element.mts](src/webview/composants/led-strip-element.mts)) : broches centrées sur l'axe de la spirale (grille de 10 px), même hauteur. Le fil ne s'allonge plus.

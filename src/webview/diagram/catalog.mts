@@ -1190,10 +1190,10 @@ export const CATALOG: readonly PartDef[] = [
       {
         attr: 'protocol', label: 'Protocol', kind: 'select', options: ['ws2811', 'ws2812', 'apa102', 'ws2801'],
         optionLabels: {
-          ws2811: 'One wire — WS2811',
-          ws2812: 'One wire — WS2812(B) / SK6812 (NeoPixel)',
-          apa102: 'SPI — APA102 (DotStar)',
-          ws2801: 'SPI — WS2801',
+          ws2811: 'WS2811',
+          ws2812: 'WS2812(B) / SK6812',
+          apa102: 'APA102',
+          ws2801: 'WS2801',
         },
       },
       {

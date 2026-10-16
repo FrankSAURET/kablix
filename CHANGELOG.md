@@ -56,6 +56,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 **Ruban de LED**
 
 - **Une LED rouge clignotait** après un premier allumage : plus de LED fantôme pendant la réception d'une trame.
+- **Le cadre de sélection suit** le changement du nombre de LED ou du protocole, sans attendre la sélection suivante, et la connectique (pastilles) se replace tout de suite au bon endroit.
+- **Liste des protocoles** : seuls les noms des puces sont affichés (WS2811, WS2812(B) / SK6812, APA102, WS2801).
 - **La spirale est centrée sur la connectique** : le fil ne s'allonge plus. La connectique reste immobile sur le schéma quand on change le nombre de LED ou le protocole.
 
 **Schéma**
