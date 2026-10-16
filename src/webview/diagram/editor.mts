@@ -57,6 +57,7 @@ import { shieldSignalTarget } from './shield.mjs';
 import { internalWiringSvg, type PinPoint } from './internal-wiring.mjs';
 import { hasPinout, pinoutPoster, loadPinoutSvg } from './pinout.mjs';
 import { boardSize } from '../composants/pico-board.mjs';
+import { stripShift } from '../composants/led-strip-element.mjs';
 import { buildNets, nameEquipotentials, TEXT_NOTE_DEFAULTS, type Diagram, type Endpoint, type Part, type TextLink, type TextNote, type Wire } from './model.mjs';
 import { DEFAULT_WIRE_COLORS, DUPONT_COLORS, dupontHex, roundedWirePath, snapPoint, type XY } from './geometry.mjs';
 import { startAutoPan, type AutoPan } from './autopan.mjs';
@@ -6902,6 +6903,17 @@ export class Editor {
       r.el.removeAttribute(attr);
     } else {
       r.el.setAttribute(attr, value);
+    }
+    // Ruban de LED : la connectique est centrée sur la spirale, donc elle glisse dans la
+    // feuille quand le nombre de LED (ou le protocole) change. On décale la pièce de
+    // l'inverse : la connectique reste immobile sur le schéma, le ruban grandit autour.
+    if (r.part.type === 'led-strip' && (attr === 'leds' || attr === 'protocol')
+      && !(r.part.attrs?.angle) && !(r.part.attrs?.flip)) {
+      const dx = stripShift(prevAttrs, r.part.attrs);
+      if (dx !== 0) {
+        r.part.x += dx;
+        r.container.style.left = `${r.part.x}px`;
+      }
     }
     // Étiquette libre d'un appareil de mesure : elle ne va pas au dessin, elle va
     // au BANDEAU du composant — mise à jour sur place, sans re-rendu.

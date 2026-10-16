@@ -41,8 +41,7 @@ const INNER_RADIUS = 14; // rayon de la LED du bout (au centre)
 const RIBBON_WIDTH = 12;
 const LED_SIZE = 8;
 const PIN_PITCH = 10;
-const CONNECTOR_X = 20; // 1re pastille de la connectique (fixe, en haut à gauche)
-const CONNECTOR_Y = 20;
+const CONNECTOR_Y = 20; // hauteur de la connectique (fixe, en haut)
 const CONNECTOR_ZONE = 50; // hauteur réservée en haut pour la connectique et la queue de fils
 
 export interface StripLed {
@@ -103,9 +102,13 @@ export function stripGeometry(count: number, protocol: LedStripProtocol): StripG
   const tail = { x: cx, y: cy - outer - 10 };
   const names = stripPinNames(protocol);
   const span = PIN_PITCH * (names.length - 1);
-  const pins = names.map((name, i) => ({ name, x: CONNECTOR_X + PIN_PITCH * i, y: CONNECTOR_Y }));
+  // Connectique centrée (à la grille de 10 px près) sur l'axe de la spirale. Dans la feuille
+  // elle glisse donc avec le nombre de LED : l'éditeur recale la pièce (`stripShift`) pour
+  // que la connectique reste immobile sur le schéma.
+  const pinX0 = Math.floor((cx - span / 2) / 10) * 10;
+  const pins = names.map((name, i) => ({ name, x: pinX0 + PIN_PITCH * i, y: CONNECTOR_Y }));
   return {
-    width: Math.max(2 * cx, CONNECTOR_X + span + 20),
+    width: 2 * cx,
     height: cy + outer + 20,
     cx,
     cy,
@@ -114,6 +117,17 @@ export function stripGeometry(count: number, protocol: LedStripProtocol): StripG
     tail,
     pins,
   };
+}
+
+/**
+ * Décalage horizontal (px) à donner à la pièce quand ses attributs passent de `avant` à `apres`,
+ * pour que la connectique ne bouge pas sur le schéma (elle est centrée sur la spirale, donc
+ * elle glisse dans la feuille quand le nombre de LED change).
+ */
+export function stripShift(avant: Record<string, string | undefined>, apres: Record<string, string | undefined>): number {
+  const x0 = (a: Record<string, string | undefined>) =>
+    stripGeometry(stripLedCount(a.leds), stripProtocol(a.protocol)).pins[0].x;
+  return x0(avant) - x0(apres);
 }
 
 /** Couleur du fil de chaque broche (convention des rubans du commerce). */

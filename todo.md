@@ -5,6 +5,15 @@
 
 ---
 
+# v2026.10.2.251 — ruban de LED : LED rouge fantôme, spirale centrée
+1. ✅ **LED rouge qui clignote** ([ws2812.mts](src/webview/engines/ws2812.mts)) : cause = `flush()` pendant la lecture d'une trame en cours. Début de trame noir → `maxHigh` = T0H, donc le bit en attente (un « 0 ») dépassait 0,6×maxHigh et était rangé « 1 » (MSB du rouge). Correction : seuil plancher de 0,5 µs. Banc `verify:npchain` : contrôle « lecture en cours de trame » (contre-épreuve faite : échoue sur l'ancien code).
+2. ✅ **Spirale centrée sur la connectique** ([led-strip-element.mts](src/webview/composants/led-strip-element.mts)) : broches centrées sur l'axe de la spirale (grille de 10 px), même hauteur. Le fil ne s'allonge plus.
+3. ✅ **Connectique toujours immobile sur le schéma** : `stripShift` + recalage de `part.x` dans `updatePartAttr` ([editor.mts](src/webview/diagram/editor.mts)) quand `leds` ou `protocol` change (pièce non tournée ni retournée). Banc `verify:ledstrip` : centrage contrôlé.
+4. ℹ️ **Non vérifié à la souris** : le recalage de position dans l'éditeur n'est couvert par aucun banc de geste. À confirmer par Frank : 10 → 200 LED dans led-strip-pico, la connectique ne doit pas bouger. Pièce tournée / retournée : pas de recalage.
+5. ℹ️ **Fichiers existants** : les `.projix` led-strip déjà posés ont leur connectique à l'ancienne place (x = 20 dans la feuille) ; elle bouge une fois au premier changement de LED.
+
+---
+
 # v2026.10.2.250 — ruban de LED : 4 protocoles, SPI simulé, connectique fixe
 1. ✅ **Connectique immobile** ([led-strip-element.mts](src/webview/composants/led-strip-element.mts)) : broches fixes en haut à gauche, la spirale grandit en dessous. Banc : mêmes pastilles pour 1 et 300 LED.
 2. ✅ **4 protocoles séparés** : WS2811, WS2812(B) / SK6812, APA102, WS2801 (catalogue).

@@ -64,6 +64,8 @@ async function run() {
         step: g.leds.length > 1 ? Math.hypot(g.leds[0].x - g.leds[1].x, g.leds[0].y - g.leds[1].y) : 0,
         aboveSpiral: g.pins.every((p) => p.y < g.cy - g.outer),
         pins: g.pins.map((p) => [p.x, p.y]),
+        centre: (g.pins[0].x + g.pins[g.pins.length - 1].x) / 2 - g.cx,
+        pinY: g.pins[0].y,
       });
     }
   }
@@ -125,9 +127,10 @@ if (!chrome) {
       check(`${tag} : LED dans la feuille`, g.inside);
       check(`${tag} : entrée à l'extérieur, bout au centre`, g.entryOutermost && g.endInnermost);
       check(`${tag} : connectique au-dessus de la spirale`, g.aboveSpiral);
-      // Connectique IMMOBILE : mêmes pastilles que pour 1 LED, quel que soit le nombre de LED.
+      // Connectique centrée sur l'axe de la spirale (à 5 px près) et toujours à la même hauteur.
+      // (Son immobilité sur le schéma vient du recalage `stripShift` de l'éditeur.)
       const ref = r.geo.find((o) => o.proto === g.proto && o.n === 1);
-      check(`${tag} : connectique fixe (comme pour 1 LED)`, JSON.stringify(g.pins) === JSON.stringify(ref.pins));
+      check(`${tag} : connectique centrée sur la spirale, même hauteur`, Math.abs(g.centre) <= 5 && g.pinY === ref.pinY);
       if (g.n >= 10) check(`${tag} : LED non voisines à ≥ 12 px (spirale sans chevauchement)`, g.minGap >= 12);
       if (g.n > 1) check(`${tag} : pas du ruban ≈ 12 px`, Math.abs(g.step - 12) < 0.6);
     }

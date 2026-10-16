@@ -53,6 +53,11 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Correction
 
+**Ruban de LED**
+
+- **Une LED rouge clignotait** après un premier allumage : plus de LED fantôme pendant la réception d'une trame.
+- **La spirale est centrée sur la connectique** : le fil ne s'allonge plus. La connectique reste immobile sur le schéma quand on change le nombre de LED ou le protocole.
+
 **Schéma**
 
 - **Nouveau projet avec un seul texte libre** : à la fermeture de VS Code, il est désormais proposé à l'enregistrement (il était considéré comme vide et perdu sans question).

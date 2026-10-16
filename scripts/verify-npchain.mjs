@@ -223,6 +223,22 @@ const rgbVers = (c) => ({ r: Math.round(c.r * 255), g: Math.round(c.g * 255), b:
   dp.flush();
   check('pause 300 µs : un BAS de 100 µs ne coupe pas la trame (2 LED)',
     dp.colors[0].r === 1 && dp.colors[1].g === 1, JSON.stringify(dp.colors));
+  // Lecture EN COURS de trame (la webview lit les couleurs à tout moment) : un flush après
+  // chaque bit d'un début noir ne doit pas transformer un « 0 » en « 1 » (LED rouge fantôme).
+  {
+    const dm = new Ws2812Decoder(2, CPU_MHZ, 'grb', 300);
+    let tm = 400 * CPU_MHZ;
+    const bitm = (v) => {
+      dm.edge(tm, true); tm += Math.round((v ? 0.8 : 0.4) * CPU_MHZ);
+      dm.edge(tm, false); tm += Math.round((v ? 0.45 : 0.85) * CPU_MHZ);
+      dm.flush();
+    };
+    for (const o of [0, 0, 0, 0, 255, 60]) for (let i = 7; i >= 0; i--) bitm((o >> i) & 1);
+    dm.flush();
+    check('lecture en cours de trame : début noir, aucune LED fantôme',
+      JSON.stringify(rgbVers(dm.colors[0])) === '{"r":0,"g":0,"b":0}' && JSON.stringify(rgbVers(dm.colors[1])) === '{"r":255,"g":0,"b":60}',
+      JSON.stringify(dm.colors.map(rgbVers)));
+  }
   // Pause de 400 µs : nouvelle trame, la LED 0 est réécrite.
   const dq = new Ws2812Decoder(2, CPU_MHZ, 'grb', 300);
   let tq = envoi(dq, [0, 255, 0], 400 * CPU_MHZ);

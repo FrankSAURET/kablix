@@ -54,6 +54,7 @@ export class Ws2812Decoder {
   private nbits = 0;
   private idx = 0;
   private readonly resetCycles: number;
+  private readonly minHighOneCycles: number;
 
   constructor(
     private readonly count: number,
@@ -63,6 +64,7 @@ export class Ws2812Decoder {
   ) {
     this.colors = Array.from({ length: Math.max(1, count) }, () => ({ r: 0, g: 0, b: 0 }));
     this.resetCycles = Math.round(resetUs * cyclesPerUs);
+    this.minHighOneCycles = 0.5 * cyclesPerUs;
     this.rank = channelRanks(order);
   }
 
@@ -93,7 +95,10 @@ export class Ws2812Decoder {
    */
   flush(): void {
     if (this.pendingHigh < 0) return;
-    this.pushBit(this.maxHigh > 0 && this.pendingHigh > this.maxHigh * 0.6 ? 1 : 0);
+    // Plancher absolu (0,5 µs) : tant que la trame n'a montré que des « 0 » (début noir),
+    // maxHigh = T0H et un « 0 » serait pris pour un « 1 » (LED rouge fantôme en cours de trame).
+    const seuil = Math.max(this.maxHigh * 0.6, this.minHighOneCycles);
+    this.pushBit(this.pendingHigh > seuil ? 1 : 0);
     this.pendingHigh = -1;
   }
 
