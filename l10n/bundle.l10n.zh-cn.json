@@ -295,5 +295,7 @@
   "Start a new acquisition now: the capture is cleared and the trigger waits again for its edge.": "立即开始新的采集：清除当前采集，触发器重新等待其边沿。",
   "All frames are identical.": "所有帧都相同。",
   "Kablix — Logpoints": "Kablix — 日志点",
-  "Breakpoint error: {0}": "断点错误：{0}"
+  "Breakpoint error: {0}": "断点错误：{0}",
+  "Sketch \"{0}\" must sit in a folder of the same name (\"{1}\"): Arduino refuses to build otherwise. Rename the file or the folder.": "草图“{0}”必须位于同名文件夹（“{1}”）中，否则 Arduino 拒绝编译。请重命名文件或文件夹。",
+  "{0} file(s) sent. The board rebooted and runs main.py.": "已发送 {0} 个文件。开发板已重启并运行 main.py。"
 }

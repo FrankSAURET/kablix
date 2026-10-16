@@ -1020,6 +1020,58 @@ const FR: Record<string, string> = {
     'Horloge du décodage I²C : les réglages sont sur la voie SDA.',
   'Bit':
     'Bit',
+  'LED strip':
+    'Ruban de LED',
+  'LED count':
+    'Nombre de LED',
+  'Protocol':
+    'Protocole',
+  'Color order':
+    'Ordre des couleurs',
+  'WS2811':
+    'WS2811',
+  'WS2812(B) / SK6812':
+    'WS2812(B) / SK6812',
+  'APA102':
+    'APA102',
+  'WS2801':
+    'WS2801',
+  'RGB':
+    'RVB',
+  'BRG':
+    'BRV',
+  'GRB':
+    'VRB',
+  'Connector':
+    'Connecteur',
+  'No connector':
+    'Aucun connecteur',
+  'End':
+    'Extrémité',
+  'Dot':
+    'Point',
+  'Arrow':
+    'Flèche',
+  'This part is not powered':
+    'Ce composant n\'est pas alimenté',
+  'Supply too low: {0} V, {1} V minimum':
+    'Alimentation trop basse : {0} V, {1} V minimum',
+  'This part is not powered: its supply pin must reach a supply rail and its GND a ground.':
+    'Ce composant n\'est pas alimenté : sa broche d\'alimentation doit atteindre un rail d\'alimentation et sa broche GND une masse.',
+  'The supply is below the {0} V the chip needs, so its output stays at 0 V. Raise the supply (on a Pico use VSYS, not 3V3).':
+    'L\'alimentation est sous les {0} V qu\'il faut à la puce : sa sortie reste à 0 V. Relever l\'alimentation (sur une Pico, utiliser VSYS et non 3V3).',
+  'Input too low: {0} V, {1} V needed to regulate':
+    'Entrée trop basse : {0} V, {1} V nécessaires pour réguler',
+  'The regulator needs its input at least {0} V above its output setting. Below that the output drops with the input. Raise the input voltage or lower the Voltage property.':
+    'Le régulateur veut une entrée d\'au moins {0} V au-dessus de la tension réglée. En dessous, la sortie baisse avec l\'entrée. Relever la tension d\'entrée ou baisser la propriété Tension.',
+  'Thermal shutdown: {0} W dissipated, junction at {1} °C':
+    'Coupure thermique : {0} W dissipés, jonction à {1} °C',
+  'The regulator dissipates (Vin − Vout) × I as heat and its protection cut the output. Lower the input voltage or the current, or add a heatsink (Heatsink property).':
+    'Le régulateur dissipe (Ventrée − Vsortie) × I en chaleur et sa protection a coupé la sortie. Baisser la tension d\'entrée ou le courant, ou ajouter un radiateur (propriété Radiateur).',
+  'Regulator too hot: {0} W dissipated, junction at {1} °C':
+    'Régulateur trop chaud : {0} W dissipés, jonction à {1} °C',
+  'The regulator dissipates (Vin − Vout) × I as heat. Lower the input voltage or the current, or add a heatsink (Heatsink property).':
+    'Le régulateur dissipe (Ventrée − Vsortie) × I en chaleur. Baisser la tension d\'entrée ou le courant, ou ajouter un radiateur (propriété Radiateur).',
 };
 
 // `zh` : chinois simplifié (VS Code : zh-cn). zh-tw retombe aussi dessus.

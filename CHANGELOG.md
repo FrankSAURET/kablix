@@ -4,13 +4,13 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 [Voir en ligne](https://github.com/FrankSAURET/kablix/blob/main/CHANGELOG.md) · [View online](https://github.com/FrankSAURET/kablix/blob/main/CHANGELOG.md)
 
-## 2026.10.3 (prochaine publication)
+## 2026.10.3 (16 octobre 2026)
 
 ### Nouveauté
 
 **Alimentation**
 
-- **Régulateur de tension L78SxxCV**, dans la bibliothèque de composants : 5, 6, 8, 8,5, 9, 12, 15, 18 ou 24 V au choix dans les propriétés, avec un courant maximal. Il lui faut 2 V de marge à l'entrée ; au-delà du courant maximal, la tension de sortie s'effondre. Une diode ou une résistance en série à l'entrée fait chuter la tension, et le courant débité est reporté sur la source qui l'alimente. Il tire aussi 5 mA de courant de repos, et il chauffe : puissance dissipée, alerte « trop chaud » au-dessus de 125 °C, coupure de la sortie à 150 °C. Une propriété « Radiateur » (°C/W) le refroidit.
+- **Régulateur de tension L78SxxCV**, dans la bibliothèque de composants : 5, 6, 8, 8,5, 9, 12, 15, 18 ou 24 V au choix dans les propriétés, avec un courant maximal. Il lui faut 2 V de marge à l'entrée. Si l'entrée est inférieure à la tension réglée + 2 V, le composant s'encadre en rouge avec un avertissement (la sortie suit alors l'entrée au lieu de tenir sa tension). ; au-delà du courant maximal, la tension de sortie s'effondre. Une diode ou une résistance en série à l'entrée fait chuter la tension, et le courant débité est reporté sur la source qui l'alimente. Il tire aussi 5 mA de courant de repos, et il chauffe : puissance dissipée, alerte « trop chaud » au-dessus de 125 °C, coupure de la sortie à 150 °C. Une propriété « Radiateur » (°C/W) le refroidit. 
 - **Propriété « Label »** sur l'alimentation de laboratoire, la batterie externe USB et le générateur BF : le texte s'affiche dans le bandeau du composant, comme sur le multimètre.
 
 **Capteurs**
@@ -19,13 +19,12 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Ruban de LED**
 
-- **Ruban de LED extensible**, enroulé en spirale pour tenir sur la feuille, connectique à l'extérieur. Nombre de LED au choix (10 par défaut, 1 au minimum, pas de maximum) et protocole au choix : un fil WS2811 (ordre RVB), un fil WS2812(B) / SK6812 (ordre VRB), SPI APA102 ou SPI WS2801, avec 3 ou 4 broches selon le cas. Les quatre sont simulés ; le SPI est lu sur le bus SPI matériel de la carte. Pause de 300 µs en fin de trame pour le un fil, pause d'horloge de 500 µs pour le WS2801. Le WS2801 a une propriété « Ordre des couleurs » (RVB, BRV, VRB).
-- **La connectique reste immobile** quand le nombre de LED change : en haut à gauche, la spirale grandit en dessous. Les fils déjà posés sur d'anciens ruban sont reroutés.
+- **Ruban de LED extensible**, Nombre de LED au choix (1 au minimum, pas de maximum) et protocole au choix : un fil WS2811 (ordre RVB), un fil WS2812(B) / SK6812 (ordre VRB), SPI APA102 ou SPI WS2801, avec 3 ou 4 broches selon le cas. Les quatre sont simulés ; le SPI est lu sur le bus SPI matériel de la carte. Pause de 300 µs en fin de trame pour le un fil, pause d'horloge de 500 µs pour le WS2801. Le WS2801 a une propriété « Ordre des couleurs » (RVB, BRV, VRB).
 
 **Schéma**
 
-- **Connecteur sur les textes libres** : propriété « Connecteur » dans l'inspecteur. Le trait part tout seul du milieu du côté le plus proche de l'extrémité (le trait le plus court), passe par-dessus tout et finit par un point ou une flèche (propriété « Extrémité »). Il prend la couleur de fond de l'étiquette, sans sa transparence. On déplace l'extrémité en la glissant, sans accrochage à la grille. Enregistré dans le fichier et repris à l'export SVG.
-- **Les textes libres tournent** : touches + et − (pas de 45°) ou boutons ↺ ↻ de l'inspecteur (quart de tour), seuls ou en sélection multiple. La rotation est enregistrée dans le fichier et reprise à l'export SVG.
+- **Connecteur sur les textes libres** : propriété « Connecteur » dans l'inspecteur. Le trait prend la couleur de fond de l'étiquette, sans transparence. 
+- **Les textes libres tournent** : touches + et − (pas de 45°) ou boutons ↺ ↻ de l'inspecteur (quart de tour), seuls ou en sélection multiple.
 
 **Grove Shield Pico**
 
@@ -41,28 +40,11 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - **Choix d'un fichier `.ino`** : si le fichier n'a pas le nom de son dossier, un message d'erreur bloquant l'explique et le fichier n'est pas associé (Arduino refuse de compiler un croquis dans ce cas).
 
-**Robot araignée**
-
-- **Patte seule** : la patte affichée est calée à 30 px des pastilles du connecteur et descendue de 70 px sous l'axe des broches Coxa et Patella.
-
-**Alimentation**
-
-- **Régulateur L78SxxCV** : si l'entrée est inférieure à la tension réglée + 2 V, le composant s'encadre en rouge avec un avertissement (la sortie suit alors l'entrée au lieu de tenir sa tension).
-
 **Instruments**
 
 - **Multimètre** : la valeur affichée est un peu plus petite, pour que « -49,9 mA » tienne dans l'écran avec une marge à droite.
 
-- **Inscription du L78SxxCV** : le boîtier affiche 78xx avec la tension réglée sur deux chiffres (7805, 7812…).
-
 ### Correction
-
-**Ruban de LED**
-
-- **Une LED rouge clignotait** après un premier allumage : plus de LED fantôme pendant la réception d'une trame.
-- **Le cadre de sélection suit** le changement du nombre de LED ou du protocole, sans attendre la sélection suivante, et la connectique (pastilles) se replace tout de suite au bon endroit.
-- **Liste des protocoles** : seuls les noms des puces sont affichés (WS2811, WS2812(B) / SK6812, APA102, WS2801).
-- **La spirale est centrée sur la connectique** : le fil ne s'allonge plus. La connectique reste immobile sur le schéma quand on change le nombre de LED ou le protocole.
 
 **Schéma**
 
@@ -73,11 +55,6 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - **Deux alimentations en série** (montage symétrique ±5 V) ne déclenchent plus un faux « courant limite ».
 - **Alimentation ou régulateur sur une entrée analogique** : la sortie d'un 78xx branchée sur A0 (ou sur GP27 par un pont diviseur) est enfin lue par le programme, au lieu de toujours donner 0 V.
-
-**Capteurs**
-
-- **LM35A non relié à la carte** : sa sortie suit enfin le curseur de température (un voltmètre branché dessus restait bloqué à −5 V dans un montage symétrique ±5 V).
-- **LM35A pleine gamme sans carte** : sur deux alimentations empilées (±5 V), avec la masse du capteur au point milieu et Vout tirée vers le − de l'alim du bas par une résistance, la sortie descend enfin sous 0 V (−0,55 V à −55 °C).
 
 ## 2026.10.2 (11 octobre 2026)
 

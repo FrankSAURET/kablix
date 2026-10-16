@@ -1482,4 +1482,56 @@ export const ZH: Record<string, string> = {
     'I²C 解码的时钟：设置位于 SDA 通道。',
   'Bit':
     '位',
+  'LED strip':
+    'LED 灯带',
+  'LED count':
+    'LED 数量',
+  'Protocol':
+    '协议',
+  'Color order':
+    '颜色顺序',
+  'WS2811':
+    'WS2811',
+  'WS2812(B) / SK6812':
+    'WS2812(B) / SK6812',
+  'APA102':
+    'APA102',
+  'WS2801':
+    'WS2801',
+  'RGB':
+    'RGB',
+  'BRG':
+    'BRG',
+  'GRB':
+    'GRB',
+  'Connector':
+    '连接线',
+  'No connector':
+    '无连接线',
+  'End':
+    '末端',
+  'Dot':
+    '圆点',
+  'Arrow':
+    '箭头',
+  'This part is not powered':
+    '该元件未供电',
+  'Supply too low: {0} V, {1} V minimum':
+    '电源电压过低：{0} V，至少需要 {1} V',
+  'This part is not powered: its supply pin must reach a supply rail and its GND a ground.':
+    '该元件未供电：其电源引脚必须连到电源轨，GND 引脚必须接地。',
+  'The supply is below the {0} V the chip needs, so its output stays at 0 V. Raise the supply (on a Pico use VSYS, not 3V3).':
+    '电源低于芯片所需的 {0} V，输出保持为 0 V。请提高电源电压（在 Pico 上使用 VSYS 而不是 3V3）。',
+  'Input too low: {0} V, {1} V needed to regulate':
+    '输入电压过低：{0} V，稳压需要 {1} V',
+  'The regulator needs its input at least {0} V above its output setting. Below that the output drops with the input. Raise the input voltage or lower the Voltage property.':
+    '稳压器的输入电压需要比设定的输出电压至少高 {0} V。低于此值时输出会随输入下降。请提高输入电压或降低“电压”属性。',
+  'Thermal shutdown: {0} W dissipated, junction at {1} °C':
+    '热关断：耗散 {0} W，结温 {1} °C',
+  'The regulator dissipates (Vin − Vout) × I as heat and its protection cut the output. Lower the input voltage or the current, or add a heatsink (Heatsink property).':
+    '稳压器以热量形式耗散 (Vin − Vout) × I，其保护电路已切断输出。请降低输入电压或电流，或加装散热器（“散热器”属性）。',
+  'Regulator too hot: {0} W dissipated, junction at {1} °C':
+    '稳压器过热：耗散 {0} W，结温 {1} °C',
+  'The regulator dissipates (Vin − Vout) × I as heat. Lower the input voltage or the current, or add a heatsink (Heatsink property).':
+    '稳压器以热量形式耗散 (Vin − Vout) × I。请降低输入电压或电流，或加装散热器（“散热器”属性）。',
 };

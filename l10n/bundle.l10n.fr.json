@@ -295,5 +295,7 @@
   "Start a new acquisition now: the capture is cleared and the trigger waits again for its edge.": "Lance une nouvelle acquisition maintenant : la capture est effacée et le déclenchement attend de nouveau son front.",
   "All frames are identical.": "Toutes les trames sont identiques.",
   "Kablix — Logpoints": "Kablix — Points de journalisation",
-  "Breakpoint error: {0}": "Erreur de point d'arrêt : {0}"
+  "Breakpoint error: {0}": "Erreur de point d'arrêt : {0}",
+  "Sketch \"{0}\" must sit in a folder of the same name (\"{1}\"): Arduino refuses to build otherwise. Rename the file or the folder.": "Le croquis « {0} » doit se trouver dans un dossier de même nom (« {1} ») : Arduino refuse de le compiler sinon. Renommer le fichier ou le dossier.",
+  "{0} file(s) sent. The board rebooted and runs main.py.": "{0} fichier(s) envoyé(s). La carte a redémarré et lance main.py."
 }

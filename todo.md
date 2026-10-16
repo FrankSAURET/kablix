@@ -5,6 +5,15 @@
 
 ---
 
+# v2026.10.3.254 — préparation de la publication 2026.10.3
+1. ✅ **CHANGELOG daté du 16 octobre 2026** (texte retouché par Frank conservé tel quel).
+2. ✅ **Version** : `package.json` et `package-lock.json` en `2026.10.3`, `buildNumber` 254.
+3. ✅ **Lot de traduction** : 33 chaînes de l'interface (`i18n.mts`, `i18n-es.mts`, `i18n-zh.mts` : ruban de LED, connecteur des textes, alertes du régulateur et d'alimentation) et 2 chaînes de l'extension (`bundle.l10n.fr/es/zh-cn.json`). `verify:i18n` vert.
+4. ✅ **Fiche `led-strip`** en EN / ES / ZH.
+5. ⏳ **Reste à Frank** : empaqueter (`npm run package`) et publier. Après publication : état du CLAUDE.md (« dernière version en ligne `2026.10.3` »), ouvrir `## 2026.10.4 (prochaine publication)`.
+
+---
+
 # v2026.10.2.253 — .ino : nom du fichier = nom du dossier
 1. ✅ **Erreur bloquante au choix d'un `.ino`** ([panel.ts](src/panel.ts), `pickCodeFile`) : si le nom du fichier diffère du dossier, boîte modale avec explication, fichier non associé. Comparaison sensible à la casse (comme arduino-cli).
 2. ℹ️ **Seul le choix par boîte de dialogue est contrôlé** : un `.ino` associé autrement (compilation directe, rechargement d'un projet) ne l'est pas. Non essayé dans VS Code.

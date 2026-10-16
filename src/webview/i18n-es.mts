@@ -1482,4 +1482,56 @@ export const ES: Record<string, string> = {
     'Reloj de la decodificación I²C: los ajustes están en el canal SDA.',
   'Bit':
     'Bit',
+  'LED strip':
+    'Tira de LED',
+  'LED count':
+    'Número de LED',
+  'Protocol':
+    'Protocolo',
+  'Color order':
+    'Orden de los colores',
+  'WS2811':
+    'WS2811',
+  'WS2812(B) / SK6812':
+    'WS2812(B) / SK6812',
+  'APA102':
+    'APA102',
+  'WS2801':
+    'WS2801',
+  'RGB':
+    'RGB',
+  'BRG':
+    'BRG',
+  'GRB':
+    'GRB',
+  'Connector':
+    'Conector',
+  'No connector':
+    'Sin conector',
+  'End':
+    'Extremo',
+  'Dot':
+    'Punto',
+  'Arrow':
+    'Flecha',
+  'This part is not powered':
+    'Este componente no está alimentado',
+  'Supply too low: {0} V, {1} V minimum':
+    'Alimentación demasiado baja: {0} V, mínimo {1} V',
+  'This part is not powered: its supply pin must reach a supply rail and its GND a ground.':
+    'Este componente no está alimentado: su pin de alimentación debe llegar a un raíl de alimentación y su GND a una masa.',
+  'The supply is below the {0} V the chip needs, so its output stays at 0 V. Raise the supply (on a Pico use VSYS, not 3V3).':
+    'La alimentación está por debajo de los {0} V que necesita el chip, así que su salida se queda en 0 V. Suba la alimentación (en una Pico use VSYS, no 3V3).',
+  'Input too low: {0} V, {1} V needed to regulate':
+    'Entrada demasiado baja: {0} V, se necesitan {1} V para regular',
+  'The regulator needs its input at least {0} V above its output setting. Below that the output drops with the input. Raise the input voltage or lower the Voltage property.':
+    'El regulador necesita una entrada al menos {0} V por encima de la tensión ajustada. Por debajo, la salida baja con la entrada. Suba la tensión de entrada o baje la propiedad Tensión.',
+  'Thermal shutdown: {0} W dissipated, junction at {1} °C':
+    'Corte térmico: {0} W disipados, unión a {1} °C',
+  'The regulator dissipates (Vin − Vout) × I as heat and its protection cut the output. Lower the input voltage or the current, or add a heatsink (Heatsink property).':
+    'El regulador disipa (Ventrada − Vsalida) × I en forma de calor y su protección cortó la salida. Baje la tensión de entrada o la corriente, o añada un disipador (propiedad Disipador).',
+  'Regulator too hot: {0} W dissipated, junction at {1} °C':
+    'Regulador demasiado caliente: {0} W disipados, unión a {1} °C',
+  'The regulator dissipates (Vin − Vout) × I as heat. Lower the input voltage or the current, or add a heatsink (Heatsink property).':
+    'El regulador disipa (Ventrada − Vsalida) × I en forma de calor. Baje la tensión de entrada o la corriente, o añada un disipador (propiedad Disipador).',
 };
