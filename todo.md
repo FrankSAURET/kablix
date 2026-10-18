@@ -5,6 +5,10 @@
 
 ---
 
+# v2026.10.3.255 — Publication en une commande
+1. ✅ **`npm run publier`** : [publier.mjs](scripts/publier.mjs) construit un `.vsix` (`--no-dependencies`) puis l'envoie au Marketplace et à Open VSX. Garde-fou CHANGELOG, `OVSX_PAT` exigé, `--dry-run`. `"private": true` ajouté.
+2. ℹ️ Sans effet pour l'utilisateur : pas d'entrée CHANGELOG.
+
 # v2026.10.3.254 — préparation de la publication 2026.10.3
 1. ✅ **CHANGELOG daté du 16 octobre 2026** (texte retouché par Frank conservé tel quel).
 2. ✅ **Version** : `package.json` et `package-lock.json` en `2026.10.3`, `buildNumber` 254.
