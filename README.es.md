@@ -45,7 +45,7 @@ Mi biblioteca de pruebas está disponible aquí: [TestKablix](https://github.com
 - ✅ **Taller visual**: enrutado automático. 
 - ✅ **Creador de componentes**: puede crear sus propios componentes «personalizados» con este creador o, mejor aún, hacer un fork del repositorio, seguir la [guía](docs/es/Creating-components.md) para añadir el componente y abrir una PR (solicitud de publicación) — así llegará a todo el mundo en la siguiente versión; aporte también los circuitos de prueba (Pico + Arduino).
 - ✅ **Exportación SVG**.
-- ✅ **Una biblioteca de 76 componentes** ordenados por familias, cada uno con su ficha de ayuda ilustrada (botón ❔) y sus dos circuitos de prueba, Arduino y Pico — [lista completa](#biblioteca-de-componentes).
+- ✅ **Una biblioteca de >200 componentes** ordenados por familias, cada uno con su ficha de ayuda ilustrada (botón ❔) y sus dos circuitos de prueba, Arduino y Pico — [lista completa](#biblioteca-de-componentes).
 - ✅ **Gestor de componentes** (botón ⚙ al pie de la paleta): un componente cabe en un solo archivo `.kompix` — dibujo, patillaje, simulación y ficha de ayuda incluidos. Instálelo desde un repositorio con un clic, o deje el archivo en la carpeta del proyecto.
 - ✅ **Iluminación DMX512**: universo decodificado desde la UART hardware **o** desde un pin en bit-bang (DmxSimple), proyectores controlados en directo.
 - ✅ **Placas de desarrollo compatibles**: Arduino Uno, Nano, Mega 2560 y Raspberry Pi Pico/Pico W/Pico 2/Pico 2 W, todas insertables en una protoboard.
@@ -69,7 +69,7 @@ Mi biblioteca de pruebas está disponible aquí: [TestKablix](https://github.com
 
 ## Biblioteca de componentes
 
-**76 componentes** que se colocan con el ratón, ordenados como en la paleta (más sus variantes: condensador polarizado, transistores PN2222A/NPN/PNP, teclados 3×4 y 4×4, protoboards mini/half/full…). Cada uno tiene su **ficha de ayuda ilustrada** (botón ❔ del inspector, sin conexión, en francés, inglés, español y chino) y **dos circuitos de prueba** listos para simular en [testkablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix) — uno en C en Arduino y otro en MicroPython en el Pico.
+**>200 componentes** que se colocan con el ratón, ordenados como en la paleta (variantes incluidas: condensador polarizado, transistores PN2222A/NPN/PNP, teclados 3×4 y 4×4, protoboards mini/half/full…). Cada uno tiene su **ficha de ayuda ilustrada** (botón ❔ del inspector, sin conexión, en francés, inglés, español y chino) y **dos circuitos de prueba** listos para simular en [testkablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix) — uno en C en Arduino y otro en MicroPython en el Pico.
 
 | Categoría | Componentes |
 | --- | --- |

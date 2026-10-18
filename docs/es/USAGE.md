@@ -171,7 +171,7 @@ Algunos componentes especiales (por ahora solo el LED RGB) tienen colores inicia
 
 ### Componentes disponibles
 
-La paleta contiene **76 componentes integrados** (más sus variantes: condensador polarizado, transistores PN2222A/NPN/PNP, teclados 3×4 y 4×4…). Cada uno tiene su **ficha de ayuda** — dibujo, patillaje, propiedades, lo que se simula y lo que no — que se abre con el botón **Ayuda del componente** del inspector cuando el componente está seleccionado. Se añaden más componentes con la **biblioteca** (vea [Gestor de componentes](#gestor-de-componentes-instalación-y-desinstalación)).
+La paleta contiene **>200 componentes integrados** (variantes incluidas: condensador polarizado, transistores PN2222A/NPN/PNP, teclados 3×4 y 4×4…). Cada uno tiene su **ficha de ayuda** — dibujo, patillaje, propiedades, lo que se simula y lo que no — que se abre con el botón **Ayuda del componente** del inspector cuando el componente está seleccionado. Se añaden más componentes con la **biblioteca** (vea [Gestor de componentes](#gestor-de-componentes-instalación-y-desinstalación)).
 
 **Placas y soportes**
 

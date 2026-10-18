@@ -45,7 +45,7 @@ My test library is available here: [TestKablix](https://github.com/FrankSAURET/k
 - ✅ **Visual workshop**: automatic routing. 
 - ✅ **Part creator**: you can build your own “custom” parts with this creator or, better still, fork the repository, follow the [guide](docs/en/Creating-components.md) to add the part and open a PR (publication request) — it will then ship with the next release for everyone, and please provide the test circuits as well (Pico + Arduino).
 - ✅ **SVG export**.
-- ✅ **A library of 76 parts** filed by families, each with its illustrated help sheet (❔ button) and its two test circuits, Arduino and Pico — [full list](#part-library).
+- ✅ **A library of >200 parts** filed by families, each with its illustrated help sheet (❔ button) and its two test circuits, Arduino and Pico — [full list](#part-library).
 - ✅ **Component manager** (⚙ button at the bottom of the palette): a part fits in a single `.kompix` file — drawing, pinout, simulation and help sheet included. Install it from a repository with one click, or drop the file into the project folder.
 - ✅ **DMX512 lighting**: universe decoded from the hardware UART **or** from a bit-banged pin (DmxSimple), fixtures driven live.
 - ✅ **Supported development boards**: Arduino Uno, Nano, Mega 2560 and Raspberry Pi Pico/Pico W/Pico 2/Pico 2 W, all pluggable onto a breadboard.
@@ -69,7 +69,7 @@ My test library is available here: [TestKablix](https://github.com/FrankSAURET/k
 
 ## Part library
 
-**76 parts** you can drop with the mouse, filed in palette order (plus their variants: polarized capacitor, PN2222A/NPN/PNP transistors, 3×4 and 4×4 keypads, mini/half/full breadboards…). Each one comes with its **illustrated help sheet** (❔ button in the inspector, offline, in English, French, Spanish and Chinese) and **two test circuits** ready to simulate in [testkablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix) — one in C on Arduino, one in MicroPython on the Pico.
+**>200 parts** you can drop with the mouse, filed in palette order (variants included: polarized capacitor, PN2222A/NPN/PNP transistors, 3×4 and 4×4 keypads, mini/half/full breadboards…). Each one comes with its **illustrated help sheet** (❔ button in the inspector, offline, in English, French, Spanish and Chinese) and **two test circuits** ready to simulate in [testkablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix) — one in C on Arduino, one in MicroPython on the Pico.
 
 | Category | Parts |
 | --- | --- |

@@ -45,7 +45,7 @@
 - ✅ **可视化工作区**：自动布线。 
 - ✅ **元件创建器**：可以用这个创建器制作自己的 “自定义” 元件；更好的做法是 fork 仓库，按照 [指南](docs/zh/Creating-components.md) 添加元件并提交 PR（发布请求）— 这样下一个版本所有人都能用到；请同时提供测试电路（Pico + Arduino）。
 - ✅ **SVG 导出**。
-- ✅ **76 个元件的元件库**，按类别整理，每个元件都有图文帮助页（❔ 按钮）和两个测试电路（Arduino 和 Pico）— [完整列表](#元件库)。
+- ✅ **>200 个元件的元件库**，按类别整理，每个元件都有图文帮助页（❔ 按钮）和两个测试电路（Arduino 和 Pico）— [完整列表](#元件库)。
 - ✅ **元件管理器**（元件栏底部的 ⚙ 按钮）：一个元件就是一个 `.kompix` 文件 — 包含图形、引脚、仿真和帮助页。从仓库一键安装，或把文件放进项目文件夹即可。
 - ✅ **DMX512 灯光**：从硬件 UART **或** 位操作引脚（DmxSimple）解码灯光数据，实时驱动灯具。
 - ✅ **支持的开发板**：Arduino Uno、Nano、Mega 2560 以及 Raspberry Pi Pico/Pico W/Pico 2/Pico 2 W，均可插到面包板上。
@@ -69,7 +69,7 @@
 
 ## 元件库
 
-**76 个元件**，可用鼠标放置，按元件栏顺序排列（另有其变体：有极性电容、PN2222A/NPN/PNP 三极管、3×4 和 4×4 键盘、mini/half/full 面包板…）。每个元件都有 **图文帮助页**（检查器中的 ❔ 按钮，离线，提供法语、英语、西班牙语和中文）和 **两个测试电路**，可在 [testkablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix) 中直接仿真 — 一个是 Arduino 上的 C 程序，一个是 Pico 上的 MicroPython 程序。
+**>200 个元件**，可用鼠标放置，按元件栏顺序排列（含变体：有极性电容、PN2222A/NPN/PNP 三极管、3×4 和 4×4 键盘、mini/half/full 面包板…）。每个元件都有 **图文帮助页**（检查器中的 ❔ 按钮，离线，提供法语、英语、西班牙语和中文）和 **两个测试电路**，可在 [testkablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix) 中直接仿真 — 一个是 Arduino 上的 C 程序，一个是 Pico 上的 MicroPython 程序。
 
 | 类别 | 元件 |
 | --- | --- |

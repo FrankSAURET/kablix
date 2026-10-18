@@ -16,3 +16,6 @@ testkablix/**/.build/
 
 # Videos de demonstration (trop lourdes pour GitHub, locales)
 media/video/
+
+# Promotion : dépôt privé séparé (FrankSAURET/kablix-promotion), jamais dans le dépôt public
+Promotion/

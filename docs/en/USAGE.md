@@ -171,7 +171,7 @@ Some special parts (only the RGB LED for now) have preset initial colors (I'll l
 
 ### Available parts
 
-The palette holds **76 built-in parts** (plus their variants: polarized capacitor, PN2222A/NPN/PNP transistors, 3×4 and 4×4 keypads…). Each one has its **help sheet** — drawing, pinout, properties, what is simulated and what is not — opened by the **Part help** button of the inspector when the part is selected. More parts are added through the **library** (see [Component manager](#component-manager-install-and-uninstall)).
+The palette holds **>200 built-in parts** (variants included: polarized capacitor, PN2222A/NPN/PNP transistors, 3×4 and 4×4 keypads…). Each one has its **help sheet** — drawing, pinout, properties, what is simulated and what is not — opened by the **Part help** button of the inspector when the part is selected. More parts are added through the **library** (see [Component manager](#component-manager-install-and-uninstall)).
 
 **Boards and supports**
 

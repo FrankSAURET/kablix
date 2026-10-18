@@ -51,7 +51,7 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
 - ✅ **Atelier visuel** : routage automatique. 
 - ✅ **Créateur de composants** : Possibilité de créer des composant « Perso » via ce créateur ou mieux,  faire un fork, utiliser la [doc](docs/fr/Creating-components.md) pour ajouter le composant et faire une PR (demande de publication) il sera dans la version suivante pour tout le monde et merci de fournir aussi le fichier de test (pico + arduino).
 - ✅ **Export SVG**.
-- ✅ **Bibliothèque de 76 composants** rangés par familles, chacun avec sa fiche d’aide illustrée (bouton ❔) et ses deux montages de test, Arduino et Pico — [liste complète](#bibliothèque-de-composants).
+- ✅ **Grande bibliothèque de composants (>200)** rangés par familles, chacun avec sa fiche d’aide illustrée (bouton ❔) et ses deux montages de test, Arduino et Pico — [liste complète](#bibliothèque-de-composants).
 - ✅ **Gestionnaire de composants** (bouton ⚙ en bas de la palette) : un composant tient dans un seul fichier `.kompix` — dessin, brochage, simulation et fiche d’aide comprises. Installez-le d’un clic depuis un dépôt, ou déposez le fichier dans le dossier du projet.
 - ✅ **Éclairage DMX512** : univers décodé depuis l’UART matériel **ou** depuis une broche bit-bangée (DmxSimple), projecteurs pilotés en direct.
 - ✅ **Cartes de développements prises en charge** : Arduino Uno, Nano, Mega 2560 et Raspberry Pi Pico/Pico W/Pico 2/Pico 2 W, enfichables sur platine d’essai.
@@ -62,9 +62,10 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
 - ✅ **Traceur de courbes** : tracé en direct, plus des **sondes** posées sur une broche pour visualiser sa tension
 - ✅ **Piles, batteries et autonomie** : consommation réelle de la carte au traceur (veille profonde comprise), Piles 4 × AA, 9 V, CR2032 et LiPo à installer depuis la bibliothèque 
 - ✅ **Simulation physique** : luminosité selon la résistance série, les LED sans résistance grillent, les servomoteurs ne démarrent pas, l’alimentation tient compte du courant, la résistance rougit avant de griller…
-- ✅ **Relecture du code face au schéma** : à chaque ▶, Kablix signale `analogWrite` sur une broche sans PWM, broche lue sans `pinMode` ou sans rien de branché, composant câblé sur une broche que le code n’utilise jamais ; une entrée en l’air oscille, une boucle d’attente bloquante est signalée. Jamais bloquant, et Kablix se tait au moindre doute.
+- ✅ **Verification automatique du code par rapport au montage** : à chaque ▶, Kablix signale `analogWrite` sur une broche sans PWM, broche lue sans `pinMode` ou sans rien de branché, composant câblé sur une broche que le code n’utilise jamais ; une entrée en l’air oscille, une boucle d’attente bloquante est signalée. Jamais bloquant, et Kablix se tait au moindre doute.
 - ✅ **Succès (badges)** : 16 badges qui attestent d’une compétence mesurée dans la simulation (loi d’Ohm, niveau logique, bus I²C décodé…) ou récompensent la manière de travailler (premier composant grillé, pas à pas, schéma au propre…). Jamais pour du temps passé.
 - ✅ **Capteurs interactifs** : curseurs et boutons pour flamme, gaz, son, lumière, température et mouvement, pilotant l’entrée du montage en direct.
+- ✅ **actionneurs animés** : Servomoteur, moteurs, ventilateurs et aussi système complet sont animés.
 - ✅ **Appareils de mesure** : Multimètre, oscilloscope, GBF et analyseur logique.
 
 > Les aides sont dans le dossier `docs/code de pays/`.  
@@ -76,7 +77,7 @@ Ma bilothèque de test est disponible : [TestKablix](https://github.com/FrankSAU
 
 ## Bibliothèque de composants
 
-**76 composants** posables à la souris, rangés dans l’ordre de la palette (plus leurs variantes : condensateur polarisé, transistors PN2222A/NPN/PNP, claviers 3×4 et 4×4, platines d’essai mini/half/full…). Chacun a sa **fiche d’aide illustrée** (bouton ❔ de l’inspecteur, hors-ligne, en français, anglais, espagnol et chinois) et **deux montages de test** prêts à simuler dans [testkablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix) — un en C sur Arduino, un en MicroPython sur Pico.
+**>200 composants** posables à la souris, rangés dans l’ordre de la palette (variantes comprises : condensateur polarisé, transistors PN2222A/NPN/PNP, claviers 3×4 et 4×4, platines d’essai mini/half/full…). Chacun a sa **fiche d’aide illustrée** (bouton ❔ de l’inspecteur, hors-ligne, en français, anglais, espagnol et chinois) et **deux montages de test** prêts à simuler dans [testkablix](https://github.com/FrankSAURET/kablix/tree/main/testkablix) — un en C sur Arduino, un en MicroPython sur Pico.
 
 | Catégorie                     | Composants                                                                                                                                                                                                                                                                                                     |
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
