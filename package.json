@@ -3,7 +3,7 @@
   "displayName": "Kablix",
   "private": true,
   "version": "2026.10.3",
-  "buildNumber": 255,
+  "buildNumber": 256,
   "description": "%kablix.description%",
   "publisher": "electropol-fr",
   "author": {
@@ -392,6 +392,7 @@
     "verify:kompixhelp": "node scripts/verify-kompix-help.mjs",
     "verify:projixparts": "node scripts/verify-projix-parts.mjs",
     "verify:picoupload": "node scripts/verify-picoupload.mjs",
+    "verify:picoweb": "node scripts/verify-picoweb.mjs",
     "verify:pico2": "node scripts/verify-pico2.mjs --target=rp2040 && node scripts/verify-pico2.mjs --target=rp2350",
     "verify:pico-freq": "node scripts/verify-pico-freq.mjs",
     "verify:pico2-onewire": "node scripts/verify-pico2-onewire.mjs",

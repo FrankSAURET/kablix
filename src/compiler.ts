@@ -22,6 +22,7 @@ import { parseUf2 } from './shared/uf2';
 import { parseElf32 } from './shared/elf';
 import { instrumentPython } from './shared/pydebug';
 import { NET_PREAMBLE } from './shared/pynet';
+import { collectWebFiles, type WebFile } from './picoWeb';
 
 export type Board = 'uno' | 'nano' | 'mega' | 'pico' | 'picow' | 'pico2' | 'pico2w';
 
@@ -793,6 +794,114 @@ while _kx_left:
 `;
 }
 
+// Taille totale max des fichiers web écrits dans le Pico simulé. Plus bas que
+// MAX_LIB_BYTES : le préambule est compilé d'un bloc par le raw REPL, et ces
+// octets (en base64, +33 %) tiennent dans le tas du RP2040 avec le script.
+const MAX_WEB_BYTES = 24 * 1024;
+
+/**
+ * Retient les fichiers web qui tiennent dans la limite, dans l'ordre. Les
+ * suivants sont rendus à part pour que le journal dise ce qui manque.
+ */
+function fitWebFiles(files: WebFile[]): { kept: WebFile[]; dropped: WebFile[] } {
+  const kept: WebFile[] = [];
+  const dropped: WebFile[] = [];
+  let total = 0;
+  for (const f of files) {
+    if (total + f.size > MAX_WEB_BYTES) dropped.push(f);
+    else {
+      total += f.size;
+      kept.push(f);
+    }
+  }
+  return { kept, dropped };
+}
+
+/**
+ * Préambule Python qui pose les fichiers web dans un système de fichiers du Pico
+ * simulé, racine `/` = dossier du programme. Le programme les rouvre ensuite par
+ * `open("www/index.html")` exactement comme sur la carte, avec la même
+ * arborescence. Les dossiers sont créés au besoin ; un fichier qui ne s'écrit
+ * pas n'arrête pas le programme. Chaîne vide s'il n'y a aucun fichier.
+ *
+ * Pourquoi un disque en RAM : la flash émulée (rp2040js) ne retient rien — les
+ * écritures par les routines de la ROM sont sans effet (relecture à 0xFF), donc
+ * `mkfs` sur `rp2.Flash()` échoue (ENOSPC) et rien n'est monté (ENODEV). Un
+ * disque FAT en mémoire, monté sur `/`, donne au programme le même `open()`,
+ * `os.listdir()` et `os.stat()` que la carte, pour la durée de la simulation.
+ */
+function pythonWebPreamble(files: Array<{ rel: string; data: Uint8Array }>): string {
+  if (files.length === 0) return '';
+  const entries = files
+    .map((f) => `    (${JSON.stringify(f.rel)}, ${JSON.stringify(Buffer.from(f.data).toString('base64'))}),`)
+    .join('\n');
+  // Taille du disque : un secteur de 512 o par bloc de données (+1 de marge par
+  // fichier pour l'arrondi) et ~48 secteurs de structure (démarrage, FAT, racine).
+  const dirs = new Set<string>();
+  for (const f of files) {
+    const parts = f.rel.split('/').slice(0, -1);
+    for (let i = 1; i <= parts.length; i++) dirs.add(parts.slice(0, i).join('/'));
+  }
+  const blocks = Math.max(
+    64,
+    48 + dirs.size * 2 + files.reduce((n, f) => n + Math.ceil(f.data.length / 512) + 1, 0)
+  );
+  return `import os as _kw_os
+try:
+    import ubinascii as _kw_b
+except ImportError:
+    import binascii as _kw_b
+class _KwDisk:
+    def __init__(self, _n):
+        self._d = bytearray(_n * 512)
+        self._n = _n
+    def readblocks(self, _b, _buf, _off=0):
+        _s = _b * 512 + _off
+        _buf[:] = self._d[_s:_s + len(_buf)]
+    def writeblocks(self, _b, _buf, _off=0):
+        _s = _b * 512 + _off
+        self._d[_s:_s + len(_buf)] = _buf
+    def ioctl(self, _op, _arg):
+        if _op == 4:
+            return self._n
+        if _op == 5:
+            return 512
+        return 0
+try:
+    import vfs as _kw_vfs
+except ImportError:
+    _kw_vfs = _kw_os
+_kw_ok = False
+try:
+    _kw_disk = _KwDisk(${blocks})
+    _kw_vfs.VfsFat.mkfs(_kw_disk)
+    _kw_os.mount(_kw_vfs.VfsFat(_kw_disk), "/")
+    _kw_ok = True
+except Exception as _kw_e:
+    print("[Kablix] cannot mount the web files disk", _kw_e)
+def _kw_put(_p, _s):
+    _d = ""
+    for _part in _p.split("/")[:-1]:
+        _d = _d + "/" + _part if _d else _part
+        try:
+            _kw_os.mkdir(_d)
+        except OSError:
+            pass
+    _f = open(_p, "wb")
+    _f.write(_kw_b.a2b_base64(_s))
+    _f.close()
+for _kw_p, _kw_s in (
+${entries}
+):
+    if not _kw_ok:
+        break
+    try:
+        _kw_put(_kw_p, _kw_s)
+    except Exception as _kw_e:
+        print("[Kablix] cannot write", _kw_p, _kw_e)
+`;
+}
+
 /**
  * Prépare l'exécution d'un script MicroPython : firmware UF2 + code source.
  * Le script est injecté via le raw REPL une fois le firmware démarré. Si
@@ -811,7 +920,20 @@ export function loadPythonProgram(
   // les importe ensuite comme sur une vraie carte, sans système de fichiers).
   // Seuls les modules RÉELLEMENT importés sont retenus (pas les autres .py du dossier).
   const libs = scriptPath ? collectPythonLibs(scriptPath, scriptSource) : [];
-  const preamble = pythonLibPreamble(libs);
+  // Fichiers web (www/, static/, fichiers nommés dans le code) : écrits dans le
+  // système de fichiers du Pico simulé, comme l'envoi les poserait sur la carte.
+  const webAll = scriptPath
+    ? collectWebFiles(scriptPath, [scriptSource, ...libs.map((l) => new TextDecoder().decode(l.data))])
+    : [];
+  const web = fitWebFiles(webAll);
+  const webData = web.kept.flatMap((f) => {
+    try {
+      return [{ rel: f.rel, data: new Uint8Array(readFileSync(f.file)) }];
+    } catch {
+      return [];
+    }
+  });
+  const preamble = pythonLibPreamble(libs) + pythonWebPreamble(webData);
   // Préambules communs aux deux variantes. Ils viennent APRÈS l'instrumentation
   // (qui numérote les lignes du source de l'élève) : les numéros restent ceux du
   // fichier ouvert dans l'éditeur, quel que soit le nombre de lignes ajoutées.
@@ -845,7 +967,11 @@ export function loadPythonProgram(
     },
     log:
       `Firmware MicroPython : ${basename(firmwareUf2Path)}` +
-      (libs.length ? ` (+ ${libs.length} module(s) : ${libs.map((l) => l.name).join(', ')})` : ''),
+      (libs.length ? ` (+ ${libs.length} module(s) : ${libs.map((l) => l.name).join(', ')})` : '') +
+      (webData.length ? ` (+ ${webData.length} fichier(s) web)` : '') +
+      (web.dropped.length
+        ? ` — NON écrits en simulation (plus de ${MAX_WEB_BYTES / 1024} Ko) : ${web.dropped.map((f) => f.rel).join(', ')}`
+        : ''),
   };
 }
 

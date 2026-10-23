@@ -5,6 +5,17 @@
 
 ---
 
+# v2026.10.3.256 — Pico : fichiers web envoyés et simulés
+1. ✅ **Collecte** ([picoWeb.ts](src/picoWeb.ts)) : `www/` et `static/` en entier + fichiers nommés dans le code (`"page.html"`, `"/css/app.css"`…), arborescence conservée, bruit (`.DS_Store`…) et sorties du dossier écartés.
+2. ✅ **Envoi sur la carte** ([picoUploader.ts](src/picoUploader.ts), `planUpload`) : ces fichiers rejoignent le plan (`isWeb`), libellé « web file » dans la fenêtre de décochage. `pico-upload.py` créait déjà les sous-dossiers et gérait le binaire.
+3. ✅ **Simulation** ([compiler.ts](src/compiler.ts), `pythonWebPreamble`) : disque FAT en RAM monté sur `/`, fichiers écrits avant le script. La flash émulée ne retient rien (relecture à 0xFF, `mkfs` → ENOSPC, sinon `open` → ENODEV) : d'où la RAM.
+4. ✅ **Limite 24 Ko en simulation** : à 44 Ko le préambule échoue (MemoryError, tas du RP2040). Les fichiers au-delà sont écartés et nommés dans le journal. Pas de limite à l'envoi réel.
+5. ✅ **Banc `npm run verify:picoweb`** : plan (11 contrôles) + simulation avec le vrai firmware (lecture des fichiers, `os.listdir`, page de 22 Ko, dépassement signalé). Contre-épreuve : avant le disque RAM, `open()` donnait ENODEV. `verify:picoupload` et `verify:micropython` toujours verts.
+6. ℹ️ **Non essayé sur une vraie carte** ni avec un vrai serveur HTTP de bout en bout.
+7. ⏳ Traduction : chaîne « web file » (bundle FR) avant publication.
+
+---
+
 # v2026.10.3.255 — Publication en une commande
 1. ✅ **`npm run publier`** : [publier.mjs](scripts/publier.mjs) construit un `.vsix` (`--no-dependencies`) puis l'envoie au Marketplace et à Open VSX. Garde-fou CHANGELOG, `OVSX_PAT` exigé, `--dry-run`. `"private": true` ajouté.
 2. ℹ️ Sans effet pour l'utilisateur : pas d'entrée CHANGELOG.

@@ -6,6 +6,13 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ## 2026.10.4 (prochaine publication)
 
+### Nouveauté
+
+**Pico réelle et simulée**
+
+- **Fichiers web d'un serveur** : l'envoi vers la carte emporte aussi les pages HTML, CSS, JS et images que le programme lit. Tout le dossier `www/` ou `static/` part, ainsi que les fichiers cités dans le code, avec leur arborescence.
+- **Simulation identique à la carte** : le programme retrouve ces mêmes fichiers par `open()` et `os.listdir()` (24 Ko au maximum en simulation).
+
 ## 2026.10.3 (16 octobre 2026)
 
 ### Nouveauté

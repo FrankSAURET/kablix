@@ -15,6 +15,10 @@
 //    est celle de la simulation (`collectPythonLibs`, compiler.ts) : mêmes règles,
 //    même sous-dossier `lib/`, donc ce qui tourne en simulation tourne sur la carte.
 //
+//    Les **fichiers web** que le programme lit (HTML, CSS, JS, images) partent
+//    aussi, avec leur arborescence : tout `www/` et `static/`, plus les fichiers
+//    nommés dans le code (`src/picoWeb.ts`). La simulation les écrit à l'identique.
+//
 // 3. **Rien n'est demandé quand il n'y a rien à choisir** : une seule carte
 //    branchée, pas de question ; un seul fichier à envoyer, pas de question. La
 //    fenêtre de décochage n'apparaît que s'il y a vraiment plusieurs fichiers.
@@ -23,6 +27,7 @@ import { execFile } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { collectPythonLibs } from './compiler';
+import { collectWebFiles } from './picoWeb';
 
 /** Clé de contexte lue par le `when` des boutons (package.json). */
 export const PICO_CONNECTED_CONTEXT = 'kablix.picoConnected';
@@ -49,6 +54,8 @@ export interface UploadItem {
   remotePath: string;
   /** Programme principal (celui qui est renommé `main.py`). */
   isMain: boolean;
+  /** Fichier web (HTML, CSS, JS, image…) lu par le programme, pas un module. */
+  isWeb?: boolean;
 }
 
 /** Exécute une commande et rend sa sortie standard (chaîne vide en cas d'échec). */
@@ -141,6 +148,7 @@ export function planUpload(scriptPath: string): UploadItem[] {
     libs = []; // dossier illisible : on envoie au moins le programme principal
   }
   const dir = dirname(scriptPath);
+  const taken = new Set(['main.py']);
   for (const lib of libs) {
     // Un module qui s'appellerait déjà main.py entrerait en collision avec le
     // programme : il est alors laissé de côté (le principal prime).
@@ -150,6 +158,18 @@ export function planUpload(scriptPath: string): UploadItem[] {
       remotePath: lib.rel,
       isMain: false,
     });
+    taken.add(lib.rel);
+  }
+  // Fichiers web : dossiers www/ et static/ + fichiers nommés dans le code, avec
+  // leur arborescence d'origine (la simulation les écrit à l'identique).
+  try {
+    const sources = [source, ...libs.map((l) => new TextDecoder().decode(l.data))];
+    for (const web of collectWebFiles(scriptPath, sources)) {
+      if (taken.has(web.rel)) continue; // déjà parti comme module (ou collision avec main.py)
+      items.push({ localPath: web.file, remotePath: web.rel, isMain: false, isWeb: true });
+    }
+  } catch {
+    /* dossier illisible : le programme et ses modules partent quand même */
   }
   return items;
 }
@@ -265,7 +285,9 @@ export class PicoUploader {
             : it.remotePath,
           description: it.isMain
             ? vscode.l10n.t('program (required)')
-            : vscode.l10n.t('imported module'),
+            : it.isWeb
+              ? vscode.l10n.t('web file')
+              : vscode.l10n.t('imported module'),
           detail: this.sizeOf(it.localPath),
           picked: true,
           item: it,
