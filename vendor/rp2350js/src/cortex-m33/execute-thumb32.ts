@@ -623,16 +623,21 @@ function dispatchDpPlainImm(core: CortexM33Core, hw0: number, hw1: number): numb
     return 1;
   }
   // ADDW: opField = 00000 (0)
+  // KABLIX PATCH: with Rn=PC this is ADR (T3/T2), whose base is Align(PC,4),
+  // like LDR (literal). The raw PC put a `switch` jump table built with
+  // `addw ip, pc, #8` at a 2-mod-4 address two bytes off: the branch target
+  // was read half from one entry, half from the next (MicroPython's
+  // open(..., 'w') mode parser jumped to 0x62fb1002).
   if (opField === 0b00000) {
     const imm12 = (i << 11) | (imm3 << 8) | imm8;
-    const base = rn === 15 ? regs.pc : regs.r[rn];
+    const base = rn === 15 ? (regs.pc & ~3) >>> 0 : regs.r[rn];
     regs.r[rd] = (base + imm12) >>> 0;
     return 1;
   }
   // SUBW: opField = 01010 (10)
   if (opField === 0b01010) {
     const imm12 = (i << 11) | (imm3 << 8) | imm8;
-    const base = rn === 15 ? regs.pc : regs.r[rn];
+    const base = rn === 15 ? (regs.pc & ~3) >>> 0 : regs.r[rn];
     regs.r[rd] = (base - imm12) >>> 0;
     return 1;
   }

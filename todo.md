@@ -6,6 +6,18 @@
 
 ---
 
+# v2026.10.3.265 — système de fichiers en simulation (puce flash SPI émulée), Pico 2 : ADR aligné et soft reset
+1. ✅ **Cause** : ni rp2040js ni rp2350js n'émulent la puce flash derrière le contrôleur QSPI. `flash_range_erase`/`flash_range_program` du bootrom envoyaient leurs octets dans le vide : `rp2.Flash()` perdait ses écritures, `VfsLfs2.mkfs` → ENOSPC, MicroPython démarrait sans FS (`open(..., 'w')` → ENODEV, `statvfs` à zéro).
+2. ✅ **[flash-spi.mts](src/webview/engines/flash-spi.mts)** : puce W25Q (`PuceFlashSpi`) — 01/02/03/04/05/06/0B/15/20/31/35/4B/52/60/90/9F/AB/C7/D8, programmation NOR (`&=`, rebouclage dans la page), effacements au relâchement de CS, WEL qui retombe. Même tableau que la fenêtre XIP : relu aussitôt, survit au soft reset. JEDEC EF4015 (RP2040) / EF4016 (RP2350).
+3. ✅ **RP2040** : SSI habillé (DR0, RXFLR, TXFLR, SR, SSIENR) + IO_QSPI (0x40018000) en banc de registres : CS par SS_CTRL.OUTOVER ; SD1_CTRL.INOVER à 0, sinon `flash_was_aborted()` faisait tout abandonner.
+4. ✅ **RP2350** : QMI en mode direct (CSR/TX/RX, ASSERT_CS0N, DWIDTH octet faible d'abord, NOPUSH) ; mots TX en attente jusqu'à l'affirmation de CS (le bootrom remplit avant). IO_QSPI à 0x40030000 : CTRL à 0, STATUS à 0xFFFFFFFF (sinon « BOOTSEL enfoncé », démarrage figé). Analyse au désassemblage du bootrom A2.
+5. ✅ **Correctif rp2350js 09** ([09-adr-pc-aligne.patch](patches/rp2350js/09-adr-pc-aligne.patch)) : `ADDW/SUBW` avec Rn=PC (ADR) prenaient PC brut au lieu de Align(PC,4). Une table de `switch` (`addw ip, pc, #8` à une adresse ≡ 2 mod 4) lisait sa cible à cheval sur deux entrées : `open(..., 'w')` sautait à 0x62fb1002. Défaut latent, masqué tant qu'il n'y avait pas de FS.
+6. ✅ **Correctif rp2350js 10** ([10-psm-proc1.patch](patches/rp2350js/10-psm-proc1.patch)) : masque PSM à 17 bits (largeur RP2040) → PROC1 (bit 24) jamais relu, `multicore_reset_core1()` bouclait : soft reset / Ctrl-D figeaient le Pico 2. Masque à 25 bits, et relâcher PROC1 redémarre le cœur 1 depuis le bootrom.
+7. ✅ Banc [verify-pico-fichiers.mjs](scripts/verify-pico-fichiers.mjs) (`verify:pico-fichiers`, dans `verify:all`) : statvfs, fichier écrit/listé/relu, bloc brut écrit/relu/effacé, Ctrl-D puis fichier relu. Vert sur Pico 1.28 et Pico 2 1.28 (test-assets), Pico W 1.29 et Pico 2 W 1.29 (`--uf2=`).
+8. ℹ️ La flash reste celle de la session : relancer la simulation recharge le firmware et repart d'une flash vierge (comme un « flash nuke » + reprogrammation).
+
+---
+
 # v2026.10.3.264 — rp2040js 1.4.1, poignée « ⋯ » dans l'en-tête, coxa violet / patella vert francs
 1. ✅ **rp2040js 1.4.0 → 1.4.1** (18/10/2026). Seul `rp2040.js` change en amont : bornes des zones mémoire (flash, SRAM, DPRAM) passées de `address <` à `address + 3 <` (32 bits) / `address + 1 <` (16 bits) — un accès sur les derniers octets d'une zone levait une `RangeError` du `DataView` ; et `writeUint16` sur un demi-mot à cheval sur deux mots (`offset === 3`) écrit maintenant deux octets au lieu de corrompre le mot. Rien d'autre (cœur, PIO, UART identiques).
 2. ✅ **Correctif local** : `patches/rp2040js+1.4.0.patch` renommé (git mv) en `+1.4.1.patch`, appliqué sans conflit. Nos deux raccourcis « SRAM d'abord » (`readUint32`/`writeUint32`) alignés sur la nouvelle borne `address + 3 <`, commentés ; sinon ils court-circuitaient la correction d'amont. En-tête de [rp-chip.mts](src/webview/engines/rp-chip.mts) commenté.

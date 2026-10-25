@@ -23,9 +23,14 @@ import { RP2350 } from '../../../vendor/rp2350js/src/rp2350.js';
 import { USBCDC as USBCDC2350 } from '../../../vendor/rp2350js/src/usb/cdc.js';
 import { bootromB1 } from './bootrom-b1.mjs';
 import type { FlashSegment } from './types.mjs';
+import { brancherFlashRp2040, brancherFlashRp2350 } from './flash-spi.mjs';
 
 const RAM_START = 0x20000000;
 const FLASH_START = 0x10000000;
+
+/** Puce flash des cartes : W25Q16 (2 Mo) sur Pico/Pico W, W25Q32 (4 Mo) sur Pico 2. */
+const JEDEC = { rp2040: 0xef4015, rp2350: 0xef4016 } as const;
+type PuceAFlash = { flash: Uint8Array; peripherals: Record<number, unknown> };
 
 /** Fréquence par défaut de chaque puce (Hz) — celle qu'annonce `machine.freq()`. */
 const CLK_SYS = { rp2040: 125_000_000, rp2350: 150_000_000 } as const;
@@ -305,6 +310,8 @@ class Rp2040Chip implements PicoChip {
     this.clock = this.puce.clock as unknown as PicoClock;
     this.mcu = this.puce as unknown as PicoMcu;
     this.core = this.puce.core as unknown as PicoCore;
+    // Puce flash derrière le SSI : sans elle, rp2.Flash() perd ses écritures.
+    brancherFlashRp2040(this.puce as unknown as PuceAFlash, JEDEC.rp2040);
     // SCR (0xE000ED10) : rp2040js l'ignore, on le retient au passage.
     const ppb = this.puce.ppb as unknown as { writeUint32(offset: number, value: number): void };
     const ecrire = ppb.writeUint32.bind(ppb);
@@ -462,6 +469,8 @@ class Rp2350Chip implements PicoChip {
     this.clock = this.puce.clock as unknown as PicoClock;
     this.mcu = this.puce as unknown as PicoMcu;
     this.core = this.puce.core[0] as unknown as PicoCore;
+    // AVANT compterLecturesHeure, qui habille le QMI à son tour.
+    brancherFlashRp2350(this.puce as unknown as PuceAFlash, JEDEC.rp2350);
     this.compterLecturesHeure();
   }
 
