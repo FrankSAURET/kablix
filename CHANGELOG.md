@@ -15,7 +15,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Console et traceur**
 
-- **Hauteur réglable** : la console du moniteur série et le traceur se redimensionnent en tirant la poignée en bas à droite.
+- **Hauteur réglable** : la console du moniteur série et le traceur se redimensionnent en tirant la poignée à trois points placée au-dessus de chacun, comme les séparateurs de VS Code. Les espaces vides autour de la console sont réduits.
+- **REPL** : lancer le REPL d'une Pico ouvre la console si elle était fermée.
 
 ### Modification
 

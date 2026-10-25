@@ -64,6 +64,10 @@ import '../../src/webview/composants/sonde-logique-element.mjs';
 // Le composant de bibliothèque sert au contrôle du CURSEUR (§11) : c'est lui
 // qui porte la saisie au clavier, et il se monte seul, sans passer par l'atelier.
 import '../../src/webview/composants/custom-part.mjs';
+// La poignée à 3 points de la console (§13) : module monté seul, sur une section
+// série factice (cachée jusqu'au contrôle, pour ne rien recouvrir avant).
+import { brancherPoignees } from '../../src/webview/poignee-hauteur.mjs';
+brancherPoignees(document, document.getElementById('stage'), () => document.getElementById('serial'));
 const canvas = document.getElementById('canvas');
 const editor = new Editor(canvas, document.getElementById('palette'),
 	document.getElementById('wires'), document.getElementById('inspector'));
@@ -94,6 +98,9 @@ writeFileSync(
 	`<div class="workshop"><aside id="palette" class="palette"></aside>` +
 	`<div id="canvas" class="canvas" style="width:1200px;height:900px"><svg id="wires" class="wires"></svg></div>` +
 	`<aside id="inspector" class="inspector"></aside></div>` +
+	`<div id="stage" class="stage" style="display:none;position:fixed;left:0;bottom:0;width:600px;height:500px">` +
+	`<section class="serial"><div class="vsplit" data-target="serial"></div>` +
+	`<pre id="serial" class="serial__out"></pre></section></div>` +
 	`<script>${b.outputFiles[0].text}</script></body>`
 );
 
@@ -801,6 +808,33 @@ try {
 			}
 		}
 	}
+
+	// 13. La poignée à 3 points règle la hauteur de la console : tirer vers le haut
+	// l'agrandit, vers le bas la réduit (une `resize: vertical` native ne se
+	// prouve pas non plus autrement qu'à la vraie souris).
+	{
+		await ev(`document.getElementById('stage').style.display = 'flex'`);
+		const hauteur = () => ev(`document.getElementById('serial').getBoundingClientRect().height`);
+		const glisser = async (dy) => {
+			const p = JSON.parse(await ev(`(() => { const r = document.querySelector('.vsplit').getBoundingClientRect();
+				return JSON.stringify({ x: r.left + r.width / 2, y: r.top + r.height / 2 }); })()`));
+			await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y, button: 'none', buttons: 0 });
+			await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1, clickCount: 1 });
+			for (let d = 5; d <= Math.abs(dy); d += 5) {
+				await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y + Math.sign(dy) * d, button: 'left', buttons: 1 });
+			}
+			await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y + dy, button: 'left', buttons: 0, clickCount: 1 });
+			await attendre(100);
+		};
+		const h0 = await hauteur();
+		await glisser(-60);
+		const h1 = await hauteur();
+		ok('tirer la poignée vers le haut agrandit la console de ~60 px', Math.abs(h1 - h0 - 60) <= 2, `${h0} → ${h1}`);
+		await glisser(30);
+		const h2 = await hauteur();
+		ok('la tirer vers le bas la réduit de ~30 px', Math.abs(h1 - h2 - 30) <= 2, `${h1} → ${h2}`);
+		await glisser(400);
+		ok('la hauteur ne descend jamais sous le minimum (60 px)', (await hauteur()) >= 60, `${await hauteur()} px`);	}
 } catch (e) {
 	// Sans ce filet, une exception (sélecteur disparu, éditeur non monté, page
 	// morte) sortait par le `finally` SANS le moindre ❌ : le banc rendait 0

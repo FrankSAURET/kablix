@@ -133,8 +133,8 @@ if (!fw) {
       }, 100);
     });
     engine.stop?.();
-    // Le port série rend des octets (un caractère par octet) : on rétablit l'UTF-8.
-    return { serial: Buffer.from(serial, 'latin1').toString('utf8'), log: program.log };
+    // Le moteur décode déjà l'UTF-8 du CDC (v.262) : plus de rétablissement ici.
+    return { serial, log: program.log };
   }
 
   const r = await run(SERVEUR);

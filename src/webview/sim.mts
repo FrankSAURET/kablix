@@ -72,6 +72,7 @@ import { initLocale, locale, t } from './i18n.mjs';
 import { lint, piegesExecution, type LintLang } from './linter.mjs';
 import { SUCCES, SuiviSucces, etatValide, etatVierge, type DefSucces, type InfoLancement, type Instantane, type ProtocoleSucces } from './succes.mjs';
 import { Plotter } from './plotter.mjs';
+import { brancherPoignees } from './poignee-hauteur.mjs';
 import { CompteurConsommation, LisseurCourant, decharger, autonomieH, tensionBatterie, PLAGES_ENTREE, ENTREES_NON_PROTEGEES, COURANT_FORFAITAIRE_A } from './consommation.mjs';
 import { Editor, KABLIX_BADGE, type PaletteState } from './diagram/editor.mjs';
 import { partDef, boardFamily, isPicoBoard, isBoardId, mcuPinRole, pca9685Address, controlMax, PARAM_ATTR_PREFIX, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
@@ -5298,6 +5299,9 @@ ${detail}
   const isPython = isPicoBoard(board) && picoProgram.kind === 'flash' && !!picoProgram.script;
   const isRepl = isPicoBoard(board) && picoProgram.kind === 'flash' && !picoProgram.script;
   runIsPython = isPython;
+  // Lancer le REPL ouvre la console (sans mémoriser : choix de course, pas de
+  // l'élève) — AVANT setReplMode, dont le focus échoue sur une section masquée.
+  if (isRepl && !serialVisible) setSerialVisible(true, false);
   setReplMode(isRepl);
   updateDebugButtons();
   setStatus(
@@ -6007,6 +6011,10 @@ clearBtn.addEventListener('click', clearSerial);
 // Fermer le moniteur série (croix) / le rouvrir (icône écran de la barre).
 closeSerialBtn.addEventListener('click', () => setSerialVisible(false));
 toggleSerialBtn.addEventListener('click', () => setSerialVisible(!serialVisible));
+// Poignées à 3 points au-dessus de la console et du traceur (poignee-hauteur.mts).
+brancherPoignees(document, stageEl, (c) =>
+  c === 'plotter' ? document.querySelector<HTMLElement>('.plotter__wrap') : serialEl
+);
 loadBtn.addEventListener('click', () => {
   vscode.postMessage({ type: 'loadWorkspace', board });
 });

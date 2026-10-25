@@ -1,7 +1,17 @@
 # À faire
 ## ne pas faire pour l'instant
-## ne pas faire pour l'instant
 
+
+
+---
+
+# v2026.10.3.263 — poignée à 3 points, REPL ouvre la console
+1. ✅ Poignée à 3 points (`.vsplit`) entre le canvas et la console, et entre la console et le traceur : tirer vers le haut agrandit, vers le bas réduit (min 60 px). Logique dans [poignee-hauteur.mts](src/webview/poignee-hauteur.mts). Ancienne poignée native `resize: vertical` retirée.
+2. ✅ Vides réduits : espace de la scène 1 rem → 0,3 rem, marge basse 1 rem → 0,5 rem, espace zone d'envoi 0,4 → 0,25 rem.
+3. ✅ Lancer le REPL ouvre la console si elle était fermée (sans mémoriser le choix) ; ouverture AVANT `setReplMode`, dont le focus échoue sur une section masquée.
+4. ✅ Banc [verify-souris.mjs](scripts/verify-souris.mjs) §13 à vraie souris (3 contrôles). Il a attrapé un vrai défaut (hauteur gonflée des marges intérieures). Contre-épreuve : le module n'existe pas sur l'ancien code, le banc y échoue à l'import.
+5. ✅ [verify-picoweb.mjs](scripts/verify-picoweb.mjs) : contournement latin-1 retiré (le moteur décode l'UTF-8 depuis v.262) ; 17/17.
+6. ℹ️ Rendu visuel de la poignée (trois points, couleur) non vu dans le vrai éditeur. Pas de nouvelle chaîne à traduire (« Drag to resize » existe déjà).
 
 ---
 
