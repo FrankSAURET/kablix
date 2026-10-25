@@ -1,8 +1,12 @@
 # À faire
-kablix.checkFirmwareUpdatesOnStartup
-Dis-moi si tu voulais autre chose, par exemple les couleurs dans les libellés des champs - Bonne idée. Ajoute : le fond des zones de saisie de la couleur du servo.
 ## ne pas faire pour l'instant
 
+
+---
+
+# v2026.10.3.259 — champs de saisie colorés par servo
+1. ✅ **Fond teinté** : nouvelle option `tint` d'une propriété ([catalog.mts](src/webview/diagram/catalog.mts)), appliquée par l'inspecteur ([editor.mts](src/webview/diagram/editor.mts)) en mélange à 45 % avec le fond du thème. `tintServos` colore tout attribut contenant `coxa` (violet `#9b59b6`) ou `patella` (vert `#2ecc71`), sur la patte et le robot araignée. Cases à cocher non teintées.
+2. ℹ️ **Non vérifié à l'œil dans VS Code** : lisibilité du texte sur les thèmes clair et sombre à confirmer par Frank.
 
 ---
 

@@ -118,6 +118,8 @@ export interface PropDef {
    * d'un doublon est refusée par l'inspecteur (le champ revient à sa valeur).
    */
   unique?: string;
+  /** Teinte (couleur CSS) du fond de la zone de saisie : coxa violet, patella vert. */
+  tint?: string;
   /**
    * Note explicative affichée EN TÊTE de la section repliable (une par groupe,
    * portée par ses propriétés). Sert à dire ce qu'un libellé ne peut pas dire :
@@ -772,6 +774,16 @@ const CHANNEL_PROP = (attr: string, label: string): PropDef =>
  */
 const grouped = (group: string, props: readonly PropDef[], note?: string): readonly PropDef[] =>
   props.map((p) => ({ ...p, group, ...(note ? { groupNote: note } : {}) }));
+
+/** Couleurs des deux servos d'une patte (celles du connecteur : coxa violet, patella vert). */
+const SERVO_TINTS = { coxa: '#9b59b6', patella: '#2ecc71' } as const;
+
+/** Teinte les champs dont l'attribut parle de coxa ou de patella. */
+const tintServos = (props: readonly PropDef[]): readonly PropDef[] =>
+  props.map((p) => {
+    const tint = p.attr.includes('coxa') ? SERVO_TINTS.coxa : p.attr.includes('patella') ? SERVO_TINTS.patella : undefined;
+    return tint ? { ...p, tint } : p;
+  });
 
 export const CATALOG: readonly PartDef[] = [
   // Cartes AVR : éléments forkés, mis à l'échelle 10/9,6 px pour que
@@ -1448,7 +1460,7 @@ export const CATALOG: readonly PartDef[] = [
       pulsemin: '500', pulsemax: '2500', speed: '2', revcoxa: '', revpatella: '',
       zerocoxa: '0', zeropatella: '0',
     },
-    props: [
+    props: tintServos([
       { attr: 'pulsemin', label: 'Pulse at 0° (µs)', kind: 'number', min: 100, max: 3000, step: 1 },
       { attr: 'pulsemax', label: 'Pulse at 180° (µs)', kind: 'number', min: 100, max: 3000, step: 1 },
       { attr: 'speed', label: 'Rotation time (s/turn)', kind: 'number', min: 0, max: 30, step: 0.1 },
@@ -1456,7 +1468,7 @@ export const CATALOG: readonly PartDef[] = [
       REVERSE_PROP('revpatella', 'Reverse the patella servo'),
       ZERO_PROP('zerocoxa', 'Coxa angle at 0° (horn offset)'),
       ZERO_PROP('zeropatella', 'Patella angle at 0° (horn offset)'),
-    ],
+    ]),
   },
   // Robot araignée quadrupède complet, DESSINÉ par Frank (les trois assemblages
   // de Composants3D.svg, cf. araignee-element.mts) : corps + 4 pattes
@@ -1490,7 +1502,7 @@ export const CATALOG: readonly PartDef[] = [
     // le câblage puis le montage ensuite, les servos eux-mêmes en dernier.
     // L'adresse I²C calculée, elle, s'affiche tout en haut, hors section : c'est
     // un rappel, pas un réglage.
-    props: [
+    props: tintServos([
       ...grouped('Configure the 16-servo board', PCA9685_PAD_PROPS),
       ...grouped('Wire the servos', [
         CHANNEL_PROP('chcoxa0', 'Front-left coxa channel'),
@@ -1529,7 +1541,7 @@ export const CATALOG: readonly PartDef[] = [
         { attr: 'pulsemax', label: 'Pulse at 180° (µs)', kind: 'number', min: 100, max: 3000, step: 1 },
         { attr: 'speed', label: 'Rotation time (s/turn)', kind: 'number', min: 0, max: 30, step: 0.1 },
       ]),
-    ],
+    ]),
   },
   // Clavier matriciel à membrane (3 ou 4 colonnes). Interactif : une touche
   // enfoncée court-circuite ligne/colonne (lecture matricielle simulée).

@@ -7861,6 +7861,13 @@ export class Editor {
       row.append(dec, input, inc);
       host.appendChild(row);
     }
+    // Fond des zones de saisie teinté (couleur du servo, coxa/patella) : mélangé
+    // au fond habituel pour rester lisible dans tous les thèmes.
+    if (prop.tint) {
+      for (const el of host.querySelectorAll<HTMLInputElement>('input:not([type=checkbox])')) {
+        el.style.background = `color-mix(in srgb, ${prop.tint} 45%, var(--vscode-input-background, #333))`;
+      }
+    }
   }
 
   private appendDeleteButton(text: string, action: () => void): void {
