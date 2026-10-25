@@ -21,12 +21,18 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Pico réelle et simulée**
 
-- **MicroPython 1.29.0** (24 août 2026) pour les Pico, Pico W, Pico 2 et Pico 2 W. Le bouton « Mettre à jour le firmware du Pico » installe cette version.
+- **MicroPython 1.29.0** (24 août 2026) pour les Pico, Pico W, Pico 2 et Pico 2 W. Le premier téléchargement prend désormais la dernière version publiée sur micropython.org (celle-ci en repli hors ligne).
 
 **Robot araignée**
 
 - **Câblage des servomoteurs** : l'aide de la section précise que la coxa (violet) balaie la patte au sol et que la patella (vert) la lève et la baisse.
 - **Champs colorés** : dans les propriétés de la patte et du robot araignée, les zones de saisie ont le fond de la couleur du servo (violet pour la coxa, vert pour la patella).
+
+### Correction
+
+**Pico réelle et simulée**
+
+- **Mise à jour du firmware** : la vérification ne trouvait jamais de version plus récente sur micropython.org et répondait toujours « à jour ». Elle propose maintenant la dernière version stable (les préversions sont ignorées).
 
 ## 2026.10.3 (16 octobre 2026)
 

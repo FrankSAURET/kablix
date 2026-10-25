@@ -4,6 +4,15 @@
 
 ---
 
+# v2026.10.3.260 — détection du firmware en ligne réparée
+1. ✅ **Cause** ([firmware.ts](src/firmware.ts), `fileNamePattern`) : `\d` dans un gabarit de chaîne devient `d` ; le motif ne trouvait aucun fichier (0 sur les 4 vraies pages), `fetchLatestFirmwareName` rendait `undefined` et la vérification concluait toujours « à jour ». Corrigé avec `String.raw`, et `v\d+(?:\.\d+)+` écarte les préversions.
+2. ✅ **Choix du plus récent par la date du nom** (`firmwareDate`), plus par l'ordre de la page ; la mise à jour n'est proposée que si le site est STRICTEMENT plus récent (un firmware plus neuf choisi à la main n'est pas « obsolète »).
+3. ✅ **Premier téléchargement** (`downloadFlow`) : prend la dernière version en ligne ; la version figée (1.29.0) sert de repli hors-ligne.
+4. ✅ **Banc `verify:firmware`** : 3 contrôles (fausse page avec préversion en tête : 1.28 → proposée, 1.29 → rien, cache plus récent → rien). Contre-épreuve faite : échoue sur l'ancien code.
+5. ℹ️ **Non essayé dans VS Code** avec le réseau réel : motif vérifié sur les vraies pages micropython.org (script), pas la notification.
+
+---
+
 # v2026.10.3.259 — champs de saisie colorés par servo
 1. ✅ **Fond teinté** : nouvelle option `tint` d'une propriété ([catalog.mts](src/webview/diagram/catalog.mts)), appliquée par l'inspecteur ([editor.mts](src/webview/diagram/editor.mts)) en mélange à 45 % avec le fond du thème. `tintServos` colore tout attribut contenant `coxa` (violet `#9b59b6`) ou `patella` (vert `#2ecc71`), sur la patte et le robot araignée. Cases à cocher non teintées.
 2. ℹ️ **Non vérifié à l'œil dans VS Code** : lisibilité du texte sur les thèmes clair et sombre à confirmer par Frank.

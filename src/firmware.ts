@@ -86,7 +86,15 @@ const DOWNLOAD_PAGES: Record<FirmwareVariant, string> = {
 
 /** Nom de fichier .uf2 propre à une variante (le tiret final sépare les préfixes). */
 function fileNamePattern(variant: FirmwareVariant): RegExp {
-  return new RegExp(`resources/firmware/${FIRMWARES[variant].prefix}\d{8}-v[\d.]+\.uf2`, 'g');
+  // String.raw : dans un gabarit ordinaire `\d` devient `d` et le motif ne
+  // reconnaissait plus rien (la détection concluait toujours « à jour »).
+  // `v[\d.]+` écarte les préversions (`v1.30.0-preview.12…`).
+  return new RegExp(String.raw`resources/firmware/${FIRMWARES[variant].prefix}\d{8}-v\d+(?:\.\d+)+\.uf2`, 'g');
+}
+
+/** Date AAAAMMJJ d'un nom de firmware (0 si absente) : sert à comparer deux versions. */
+function firmwareDate(name: string): number {
+  return Number(/-(\d{8})-v/.exec(name)?.[1] ?? 0);
 }
 
 /**
@@ -104,7 +112,10 @@ async function fetchLatestFirmwareName(variant: FirmwareVariant): Promise<string
     const html = await res.text();
     const matches = html.match(fileNamePattern(variant));
     if (!matches || matches.length === 0) return undefined;
-    return matches[0].split('/').pop();
+    // Le plus récent par la date du nom, sans présumer de l'ordre de la page.
+    return matches
+      .map((m) => m.split('/').pop() as string)
+      .sort((a, b) => firmwareDate(b) - firmwareDate(a))[0];
   } catch {
     return undefined;
   } finally {
@@ -283,9 +294,15 @@ async function downloadFlow(
   if (!variant) throw new FirmwareCancelled();
   const fw = FIRMWARES[variant];
 
+  // Dernière version stable en ligne ; la version figée de l'extension sert de
+  // repli quand le site est injoignable (hors-ligne, format de page changé).
+  const latest = await fetchLatestFirmwareName(variant);
+  const file = latest && firmwareDate(latest) > firmwareDate(fw.file) ? latest : fw.file;
+  const url = file === fw.file ? fw.url : `https://micropython.org/resources/firmware/${file}`;
+
   const dir = cacheDir(context);
   await vscode.workspace.fs.createDirectory(dir);
-  const target = vscode.Uri.joinPath(dir, fw.file);
+  const target = vscode.Uri.joinPath(dir, file);
   if (await exists(target)) return target.fsPath; // déjà là (course possible)
 
   try {
@@ -295,7 +312,7 @@ async function downloadFlow(
         title: l10n.t('Kablix: downloading {0}…', fw.label),
         cancellable: true,
       },
-      (_progress, token) => downloadBytes(fw.url, token)
+      (_progress, token) => downloadBytes(url, token)
     );
     await vscode.workspace.fs.writeFile(target, bytes);
     void vscode.window.showInformationMessage(
@@ -370,7 +387,8 @@ async function outdatedVariants(
     const cached = await cachedFileName(context, variant);
     if (!cached) continue; // jamais téléchargée : rien à proposer
     const latest = await fetchLatestFirmwareName(variant);
-    if (latest && latest !== cached) results.push({ variant, latest });
+    // Strictement plus récent : un firmware plus neuf choisi à la main n'est pas « obsolète ».
+    if (latest && firmwareDate(latest) > firmwareDate(cached)) results.push({ variant, latest });
   }
   return results;
 }

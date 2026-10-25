@@ -97,7 +97,7 @@ await esbuild.build({
   logLevel: 'silent',
   alias: { vscode: join(tmp, 'vscode-stub.mjs') },
 });
-const { resolveMicropythonFirmware, FirmwareCancelled } = await import(pathToFileURL(out).href);
+const { resolveMicropythonFirmware, FirmwareCancelled, checkFirmwareUpdate } = await import(pathToFileURL(out).href);
 
 const contexte = { globalStorageUri: { fsPath: 'C:/store', scheme: 'file' } };
 
@@ -168,6 +168,35 @@ const PICOW = 'RPI_PICO_W-20260824-v1.29.0.uf2';
 {
   const r = await choisi({ reglage: 'W:/projet/a-moi.uf2', cache: [PICOW] }, 'pico');
   check('kablix.micropythonUf2 l\'emporte sur tout', r.nom === 'a-moi.uf2', r.nom ?? String(r.erreur));
+}
+
+// --- 5. Détection d'une version plus récente en ligne ------------------------
+// Fausse page micropython.org : liens absolus, préversion en tête, ordre quelconque.
+// Avant la correction, le motif (`\d` perdu dans un gabarit) ne trouvait rien et la
+// vérification concluait toujours « à jour ».
+{
+  const page = (nom) => `<a href="/resources/firmware/${nom}-20260920-v1.30.0-preview.5.gabc.uf2">p</a>
+    <a href="/resources/firmware/${nom}-20260406-v1.28.0.uf2">v128</a>
+    <a href="/resources/firmware/${nom}-20260824-v1.29.0.uf2">v129</a>`;
+  const vraiFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => ({
+    ok: true,
+    text: async () => page(String(url).includes('RPI_PICO2_W') ? 'RPI_PICO2_W' : String(url).includes('RPI_PICO_W') ? 'RPI_PICO_W'
+      : String(url).includes('RPI_PICO2') ? 'RPI_PICO2' : 'RPI_PICO'),
+  });
+  const verifie = async (cache) => {
+    globalThis.__fw = { workspace: [], cache, reponse: undefined, reglage: undefined, avertis: [], infos: [] };
+    await checkFirmwareUpdate(contexte, true);
+    return globalThis.__fw.infos;
+  };
+  const ancien = await verifie(['RPI_PICO-20260406-v1.28.0.uf2']);
+  check('cache en 1.28.0, 1.29.0 en ligne : la mise à jour est proposée',
+    ancien.some((m) => /newer MicroPython firmware is available for Raspberry Pi Pico/.test(m)), JSON.stringify(ancien));
+  const jour = await verifie(['RPI_PICO-20260824-v1.29.0.uf2']);
+  check('cache en 1.29.0 : rien à proposer (la préversion est ignorée)', jour.length === 0, JSON.stringify(jour));
+  const neuf = await verifie(['RPI_PICO-20261101-v1.31.0.uf2']);
+  check('cache plus récent que le site : rien à proposer', neuf.length === 0, JSON.stringify(neuf));
+  globalThis.fetch = vraiFetch;
 }
 
 console.log(`\nfirmware : ${ok} contrôles OK — la carte choisie commande la variante du .uf2.`);
