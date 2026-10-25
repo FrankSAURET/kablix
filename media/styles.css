@@ -1516,18 +1516,20 @@ textarea {
   letter-spacing: 0.05em;
 }
 
-/* Champs d'un servo de patte : coxa = fond violet très clair, texte gras violet
-   foncé ; patella = fond vert très clair, texte gras vert foncé (les mêmes
-   couleurs que le connecteur). Couleurs fixes : le fond clair reste lisible
-   avec son texte foncé dans les thèmes clair et sombre. */
+/* Champs d'un servo de patte : coxa = fond violet, patella = fond vert, texte
+   blanc gras — les couleurs EXACTES des borniers du connecteur
+   (connecteur-servo-patte.svg). Le fond pâle de la v.259 se lisait gris, pas
+   violet (Frank). Couleurs fixes, lisibles dans les thèmes clair et sombre. */
 .inspector__control.inspector__tint--coxa {
-  background: #f1e8f9;
-  color: #4a1d73;
+  background: #9141ac;
+  border-color: #6d2f82;
+  color: #fff;
   font-weight: 700;
 }
 .inspector__control.inspector__tint--patella {
-  background: #e6f6ea;
-  color: #1b5e2f;
+  background: #26a269;
+  border-color: #1c7a4f;
+  color: #fff;
   font-weight: 700;
 }
 
@@ -2949,17 +2951,31 @@ body.vscode-light .inspector__ref--nouveau {
   height: 10px;
   cursor: row-resize;
   touch-action: none;
-  background-size: 10px 10px;
-  background-repeat: no-repeat;
-  /* trois points : trois dégradés côte à côte */
-  background-image:
-    radial-gradient(circle, var(--vscode-descriptionForeground, #888) 1.3px, transparent 1.7px),
-    radial-gradient(circle, var(--vscode-descriptionForeground, #888) 1.3px, transparent 1.7px),
-    radial-gradient(circle, var(--vscode-descriptionForeground, #888) 1.3px, transparent 1.7px);
-  background-position: calc(50% - 10px) center, 50% center, calc(50% + 10px) center;
+  /* trois points SERRÉS (Frank) : le caractère « ⋯ » centré, au lieu de trois
+     dégradés espacés de 10 px. Hors du flux des lignes : 10 px de haut tenus. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 16px;
+  line-height: 10px;
+  color: var(--vscode-descriptionForeground, #888);
+  user-select: none;
+}
+.vsplit::before {
+  content: '\22EF';
 }
 .vsplit:hover {
   filter: brightness(1.6);
+}
+/* Dans l'en-tête de la console / du traceur (Frank) : la poignée prend l'espace
+   libre entre le titre et les boutons, sur toute la hauteur de la ligne — plus de
+   ligne à elle seule. */
+.serial__head .vsplit {
+  flex: 1;
+  align-self: stretch;
+  height: auto;
+  min-width: 2rem;
 }
 
 /* --- Moniteur série -------------------------------------------------------- */

@@ -302,10 +302,11 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
     </section>
 
     <section class="serial" id="serial-section">
-      <!-- Poignée à 3 points (comme les séparateurs de VS Code) : tirer vers le haut agrandit la console. -->
-      <div class="vsplit" data-target="serial" role="separator" aria-orientation="horizontal" title="${l10n.t('Drag to resize')}"></div>
       <div class="serial__head">
         <span id="serial-title">${l10n.t('Serial monitor')}</span>
+        <!-- Poignée « ⋯ » (comme les séparateurs de VS Code) : tirer vers le haut agrandit
+             la console. Sur la ligne du titre, elle occupe l'espace libre avant les boutons. -->
+        <div class="vsplit" data-target="serial" role="separator" aria-orientation="horizontal" title="${l10n.t('Drag to resize')}"></div>
         <span class="serial__head-actions">
           <button id="clear-serial">${l10n.t('Clear')}</button>
           <button id="close-serial" title="${l10n.t('Close the serial monitor')}">✕</button>
@@ -321,9 +322,9 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
     <!-- Traceur de courbes : télémétrie série « >nom:valeur » (format Teleplot)
          et sondes internes (tension des broches analogiques). -->
     <section class="plotter" id="plotter-section" hidden>
-      <div class="vsplit" data-target="plotter" role="separator" aria-orientation="horizontal" title="${l10n.t('Drag to resize')}"></div>
       <div class="serial__head">
         <span><img class="plotter__head-icon" src="${plotterIconUri}" alt="" /> ${l10n.t('Plotter')}</span>
+        <div class="vsplit" data-target="plotter" role="separator" aria-orientation="horizontal" title="${l10n.t('Drag to resize')}"></div>
         <span class="serial__head-actions">
           <select id="plotter-window" class="plotter__window" title="${l10n.t('Time window')}"></select>
           <input id="plotter-window-custom" class="plotter__window plotter__window-custom" type="text" size="9" hidden spellcheck="false" aria-label="${l10n.t('Time window')}" />

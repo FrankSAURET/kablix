@@ -1845,10 +1845,10 @@ index 4e26fb2..7cce717 100644
                  this.ctrlRegister = value;
                  if (this.enabled) {
 diff --git a/node_modules/rp2040js/dist/esm/rp2040.js b/node_modules/rp2040js/dist/esm/rp2040.js
-index 6c39d25..c9a17d8 100644
+index ea535d2..af9a848 100644
 --- a/node_modules/rp2040js/dist/esm/rp2040.js
 +++ b/node_modules/rp2040js/dist/esm/rp2040.js
-@@ -191,6 +191,14 @@ export class RP2040 {
+@@ -191,6 +191,16 @@ export class RP2040 {
              this.logger.error(LOG_NAME, `read from address ${address.toString(16)}, which is not 32 bit aligned`);
          }
          const { bootrom } = this;
@@ -1857,13 +1857,15 @@ index 6c39d25..c9a17d8 100644
 +        // more often than the bootrom, which upstream tests first. The upstream
 +        // SRAM branch further down is now unreachable; it is left in place so
 +        // this patch stays a pure insertion, easy to rebase.
-+        if (address >= RAM_START_ADDRESS && address < RAM_START_ADDRESS + this.sram.length) {
++        // Bound `address + 3 <` as upstream 1.4.1: a word read on the last three
++        // bytes of SRAM would throw a RangeError in the DataView.
++        if (address >= RAM_START_ADDRESS && address + 3 < RAM_START_ADDRESS + this.sram.length) {
 +            return this.sramView.getUint32(address - RAM_START_ADDRESS, true);
 +        }
          if (address < bootrom.length * 4) {
              return bootrom[address / 4];
          }
-@@ -264,6 +272,15 @@ export class RP2040 {
+@@ -266,6 +276,15 @@ export class RP2040 {
          return () => this.clockListeners.delete(listener);
      }
      findPeripheral(address) {
@@ -1879,7 +1881,7 @@ index 6c39d25..c9a17d8 100644
          return this.peripherals[(address >>> 14) << 2];
      }
      /** We assume the address is 16-bit aligned */
-@@ -290,6 +307,14 @@ export class RP2040 {
+@@ -292,6 +311,15 @@ export class RP2040 {
      writeUint32(address, value) {
          address = address >>> 0;
          const { bootrom } = this;
@@ -1887,7 +1889,8 @@ index 6c39d25..c9a17d8 100644
 +        // key maps into the SRAM window (they sit at 0x18000000 and
 +        // 0x40000000+), so this only reorders disjoint ranges — but it takes the
 +        // most frequent write in the whole emulator off the peripheral path.
-+        if (address >= RAM_START_ADDRESS && address < RAM_START_ADDRESS + this.sram.length) {
++        // Same `address + 3 <` bound as upstream 1.4.1 (see readUint32).
++        if (address >= RAM_START_ADDRESS && address + 3 < RAM_START_ADDRESS + this.sram.length) {
 +            this.sramView.setUint32(address - RAM_START_ADDRESS, value, true);
 +            return;
 +        }

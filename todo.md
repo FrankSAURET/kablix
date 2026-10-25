@@ -1,7 +1,20 @@
 # À faire
+1. ⏳ rp2350js (Pico 2, copie dans `vendor/rp2350js/src/rp2040.ts`) garde les anciennes bornes mémoire corrigées par rp2040js 1.4.1 — à reporter si Frank le veut.
 ## ne pas faire pour l'instant
 
 
+
+---
+
+# v2026.10.3.264 — rp2040js 1.4.1, poignée « ⋯ » dans l'en-tête, coxa violet / patella vert francs
+1. ✅ **rp2040js 1.4.0 → 1.4.1** (18/10/2026). Seul `rp2040.js` change en amont : bornes des zones mémoire (flash, SRAM, DPRAM) passées de `address <` à `address + 3 <` (32 bits) / `address + 1 <` (16 bits) — un accès sur les derniers octets d'une zone levait une `RangeError` du `DataView` ; et `writeUint16` sur un demi-mot à cheval sur deux mots (`offset === 3`) écrit maintenant deux octets au lieu de corrompre le mot. Rien d'autre (cœur, PIO, UART identiques).
+2. ✅ **Correctif local** : `patches/rp2040js+1.4.0.patch` renommé (git mv) en `+1.4.1.patch`, appliqué sans conflit. Nos deux raccourcis « SRAM d'abord » (`readUint32`/`writeUint32`) alignés sur la nouvelle borne `address + 3 <`, commentés ; sinon ils court-circuitaient la correction d'amont. En-tête de [rp-chip.mts](src/webview/engines/rp-chip.mts) commenté.
+3. ✅ **Référence de décodage** : générateur rejoué sur le cœur d'origine 1.4.1 — seule la version change dans `_decode-reference.json` (cascade identique). `verify:decode` vert.
+4. ✅ Bancs Pico verts : `verify:micropython`, `verify:pico2`, `verify:pico-freq`, `verify:picoweb`. `verify:all` : 170 bancs, seuls i18n (ES/ZH attendus) et linter en échec ; linter = course sur un fichier temporaire d'un autre banc, vert rejoué seul.
+5. ✅ **Couleurs des servos** : le fond pâle de la v.259 (#f1e8f9) se lisait gris. Couleurs franches du connecteur (coxa #9141ac, patella #26a269), texte blanc gras ; vérifié en capture.
+6. ✅ **Poignée « ⋯ »** : caractère U+22EF au lieu de trois points espacés de 10 px, et placée DANS l'en-tête (console et traceur), entre le titre et les boutons, sur toute la place libre. Plus de ligne à elle.
+7. ✅ Banc [verify-souris.mjs](scripts/verify-souris.mjs) §13 : structure réelle de l'en-tête + 2 contrôles (même ligne que « Effacer », espace libre occupé). 60/60. Contre-épreuve sans le CSS neuf : 3 échecs.
+8. ℹ️ Côté traceur, les points sont centrés dans l'espace libre, donc décalés à gauche (beaucoup de boutons). Pas vu dans le vrai VS Code.
 
 ---
 

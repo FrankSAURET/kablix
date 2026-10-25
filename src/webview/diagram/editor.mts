@@ -7861,8 +7861,8 @@ export class Editor {
       row.append(dec, input, inc);
       host.appendChild(row);
     }
-    // Zones de saisie aux couleurs du servo (coxa violet, patella vert) : fond très
-    // clair + texte gras foncé, définis en CSS (`inspector__tint--…`).
+    // Zones de saisie aux couleurs du servo (coxa violet, patella vert, celles du
+    // connecteur) : fond franc + texte blanc gras, définis en CSS (`inspector__tint--…`).
     if (prop.tint) {
       for (const el of host.querySelectorAll<HTMLInputElement>('input:not([type=checkbox])')) {
         el.classList.add(`inspector__tint--${prop.tint}`);

@@ -15,7 +15,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Console et traceur**
 
-- **Hauteur réglable** : la console du moniteur série et le traceur se redimensionnent en tirant la poignée à trois points placée au-dessus de chacun, comme les séparateurs de VS Code. Les espaces vides autour de la console sont réduits.
+- **Hauteur réglable** : la console du moniteur série et le traceur se redimensionnent en tirant la poignée « ⋯ » de leur ligne de titre, à côté du bouton Effacer, comme les séparateurs de VS Code. Les espaces vides autour de la console sont réduits.
 - **REPL** : lancer le REPL d'une Pico ouvre la console si elle était fermée.
 
 ### Modification
@@ -24,11 +24,12 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - **MicroPython 1.29.0** (24 août 2026) pour les Pico, Pico W, Pico 2 et Pico 2 W. Le premier téléchargement prend désormais la dernière version publiée sur micropython.org (celle-ci en repli hors ligne).
 - **Vérification du firmware activée par défaut** : le réglage `checkFirmwareUpdatesOnStartup` est coché ; sa description dit ce qu'il fait (chercher la dernière version en ligne et la proposer si elle est plus récente).
+- **Moteur de simulation Pico et Pico W mis à jour** (rp2040js 1.4.1) : un programme qui lit ou écrit tout au bout de la mémoire ne fait plus planter la simulation.
 
 **Robot araignée**
 
 - **Câblage des servomoteurs** : l'aide de la section précise que la coxa (violet) balaie la patte au sol et que la patella (vert) la lève et la baisse.
-- **Champs colorés** : dans les propriétés de la patte et du robot araignée, les zones de saisie des servos ont un fond très clair et un texte gras foncé, violet pour la coxa, vert pour la patella.
+- **Champs colorés** : dans les propriétés de la patte et du robot araignée, les zones de saisie des servos sont violettes pour la coxa et vertes pour la patella, aux couleurs du connecteur, texte blanc gras.
 
 ### Correction
 
