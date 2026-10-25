@@ -1,7 +1,14 @@
 # À faire
-
 ## ne pas faire pour l'instant
 
+
+---
+
+# v2026.10.3.257 — hauteur réglable console / traceur, coxa violet / patella vert
+1. ✅ **Hauteur réglable** ([styles.css](media/styles.css)) : `resize: vertical` sur la console (`.serial__out`, mini 60 px) et le traceur (`.plotter__wrap`, mini 80 px). Poignée native en bas à droite. Le traceur se redessine via son `ResizeObserver`.
+2. ✅ **Robot araignée** ([catalog.mts](src/webview/diagram/catalog.mts)) : le paragraphe de la section « Wire the servos » précise coxa (violet) = balayage au sol, patella (vert) = lever/baisser.
+3. ℹ️ **Non essayé dans VS Code** : poignée de redimensionnement non vérifiée à la souris (pas de banc de geste). La hauteur n'est pas mémorisée entre deux ouvertures.
+4. ⏳ Traduction : nouvelle phrase de la note « Wire the servos » (`verify:i18n` signale 1 échec de plus, attendu) ; avant publication.
 
 ---
 

@@ -1501,7 +1501,7 @@ export const CATALOG: readonly PartDef[] = [
         CHANNEL_PROP('chpatella2', 'Rear-left patella channel'),
         CHANNEL_PROP('chcoxa3', 'Rear-right coxa channel'),
         CHANNEL_PROP('chpatella3', 'Rear-right patella channel'),
-      ], 'Type the output each servo is plugged into: 0 to 15, marked 1 to 16 on the board. The same channel cannot be used twice, and a servo left empty does not move.'),
+      ], 'Type the output each servo is plugged into: 0 to 15, marked 1 to 16 on the board. The coxa servo (purple) sweeps the leg along the ground; the patella servo (green) lifts and lowers it. The same channel cannot be used twice, and a servo left empty does not move.'),
       ...grouped('Reverse the servos', [
         REVERSE_PROP('revcoxa0', 'Reverse the front-left coxa'),
         REVERSE_PROP('revpatella0', 'Reverse the front-left patella'),

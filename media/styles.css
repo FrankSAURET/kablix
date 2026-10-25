@@ -2965,6 +2965,9 @@ body.vscode-light .inspector__ref--nouveau {
 
 .serial__out {
   height: 130px;
+  min-height: 60px;
+  /* Poignée en bas à droite : hauteur réglable à la souris. */
+  resize: vertical;
   overflow: auto;
   margin: 0;
   padding: 0.6rem 0.8rem;
@@ -3115,6 +3118,10 @@ body.vscode-light .inspector__ref--nouveau {
 .plotter__wrap {
   position: relative;
   height: 190px;
+  min-height: 80px;
+  /* Poignée en bas à droite (le traceur se redessine via son ResizeObserver). */
+  resize: vertical;
+  overflow: hidden;
   /* Même fond que la console et que les panneaux (voir .serial__out). */
   background: var(--vscode-editorWidget-background, #f7f9f9);
   border-radius: 6px;

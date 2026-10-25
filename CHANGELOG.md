@@ -13,6 +13,16 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Fichiers web d'un serveur** : l'envoi vers la carte emporte aussi les pages HTML, CSS, JS et images que le programme lit. Tout le dossier `www/` ou `static/` part, ainsi que les fichiers cités dans le code, avec leur arborescence.
 - **Simulation identique à la carte** : le programme retrouve ces mêmes fichiers par `open()` et `os.listdir()` (24 Ko au maximum en simulation).
 
+**Console et traceur**
+
+- **Hauteur réglable** : la console du moniteur série et le traceur se redimensionnent en tirant la poignée en bas à droite.
+
+### Modification
+
+**Robot araignée**
+
+- **Câblage des servomoteurs** : l'aide de la section précise que la coxa (violet) balaie la patte au sol et que la patella (vert) la lève et la baisse.
+
 ## 2026.10.3 (16 octobre 2026)
 
 ### Nouveauté
