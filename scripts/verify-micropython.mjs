@@ -36,6 +36,7 @@ const script = [
   'led = Pin(25, Pin.OUT)',
   'for i in range(6):',
   '    led.toggle()',
+  "print('ACCENTS é à ç € 日')",
   "print('KABLIX_MPY_OK', 6 * 7)",
   '',
 ].join('\n');
@@ -95,6 +96,8 @@ async function essai(carte) {
           ['onRunning signalé une seule fois (' + runningCount + ')', runningCount === 1],
           ['onRunning arrive AVANT la sortie du script (fin du « Démarrage… »)',
             serialAtRunning !== null && !serialAtRunning.includes('KABLIX_MPY_OK')],
+          // Le CDC livre des octets : sans décodage UTF-8, « é » sortait « Ã© ».
+          ['caractères accentués et UTF-8 intacts dans le moniteur', serial.includes('ACCENTS é à ç € 日')],
         ];
         for (const [nom, bon] of controles) console.log(`  ${bon ? '✓' : '✗'} ${nom}`);
         resolve(controles.every(([, c]) => c));

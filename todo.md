@@ -1,8 +1,14 @@
 # À faire
-- J'ai toujours les caractères accentués qui ne passe pas dans la console de pico pi. Je pensais que la mise à jour du firmware corrigerait ça ?
 ## ne pas faire pour l'instant
 ## ne pas faire pour l'instant
 
+
+---
+
+# v2026.10.3.262 — accents dans la console Pico
+1. ✅ **Cause** ([pico.mts](src/webview/engines/pico.mts), `onCdcData` → `output`) : le CDC livre des octets, convertis un par un en caractères (latin-1) ; le moniteur recevait « Ã© » au lieu de « é ». Sans rapport avec le firmware. Les octets sont maintenant décodés en UTF-8 (décodeur incrémental) au point de sortie vers le moniteur ; le protocole du REPL, lui, lit toujours les octets bruts.
+2. ✅ Banc [verify-micropython.mjs](scripts/verify-micropython.mjs) : le script affiche `é à ç € 日`, contrôle sur Pico 1 et Pico 2. Contre-épreuve : échoue sur l'ancien code.
+3. ℹ️ L'entrée au clavier (`writeSerial`) encodait déjà en UTF-8 : inchangée. Pas vérifié dans le vrai moniteur de la webview.
 
 ---
 

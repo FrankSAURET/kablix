@@ -33,6 +33,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Pico réelle et simulée**
 
+- **Caractères accentués** : le moniteur série affiche correctement les accents et symboles (é, à, €…) envoyés par un programme MicroPython ; ils sortaient déformés (« Ã© »).
 - **Mise à jour du firmware** : la vérification ne trouvait jamais de version plus récente sur micropython.org et répondait toujours « à jour ». Elle propose maintenant la dernière version stable (les préversions sont ignorées).
 
 ## 2026.10.3 (16 octobre 2026)

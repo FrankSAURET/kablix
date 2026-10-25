@@ -369,6 +369,7 @@ export class PicoEngine implements SimEngine {
    * (Pico W). Reconstituées avant d'être retirées du flux du moniteur série.
    */
   private escBuf = '';
+  private cdcDecoder = new TextDecoder('utf-8');
   /** Points d'arrêt (ligne + condition), retenus pour (re)transmission au script __kx. */
   private breakpoints: Breakpoint[] = [];
   // Mesure de largeur d'impulsion (servo) : broches GPIO surveillées + état d'arête.
@@ -1847,7 +1848,13 @@ export class PicoEngine implements SimEngine {
    * retenue (et publiée d'un bloc à l'arrivée sur le point d'arrêt) : le
    * programme redémarré ne doit pas re-dérouler tout son affichage.
    */
-  private output(text: string): void {
+  private output(raw: string): void {
+    // `raw` = octets du CDC (un caractère par octet, cf. onCdcData) : le protocole
+    // du REPL les lit tels quels, mais le moniteur veut de l'UTF-8 (« é » = C3 A9).
+    // Décodage incrémental : un caractère coupé entre deux paquets reste en attente.
+    const bytes = Uint8Array.from(raw, (c) => c.charCodeAt(0) & 0xff);
+    const text = this.cdcDecoder.decode(bytes, { stream: true });
+    if (!text) return;
     if (!this.silentReplay) {
       this.onSerial?.(text);
       return;
