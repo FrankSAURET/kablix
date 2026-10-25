@@ -118,8 +118,8 @@ export interface PropDef {
    * d'un doublon est refusée par l'inspecteur (le champ revient à sa valeur).
    */
   unique?: string;
-  /** Teinte (couleur CSS) du fond de la zone de saisie : coxa violet, patella vert. */
-  tint?: string;
+  /** Couleur de la zone de saisie (classes `inspector__tint--*` de styles.css) : coxa violet, patella vert. */
+  tint?: 'coxa' | 'patella';
   /**
    * Note explicative affichée EN TÊTE de la section repliable (une par groupe,
    * portée par ses propriétés). Sert à dire ce qu'un libellé ne peut pas dire :
@@ -775,13 +775,10 @@ const CHANNEL_PROP = (attr: string, label: string): PropDef =>
 const grouped = (group: string, props: readonly PropDef[], note?: string): readonly PropDef[] =>
   props.map((p) => ({ ...p, group, ...(note ? { groupNote: note } : {}) }));
 
-/** Couleurs des deux servos d'une patte (celles du connecteur : coxa violet, patella vert). */
-const SERVO_TINTS = { coxa: '#9b59b6', patella: '#2ecc71' } as const;
-
-/** Teinte les champs dont l'attribut parle de coxa ou de patella. */
+/** Colore les champs dont l'attribut parle de coxa (violet) ou de patella (vert), comme le connecteur. */
 const tintServos = (props: readonly PropDef[]): readonly PropDef[] =>
   props.map((p) => {
-    const tint = p.attr.includes('coxa') ? SERVO_TINTS.coxa : p.attr.includes('patella') ? SERVO_TINTS.patella : undefined;
+    const tint = p.attr.includes('coxa') ? 'coxa' : p.attr.includes('patella') ? 'patella' : undefined;
     return tint ? { ...p, tint } : p;
   });
 

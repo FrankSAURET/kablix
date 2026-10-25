@@ -381,8 +381,8 @@ const FR: Record<string, string> = {
   'Set the servo zeros': 'Régler le 0 des servomoteurs',
   'Servo parameters': 'Paramètres des servomoteurs',
   // Note affichée sous le titre de la section « Câbler les servomoteurs ».
-  'Type the output each servo is plugged into: 0 to 15, marked 1 to 16 on the board. The same channel cannot be used twice, and a servo left empty does not move.':
-    'Indiquez la sortie où chaque servo est branché : 0 à 15, marquées 1 à 16 sur la carte. Un même canal ne peut pas servir deux fois, et un servo laissé vide ne bouge pas.',
+  'Type the output each servo is plugged into: 0 to 15, marked 1 to 16 on the board. The coxa servo (purple) sweeps the leg along the ground; the patella servo (green) lifts and lowers it. The same channel cannot be used twice, and a servo left empty does not move.':
+    'Indiquez la sortie où chaque servo est branché : 0 à 15, marquées 1 à 16 sur la carte. Le servo de coxa (violet) balaie la patte au sol ; le servo de patella (vert) la lève et la baisse. Un même canal ne peut pas servir deux fois, et un servo laissé vide ne bouge pas.',
   // Petite case de canal : infobulle, refus d'un doublon, bilan au lancement.
   'Channel {0} to {1} (marked {2} to {3} on the board).': 'Canal {0} à {1} (marqués {2} à {3} sur la carte).',
   'Channel {0} is already used by another servo.': 'Le canal {0} est déjà pris par un autre servomoteur.',

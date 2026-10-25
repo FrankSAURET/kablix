@@ -3,7 +3,7 @@
   "displayName": "Kablix",
   "private": true,
   "version": "2026.10.3",
-  "buildNumber": 260,
+  "buildNumber": 261,
   "description": "%kablix.description%",
   "publisher": "electropol-fr",
   "author": {
@@ -249,7 +249,7 @@
         },
         "kablix.checkFirmwareUpdatesOnStartup": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%kablix.config.checkFirmwareUpdatesOnStartup%"
         },
         "kablix.restoreLastProjectOnStartup": {

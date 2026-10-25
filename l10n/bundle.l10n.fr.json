@@ -214,6 +214,7 @@
   "Cannot read {0}: {1}": "Lecture impossible de {0} : {1}",
   "program (required)": "programme (obligatoire)",
   "imported module": "module importé",
+  "web file": "fichier web",
   "Send to the Pico board": "Envoyer sur la carte Pico",
   "Uncheck what you do not want to send": "Décochez ce que vous ne voulez pas envoyer",
   "Uploading to the Pico ({0})…": "Envoi vers le Pico ({0})…",

@@ -1,6 +1,18 @@
 # À faire
+- J'ai toujours les caractères accentués qui ne passe pas dans la console de pico pi. Je pensais que la mise à jour du firmware corrigerait ça ?
+## ne pas faire pour l'instant
 ## ne pas faire pour l'instant
 
+
+---
+
+# v2026.10.3.261 — vérification du firmware par défaut, couleurs des servos, traduction FR au fil de l'eau
+1. ✅ `kablix.checkFirmwareUpdatesOnStartup` coché par défaut ; description EN + FR réécrite (elle cherche la dernière version en ligne et la propose si plus récente).
+2. ✅ Champs des servos de pattes : coxa = fond violet très clair + texte gras violet foncé ; patella = fond vert très clair + texte gras vert foncé.
+3. ✅ Traduction FR de tout le lot (i18n.mts, bundle.l10n.fr.json, package.nls.fr.json).
+4. ✅ Règle changée (globale + CLAUDE.md projet + mémoire) : FR au fil de l'eau, autres langues avant publication.
+5. ⏳ ES / ZH : `package.nls.es/zh-cn.json` (description firmware) et nouvelle note « Wire the servos » — avant publication (`verify:i18n` : 4 échecs attendus).
+6. ℹ️ Couleurs non vérifiées visuellement.
 
 ---
 

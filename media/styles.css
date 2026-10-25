@@ -1516,6 +1516,21 @@ textarea {
   letter-spacing: 0.05em;
 }
 
+/* Champs d'un servo de patte : coxa = fond violet très clair, texte gras violet
+   foncé ; patella = fond vert très clair, texte gras vert foncé (les mêmes
+   couleurs que le connecteur). Couleurs fixes : le fond clair reste lisible
+   avec son texte foncé dans les thèmes clair et sombre. */
+.inspector__control.inspector__tint--coxa {
+  background: #f1e8f9;
+  color: #4a1d73;
+  font-weight: 700;
+}
+.inspector__control.inspector__tint--patella {
+  background: #e6f6ea;
+  color: #1b5e2f;
+  font-weight: 700;
+}
+
 /* Saisie refusée (hors plage, ou canal déjà pris) : la case revient à sa valeur
    et clignote en rouge — l'explication est dans son infobulle. */
 .inspector__compact--bad {
