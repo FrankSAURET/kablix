@@ -25,7 +25,8 @@ const DOSSIERS = [
 export function firmwarePico(prefixe = 'RPI_PICO-') {
   for (const dir of DOSSIERS) {
     if (!existsSync(dir)) continue;
-    const hit = readdirSync(dir).find((n) => n.startsWith(prefixe) && n.endsWith('.uf2'));
+    // Le plus récent : la date est dans le nom (ordre alphabétique = chronologique).
+    const hit = readdirSync(dir).filter((n) => n.startsWith(prefixe) && n.endsWith('.uf2')).sort().pop();
     if (hit) return join(dir, hit);
   }
   return undefined;

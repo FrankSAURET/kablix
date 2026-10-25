@@ -18,15 +18,15 @@ const FIRMWARES = {
   pico: {
     label: 'Raspberry Pi Pico',
     prefix: 'RPI_PICO-',
-    file: 'RPI_PICO-20260406-v1.28.0.uf2',
-    url: 'https://micropython.org/resources/firmware/RPI_PICO-20260406-v1.28.0.uf2',
+    file: 'RPI_PICO-20260824-v1.29.0.uf2',
+    url: 'https://micropython.org/resources/firmware/RPI_PICO-20260824-v1.29.0.uf2',
     page: 'https://micropython.org/download/RPI_PICO/',
   },
   picow: {
     label: 'Raspberry Pi Pico W',
     prefix: 'RPI_PICO_W-',
-    file: 'RPI_PICO_W-20260406-v1.28.0.uf2',
-    url: 'https://micropython.org/resources/firmware/RPI_PICO_W-20260406-v1.28.0.uf2',
+    file: 'RPI_PICO_W-20260824-v1.29.0.uf2',
+    url: 'https://micropython.org/resources/firmware/RPI_PICO_W-20260824-v1.29.0.uf2',
     page: 'https://micropython.org/download/RPI_PICO_W/',
   },
   // Pico 2 / Pico 2 W : puce RP2350. Les images « -RISCV- » du même nom ne sont
@@ -35,15 +35,15 @@ const FIRMWARES = {
   pico2: {
     label: 'Raspberry Pi Pico 2',
     prefix: 'RPI_PICO2-',
-    file: 'RPI_PICO2-20260406-v1.28.0.uf2',
-    url: 'https://micropython.org/resources/firmware/RPI_PICO2-20260406-v1.28.0.uf2',
+    file: 'RPI_PICO2-20260824-v1.29.0.uf2',
+    url: 'https://micropython.org/resources/firmware/RPI_PICO2-20260824-v1.29.0.uf2',
     page: 'https://micropython.org/download/RPI_PICO2/',
   },
   pico2w: {
     label: 'Raspberry Pi Pico 2 W',
     prefix: 'RPI_PICO2_W-',
-    file: 'RPI_PICO2_W-20260406-v1.28.0.uf2',
-    url: 'https://micropython.org/resources/firmware/RPI_PICO2_W-20260406-v1.28.0.uf2',
+    file: 'RPI_PICO2_W-20260824-v1.29.0.uf2',
+    url: 'https://micropython.org/resources/firmware/RPI_PICO2_W-20260824-v1.29.0.uf2',
     page: 'https://micropython.org/download/RPI_PICO2_W/',
   },
 } as const;

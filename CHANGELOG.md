@@ -19,6 +19,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Modification
 
+**Pico réelle et simulée**
+
+- **MicroPython 1.29.0** (24 août 2026) pour les Pico, Pico W, Pico 2 et Pico 2 W. Le bouton « Mettre à jour le firmware du Pico » installe cette version.
+
 **Robot araignée**
 
 - **Câblage des servomoteurs** : l'aide de la section précise que la coxa (violet) balaie la patte au sol et que la patella (vert) la lève et la baisse.

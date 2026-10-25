@@ -1,6 +1,16 @@
 # À faire
+kablix.checkFirmwareUpdatesOnStartup
+Dis-moi si tu voulais autre chose, par exemple les couleurs dans les libellés des champs - Bonne idée. Ajoute : le fond des zones de saisie de la couleur du servo.
 ## ne pas faire pour l'instant
 
+
+---
+
+# v2026.10.3.258 — firmware MicroPython 1.29.0
+1. ✅ **Firmware épinglé monté de 1.28.0 (06/04/2026) à 1.29.0 (24/08/2026)** ([firmware.ts](src/firmware.ts)) : les 4 cartes. La mise à jour ne cherche pas la dernière version en ligne, elle installe la version écrite en dur : il fallait la changer à chaque sortie.
+2. ✅ **Bancs** ([_firmware.mjs](scripts/_firmware.mjs)) : prennent le firmware le plus récent de `test-assets/` (avant : le premier par ordre alphabétique, donc l'ancien). `verify:micropython` (Pico 1 et 2, v1.29.0 vu au démarrage), `verify:firmware`, `verify:picoweb`, `verify:picoupload` verts.
+3. ℹ️ **Pico W / Pico 2 W** : mêmes versions, mais pas de fichier local pour les éprouver (téléchargés à la demande).
+4. ℹ️ `test-assets/` garde les 1.28.0 (non versionné, rien supprimé).
 
 ---
 

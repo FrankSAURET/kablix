@@ -112,8 +112,8 @@ async function choisi({ workspace = [], cache = [], reponse, reglage }, variante
   }
 }
 
-const PICO = 'RPI_PICO-20260406-v1.28.0.uf2';
-const PICOW = 'RPI_PICO_W-20260406-v1.28.0.uf2';
+const PICO = 'RPI_PICO-20260824-v1.29.0.uf2';
+const PICOW = 'RPI_PICO_W-20260824-v1.29.0.uf2';
 
 // --- 1. Le cache global : la variante commande, pas la date ------------------
 // C'est LE défaut de Frank : le cache contenait les deux, ou seulement le W.
