@@ -30,13 +30,17 @@ patella = Servo(PIN_PATELLA)
 
 try:
     while True:
-        for pos in (10, 100, 180):
-            print("coxa", pos)
-            coxa.angle(pos)
-            sleep(PAUSE)
-            print("patella", pos)
-            patella.angle(pos)
-            sleep(PAUSE)
+        for i in range (3):
+            for pos in (10, 100, 180):
+                print("coxa", pos)
+                coxa.angle(pos)
+                sleep(PAUSE)
+                print("patella", pos)
+                patella.angle(pos)
+                sleep(PAUSE)
+        coxa.angle(pos)
+        patella.angle(pos)      
+        sleep(10)  
 except KeyboardInterrupt:
     coxa.stop()
     patella.stop()
