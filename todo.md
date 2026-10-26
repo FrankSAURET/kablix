@@ -1,5 +1,4 @@
 # À faire
-1. ⏳ rp2350js (Pico 2, copie dans `vendor/rp2350js/src/rp2040.ts`) garde les anciennes bornes mémoire corrigées par rp2040js 1.4.1 — à reporter si Frank le veut.
 ## ne pas faire pour l'instant
 
 
@@ -20,6 +19,7 @@
 
 # v2026.10.3.264 — rp2040js 1.4.1, poignée « ⋯ » dans l'en-tête, coxa violet / patella vert francs
 1. ✅ **rp2040js 1.4.0 → 1.4.1** (18/10/2026). Seul `rp2040.js` change en amont : bornes des zones mémoire (flash, SRAM, DPRAM) passées de `address <` à `address + 3 <` (32 bits) / `address + 1 <` (16 bits) — un accès sur les derniers octets d'une zone levait une `RangeError` du `DataView` ; et `writeUint16` sur un demi-mot à cheval sur deux mots (`offset === 3`) écrit maintenant deux octets au lieu de corrompre le mot. Rien d'autre (cœur, PIO, UART identiques).
+   ℹ️ **Pico 2 non concernée** (vérifié à la lecture de [rp2350.ts](vendor/rp2350js/src/rp2350.ts)) : SRAM et flash en tableaux typés (`sram32[i]`, jamais d'exception), mot non aligné refusé en entrée, zones multiples de 4 ; les demi-mots non alignés sont découpés en octets par le cœur M33. Le `vendor/rp2350js/src/rp2040.ts` garde l'ancien test, mais Kablix ne l'exécute pas (Pico 1 = rp2040js de npm).
 2. ✅ **Correctif local** : `patches/rp2040js+1.4.0.patch` renommé (git mv) en `+1.4.1.patch`, appliqué sans conflit. Nos deux raccourcis « SRAM d'abord » (`readUint32`/`writeUint32`) alignés sur la nouvelle borne `address + 3 <`, commentés ; sinon ils court-circuitaient la correction d'amont. En-tête de [rp-chip.mts](src/webview/engines/rp-chip.mts) commenté.
 3. ✅ **Référence de décodage** : générateur rejoué sur le cœur d'origine 1.4.1 — seule la version change dans `_decode-reference.json` (cascade identique). `verify:decode` vert.
 4. ✅ Bancs Pico verts : `verify:micropython`, `verify:pico2`, `verify:pico-freq`, `verify:picoweb`. `verify:all` : 170 bancs, seuls i18n (ES/ZH attendus) et linter en échec ; linter = course sur un fichier temporaire d'un autre banc, vert rejoué seul.
