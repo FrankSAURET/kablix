@@ -5,6 +5,11 @@
 
 ---
 
+# v2026.10.3.267 — gouttières latérales à 4 px
+1. ✅ `.splitter` 8 px → 4 px (Frank : deux fois 4 px entre le canvas et les panneaux, une seule suffit). Le glyphe « ⋮ » déborde (`overflow: visible`) au lieu d'être rogné ; vérifié en capture.
+
+---
+
 # v2026.10.3.266 — marges réduites, poignées « ⋮ » latérales
 1. ✅ **Marges** ([styles.css](media/styles.css), `.stage`) : 1 rem / 0,5 rem → 4 px partout autour des zones, et 4 px entre l'atelier et la console (0,3 rem avant). Les gouttières `.splitter` gardent 8 px (elles portent les points).
 2. ✅ **Poignées « ⋮ »** : `.splitter::after` = U+22EE centré, même couleur et même survol que le « ⋯ » de la console. Masquées quand le panneau est replié (`.splitter--folded`, plus redimensionnable).

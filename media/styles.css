@@ -258,20 +258,22 @@ textarea {
 }
 
 /* Poignée de redimensionnement entre la bibliothèque/inspecteur et le canvas.
-   GOUTTIÈRE de 8 px, vide : depuis la v2026.9.4.101 le bouton de repli vit DANS
-   le panneau (coin haut, au-dessus de l'ascenseur), la gouttière n'a donc plus à
-   l'héberger. La zone de préhension reste élargie de ±4 px par le ::before. */
+   GOUTTIÈRE de 4 px, comme les autres marges de l'atelier (Frank) : depuis la
+   v2026.9.4.101 le bouton de repli vit DANS le panneau. La zone de préhension
+   reste élargie de ±4 px par le ::before. */
 .splitter {
   position: relative;
-  flex: 0 0 8px;
+  flex: 0 0 4px;
   align-self: stretch;
   cursor: col-resize;
   touch-action: none;
-  /* Trois points verticaux « ⋮ » au milieu, pendant des « ⋯ » de la console. */
+  /* Trois points verticaux « ⋮ » au milieu, pendant des « ⋯ » de la console.
+     Le glyphe est plus large que 4 px : on le laisse déborder (points fins,
+     reste du glyphe transparent). */
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow: visible;
   font-size: 16px;
   color: var(--vscode-descriptionForeground, #888);
   user-select: none;
