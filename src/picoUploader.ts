@@ -362,19 +362,61 @@ export class PicoUploader {
     items: UploadItem[],
     out: vscode.OutputChannel
   ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const payload = items.map((it) => ({
-        path: it.localPath,
-        remote: it.remotePath,
-      }));
-      out.appendLine(`> ${port} — ${items.length} fichier(s)`);
+    const payload = items.map((it) => ({
+      path: it.localPath,
+      remote: it.remotePath,
+    }));
+    out.appendLine(`> ${port} — ${items.length} fichier(s)`);
+    return this.runTool(['--port', port, '--files', JSON.stringify(payload)], out);
+  }
 
+  /**
+   * Arrête le programme qui tourne sur la carte (Ctrl-C sur le port série) :
+   * elle reste au REPL `>>>`, sans redémarrer. `main.py` n'est pas effacé et
+   * repartira au prochain branchement.
+   */
+  async stop(): Promise<void> {
+    if (this.busy) {
+      void vscode.window.showInformationMessage(
+        vscode.l10n.t('An upload is already running.')
+      );
+      return;
+    }
+    const port = await this.pickPort();
+    if (!port) return;
+    this.lastPort = port;
+
+    const out = this.channel();
+    out.clear();
+    out.appendLine(`> ${port} — Ctrl-C`);
+    this.busy = true;
+    try {
+      await this.runTool(['--port', port, '--stop'], out);
+      void vscode.window.setStatusBarMessage(
+        vscode.l10n.t('Program stopped on the Pico ({0}).', port),
+        4000
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      out.show(true);
+      void vscode.window.showErrorMessage(
+        vscode.l10n.t('Cannot stop the program: {0}', message)
+      );
+    } finally {
+      this.busy = false;
+      void this.refresh();
+    }
+  }
+
+  /** Lance `scripts/pico-upload.py` ; rejette avec sa dernière ligne `ERROR:`. */
+  private runTool(args: string[], out: vscode.OutputChannel): Promise<void> {
+    return new Promise((resolve, reject) => {
       // `python` sur Windows, `python3` ailleurs : c'est le nom que porte
       // l'interpréteur 3.x sur chaque système.
       const exe = process.platform === 'win32' ? 'python' : 'python3';
       const child = execFile(
         exe,
-        [this.scriptPath, '--port', port, '--files', JSON.stringify(payload)],
+        [this.scriptPath, ...args],
         { maxBuffer: 4 * 1024 * 1024 },
         (err, stdout, stderr) => {
           if (stdout) out.append(stdout);

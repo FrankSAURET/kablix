@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Bouton « Arrêter le programme de la carte Pico » : même fond que upload.svg, carré de la couleur de sa flèche. -->
+<svg
+   width="63.660336mm"
+   height="63.764584mm"
+   viewBox="0 0 63.660336 63.764584"
+   version="1.1"
+   id="svg8"
+   xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient
+       id="fond"
+       cx="62.308865"
+       cy="175.66599"
+       r="31.830168"
+       gradientTransform="matrix(1,0,0,1.0016376,0,-0.05)"
+       gradientUnits="userSpaceOnUse">
+      <stop style="stop-color:#e5a50a;stop-opacity:1;" offset="0" />
+      <stop style="stop-color:#e5740a;stop-opacity:1;" offset="1" />
+    </radialGradient>
+    <radialGradient
+       id="bord"
+       cx="62.308865"
+       cy="175.66599"
+       r="31.697876"
+       gradientTransform="matrix(1,0,0,1.0016444,0,-0.05)"
+       gradientUnits="userSpaceOnUse">
+      <stop style="stop-color:#e5a50a;stop-opacity:1;" offset="0" />
+      <stop style="stop-color:#f5c211;stop-opacity:1;" offset="1" />
+    </radialGradient>
+  </defs>
+  <g id="stop" transform="translate(-30.4787,-143.784391)">
+    <path
+       style="fill:url(#fond);stroke:url(#bord);stroke-width:0.264582;stroke-opacity:1"
+       d="M 45.149421,143.91598 H 79.468309 C 87.522602,143.91598 94.006742,150.41078 94.006742,158.47832 V 192.85364 C 94.006742,200.92118 87.522602,207.41598 79.468309,207.41598 H 45.149421 C 37.09513,207.41598 30.61099,200.92118 30.61099,192.85364 V 158.47832 C 30.61099,150.41078 37.09513,143.91598 45.149421,143.91598 Z" />
+  </g>
+  <rect x="15.83" y="15.88" width="32" height="32" style="fill:#001784;stroke:none" />
+</svg>

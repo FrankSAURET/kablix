@@ -14,6 +14,7 @@ import { checkComponentsOnStartup } from './componentUpdates';
 import { openNewProjix, openOrRevealProjix } from './openproject';
 import { KompixLibrary } from './kompixLibrary';
 import { PicoUploader } from './picoUploader';
+import { watchMicroPythonFiles } from './micropythonProject';
 import { memoriserModeExtension } from './version';
 import { redetecterArduinoCli } from './arduinoCliPistes';
 import { AnalyseurJournal } from './analyseur-journal';
@@ -293,7 +294,18 @@ export function activate(context: vscode.ExtensionContext): void {
           'No Pico board detected. Plug one in over USB — the button lights up on its own.'
         )
       );
-    })
+    }),
+    // Bouton ■ : arrête le programme qui tourne sur la carte (Ctrl-C).
+    vscode.commands.registerCommand('kablix.stopPico', () => picoUploader.stop()),
+    vscode.commands.registerCommand('kablix.stopPicoOffline', () => {
+      void vscode.window.showWarningMessage(
+        l10n.t(
+          'No Pico board detected. Plug one in over USB — the button lights up on its own.'
+        )
+      );
+    }),
+    // Boutons de la carte réservés aux programmes MicroPython (.micropico du projet).
+    watchMicroPythonFiles()
   );
 
   // Première activation (Windows) : propose une seule fois d'associer les .projix.

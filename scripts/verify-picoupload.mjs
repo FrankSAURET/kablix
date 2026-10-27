@@ -257,6 +257,31 @@ ${out}`);
       throw new Error(`message d'erreur attendu, obtenu :\n${text}`);
     }
   });
+
+  check('bouton ■ : le programme s’arrête, la carte revient au >>>', () => {
+    const text = execFileSync(python, [join(WORK, 'faux-pico.py'), '--stop'], {
+      encoding: 'utf-8',
+      cwd: WORK,
+    });
+    if (!/DONE: program stopped/.test(text)) throw new Error(`résumé inattendu :\n${text}`);
+    if (existsSync(join(WORK, 'reboot.txt'))) throw new Error('l’arrêt ne doit pas redémarrer la carte');
+  });
+
+  check('bouton ■ sur un port muet : erreur signalée, pas de blocage', () => {
+    let text = '';
+    try {
+      execFileSync(python, [join(WORK, 'faux-pico.py'), '--stop', '--muet'], {
+        encoding: 'utf-8',
+        cwd: WORK,
+      });
+      throw new Error('le script aurait dû sortir en erreur');
+    } catch (err) {
+      text = `${err.stdout ?? ''}${err.stderr ?? ''}`;
+    }
+    if (!/ERROR: the board did not come back/.test(text)) {
+      throw new Error(`message d'erreur attendu, obtenu :\n${text}`);
+    }
+  });
 }
 
 console.log(`\n${passed} contrôle(s) OK, ${failed} échec(s)`);
@@ -300,6 +325,8 @@ class Serial:
             b = bytes([byte])
             if b == b'\\x03':          # Ctrl-C : interruption
                 self.pending = b''
+                if not self.raw and not MUET:
+                    self.buf += b'\\r\\nKeyboardInterrupt: \\r\\n>>> '
             elif b == b'\\x01':        # Ctrl-A : entree en raw REPL
                 if not MUET:
                     self.raw = True
@@ -420,7 +447,10 @@ sys.modules['serial'] = faux
 
 ici = os.path.dirname(os.path.abspath(__file__))
 vrai = os.path.join(ici, '..', '..', 'scripts', 'pico-upload.py')
-sys.argv = ['pico-upload.py', '--port', 'FAKE', '--files', sys.argv[1]]
+if sys.argv[1] == '--stop':
+    sys.argv = ['pico-upload.py', '--port', 'FAKE', '--stop']
+else:
+    sys.argv = ['pico-upload.py', '--port', 'FAKE', '--files', sys.argv[1]]
 code = open(vrai, encoding='utf-8').read()
 exec(compile(code, vrai, 'exec'), {'__name__': '__main__', '__file__': vrai})
 `;

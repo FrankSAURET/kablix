@@ -5,6 +5,16 @@
 
 ---
 
+# v2026.10.3.271 — boutons Pico réservés aux projets MicroPython, bouton ■ Arrêter
+1. ✅ [micropythonProject.ts](src/micropythonProject.ts) : un `.py` est MicroPython ssi un `.micropico` au contenu `{"info": "This file is just used to identify a project folder."}` est dans son dossier ou un parent (sans dépasser le dossier de travail). Contexte `kablix.micropythonFiles` (liste d'URI des éditeurs visibles, `resource in …` dans les `when`), recalculé sur changement d'onglets et sur création/modification/suppression d'un `.micropico`. Activation `workspaceContains:**/.micropico`.
+2. ✅ Boutons Envoyer (existants) et ■ Arrêter (`kablix.stopPico` / `kablix.stopPicoOffline`, icônes `media/stop.svg` / `stop-inactive.svg`, carré #001784 / #010101 comme la flèche) conditionnés au contexte. Arrêt : `pico-upload.py --stop` (3 Ctrl-C, attente du `>>>`), sans redémarrage.
+3. ✅ Triangle « Exécuter le fichier Python » masqué : seul levier possible, `setContext('shellExecutionSupported', false)` tant que l'onglet actif est MicroPython. Effet de bord lu dans le code de VS Code : tâches `tasks.json` ignorées pendant ce temps. Réglage `kablix.hidePythonRunButton` (vrai par défaut).
+4. ✅ [verify-picoupload.mjs](scripts/verify-picoupload.mjs) : 2 contrôles d'arrêt (carte qui répond, port muet). 17/17.
+5. ⏳ Traductions ES/ZH des 2 commandes, du réglage et des 2 messages (avant publication).
+6. ⏳ Essai sur vraie carte : aucune Pico branchée pendant le lot.
+
+---
+
 # v2026.10.3.270 — poignée « ⋯ » dans la barre horizontale
 1. ✅ `.vsplit` sortie de l'en-tête : premier enfant de la section ([webview-html.ts](src/webview-html.ts)), en absolu `top: -4px; height: 4px` = la barre du gap elle-même, « ⋯ » centré qui déborde sans l'agrandir, préhension ±4 px (`::after`). Survol/glissement : fond plein sash/focusBorder. Les `::before` de section de la v.269 sont retirés.
 2. ✅ Banc [verify-souris.mjs](scripts/verify-souris.mjs) §13 : maquette à la nouvelle structure, contrôles « barre de 4 px collée au-dessus de la section » et « toute la largeur ». 60/60. Contre-épreuve avec l'ancien CSS : 1 échec (barre de 10 px dans l'en-tête).

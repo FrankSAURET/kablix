@@ -220,6 +220,8 @@
   "Uploading to the Pico ({0})…": "Envoi vers le Pico ({0})…",
   "{0} file(s) sent. Reset the board to run main.py.": "{0} fichier(s) envoyé(s). Réinitialisez la carte pour exécuter main.py.",
   "Upload failed: {0}": "Envoi impossible : {0}",
+  "Program stopped on the Pico ({0}).": "Programme arrêté sur la Pico ({0}).",
+  "Cannot stop the program: {0}": "Arrêt impossible : {0}",
   "Python 3 was not found. Install it, then run: pip install pyserial": "Python 3 est introuvable. Installez-le, puis lancez : pip install pyserial",
   "Component \"{0}\" runs custom code from a remote source.": "Le composant « {0} » exécute du code venu d’une source distante.",
   "Trust this component": "Faire confiance à ce composant",

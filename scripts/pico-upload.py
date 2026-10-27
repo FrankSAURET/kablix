@@ -4,6 +4,7 @@ Ecrit des fichiers sur une carte Raspberry Pi Pico branchee en USB.
 
 Appele par l'extension (src/picoUploader.ts), jamais a la main :
     python pico-upload.py --port COM3 --files '[{"path": "...", "remote": "main.py"}]'
+    python pico-upload.py --port COM3 --stop      (arrete le programme en cours)
 
 Le transfert passe par le RAW REPL de MicroPython (Ctrl-A / Ctrl-D / Ctrl-B),
 le meme protocole que mpremote et ampy. L'ecriture ligne a ligne dans le REPL
@@ -179,12 +180,54 @@ def write_file(ser, local: str, remote: str) -> bool:
     return True
 
 
+def stop_program(port: str, baud: int) -> int:
+    """
+    Arrete le programme qui tourne sur la carte (Ctrl-C) et la laisse au REPL.
+
+    Trois Ctrl-C espaces : un programme qui rattrape KeyboardInterrupt dans une
+    boucle en laisse passer un ; le prompt « >>> » confirme l'arret.
+    """
+    try:
+        ser = serial.Serial(port, baud, timeout=0.1)
+    except serial.SerialException as exc:
+        print("ERROR: cannot open %s (%s). Close any serial monitor using it." % (port, exc))
+        return 2
+    try:
+        time.sleep(0.1)
+        ser.reset_input_buffer()
+        ser._reste = b""
+        for _ in range(3):
+            ser.write(b"\x03")
+            time.sleep(0.1)
+        ser.write(b"\r")
+        try:
+            read_until(ser, b">>> ", timeout=2.0)
+        except ReplError:
+            print("ERROR: the board did not come back to the >>> prompt "
+                  "(program ignores Ctrl-C, or not MicroPython)")
+            return 3
+    finally:
+        try:
+            ser.close()
+        except (serial.SerialException, OSError):
+            pass
+    print("DONE: program stopped, board at the >>> prompt")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Write files to a Raspberry Pi Pico")
     parser.add_argument("--port", required=True, help="COM3, /dev/ttyACM0, ...")
-    parser.add_argument("--files", required=True, help='JSON: [{"path":..., "remote":...}]')
+    parser.add_argument("--files", help='JSON: [{"path":..., "remote":...}]')
+    parser.add_argument("--stop", action="store_true", help="stop the running program (Ctrl-C)")
     parser.add_argument("--baud", type=int, default=115200)
     args = parser.parse_args()
+
+    if args.stop:
+        return stop_program(args.port, args.baud)
+    if not args.files:
+        print("ERROR: --files or --stop is required")
+        return 2
 
     try:
         files = json.loads(args.files)

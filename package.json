@@ -3,7 +3,7 @@
   "displayName": "Kablix",
   "private": true,
   "version": "2026.10.3",
-  "buildNumber": 270,
+  "buildNumber": 271,
   "description": "%kablix.description%",
   "publisher": "electropol-fr",
   "author": {
@@ -40,7 +40,9 @@
     "offline"
   ],
   "main": "./dist/extension.js",
-  "activationEvents": [],
+  "activationEvents": [
+    "workspaceContains:**/.micropico"
+  ],
   "contributes": {
     "commands": [
       {
@@ -164,6 +166,18 @@
         "title": "%kablix.cmd.uploadToPicoOffline%",
         "category": "Kablix",
         "icon": "media/upload-inactive.svg"
+      },
+      {
+        "command": "kablix.stopPico",
+        "title": "%kablix.cmd.stopPico%",
+        "category": "Kablix",
+        "icon": "media/stop.svg"
+      },
+      {
+        "command": "kablix.stopPicoOffline",
+        "title": "%kablix.cmd.stopPicoOffline%",
+        "category": "Kablix",
+        "icon": "media/stop-inactive.svg"
       }
     ],
     "keybindings": [
@@ -179,17 +193,31 @@
         {
           "command": "kablix.uploadToPico",
           "group": "navigation@-3",
-          "when": "resourceLangId == python && kablix.picoConnected"
+          "when": "resourceLangId == python && resource in kablix.micropythonFiles && kablix.picoConnected"
         },
         {
           "command": "kablix.uploadToPicoOffline",
           "group": "navigation@-3",
-          "when": "resourceLangId == python && !kablix.picoConnected"
+          "when": "resourceLangId == python && resource in kablix.micropythonFiles && !kablix.picoConnected"
+        },
+        {
+          "command": "kablix.stopPico",
+          "group": "navigation@-2",
+          "when": "resourceLangId == python && resource in kablix.micropythonFiles && kablix.picoConnected"
+        },
+        {
+          "command": "kablix.stopPicoOffline",
+          "group": "navigation@-2",
+          "when": "resourceLangId == python && resource in kablix.micropythonFiles && !kablix.picoConnected"
         }
       ],
       "commandPalette": [
         {
           "command": "kablix.uploadToPicoOffline",
+          "when": "false"
+        },
+        {
+          "command": "kablix.stopPicoOffline",
           "when": "false"
         }
       ]
@@ -342,6 +370,11 @@
           "type": "boolean",
           "default": true,
           "description": "%kablix.config.checkComponentsOnStartup%"
+        },
+        "kablix.hidePythonRunButton": {
+          "type": "boolean",
+          "default": true,
+          "description": "%kablix.config.hidePythonRunButton%"
         }
       }
     }

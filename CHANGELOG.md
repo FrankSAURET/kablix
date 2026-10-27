@@ -12,6 +12,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - **Fichiers web d'un serveur** : l'envoi vers la carte emporte aussi les pages HTML, CSS, JS et images que le programme lit. Tout le dossier `www/` ou `static/` part, ainsi que les fichiers cités dans le code, avec leur arborescence.
 - **Simulation identique à la carte** : le programme retrouve ces mêmes fichiers par `open()` et `os.listdir()` (24 Ko au maximum en simulation).
+- **Bouton ■ Arrêter** dans l'onglet d'un programme MicroPython, à côté du bouton Envoyer : il arrête le programme qui tourne sur la carte et la laisse au REPL. Grisé quand aucune carte n'est branchée.
 
 **Console et traceur**
 
@@ -31,6 +32,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Pico réelle et simulée**
 
+- **Boutons de la carte réservés à MicroPython** : Envoyer et Arrêter n'apparaissent que sur un `.py` d'un projet MicroPython, reconnu à son fichier `.micropico` (celui de l'extension MicroPico). Sur ces fichiers, le triangle « Exécuter le fichier Python » de l'extension Python est masqué ; le réglage `hidePythonRunButton` le rend.
 - **MicroPython 1.29.0** (24 août 2026) pour les Pico, Pico W, Pico 2 et Pico 2 W. Le premier téléchargement prend désormais la dernière version publiée sur micropython.org (celle-ci en repli hors ligne).
 - **Vérification du firmware activée par défaut** : le réglage `checkFirmwareUpdatesOnStartup` est coché ; sa description dit ce qu'il fait (chercher la dernière version en ligne et la proposer si elle est plus récente).
 - **Moteur de simulation Pico et Pico W mis à jour** (rp2040js 1.4.1) : un programme qui lit ou écrit tout au bout de la mémoire ne fait plus planter la simulation.

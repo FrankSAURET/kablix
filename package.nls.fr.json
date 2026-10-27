@@ -24,6 +24,8 @@
   "kablix.cmd.openComponentManager": "Kablix : Télécharger des composants",
   "kablix.cmd.uploadToPico": "Kablix : Envoyer le programme sur la carte Pico",
   "kablix.cmd.uploadToPicoOffline": "Kablix : Envoyer le programme sur la carte Pico (aucune carte détectée)",
+  "kablix.cmd.stopPico": "Kablix : Arrêter le programme de la carte Pico",
+  "kablix.cmd.stopPicoOffline": "Kablix : Arrêter le programme de la carte Pico (aucune carte détectée)",
   "kablix.view.home": "Simulateur",
   "kablix.welcome": "[▶ Ouvrir le simulateur](command:kablix.openSimulator)",
   "kablix.config.micropythonUf2": "Chemin (absolu ou relatif au workspace) du firmware MicroPython .uf2 utilisé pour exécuter les fichiers .py sur le Pico simulé. Laisser vide : Kablix détecte automatiquement un firmware dans le workspace, et propose sinon de télécharger le firmware officiel au premier lancement.",
@@ -47,5 +49,6 @@
   "kablix.config.componentRepositories": "Liste des dépôts distants (URLs) depuis lesquels télécharger des composants .kompix. Par défaut, pointe vers la bibliothèque officielle Kablix sur GitHub.",
   "kablix.config.checkComponentsOnStartup": "Au démarrage, lire l'index des dépôts de composants et afficher une notification quand un composant installé a une version plus récente, ou quand de nouveaux composants sont apparus depuis la dernière vérification. Chaque mise à jour et chaque nouveau composant n'est signalé qu'une fois. Rien ne s'affiche si rien n'a changé ou si le réseau manque. Activé par défaut.",
   "kablix.config.lintCode": "Relire le code face au schéma au démarrage de la simulation et signaler les erreurs probables (analogWrite sur une broche sans PWM, broche lue mais jamais câblée, broche câblée que le code n'utilise jamais…). Pendant la simulation, une entrée en l'air oscille et une boucle d'attente bloquante est signalée. Un avertissement n'arrête jamais la simulation. Activé par défaut.",
-  "kablix.config.analyseurNouvelleFenetre": "Ouvre l'onglet de l'analyseur logique dans une nouvelle fenêtre. Réglé aussi par la case « Ouvrir l'analyseur dans une nouvelle fenêtre » des propriétés de n'importe quelle sonde logique : la case est la même pour toutes les sondes. Désactivé par défaut."
+  "kablix.config.analyseurNouvelleFenetre": "Ouvre l'onglet de l'analyseur logique dans une nouvelle fenêtre. Réglé aussi par la case « Ouvrir l'analyseur dans une nouvelle fenêtre » des propriétés de n'importe quelle sonde logique : la case est la même pour toutes les sondes. Désactivé par défaut.",
+  "kablix.config.hidePythonRunButton": "Dans un projet MicroPython (fichier .micropico dans le dossier), masquer le triangle « Exécuter le fichier Python » de l'extension Python : ce programme tourne sur la carte Pico, pas sur l'ordinateur. Effet de bord : tant qu'un tel fichier est l'onglet actif, les tâches de tasks.json sont indisponibles. Activé par défaut."
 }
