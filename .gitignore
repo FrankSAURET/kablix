@@ -19,3 +19,6 @@ media/video/
 
 # Promotion : dépôt privé séparé (FrankSAURET/kablix-promotion), jamais dans le dépôt public
 Promotion/
+
+# Kompix Editor : dépôt séparé (FrankSAURET/kompix-editor), jamais dans le dépôt Kablix
+kompix_editor/

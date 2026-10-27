@@ -62,6 +62,7 @@ dist/**
 Archives/**
 A Examiner/**
 kablix_components/**
+kompix_editor/**
 svg/**
 svg retouche/**
 **/*.edit.svg
