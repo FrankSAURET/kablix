@@ -237,10 +237,11 @@ textarea {
 }
 
 .stage {
-  padding: 1rem 1rem 0.5rem;
+  /* Marges réduites au minimum non nul autour des zones (Frank). */
+  padding: 4px;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 4px;
   flex: 1 1 auto;
   min-height: 0; /* autorise les enfants flex à rétrécir au lieu de déborder */
   overflow: hidden;
@@ -265,6 +266,23 @@ textarea {
   flex: 0 0 8px;
   align-self: stretch;
   cursor: col-resize;
+  touch-action: none;
+  /* Trois points verticaux « ⋮ » au milieu, pendant des « ⋯ » de la console. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 16px;
+  color: var(--vscode-descriptionForeground, #888);
+  user-select: none;
+}
+
+.splitter::after {
+  content: '\22EE';
+}
+
+.splitter:hover {
+  filter: brightness(1.6);
 }
 
 .splitter::before {
@@ -280,7 +298,8 @@ textarea {
   cursor: default;
 }
 
-.splitter--folded::before {
+.splitter--folded::before,
+.splitter--folded::after {
   display: none; /* plus de préhension : un panneau replié ne se redimensionne pas */
 }
 

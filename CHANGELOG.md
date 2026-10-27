@@ -18,7 +18,15 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Hauteur réglable** : la console du moniteur série et le traceur se redimensionnent en tirant la poignée « ⋯ » de leur ligne de titre, à côté du bouton Effacer, comme les séparateurs de VS Code. Les espaces vides autour de la console sont réduits.
 - **REPL** : lancer le REPL d'une Pico ouvre la console si elle était fermée.
 
+**Atelier**
+
+- **Poignées « ⋮ »** entre le canvas et les panneaux Composants et Propriétés : elles montrent où tirer pour changer la largeur.
+
 ### Modification
+
+**Atelier**
+
+- **Marges réduites** autour du canvas et des panneaux Composants et Propriétés : plus de place pour le schéma.
 
 **Pico réelle et simulée**
 

@@ -5,6 +5,14 @@
 
 ---
 
+# v2026.10.3.266 — marges réduites, poignées « ⋮ » latérales
+1. ✅ **Marges** ([styles.css](media/styles.css), `.stage`) : 1 rem / 0,5 rem → 4 px partout autour des zones, et 4 px entre l'atelier et la console (0,3 rem avant). Les gouttières `.splitter` gardent 8 px (elles portent les points).
+2. ✅ **Poignées « ⋮ »** : `.splitter::after` = U+22EE centré, même couleur et même survol que le « ⋯ » de la console. Masquées quand le panneau est replié (`.splitter--folded`, plus redimensionnable).
+3. ✅ Rendu vérifié en capture (maquette avec le vrai CSS, Chrome headless). `verify:souris` 60/60.
+4. ℹ️ Pas vu dans le vrai VS Code.
+
+---
+
 # v2026.10.3.265 — système de fichiers en simulation (puce flash SPI émulée), Pico 2 : ADR aligné et soft reset
 1. ✅ **Cause** : ni rp2040js ni rp2350js n'émulent la puce flash derrière le contrôleur QSPI. `flash_range_erase`/`flash_range_program` du bootrom envoyaient leurs octets dans le vide : `rp2.Flash()` perdait ses écritures, `VfsLfs2.mkfs` → ENOSPC, MicroPython démarrait sans FS (`open(..., 'w')` → ENODEV, `statvfs` à zéro).
 2. ✅ **[flash-spi.mts](src/webview/engines/flash-spi.mts)** : puce W25Q (`PuceFlashSpi`) — 01/02/03/04/05/06/0B/15/20/31/35/4B/52/60/90/9F/AB/C7/D8, programmation NOR (`&=`, rebouclage dans la page), effacements au relâchement de CS, WEL qui retombe. Même tableau que la fenêtre XIP : relu aussitôt, survit au soft reset. JEDEC EF4015 (RP2040) / EF4016 (RP2350).
