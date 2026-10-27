@@ -5,6 +5,15 @@
 
 ---
 
+# v2026.10.3.273 — MicroPico : plus de reconnexion après envoi, notification qui se ferme
+1. ✅ Essai sur vraie carte de la v.272 : envoi OK, mais (a) la reconnexion de MicroPico arrêtait le programme envoyé, (b) la notification « Envoi en cours » ne se fermait plus (`await micropico.connect` dans la progression).
+2. ✅ Cause (a), lue dans MicroPico 4.6.1 : à la connexion (`boardOnOpen`), il ouvre son terminal et prend le REPL. [picoUploader.ts](src/picoUploader.ts) : `withMicroPicoReleased` remplacée par `releaseMicroPico()` (rend « était connecté ») + `reconnectMicroPico()` lancée sans attente (erreur au journal). Après un envoi réussi : pas de reconnexion, message dédié (« reconnecter depuis sa barre d'état », FR ajouté). Après un échec d'envoi ou un arrêt : reconnexion sans attente.
+3. ℹ️ Reconnexion à la main possible : après le `closeSerialPort`, son `boardOnExit` appelle `setupAutoConnect`, qui remet `intentionalDisconnect` à faux. Le bouton `toggleConnect` de sa barre d'état fonctionne donc.
+4. ⏳ Message dédié en ES/ZH (avant publication).
+5. ⏳ Nouvel essai sur vraie carte.
+
+---
+
 # v2026.10.3.272 — envoi compatible MicroPico (port COM occupé)
 1. ✅ [picoUploader.ts](src/picoUploader.ts) `withMicroPicoReleased` autour de l'envoi et de l'arrêt : si `paulober.pico-w-go` est actif, `micropico.disconnect` puis 300 ms, et `micropico.connect` dans le `finally` seulement s'il était connecté. Détection lue dans son code (4.6.1) : son `disconnect` revient tout de suite si le port est fermé, attend 1,5 s sinon → durée ≥ 1 s = était connecté. Son drapeau `intentionalDisconnect` suspend l'autoconnexion jusqu'au `connect`.
 2. ℹ️ Pas de proposition `"micropico.autoConnect": false` : inutile avec la déconnexion temporaire.

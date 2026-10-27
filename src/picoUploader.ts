@@ -60,42 +60,42 @@ export interface UploadItem {
 }
 
 /**
- * Libère le port série tenu par MicroPico (paulober.pico-w-go) le temps de `fn`.
- * Son autoconnexion prend la carte dès le branchement : sans ça, l'outil de
- * transfert échoue sur « Accès refusé » (Windows n'ouvre un COM qu'une fois).
+ * Libère le port série tenu par MicroPico (paulober.pico-w-go) ; rend `true`
+ * s'il était connecté. Son autoconnexion prend la carte dès le branchement :
+ * sans ça, l'outil de transfert échoue sur « Accès refusé » (Windows n'ouvre un
+ * COM qu'une fois).
  *
  * MicroPico n'expose ni API ni état lisible (sa clé de contexte `isConnected`
  * n'est pas lisible depuis une autre extension). Mais son `disconnect` rend la
  * main tout de suite quand le port est déjà fermé, et attend 1,5 s avant de le
- * fermer sinon : la durée de l'appel dit donc s'il était connecté. On ne le
- * reconnecte que dans ce cas, pour ne pas ouvrir un REPL que personne n'a demandé.
- * Son `disconnect` volontaire suspend aussi son autoconnexion jusqu'au `connect`.
+ * fermer sinon : la durée de l'appel dit donc s'il était connecté. Après une
+ * déconnexion volontaire, il ne reprend pas le port tout seul ; le bouton de sa
+ * barre d'état le reconnecte.
  */
-async function withMicroPicoReleased<T>(fn: () => Promise<T>): Promise<T> {
-  const ext = vscode.extensions.getExtension(MICROPICO_EXTENSION_ID);
-  let wasConnected = false;
-  if (ext?.isActive) {
-    try {
-      const t0 = Date.now();
-      await vscode.commands.executeCommand('micropico.disconnect');
-      wasConnected = Date.now() - t0 >= MICROPICO_DISCONNECT_MS;
-      // Le temps que Windows rende le handle du COM.
-      if (wasConnected) await new Promise((r) => setTimeout(r, 300));
-    } catch {
-      /* commande absente (autre version) : on tente l'envoi quand même */
-    }
-  }
+async function releaseMicroPico(): Promise<boolean> {
+  if (!vscode.extensions.getExtension(MICROPICO_EXTENSION_ID)?.isActive) return false;
   try {
-    return await fn();
-  } finally {
-    if (wasConnected) {
-      try {
-        await vscode.commands.executeCommand('micropico.connect');
-      } catch {
-        /* MicroPico désactivé entre-temps : rien à rendre */
-      }
-    }
+    const t0 = Date.now();
+    await vscode.commands.executeCommand('micropico.disconnect');
+    if (Date.now() - t0 < MICROPICO_DISCONNECT_MS) return false;
+    // Le temps que Windows rende le handle du COM.
+    await new Promise((r) => setTimeout(r, 300));
+    return true;
+  } catch {
+    return false; // commande absente (autre version) : on tente l'envoi quand même
   }
+}
+
+/**
+ * Rend le port à MicroPico, sans attendre : sa connexion ouvre son terminal et
+ * peut traîner, elle ne doit pas retenir la notification de Kablix. Jamais après
+ * un envoi : à la connexion MicroPico reprend le REPL, ce qui arrête le
+ * programme qu'on vient de lancer.
+ */
+function reconnectMicroPico(out: vscode.OutputChannel): void {
+  void Promise.resolve(vscode.commands.executeCommand('micropico.connect')).catch((err) =>
+    out.appendLine(`MicroPico : reconnexion impossible (${String(err)})`)
+  );
 }
 
 /** Seuil au-delà duquel `micropico.disconnect` a réellement fermé un port (il attend 1,5 s). */
@@ -354,6 +354,7 @@ export class PicoUploader {
     const out = this.channel();
     out.clear();
     this.busy = true;
+    let microPico = false;
     try {
       await vscode.window.withProgress(
         {
@@ -361,10 +362,19 @@ export class PicoUploader {
           title: vscode.l10n.t('Uploading to the Pico ({0})…', port),
           cancellable: false,
         },
-        () => withMicroPicoReleased(() => this.send(port, items, out))
+        async () => {
+          microPico = await releaseMicroPico();
+          await this.send(port, items, out);
+        }
       );
+      // MicroPico reste déconnecté : le reconnecter arrêterait main.py.
       void vscode.window.showInformationMessage(
-        vscode.l10n.t('{0} file(s) sent. The board rebooted and runs main.py.', items.length)
+        microPico
+          ? vscode.l10n.t(
+              '{0} file(s) sent. The board rebooted and runs main.py. MicroPico stays disconnected so as not to stop it: reconnect it from its status bar.',
+              items.length
+            )
+          : vscode.l10n.t('{0} file(s) sent. The board rebooted and runs main.py.', items.length)
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -372,6 +382,8 @@ export class PicoUploader {
       void vscode.window.showErrorMessage(
         vscode.l10n.t('Upload failed: {0}', message)
       );
+      // Rien ne tourne de neuf sur la carte : MicroPico peut reprendre le port.
+      if (microPico) reconnectMicroPico(out);
     } finally {
       this.busy = false;
       void this.refresh();
@@ -433,8 +445,10 @@ export class PicoUploader {
     out.clear();
     out.appendLine(`> ${port} — Ctrl-C`);
     this.busy = true;
+    let microPico = false;
     try {
-      await withMicroPicoReleased(() => this.runTool(['--port', port, '--stop'], out));
+      microPico = await releaseMicroPico();
+      await this.runTool(['--port', port, '--stop'], out);
       void vscode.window.setStatusBarMessage(
         vscode.l10n.t('Program stopped on the Pico ({0}).', port),
         4000
@@ -446,6 +460,8 @@ export class PicoUploader {
         vscode.l10n.t('Cannot stop the program: {0}', message)
       );
     } finally {
+      // Carte au REPL, plus rien à interrompre : MicroPico peut reprendre le port.
+      if (microPico) reconnectMicroPico(out);
       this.busy = false;
       void this.refresh();
     }

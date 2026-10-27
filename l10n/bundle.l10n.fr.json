@@ -300,5 +300,6 @@
   "Kablix — Logpoints": "Kablix — Points de journalisation",
   "Breakpoint error: {0}": "Erreur de point d'arrêt : {0}",
   "Sketch \"{0}\" must sit in a folder of the same name (\"{1}\"): Arduino refuses to build otherwise. Rename the file or the folder.": "Le croquis « {0} » doit se trouver dans un dossier de même nom (« {1} ») : Arduino refuse de le compiler sinon. Renommer le fichier ou le dossier.",
-  "{0} file(s) sent. The board rebooted and runs main.py.": "{0} fichier(s) envoyé(s). La carte a redémarré et lance main.py."
+  "{0} file(s) sent. The board rebooted and runs main.py.": "{0} fichier(s) envoyé(s). La carte a redémarré et lance main.py.",
+  "{0} file(s) sent. The board rebooted and runs main.py. MicroPico stays disconnected so as not to stop it: reconnect it from its status bar.": "{0} fichier(s) envoyé(s). La carte a redémarré et lance main.py. MicroPico reste déconnecté pour ne pas l'arrêter : le reconnecter depuis sa barre d'état."
 }
