@@ -27,6 +27,7 @@ import { execFile } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { collectPythonLibs } from './compiler';
+import { MICROPICO_EXTENSION_ID } from './intellisense';
 import { collectWebFiles } from './picoWeb';
 
 /** Clé de contexte lue par le `when` des boutons (package.json). */
@@ -57,6 +58,48 @@ export interface UploadItem {
   /** Fichier web (HTML, CSS, JS, image…) lu par le programme, pas un module. */
   isWeb?: boolean;
 }
+
+/**
+ * Libère le port série tenu par MicroPico (paulober.pico-w-go) le temps de `fn`.
+ * Son autoconnexion prend la carte dès le branchement : sans ça, l'outil de
+ * transfert échoue sur « Accès refusé » (Windows n'ouvre un COM qu'une fois).
+ *
+ * MicroPico n'expose ni API ni état lisible (sa clé de contexte `isConnected`
+ * n'est pas lisible depuis une autre extension). Mais son `disconnect` rend la
+ * main tout de suite quand le port est déjà fermé, et attend 1,5 s avant de le
+ * fermer sinon : la durée de l'appel dit donc s'il était connecté. On ne le
+ * reconnecte que dans ce cas, pour ne pas ouvrir un REPL que personne n'a demandé.
+ * Son `disconnect` volontaire suspend aussi son autoconnexion jusqu'au `connect`.
+ */
+async function withMicroPicoReleased<T>(fn: () => Promise<T>): Promise<T> {
+  const ext = vscode.extensions.getExtension(MICROPICO_EXTENSION_ID);
+  let wasConnected = false;
+  if (ext?.isActive) {
+    try {
+      const t0 = Date.now();
+      await vscode.commands.executeCommand('micropico.disconnect');
+      wasConnected = Date.now() - t0 >= MICROPICO_DISCONNECT_MS;
+      // Le temps que Windows rende le handle du COM.
+      if (wasConnected) await new Promise((r) => setTimeout(r, 300));
+    } catch {
+      /* commande absente (autre version) : on tente l'envoi quand même */
+    }
+  }
+  try {
+    return await fn();
+  } finally {
+    if (wasConnected) {
+      try {
+        await vscode.commands.executeCommand('micropico.connect');
+      } catch {
+        /* MicroPico désactivé entre-temps : rien à rendre */
+      }
+    }
+  }
+}
+
+/** Seuil au-delà duquel `micropico.disconnect` a réellement fermé un port (il attend 1,5 s). */
+const MICROPICO_DISCONNECT_MS = 1000;
 
 /** Exécute une commande et rend sa sortie standard (chaîne vide en cas d'échec). */
 function run(cmd: string, args: string[]): Promise<string> {
@@ -318,7 +361,7 @@ export class PicoUploader {
           title: vscode.l10n.t('Uploading to the Pico ({0})…', port),
           cancellable: false,
         },
-        () => this.send(port, items, out)
+        () => withMicroPicoReleased(() => this.send(port, items, out))
       );
       void vscode.window.showInformationMessage(
         vscode.l10n.t('{0} file(s) sent. The board rebooted and runs main.py.', items.length)
@@ -391,7 +434,7 @@ export class PicoUploader {
     out.appendLine(`> ${port} — Ctrl-C`);
     this.busy = true;
     try {
-      await this.runTool(['--port', port, '--stop'], out);
+      await withMicroPicoReleased(() => this.runTool(['--port', port, '--stop'], out));
       void vscode.window.setStatusBarMessage(
         vscode.l10n.t('Program stopped on the Pico ({0}).', port),
         4000

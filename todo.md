@@ -5,6 +5,13 @@
 
 ---
 
+# v2026.10.3.272 — envoi compatible MicroPico (port COM occupé)
+1. ✅ [picoUploader.ts](src/picoUploader.ts) `withMicroPicoReleased` autour de l'envoi et de l'arrêt : si `paulober.pico-w-go` est actif, `micropico.disconnect` puis 300 ms, et `micropico.connect` dans le `finally` seulement s'il était connecté. Détection lue dans son code (4.6.1) : son `disconnect` revient tout de suite si le port est fermé, attend 1,5 s sinon → durée ≥ 1 s = était connecté. Son drapeau `intentionalDisconnect` suspend l'autoconnexion jusqu'au `connect`.
+2. ℹ️ Pas de proposition `"micropico.autoConnect": false` : inutile avec la déconnexion temporaire.
+3. ⏳ Essai sur vraie carte avec MicroPico connecté.
+
+---
+
 # v2026.10.3.271 — boutons Pico réservés aux projets MicroPython, bouton ■ Arrêter
 1. ✅ [micropythonProject.ts](src/micropythonProject.ts) : un `.py` est MicroPython ssi un `.micropico` au contenu `{"info": "This file is just used to identify a project folder."}` est dans son dossier ou un parent (sans dépasser le dossier de travail). Contexte `kablix.micropythonFiles` (liste d'URI des éditeurs visibles, `resource in …` dans les `when`), recalculé sur changement d'onglets et sur création/modification/suppression d'un `.micropico`. Activation `workspaceContains:**/.micropico`.
 2. ✅ Boutons Envoyer (existants) et ■ Arrêter (`kablix.stopPico` / `kablix.stopPicoOffline`, icônes `media/stop.svg` / `stop-inactive.svg`, carré #001784 / #010101 comme la flèche) conditionnés au contexte. Arrêt : `pico-upload.py --stop` (3 Ctrl-C, attente du `>>>`), sans redémarrage.
