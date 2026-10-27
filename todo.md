@@ -5,6 +5,13 @@
 
 ---
 
+# v2026.10.3.270 — poignée « ⋯ » dans la barre horizontale
+1. ✅ `.vsplit` sortie de l'en-tête : premier enfant de la section ([webview-html.ts](src/webview-html.ts)), en absolu `top: -4px; height: 4px` = la barre du gap elle-même, « ⋯ » centré qui déborde sans l'agrandir, préhension ±4 px (`::after`). Survol/glissement : fond plein sash/focusBorder. Les `::before` de section de la v.269 sont retirés.
+2. ✅ Banc [verify-souris.mjs](scripts/verify-souris.mjs) §13 : maquette à la nouvelle structure, contrôles « barre de 4 px collée au-dessus de la section » et « toute la largeur ». 60/60. Contre-épreuve avec l'ancien CSS : 1 échec (barre de 10 px dans l'en-tête).
+3. ✅ Capture de contrôle (console en glissement, traceur au repos).
+
+---
+
 # v2026.10.3.269 — barre horizontale colorée au survol, icône du moniteur série
 1. ✅ **Poignée « ⋯ »** (console, traceur) : au survol (300 ms) et pendant le glissement (`is-dragging` posée par [poignee-hauteur.mts](src/webview/poignee-hauteur.mts)), barre de 4 px pleine dans le gap au-dessus de la section (`.serial::before` / `.plotter::before`, `:has(.vsplit:hover)`), même couleur sash/focusBorder. `.plotter` perd sa marge haute de 0,4 rem pour que la barre tombe dans le gap.
 2. ✅ **Icône `serialMonitor.svg`** devant « Moniteur série », hors de `#serial-title` (réécrit par `textContent` dans sim.mts).

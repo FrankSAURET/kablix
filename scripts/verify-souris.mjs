@@ -99,8 +99,8 @@ writeFileSync(
 	`<div id="canvas" class="canvas" style="width:1200px;height:900px"><svg id="wires" class="wires"></svg></div>` +
 	`<aside id="inspector" class="inspector"></aside></div>` +
 	`<div id="stage" class="stage" style="display:none;position:fixed;left:0;bottom:0;width:600px;height:500px">` +
-	`<section class="serial"><div class="serial__head"><span>Serial monitor</span>` +
-	`<div class="vsplit" data-target="serial"></div>` +
+	`<section class="serial"><div class="vsplit" data-target="serial"></div>` +
+	`<div class="serial__head"><span>Serial monitor</span>` +
 	`<span class="serial__head-actions"><button id="clear-serial">Clear</button><button>✕</button></span></div>` +
 	`<pre id="serial" class="serial__out"></pre></section></div>` +
 	`<script>${b.outputFiles[0].text}</script></body>`
@@ -816,16 +816,16 @@ try {
 	// prouve pas non plus autrement qu'à la vraie souris).
 	{
 		await ev(`document.getElementById('stage').style.display = 'flex'`);
-		// La poignée vit sur la ligne du titre (Frank) : même ligne que « Clear »,
-		// et elle remplit l'espace libre entre le titre et les boutons.
+		// La poignée EST la barre de 4 px au-dessus de la section (Frank) : toute
+		// la largeur, juste au-dessus de la ligne du titre, sans la déborder.
 		const ligne = JSON.parse(await ev(`(() => { const g = document.querySelector('.vsplit').getBoundingClientRect();
-			const c = document.getElementById('clear-serial').getBoundingClientRect();
-			const t = document.querySelector('.serial__head > span').getBoundingClientRect();
-			return JSON.stringify({ gTop: g.top, gBot: g.bottom, cMid: (c.top + c.bottom) / 2, gW: g.width, libre: c.left - t.right }); })()`));
-		ok('la poignée est sur la même ligne que le bouton Effacer',
-			ligne.gTop <= ligne.cMid && ligne.cMid <= ligne.gBot, JSON.stringify(ligne));
-		ok('elle occupe l espace libre entre le titre et les boutons',
-			ligne.gW >= ligne.libre * 0.6, JSON.stringify(ligne));
+			const s = document.querySelector('.serial').getBoundingClientRect();
+			const h = document.querySelector('.serial__head').getBoundingClientRect();
+			return JSON.stringify({ gH: g.height, gBot: g.bottom, sTop: s.top, hTop: h.top, gW: g.width, sW: s.width }); })()`));
+		ok('la poignée est une barre de 4 px collée au-dessus de la section',
+			ligne.gH === 4 && ligne.gBot === ligne.sTop && ligne.gBot <= ligne.hTop, JSON.stringify(ligne));
+		ok('elle couvre toute la largeur de la section',
+			ligne.gW === ligne.sW, JSON.stringify(ligne));
 		const hauteur =() => ev(`document.getElementById('serial').getBoundingClientRect().height`);
 		const glisser = async (dy) => {
 			const p = JSON.parse(await ev(`(() => { const r = document.querySelector('.vsplit').getBoundingClientRect();

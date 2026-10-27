@@ -2982,67 +2982,53 @@ body.vscode-light .inspector__ref--nouveau {
 }
 
 /* --- Poignée horizontale à 3 points (console, traceur) ------------------------ */
-.vsplit {
-  height: 10px;
-  cursor: row-resize;
-  touch-action: none;
-  /* trois points SERRÉS (Frank) : le caractère « ⋯ » centré, au lieu de trois
-     dégradés espacés de 10 px. Hors du flux des lignes : 10 px de haut tenus. */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  font-size: 16px;
-  line-height: 10px;
-  color: var(--vscode-descriptionForeground, #888);
-  user-select: none;
-}
-.vsplit::before {
-  content: '\22EF';
-}
-/* Survol / glissement : les points ET une barre de 4 px dans l'espace au-dessus
-   de la section (là où VS Code dessine son séparateur) prennent la couleur
-   sash.hoverBorder du thème, repli focusBorder, après 300 ms comme VS Code. */
-.vsplit:hover,
-.vsplit.is-dragging {
-  color: var(--vscode-sash-hoverBorder, var(--vscode-focusBorder, #007fd4));
-}
-
+/* La poignée EST la barre de 4 px dans le gap au-dessus de la section (Frank),
+   comme les gouttières verticales : « ⋯ » centré qui déborde sans l'agrandir,
+   préhension élargie de ±4 px par le ::after. Survol (après 300 ms, comme VS
+   Code) et glissement : barre pleine couleur sash.hoverBorder, repli focusBorder. */
 .serial,
 .plotter {
   position: relative;
 }
 
-.serial::before,
-.plotter::before {
-  content: '';
+.vsplit {
   position: absolute;
   left: 0;
   right: 0;
   top: -4px;
   height: 4px;
-  pointer-events: none;
+  z-index: 2;
+  cursor: row-resize;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  font-size: 16px;
+  line-height: 4px;
+  color: var(--vscode-descriptionForeground, #888);
+  user-select: none;
   transition: background-color 0.1s ease-out;
 }
-
-.serial:has(> .serial__head .vsplit:hover)::before,
-.plotter:has(> .serial__head .vsplit:hover)::before {
+.vsplit::before {
+  content: '\22EF';
+}
+.vsplit::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -4px;
+  bottom: -4px;
+}
+.vsplit:hover,
+.vsplit.is-dragging {
   background-color: var(--vscode-sash-hoverBorder, var(--vscode-focusBorder, #007fd4));
+  color: var(--vscode-sash-hoverBorder, var(--vscode-focusBorder, #007fd4));
   transition-delay: 0.3s;
 }
-
-.serial:has(> .serial__head .vsplit.is-dragging)::before,
-.plotter:has(> .serial__head .vsplit.is-dragging)::before {
-  background-color: var(--vscode-sash-hoverBorder, var(--vscode-focusBorder, #007fd4));
-}
-/* Dans l'en-tête de la console / du traceur (Frank) : la poignée prend l'espace
-   libre entre le titre et les boutons, sur toute la hauteur de la ligne — plus de
-   ligne à elle seule. */
-.serial__head .vsplit {
-  flex: 1;
-  align-self: stretch;
-  height: auto;
-  min-width: 2rem;
+.vsplit.is-dragging {
+  transition-delay: 0s;
 }
 
 /* --- Moniteur série -------------------------------------------------------- */
