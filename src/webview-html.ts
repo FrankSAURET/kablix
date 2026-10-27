@@ -303,7 +303,8 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
 
     <section class="serial" id="serial-section">
       <div class="serial__head">
-        <span id="serial-title">${l10n.t('Serial monitor')}</span>
+        <!-- Icône hors de #serial-title : sim.mts réécrit le titre par textContent. -->
+        <span><img class="plotter__head-icon" src="${serialMonitorUri}" alt="" /> <span id="serial-title">${l10n.t('Serial monitor')}</span></span>
         <!-- Poignée « ⋯ » (comme les séparateurs de VS Code) : tirer vers le haut agrandit
              la console. Sur la ligne du titre, elle occupe l'espace libre avant les boutons. -->
         <div class="vsplit" data-target="serial" role="separator" aria-orientation="horizontal" title="${l10n.t('Drag to resize')}"></div>

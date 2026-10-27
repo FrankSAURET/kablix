@@ -5,6 +5,13 @@
 
 ---
 
+# v2026.10.3.269 — barre horizontale colorée au survol, icône du moniteur série
+1. ✅ **Poignée « ⋯ »** (console, traceur) : au survol (300 ms) et pendant le glissement (`is-dragging` posée par [poignee-hauteur.mts](src/webview/poignee-hauteur.mts)), barre de 4 px pleine dans le gap au-dessus de la section (`.serial::before` / `.plotter::before`, `:has(.vsplit:hover)`), même couleur sash/focusBorder. `.plotter` perd sa marge haute de 0,4 rem pour que la barre tombe dans le gap.
+2. ✅ **Icône `serialMonitor.svg`** devant « Moniteur série », hors de `#serial-title` (réécrit par `textContent` dans sim.mts).
+3. ✅ Capture de contrôle (barre colorée, icônes), `typecheck`, `verify:souris`.
+
+---
+
 # v2026.10.3.268 — barres de redimensionnement colorées au survol, comme VS Code
 1. ✅ `.splitter` au survol (après 300 ms, comme `workbench.sash.hoverDelay`) et pendant le glissement (classe `is-dragging` posée par `setupSplitter`, [sim.mts](src/webview/sim.mts)) : fond plein `--vscode-sash-hoverBorder`, repli `--vscode-focusBorder` (le thème Modern ne définit souvent que ce dernier). Pas sur une gouttière repliée.
 2. ✅ Poignée « ⋯ » de la console/du traceur : seuls les points prennent cette couleur (toute la place libre de l'en-tête ferait un pavé).

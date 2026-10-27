@@ -18,11 +18,14 @@ export function brancherPoignees(
       // contenu, le rectangle compterait en plus les marges intérieures.
       const h0 = parseFloat(getComputedStyle(cible).height) || cible.getBoundingClientRect().height;
       grip.setPointerCapture(e.pointerId);
+      // Barre colorée pendant tout le glissement (CSS : .vsplit.is-dragging).
+      grip.classList.add('is-dragging');
       const move = (ev: PointerEvent): void => {
         const max = Math.max(80, stage.clientHeight - 160);
         cible.style.height = `${Math.round(Math.min(max, Math.max(60, h0 + (y0 - ev.clientY))))}px`;
       };
       const stop = (): void => {
+        grip.classList.remove('is-dragging');
         grip.removeEventListener('pointermove', move);
         grip.removeEventListener('pointerup', stop);
         grip.removeEventListener('pointercancel', stop);

@@ -3000,10 +3000,40 @@ body.vscode-light .inspector__ref--nouveau {
 .vsplit::before {
   content: '\22EF';
 }
-/* Dans l'en-tête, colorer toute la place libre ferait un pavé : seuls les points
-   prennent la couleur des séparateurs de VS Code. */
-.vsplit:hover {
+/* Survol / glissement : les points ET une barre de 4 px dans l'espace au-dessus
+   de la section (là où VS Code dessine son séparateur) prennent la couleur
+   sash.hoverBorder du thème, repli focusBorder, après 300 ms comme VS Code. */
+.vsplit:hover,
+.vsplit.is-dragging {
   color: var(--vscode-sash-hoverBorder, var(--vscode-focusBorder, #007fd4));
+}
+
+.serial,
+.plotter {
+  position: relative;
+}
+
+.serial::before,
+.plotter::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -4px;
+  height: 4px;
+  pointer-events: none;
+  transition: background-color 0.1s ease-out;
+}
+
+.serial:has(> .serial__head .vsplit:hover)::before,
+.plotter:has(> .serial__head .vsplit:hover)::before {
+  background-color: var(--vscode-sash-hoverBorder, var(--vscode-focusBorder, #007fd4));
+  transition-delay: 0.3s;
+}
+
+.serial:has(> .serial__head .vsplit.is-dragging)::before,
+.plotter:has(> .serial__head .vsplit.is-dragging)::before {
+  background-color: var(--vscode-sash-hoverBorder, var(--vscode-focusBorder, #007fd4));
 }
 /* Dans l'en-tête de la console / du traceur (Frank) : la poignée prend l'espace
    libre entre le titre et les boutons, sur toute la hauteur de la ligne — plus de
@@ -3123,8 +3153,10 @@ body.vscode-light .inspector__ref--nouveau {
 }
 
 /* --- Traceur de courbes ------------------------------------------------------ */
+/* Pas de marge propre : le gap de 4 px de .stage suffit, et la barre colorée
+   au survol de la poignée (::before, top -4 px) tombe pile dans ce gap. */
 .plotter {
-  margin-top: 0.4rem;
+  margin-top: 0;
 }
 
 /* Icône du traceur (media/serialTracer.svg) dans l'en-tête du panneau. */

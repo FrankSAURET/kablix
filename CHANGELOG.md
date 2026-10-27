@@ -15,7 +15,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Console et traceur**
 
-- **Hauteur réglable** : la console du moniteur série et le traceur se redimensionnent en tirant la poignée « ⋯ » de leur ligne de titre, à côté du bouton Effacer, comme les séparateurs de VS Code. Les espaces vides autour de la console sont réduits.
+- **Hauteur réglable** : la console du moniteur série et le traceur se redimensionnent en tirant la poignée « ⋯ » de leur ligne de titre, à côté du bouton Effacer, comme les séparateurs de VS Code. Au survol, une barre au-dessus de la console ou du traceur prend la couleur des séparateurs du thème. Les espaces vides autour de la console sont réduits.
+- **Icône du moniteur série** devant son titre, comme pour le traceur.
 - **REPL** : lancer le REPL d'une Pico ouvre la console si elle était fermée.
 
 **Atelier**
