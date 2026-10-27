@@ -283,8 +283,22 @@ textarea {
   content: '\22EE';
 }
 
-.splitter:hover {
-  filter: brightness(1.6);
+/* Survol / glissement : toute la gouttière prend la couleur des séparateurs de
+   VS Code (sash.hoverBorder, qui retombe sur focusBorder — thèmes classiques et
+   « Modern »), avec le même petit délai que VS Code (300 ms). */
+.splitter {
+  transition: background-color 0.1s ease-out;
+}
+
+.splitter:not(.splitter--folded):hover,
+.splitter.is-dragging {
+  background-color: var(--vscode-sash-hoverBorder, var(--vscode-focusBorder, #007fd4));
+  color: var(--vscode-sash-hoverBorder, var(--vscode-focusBorder, #007fd4));
+  transition-delay: 0.3s;
+}
+
+.splitter.is-dragging {
+  transition-delay: 0s;
 }
 
 .splitter::before {
@@ -2986,8 +3000,10 @@ body.vscode-light .inspector__ref--nouveau {
 .vsplit::before {
   content: '\22EF';
 }
+/* Dans l'en-tête, colorer toute la place libre ferait un pavé : seuls les points
+   prennent la couleur des séparateurs de VS Code. */
 .vsplit:hover {
-  filter: brightness(1.6);
+  color: var(--vscode-sash-hoverBorder, var(--vscode-focusBorder, #007fd4));
 }
 /* Dans l'en-tête de la console / du traceur (Frank) : la poignée prend l'espace
    libre entre le titre et les boutons, sur toute la hauteur de la ligne — plus de

@@ -6276,6 +6276,8 @@ function setupSplitter(id: string, which: 'palette' | 'inspector'): void {
     const col = which === 'palette' ? palette : rightColumn();
     const startW = col.getBoundingClientRect().width;
     const sign = which === 'palette' ? 1 : -1;
+    // Reste colorée pendant tout le glissement, même quand la souris la quitte.
+    splitter.classList.add('is-dragging');
     const move = (ev: PointerEvent) => {
       const w = Math.max(90, Math.min(520, startW + sign * (ev.clientX - startX)));
       col.style.flex = `0 0 ${w}px`;
@@ -6283,6 +6285,7 @@ function setupSplitter(id: string, which: 'palette' | 'inspector'): void {
       else if (col === inspector) inspectorWidth = w;
     };
     const up = () => {
+      splitter.classList.remove('is-dragging');
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       saveUiState();

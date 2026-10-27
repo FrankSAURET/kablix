@@ -20,7 +20,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Atelier**
 
-- **Poignées « ⋮ »** entre le canvas et les panneaux Composants et Propriétés : elles montrent où tirer pour changer la largeur.
+- **Poignées « ⋮ »** entre le canvas et les panneaux Composants et Propriétés : elles montrent où tirer pour changer la largeur. Au survol, la barre entière prend la couleur des séparateurs du thème de VS Code.
 
 ### Modification
 

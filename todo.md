@@ -5,6 +5,14 @@
 
 ---
 
+# v2026.10.3.268 — barres de redimensionnement colorées au survol, comme VS Code
+1. ✅ `.splitter` au survol (après 300 ms, comme `workbench.sash.hoverDelay`) et pendant le glissement (classe `is-dragging` posée par `setupSplitter`, [sim.mts](src/webview/sim.mts)) : fond plein `--vscode-sash-hoverBorder`, repli `--vscode-focusBorder` (le thème Modern ne définit souvent que ce dernier). Pas sur une gouttière repliée.
+2. ✅ Poignée « ⋯ » de la console/du traceur : seuls les points prennent cette couleur (toute la place libre de l'en-tête ferait un pavé).
+3. ✅ Capture de contrôle (gouttière en glissement), `typecheck`, `verify:souris`.
+4. ℹ️ Couleur exacte non vue dans le vrai VS Code (thèmes Dark Modern / Dark+).
+
+---
+
 # v2026.10.3.267 — gouttières latérales à 4 px
 1. ✅ `.splitter` 8 px → 4 px (Frank : deux fois 4 px entre le canvas et les panneaux, une seule suffit). Le glyphe « ⋮ » déborde (`overflow: visible`) au lieu d'être rogné ; vérifié en capture.
 
