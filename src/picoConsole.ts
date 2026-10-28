@@ -91,6 +91,36 @@ export class PicoConsole {
     this.write(dim(`\r\n[${vscode.l10n.t('Serial port released')}]\r\n`));
   }
 
+  /**
+   * Bouton ■ : Ctrl-C ×3 à la carte, puis fin de stdin — le relais vide ce que
+   * la carte répond et ferme le port lui-même. Le terminal (REPL) est fermé.
+   * Rend faux s'il n'y avait pas de relais.
+   */
+  async stopAndClose(): Promise<boolean> {
+    const child = this.child;
+    if (!child || !this.isRunning()) return false;
+    this.child = undefined;
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(() => {
+        child.kill(); // relais muet : on force
+        resolve();
+      }, 3000);
+      child.once('exit', () => {
+        clearTimeout(timer);
+        resolve();
+      });
+      child.stdin?.write('\x03\x03\x03');
+      child.stdin?.end();
+    });
+    // Le temps que Windows rende le handle du COM.
+    await new Promise((r) => setTimeout(r, 200));
+    const term = this.terminal;
+    this.terminal = undefined; // `close` du pty : plus rien à libérer
+    this.pending = undefined;
+    term?.dispose();
+    return true;
+  }
+
   dispose(): void {
     this.child?.kill();
     this.child = undefined;

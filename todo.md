@@ -5,6 +5,16 @@
 
 ---
 
+# v2026.10.3.276 — bouton ■ : le terminal Pico rend le port et se ferme
+1. ✅ Demande de Frank : quitter le programme réel (■) doit rendre la connexion et fermer le REPL. Avant : Ctrl-C relayé, mais relais et terminal restaient, port tenu.
+2. ✅ [picoConsole.ts](src/picoConsole.ts) `stopAndClose()` : Ctrl-C ×3 puis fin de stdin — le relais (`monitor` de pico-upload.py) vide la réponse de la carte et ferme le port lui-même ; 3 s sans sortie → kill. Puis terminal fermé.
+3. ✅ [picoUploader.ts](src/picoUploader.ts) : `microPicoHeld` retient que MicroPico tenait le port avant l'envoi (cumulé sur les envois successifs) ; le bouton ■ le reconnecte. Échec d'envoi : reconnexion aussi si le drapeau était posé. Message d'après-envoi et sa version FR mis à jour.
+4. ✅ Banc verify-picoupload 20/20 (le contrôle « Ctrl-C relayé » joue déjà Ctrl-C + fin de stdin). typecheck et construction OK.
+5. ⏳ Message modifié en ES/ZH (avant publication).
+6. ⏳ Essai sur vraie carte, MicroPico connecté avant l'envoi.
+
+---
+
 # v2026.10.3.275 — robot araignée : coxa enfin violette, cases à cocher colorées
 1. ✅ Cause, mesurée en Chrome headless (vrai éditeur + styles.css) : [editor.mts](src/webview/diagram/editor.mts) `appendPropControl` balayait `host.querySelectorAll('input')` — `host` est TOUTE la section repliable. Chaque champ recevait donc `tint--coxa` ET `tint--patella`, et la règle patella (déclarée après) gagnait : tout vert.
 2. ✅ Teinte posée seulement sur les éléments qui suivent le libellé de la propriété. Résultat relevé : violet/vert alternés sur les 8 canaux et les 8 angles à 0°.

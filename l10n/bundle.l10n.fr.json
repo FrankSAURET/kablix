@@ -303,7 +303,7 @@
   "{0} file(s) sent. The board rebooted and runs main.py.": "{0} fichier(s) envoyé(s). La carte a redémarré et lance main.py.",
   "{0} file(s) sent. The board rebooted and runs main.py. MicroPico stays disconnected so as not to stop it: reconnect it from its status bar.": "{0} fichier(s) envoyé(s). La carte a redémarré et lance main.py. MicroPico reste déconnecté pour ne pas l'arrêter : le reconnecter depuis sa barre d'état.",
   "{0} file(s) sent. main.py runs, its output appears in the Pico terminal.": "{0} fichier(s) envoyé(s). main.py tourne, sa sortie s'affiche dans le terminal Pico.",
-  "{0} file(s) sent. main.py runs, its output appears in the Pico terminal. MicroPico stays disconnected so as not to stop it: close the Pico terminal, then reconnect it from its status bar.": "{0} fichier(s) envoyé(s). main.py tourne, sa sortie s'affiche dans le terminal Pico. MicroPico reste déconnecté pour ne pas l'arrêter : fermer le terminal Pico, puis le reconnecter depuis sa barre d'état.",
+  "{0} file(s) sent. main.py runs, its output appears in the Pico terminal. MicroPico stays disconnected so as not to stop it: the ■ button stops the program and gives it the port back.": "{0} fichier(s) envoyé(s). main.py tourne, sa sortie s'affiche dans le terminal Pico. MicroPico reste déconnecté pour ne pas l'arrêter : le bouton ■ arrête le programme et lui rend le port.",
   "Pico output ({0}) — type Ctrl-C to stop the program": "Sortie de la Pico ({0}) — Ctrl-C arrête le programme",
   "Board disconnected, waiting for it…": "Carte débranchée, en attente…",
   "Board connected": "Carte connectée",

@@ -225,6 +225,8 @@ export class PicoUploader {
   private timer: NodeJS.Timeout | undefined;
   private output: vscode.OutputChannel | undefined;
   private busy = false;
+  /** MicroPico tenait le port avant l'envoi : le bouton ■ le lui rend. */
+  private microPicoHeld = false;
   private readonly scriptPath: string;
   /** Terminal qui affiche la sortie de la carte après un envoi. */
   private readonly console = new PicoConsole();
@@ -374,10 +376,11 @@ export class PicoUploader {
         }
       );
       // MicroPico reste déconnecté : le reconnecter arrêterait main.py.
+      this.microPicoHeld ||= microPico;
       void vscode.window.showInformationMessage(
         microPico
           ? vscode.l10n.t(
-              '{0} file(s) sent. main.py runs, its output appears in the Pico terminal. MicroPico stays disconnected so as not to stop it: close the Pico terminal, then reconnect it from its status bar.',
+              '{0} file(s) sent. main.py runs, its output appears in the Pico terminal. MicroPico stays disconnected so as not to stop it: the ■ button stops the program and gives it the port back.',
               items.length
             )
           : vscode.l10n.t(
@@ -392,7 +395,8 @@ export class PicoUploader {
         vscode.l10n.t('Upload failed: {0}', message)
       );
       // Rien ne tourne de neuf sur la carte : MicroPico peut reprendre le port.
-      if (microPico) reconnectMicroPico(out);
+      if (microPico || this.microPicoHeld) reconnectMicroPico(out);
+      this.microPicoHeld = false;
     } finally {
       this.busy = false;
       void this.refresh();
@@ -510,13 +514,23 @@ export class PicoUploader {
       );
       return;
     }
-    // Le terminal Pico tient le port : le Ctrl-C passe par lui, et la carte
-    // revenue au >>> reste sous les yeux.
-    if (this.console.send('\x03\x03\x03')) {
-      void vscode.window.setStatusBarMessage(
-        vscode.l10n.t('Program stopped on the Pico ({0}).', this.lastPort ?? '?'),
-        4000
-      );
+    // Le terminal Pico tient le port : le Ctrl-C passe par lui, puis le relais
+    // rend le port et le terminal se ferme. MicroPico, s'il le tenait avant
+    // l'envoi, le reprend : plus rien à interrompre.
+    if (this.console.isRunning()) {
+      this.busy = true;
+      try {
+        await this.console.stopAndClose();
+        if (this.microPicoHeld) reconnectMicroPico(this.channel());
+        this.microPicoHeld = false;
+        void vscode.window.setStatusBarMessage(
+          vscode.l10n.t('Program stopped on the Pico ({0}).', this.lastPort ?? '?'),
+          4000
+        );
+      } finally {
+        this.busy = false;
+        void this.refresh();
+      }
       return;
     }
     const port = await this.pickPort();
