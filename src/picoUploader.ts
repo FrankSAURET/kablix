@@ -23,11 +23,12 @@
 //    branchée, pas de question ; un seul fichier à envoyer, pas de question. La
 //    fenêtre de décochage n'apparaît que s'il y a vraiment plusieurs fichiers.
 import * as vscode from 'vscode';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { collectPythonLibs } from './compiler';
 import { MICROPICO_EXTENSION_ID } from './intellisense';
+import { PicoConsole } from './picoConsole';
 import { collectWebFiles } from './picoWeb';
 
 /** Clé de contexte lue par le `when` des boutons (package.json). */
@@ -225,6 +226,8 @@ export class PicoUploader {
   private output: vscode.OutputChannel | undefined;
   private busy = false;
   private readonly scriptPath: string;
+  /** Terminal qui affiche la sortie de la carte après un envoi. */
+  private readonly console = new PicoConsole();
 
   constructor(context: vscode.ExtensionContext) {
     this.scriptPath = join(context.extensionPath, 'scripts', 'pico-upload.py');
@@ -238,6 +241,7 @@ export class PicoUploader {
 
   dispose(): void {
     if (this.timer) clearInterval(this.timer);
+    this.console.dispose();
     this.output?.dispose();
   }
 
@@ -363,6 +367,8 @@ export class PicoUploader {
           cancellable: false,
         },
         async () => {
+          // Le relais de l'envoi précédent tient encore le port.
+          await this.console.release();
           microPico = await releaseMicroPico();
           await this.send(port, items, out);
         }
@@ -371,10 +377,13 @@ export class PicoUploader {
       void vscode.window.showInformationMessage(
         microPico
           ? vscode.l10n.t(
-              '{0} file(s) sent. The board rebooted and runs main.py. MicroPico stays disconnected so as not to stop it: reconnect it from its status bar.',
+              '{0} file(s) sent. main.py runs, its output appears in the Pico terminal. MicroPico stays disconnected so as not to stop it: close the Pico terminal, then reconnect it from its status bar.',
               items.length
             )
-          : vscode.l10n.t('{0} file(s) sent. The board rebooted and runs main.py.', items.length)
+          : vscode.l10n.t(
+              '{0} file(s) sent. main.py runs, its output appears in the Pico terminal.',
+              items.length
+            )
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -411,6 +420,11 @@ export class PicoUploader {
    * Lance l'outil de transfert (Python + pyserial). Le protocole lui-même est
    * dans `scripts/pico-upload.py` : c'est le raw REPL de MicroPython, le seul
    * chemin fiable pour écrire un fichier sur la carte.
+   *
+   * `--monitor` : l'outil ne rend pas la main après l'envoi. Il redémarre la
+   * carte en logiciel (le port reste ouvert, aucun `print` du démarrage n'est
+   * perdu) puis relaie sa sortie. La promesse se résout sur la ligne `DONE:` ;
+   * le processus, toujours vivant, passe alors au terminal Pico.
    */
   private send(
     port: string,
@@ -422,7 +436,66 @@ export class PicoUploader {
       remote: it.remotePath,
     }));
     out.appendLine(`> ${port} — ${items.length} fichier(s)`);
-    return this.runTool(['--port', port, '--files', JSON.stringify(payload)], out);
+    const exe = process.platform === 'win32' ? 'python' : 'python3';
+    const child = spawn(
+      exe,
+      ['-u', this.scriptPath, '--port', port, '--files', JSON.stringify(payload), '--monitor'],
+      { windowsHide: true }
+    );
+    return new Promise((resolve, reject) => {
+      // latin1 = un caractère par octet : on découpe les lignes sans abîmer
+      // les octets de la carte qui suivent la ligne DONE.
+      let buf = '';
+      let log = '';
+      let done = false;
+      const onData = (chunk: Buffer) => {
+        buf += chunk.toString('latin1');
+        let nl: number;
+        while (!done && (nl = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, nl);
+          buf = buf.slice(nl + 1);
+          out.appendLine(line.replace(/\r$/, ''));
+          log += line + '\n';
+          if (line.startsWith('DONE:')) {
+            done = true;
+            child.stdout.off('data', onData);
+            child.stderr.off('data', onErr);
+            // Ce qui suit la ligne DONE est déjà la sortie de la carte.
+            this.console.attach(child, port, Buffer.from(buf, 'latin1'));
+            resolve();
+          }
+        }
+      };
+      const onErr = (chunk: Buffer) => {
+        out.append(chunk.toString('utf-8'));
+        log += chunk.toString('utf-8');
+      };
+      child.stdout.on('data', onData);
+      child.stderr.on('data', onErr);
+      child.on('error', (err) => {
+        if (done) return;
+        done = true;
+        // ENOENT : Python absent du système, message explicite plutôt qu'un
+        // code de sortie sans explication.
+        reject(
+          (err as NodeJS.ErrnoException).code === 'ENOENT'
+            ? new Error(
+                vscode.l10n.t('Python 3 was not found. Install it, then run: pip install pyserial')
+              )
+            : err
+        );
+      });
+      child.on('exit', (code) => {
+        if (done) return;
+        done = true;
+        const detail = log
+          .split('\n')
+          .map((l) => l.trim())
+          .filter((l) => l.startsWith('ERROR'))
+          .pop();
+        reject(new Error(detail ? detail.replace(/^ERROR:\s*/, '') : `exit code ${code}`));
+      });
+    });
   }
 
   /**
@@ -434,6 +507,15 @@ export class PicoUploader {
     if (this.busy) {
       void vscode.window.showInformationMessage(
         vscode.l10n.t('An upload is already running.')
+      );
+      return;
+    }
+    // Le terminal Pico tient le port : le Ctrl-C passe par lui, et la carte
+    // revenue au >>> reste sous les yeux.
+    if (this.console.send('\x03\x03\x03')) {
+      void vscode.window.setStatusBarMessage(
+        vscode.l10n.t('Program stopped on the Pico ({0}).', this.lastPort ?? '?'),
+        4000
       );
       return;
     }

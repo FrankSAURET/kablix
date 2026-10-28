@@ -258,6 +258,40 @@ ${out}`);
     }
   });
 
+  // Envoi suivi du moniteur (bouton ⇧ réel) : la sortie de main.py doit arriver
+  // après la ligne DONE, et la saisie du terminal (Ctrl-C) atteindre la carte.
+  rmSync(join(WORK, 'reboot.txt'), { force: true });
+  rmSync(join(WORK, 'softreboot.txt'), { force: true });
+  writeFileSync(join(WORK, 'lib', 'lcd_api.py'), 'class LcdApi:\n    VERSION = 3\n');
+  let mon = '';
+  try {
+    mon = execFileSync(python, [join(WORK, 'faux-pico.py'), payload, '--garder', '--monitor'], {
+      encoding: 'utf-8',
+      cwd: WORK,
+      input: '\x03',
+      timeout: 15000,
+    });
+  } catch (err) {
+    mon = `ÉCHEC ${err.message}\n${err.stdout ?? ''}${err.stderr ?? ''}`;
+  }
+
+  check('moniteur : redémarrage LOGICIEL, port gardé (pas de machine.reset)', () => {
+    if (!/DONE: \d+ sent, \d+ already up to date, board soft-rebooted/.test(mon)) {
+      throw new Error(`résumé inattendu :\n${mon}`);
+    }
+    if (!existsSync(join(WORK, 'softreboot.txt'))) throw new Error('aucun Ctrl-D au REPL normal');
+    if (existsSync(join(WORK, 'reboot.txt'))) throw new Error('machine.reset envoyé : l’USB tomberait');
+  });
+
+  check('moniteur : les print de main.py arrivent APRÈS la ligne DONE', () => {
+    const apres = mon.split(/DONE:[^\n]*\n/)[1] ?? '';
+    if (!/SORTIE-DE-MAIN/.test(apres)) throw new Error(`sortie de la carte absente :\n${mon}`);
+  });
+
+  check('moniteur : la saisie du terminal (Ctrl-C) atteint la carte', () => {
+    if (!/KeyboardInterrupt/.test(mon)) throw new Error(`Ctrl-C non relayé :\n${mon}`);
+  });
+
   check('bouton ■ : le programme s’arrête, la carte revient au >>>', () => {
     const text = execFileSync(python, [join(WORK, 'faux-pico.py'), '--stop'], {
       encoding: 'utf-8',
@@ -298,6 +332,7 @@ import sys, os, json, types, builtins, hashlib, binascii
 
 MUET = '--muet' in sys.argv
 GARDER = '--garder' in sys.argv
+MONITOR = '--monitor' in sys.argv
 ETAT = 'recu.json'
 
 # Le systeme de fichiers de la « carte » survit d'un lancement a l'autre quand on
@@ -332,7 +367,15 @@ class Serial:
                     self.raw = True
                     self.buf += b'raw REPL; CTRL-B to exit\\r\\n>'
             elif b == b'\\x02':        # Ctrl-B : sortie du raw REPL
+                if self.raw:
+                    self.buf += b'\\r\\nMicroPython v1.24 (faux)\\r\\n>>> '
                 self.raw = False
+            elif b == b'\\x04' and not self.raw:
+                # Ctrl-D au REPL normal : redemarrage logiciel, main.py repart
+                # et ecrit sur la console (ce que le moniteur doit relayer).
+                with open('softreboot.txt', 'w') as fh:
+                    fh.write('soft')
+                self.buf += b'MPY: soft reboot\\r\\nSORTIE-DE-MAIN\\r\\n'
             elif b == b'\\x04':        # Ctrl-D : execute ce qui a ete recu
                 self._executer()
             elif self.raw:
@@ -451,6 +494,8 @@ if sys.argv[1] == '--stop':
     sys.argv = ['pico-upload.py', '--port', 'FAKE', '--stop']
 else:
     sys.argv = ['pico-upload.py', '--port', 'FAKE', '--files', sys.argv[1]]
+    if MONITOR:
+        sys.argv.append('--monitor')
 code = open(vrai, encoding='utf-8').read()
 exec(compile(code, vrai, 'exec'), {'__name__': '__main__', '__file__': vrai})
 `;

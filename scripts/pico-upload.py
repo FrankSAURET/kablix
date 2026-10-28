@@ -5,6 +5,9 @@ Ecrit des fichiers sur une carte Raspberry Pi Pico branchee en USB.
 Appele par l'extension (src/picoUploader.ts), jamais a la main :
     python pico-upload.py --port COM3 --files '[{"path": "...", "remote": "main.py"}]'
     python pico-upload.py --port COM3 --stop      (arrete le programme en cours)
+    python pico-upload.py --port COM3 --files '[...]' --monitor
+        (envoi, redemarrage logiciel, puis le port reste ouvert : la sortie de
+        la carte suit la ligne DONE sur stdout, la saisie arrive par stdin)
 
 Le transfert passe par le RAW REPL de MicroPython (Ctrl-A / Ctrl-D / Ctrl-B),
 le meme protocole que mpremote et ampy. L'ecriture ligne a ligne dans le REPL
@@ -111,6 +114,96 @@ def reboot(ser) -> None:
     except serial.SerialException:
         pass
     time.sleep(0.2)
+
+
+def soft_reboot(ser) -> None:
+    """Redemarrage logiciel (Ctrl-D au REPL normal) : main.py repart, le port reste ouvert.
+
+    Contrairement a machine.reset, l'USB ne tombe pas : le moniteur qui suit voit
+    la sortie du programme des sa premiere ligne. Une sortie emise pendant que
+    personne ne tient le port est perdue (MicroPython n'ecrit sur l'USB que si
+    l'hote est connecte) : un « print » au demarrage ne passerait jamais.
+    """
+    exit_raw_repl(ser)
+    try:
+        read_until(ser, b">>> ", timeout=2.0)
+    except ReplError:
+        pass  # banniere non vue : on tente le Ctrl-D quand meme
+    ser.write(b"\x04")
+
+
+def monitor(ser, port: str, baud: int) -> int:
+    """
+    Moniteur serie : carte -> stdout (octets bruts), stdin -> carte.
+
+    stdin est la saisie du terminal de l'extension (Ctrl-C compris, c'est un
+    octet comme un autre dans un tube). Un seul fil d'execution touche au port ;
+    celui de stdin ne fait que remplir une file. Carte debranchee ou redemarree
+    (USB qui tombe) : le port est rouvert des qu'il revient. Les changements
+    d'etat sortent sur stderr (« STATUS: waiting » / « STATUS: open »).
+    Fin de stdin = fin du moniteur, apres avoir vide ce que la carte avait dit.
+    """
+    import queue
+    import threading
+
+    entree = queue.Queue()
+    fini = threading.Event()
+
+    def lire_stdin():
+        while True:
+            try:
+                data = os.read(sys.stdin.fileno(), 1024)
+            except OSError:
+                data = b""
+            if not data:
+                fini.set()
+                return
+            entree.put(data)
+
+    threading.Thread(target=lire_stdin, daemon=True).start()
+    sortie = sys.stdout.buffer
+    sys.stdout.flush()
+    reste = getattr(ser, "_reste", b"") if ser else b""
+    if reste:
+        sortie.write(reste)
+        sortie.flush()
+    calme = None  # instant de la derniere donnee recue apres la fin de stdin
+    while True:
+        if ser is None:
+            if fini.is_set():
+                return 0
+            try:
+                ser = serial.Serial(port, baud, timeout=0.05)
+                sys.stderr.write("STATUS: open\n")
+                sys.stderr.flush()
+            except (serial.SerialException, OSError):
+                time.sleep(0.3)
+                continue
+        try:
+            while not entree.empty():
+                ser.write(entree.get_nowait())
+            data = ser.read(ser.in_waiting or 1)
+        except (serial.SerialException, OSError):
+            try:
+                ser.close()
+            except (serial.SerialException, OSError):
+                pass
+            ser = None
+            sys.stderr.write("STATUS: waiting\n")
+            sys.stderr.flush()
+            continue
+        if data:
+            sortie.write(data)
+            sortie.flush()
+        if fini.is_set():
+            if data or calme is None:
+                calme = time.time()
+            elif time.time() - calme > 0.3:
+                try:
+                    ser.close()
+                except (serial.SerialException, OSError):
+                    pass
+                return 0
 
 
 def exec_raw(ser, code: str) -> str:
@@ -220,11 +313,15 @@ def main() -> int:
     parser.add_argument("--port", required=True, help="COM3, /dev/ttyACM0, ...")
     parser.add_argument("--files", help='JSON: [{"path":..., "remote":...}]')
     parser.add_argument("--stop", action="store_true", help="stop the running program (Ctrl-C)")
+    parser.add_argument("--monitor", action="store_true",
+                        help="keep the port open and relay the board output (after --files: soft reboot)")
     parser.add_argument("--baud", type=int, default=115200)
     args = parser.parse_args()
 
     if args.stop:
         return stop_program(args.port, args.baud)
+    if args.monitor and not args.files:
+        return monitor(None, args.port, args.baud)
     if not args.files:
         print("ERROR: --files or --stop is required")
         return 2
@@ -268,7 +365,10 @@ def main() -> int:
                 else:
                     skipped += 1
             # Tout est passe : la carte redemarre et lance main.py toute seule.
-            reboot(ser)
+            if args.monitor:
+                soft_reboot(ser)
+            else:
+                reboot(ser)
             redemarre = True
         except ReplError as exc:
             print("ERROR: %s" % exc)
@@ -277,11 +377,19 @@ def main() -> int:
             # Apres un reboot, la liaison est deja tombee : rien a rendre au REPL.
             if not redemarre:
                 exit_raw_repl(ser)
+        if args.monitor:
+            # Le port reste ouvert : la ligne DONE marque le debut de la sortie
+            # de la carte, relayee telle quelle a l'extension.
+            print("DONE: %d sent, %d already up to date, board soft-rebooted" % (sent, skipped),
+                  flush=True)
+            garde, ser = ser, None
+            return monitor(garde, args.port, args.baud)
     finally:
-        try:
-            ser.close()
-        except (serial.SerialException, OSError):
-            pass
+        if ser is not None:
+            try:
+                ser.close()
+            except (serial.SerialException, OSError):
+                pass
 
     print("DONE: %d sent, %d already up to date, board rebooted" % (sent, skipped))
     return 0

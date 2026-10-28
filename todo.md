@@ -5,6 +5,17 @@
 
 ---
 
+# v2026.10.3.274 — terminal « Pico » : les print de la vraie carte s'affichent
+1. ✅ Cause : depuis la v.273, après l'envoi, personne ne lit le port série (MicroPico reste déconnecté). MicroPython n'écrit sur l'USB que si l'hôte tient le port : les `print` partaient dans le vide.
+2. ✅ [pico-upload.py](scripts/pico-upload.py) `--monitor` : après l'envoi, redémarrage LOGICIEL (Ctrl-B, attente `>>>`, Ctrl-D) au lieu de `machine.reset` — l'USB ne tombe pas, aucun `print` du démarrage perdu. Ligne `DONE:` puis relais brut carte → stdout, stdin → carte. Carte débranchée/réinitialisée : réouverture du port (`STATUS: waiting/open` sur stderr). Fin de stdin = fin du relais. Sans `--monitor`, comportement inchangé (machine.reset).
+3. ✅ [picoConsole.ts](src/picoConsole.ts) : terminal `Pico (COMx)` (Pseudoterminal), réutilisé d'un envoi à l'autre, montré sans prendre le focus ; saisie relayée (REPL utilisable). Fermer le terminal tue le relais et libère le port.
+4. ✅ [picoUploader.ts](src/picoUploader.ts) : envoi par `spawn` (`python -u`), promesse résolue sur `DONE:`, processus passé au terminal. Nouvel envoi : relais précédent arrêté d'abord. Bouton ■ : si le relais tourne, Ctrl-C ×3 passe par lui (carte au `>>>` sous les yeux).
+5. ✅ [verify-picoupload.mjs](scripts/verify-picoupload.mjs) : faux Pico avec bannière Ctrl-B et redémarrage logiciel ; 3 contrôles (pas de machine.reset, sortie de main.py après DONE, Ctrl-C relayé). 20/20. FR ajouté (6 chaînes).
+6. ⏳ Chaînes ES/ZH (avant publication).
+7. ⏳ Essai sur vraie carte (accents, débranchement à chaud, MicroPico connecté avant l'envoi).
+
+---
+
 # v2026.10.3.273 — MicroPico : plus de reconnexion après envoi, notification qui se ferme
 1. ✅ Essai sur vraie carte de la v.272 : envoi OK, mais (a) la reconnexion de MicroPico arrêtait le programme envoyé, (b) la notification « Envoi en cours » ne se fermait plus (`await micropico.connect` dans la progression).
 2. ✅ Cause (a), lue dans MicroPico 4.6.1 : à la connexion (`boardOnOpen`), il ouvre son terminal et prend le REPL. [picoUploader.ts](src/picoUploader.ts) : `withMicroPicoReleased` remplacée par `releaseMicroPico()` (rend « était connecté ») + `reconnectMicroPico()` lancée sans attente (erreur au journal). Après un envoi réussi : pas de reconnexion, message dédié (« reconnecter depuis sa barre d'état », FR ajouté). Après un échec d'envoi ou un arrêt : reconnexion sans attente.

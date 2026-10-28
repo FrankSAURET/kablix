@@ -51,6 +51,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Système de fichiers en simulation** : la Pico simulée démarre avec sa mémoire flash formatée, comme la vraie carte. `open('fichier', 'w')` ne lève plus ENODEV, `os.statvfs('/')` annonce la place libre, et un fichier écrit est toujours là après `machine.soft_reset()` ou Ctrl-D. `rp2.Flash()` relit ce qu'on y a écrit.
 - **Pico 2 : redémarrage logiciel** : `machine.soft_reset()` ou Ctrl-D dans le REPL ne figent plus la simulation.
 - **Envoi avec MicroPico** : l'envoi et l'arrêt du programme ne bloquent plus sur « Accès refusé » quand l'extension MicroPico tient le port de la carte. Kablix la déconnecte avant d'écrire sur la carte. Après un envoi, MicroPico reste déconnecté pour ne pas arrêter le programme qui vient de démarrer : on le reconnecte depuis sa barre d'état. Après un arrêt, il se reconnecte seul.
+- **`print` visibles après un envoi** : la sortie du programme envoyé sur la carte s'affiche dans un terminal « Pico », dès la première ligne. On peut y taper (Ctrl-C arrête le programme et rend le REPL). Fermer ce terminal libère le port.
 
 ## 2026.10.3 (16 octobre 2026)
 
