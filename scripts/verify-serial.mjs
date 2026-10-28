@@ -37,6 +37,23 @@ class FakeText {
 }
 globalThis.Text = FakeText;
 
+/** <span> coloré minimal : une classe, un nœud texte. */
+class FakeSpan {
+  constructor() {
+    this.className = '';
+    this.childNodes = [];
+  }
+  appendChild(n) {
+    this.childNodes.push(n);
+  }
+  get firstChild() {
+    return this.childNodes[0] ?? null;
+  }
+  get data() {
+    return this.childNodes.map((n) => n.data).join('');
+  }
+}
+
 /** Élément console minimal : retient le nombre d'écritures COMPLÈTES du texte. */
 class FakeEl {
   constructor() {
@@ -44,9 +61,16 @@ class FakeEl {
     this.scrollTop = 0;
     this.scrollHeight = 42;
     this.rewrites = 0;
+    this.ownerDocument = {
+      createTextNode: (s) => new FakeText(s),
+      createElement: () => new FakeSpan(),
+    };
   }
   get firstChild() {
     return this.childNodes[0] ?? null;
+  }
+  get lastChild() {
+    return this.childNodes.at(-1) ?? null;
   }
   get textContent() {
     return this.childNodes.map((n) => n.data).join('');
@@ -54,6 +78,14 @@ class FakeEl {
   set textContent(v) {
     this.rewrites++;
     this.childNodes = v === '' ? [] : [new FakeText(v)];
+  }
+  replaceChildren(...nodes) {
+    this.rewrites++;
+    this.childNodes = nodes;
+  }
+  /** Texte de chaque segment coloré : « cls:texte ». */
+  get segments() {
+    return this.childNodes.map((n) => `${n.className ?? ''}:${n.data}`);
   }
 }
 
@@ -91,10 +123,35 @@ const { SerialConsole, SERIAL_MAX_CHARS } = await import(pathToFileURL(out).href
 }
 
 {
-  // Séquences ANSI (couleurs, effacement de ligne) : ignorées jusqu'à leur lettre.
+  // Séquences ANSI (couleurs, effacement de ligne) : absentes du texte.
   const c = new SerialConsole();
   c.write('\x1b[31mrouge\x1b[0m\x1b[K!');
-  check('séquences ANSI ignorées', c.value === 'rouge!', JSON.stringify(c.value));
+  check('séquences ANSI hors du texte', c.value === 'rouge!', JSON.stringify(c.value));
+}
+
+{
+  // Couleur de texte (bannière MicroPython en cyan) : un <span> par segment coloré.
+  const c = new SerialConsole();
+  const el = new FakeEl();
+  c.write('a\x1b[36mMicroPython\x1b[0m\r\n>>> ');
+  c.flush(el);
+  const seg = el.segments.join('|');
+  check('couleur ANSI rendue en span', seg === ':a|ansi-36:MicroPython|:\n>>> ', seg);
+  const r0 = el.rewrites;
+  c.write('42\n');
+  c.flush(el);
+  check(
+    'après la couleur, ajout du delta sans réécriture',
+    el.rewrites === r0 && el.textContent === c.value,
+    `${el.rewrites - r0} réécriture(s), ${JSON.stringify(el.segments)}`,
+  );
+  c.write('xy\b\b\b');
+  c.flush(el);
+  check('backspace à travers une couleur', el.textContent === 'aMicroPython\n>>> 42', JSON.stringify(el.textContent));
+  c.clear();
+  c.write('net');
+  c.flush(el);
+  check('clear oublie les couleurs', el.segments.join('|') === ':net', el.segments.join('|'));
 }
 
 {

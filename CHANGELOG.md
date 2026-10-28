@@ -37,6 +37,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Vérification du firmware activée par défaut** : le réglage `checkFirmwareUpdatesOnStartup` est coché ; sa description dit ce qu'il fait (chercher la dernière version en ligne et la proposer si elle est plus récente).
 - **Moteur de simulation Pico et Pico W mis à jour** (rp2040js 1.4.1) : un programme qui lit ou écrit tout au bout de la mémoire ne fait plus planter la simulation.
 - **Console de la Pico simulée, comme le terminal d'une vraie carte** : pendant un programme MicroPython, on tape directement dans la console, touche par touche, plus dans un champ séparé. `input()` lit ce qu'on tape, Ctrl-C arrête le programme et rend l'invite `>>>`. Ce qui est tapé pendant le démarrage n'est plus perdu.
+- **Bannière MicroPython en couleur** : chaque lancement affiche la ligne de version de la carte puis l'invite `>>>`, comme une vraie carte. La ligne « Type "help()"… » n'apparaît plus.
+- **Plus de ligne « Envoyer au microcontrôleur » sur les Pico** : on tape toujours dans la console.
 
 **Robot araignée**
 
@@ -51,7 +53,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Mise à jour du firmware** : la vérification ne trouvait jamais de version plus récente sur micropython.org et répondait toujours « à jour ». Elle propose maintenant la dernière version stable (les préversions sont ignorées).
 - **Système de fichiers en simulation** : la Pico simulée démarre avec sa mémoire flash formatée, comme la vraie carte. `open('fichier', 'w')` ne lève plus ENODEV, `os.statvfs('/')` annonce la place libre, et un fichier écrit est toujours là après `machine.soft_reset()` ou Ctrl-D. `rp2.Flash()` relit ce qu'on y a écrit.
 - **Pico 2 : redémarrage logiciel** : `machine.soft_reset()` ou Ctrl-D dans le REPL ne figent plus la simulation.
-- **Fin de programme** : un « > » isolé ne s'affiche plus avant l'invite `>>>`.
+- **Fin de programme** : un « > » isolé ne s'affiche plus avant l'invite `>>>`, et la bannière MicroPython n'est plus avalée.
 
 ## 2026.10.3 (16 octobre 2026)
 

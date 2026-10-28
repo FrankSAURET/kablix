@@ -362,6 +362,18 @@ export class PicoEngine implements SimEngine {
   private pendingInput: number[] = [];
   /** Fin de programme : l'invite « > » du raw REPL est encore à venir, à ne pas afficher. */
   private swallowRawPrompt = false;
+  /**
+   * Bannière du REPL (« MicroPython v1.xx on … ; Raspberry Pi Pico… »), lue une
+   * fois au premier passage en raw REPL, réaffichée à chaque lancement comme le
+   * fait le terminal d'une vraie carte.
+   */
+  private banner: string | null = null;
+  /**
+   * REPL interactif : début de ligne retenu tant qu'il peut encore être la
+   * bannière (colorée) ou la ligne « Type "help()"… » (masquée) ; null au milieu
+   * d'une ligne ordinaire.
+   */
+  private lineHold: string | null = '';
   // Contrôle de flux raw-paste : le firmware accorde une fenêtre d'octets et
   // la ré-augmente (\x01) au fur et à mesure qu'il consomme le script.
   private scriptBytes: Uint8Array = new Uint8Array(0);
@@ -1735,6 +1747,9 @@ export class PicoEngine implements SimEngine {
    */
   private enterStdout(): void {
     this.replPhase = 'stdout';
+    // Lancement vu par l'élève (pas une relance de débogage) : bannière puis
+    // invite, comme une vraie carte avant d'exécuter un programme.
+    if (!this.silentReplay && this.banner) this.output(`${PicoEngine.color(this.banner)}\r\n>>> \r\n`);
     // Ce que le script rapide a lâché en s'interrompant (KeyboardInterrupt) ne
     // fait pas partie du rejeu : on repart d'un tampon vide.
     if (this.silentReplay) this.replayBuf = '';
@@ -1800,7 +1815,10 @@ export class PicoEngine implements SimEngine {
     else this.beginRawRepl();
   }
 
-  /** Ctrl-C ×2 (interrompt le code en cours) puis Ctrl-A : entrée en raw REPL. */
+  /**
+   * Ctrl-C ×2 (interrompt le code en cours) puis Ctrl-A : entrée en raw REPL.
+   * Bannière pas encore connue : Ctrl-B d'abord, le REPL normal la réimprime.
+   */
   private beginRawRepl(): void {
     if (!this.cdc) return;
     this.pendingDebug = false;
@@ -1809,7 +1827,13 @@ export class PicoEngine implements SimEngine {
     this.swallowRawPrompt = false;
     this.cdc.sendSerialByte(3);
     this.cdc.sendSerialByte(3);
+    if (this.banner === null) this.cdc.sendSerialByte(2);
     this.cdc.sendSerialByte(1);
+  }
+
+  /** Texte en couleur ANSI (cyan), rendue par la console du moniteur. */
+  private static color(text: string): string {
+    return `\x1b[36m${text}\x1b[0m`;
   }
 
   /** Surveillance du rejeu : Ctrl-C insistant, puis abandon du silence au bout du délai. */
@@ -1864,27 +1888,59 @@ export class PicoEngine implements SimEngine {
       if (this.breakpoints.length > 0 && this.canSwitchToDebug) this.useDebugScript();
       this.beginRawRepl();
     } else {
-      // Affiche simplement l'invite REPL dans le moniteur.
-      this.cdc.sendSerialByte(13);
-      this.cdc.sendSerialByte(10);
+      // Ctrl-B : le REPL normal réimprime bannière et invite, comme à la
+      // connexion d'une vraie carte.
+      this.cdc.sendSerialByte(2);
     }
   }
 
+  /**
+   * Sortie du REPL interactif : la bannière passe en couleur, la ligne
+   * « Type "help()" for more information. » disparaît, le reste est intact.
+   */
+  private emitRepl(text: string): void {
+    for (const ch of text) {
+      if (this.lineHold === null) {
+        this.emitSerial(ch);
+        if (ch === '\n') this.lineHold = '';
+        continue;
+      }
+      const hold = this.lineHold + ch;
+      if (ch === '\n') {
+        this.lineHold = '';
+        const line = hold.replace(/\r?\n$/, '');
+        if (line.startsWith(PicoEngine.HELP_LINE)) continue;
+        if (line.startsWith(PicoEngine.BANNER_START)) this.emitSerial(PicoEngine.color(line) + '\r\n');
+        else this.emitSerial(hold);
+      } else if (PicoEngine.mayBeReplLine(hold)) {
+        this.lineHold = hold;
+      } else {
+        this.lineHold = null;
+        this.emitSerial(hold);
+      }
+    }
+  }
+
+  private static readonly BANNER_START = 'MicroPython ';
+  private static readonly HELP_LINE = 'Type "help()"';
+
+  /** Début de ligne compatible avec la bannière ou la ligne d'aide. */
+  private static mayBeReplLine(s: string): boolean {
+    return [PicoEngine.BANNER_START, PicoEngine.HELP_LINE].some((p) => p.startsWith(s) || s.startsWith(p));
+  }
+
   private onCdcData(buffer: Uint8Array): void {
-    let text = Array.from(buffer, (b) => String.fromCharCode(b)).join('');
-    if (this.swallowRawPrompt && this.replPhase === 'done') {
-      // Invite « > » du raw REPL, émise juste avant que Ctrl-B rende le REPL
-      // normal : une vraie carte ne la montre jamais.
-      const i = text.indexOf('>');
-      if (i < 0) return;
-      this.swallowRawPrompt = false;
-      text = text.slice(i + 1);
+    // Caractère par caractère : la fin du programme (\x04) et ce qui la suit
+    // arrivent souvent dans le même paquet, la phase change en cours de route.
+    for (const b of buffer) {
+      const ch = String.fromCharCode(b);
+      if (this.replPhase !== 'idle' && this.replPhase !== 'done') this.handleReplChar(ch);
+      else if (this.swallowRawPrompt && this.replPhase === 'done') {
+        // Invite « > » du raw REPL, émise juste avant que Ctrl-B rende le REPL
+        // normal : une vraie carte ne la montre jamais.
+        if (ch === '>') this.swallowRawPrompt = false;
+      } else this.emitRepl(ch);
     }
-    if (this.replPhase === 'idle' || this.replPhase === 'done') {
-      this.emitSerial(text);
-      return;
-    }
-    for (const ch of text) this.handleReplChar(ch);
   }
 
   // --- Filtrage des séquences « \x1b<tag>{json}\n » ---------------------------
@@ -2019,6 +2075,7 @@ export class PicoEngine implements SimEngine {
         this.replBuffer += ch;
         // Invite du raw REPL : « raw REPL; CTRL-B to exit\r\n> »
         if (this.replBuffer.includes('raw REPL; CTRL-B to exit') && ch === '>') {
+          this.banner ??= /MicroPython [^\r\n]+/.exec(this.replBuffer)?.[0] ?? null;
           this.replBuffer = '';
           // Demande le mode raw-paste (\x05A\x01) : son contrôle de flux évite
           // de déborder le tampon d'entrée avec un script long (préambule de
@@ -2077,6 +2134,7 @@ export class PicoEngine implements SimEngine {
           // Fin d'exécution : on repasse en REPL interactif (Ctrl-B).
           this.replPhase = 'done';
           this.swallowRawPrompt = true;
+          this.lineHold = '';
           this.cdc?.sendSerialByte(2);
           // Une pause coopérative ne peut plus aboutir : état remis au repos.
           if (this.isPaused && !this.pausedByStop) this.isPaused = false;

@@ -3143,6 +3143,25 @@ body.vscode-light .inspector__ref--nouveau {
   }
 }
 
+/* Couleurs ANSI de la console (SGR 30-37, 90-97) : palette du terminal de
+   VS Code, donc lisibles dans tous les thèmes. */
+.ansi-30 { color: var(--vscode-terminal-ansiBlack, #000); }
+.ansi-31 { color: var(--vscode-terminal-ansiRed, #cd3131); }
+.ansi-32 { color: var(--vscode-terminal-ansiGreen, #0dbc79); }
+.ansi-33 { color: var(--vscode-terminal-ansiYellow, #e5e510); }
+.ansi-34 { color: var(--vscode-terminal-ansiBlue, #2472c8); }
+.ansi-35 { color: var(--vscode-terminal-ansiMagenta, #bc3fbc); }
+.ansi-36 { color: var(--vscode-terminal-ansiCyan, #11a8cd); }
+.ansi-37 { color: var(--vscode-terminal-ansiWhite, #e5e5e5); }
+.ansi-90 { color: var(--vscode-terminal-ansiBrightBlack, #666); }
+.ansi-91 { color: var(--vscode-terminal-ansiBrightRed, #f14c4c); }
+.ansi-92 { color: var(--vscode-terminal-ansiBrightGreen, #23d18b); }
+.ansi-93 { color: var(--vscode-terminal-ansiBrightYellow, #f5f543); }
+.ansi-94 { color: var(--vscode-terminal-ansiBrightBlue, #3b8eea); }
+.ansi-95 { color: var(--vscode-terminal-ansiBrightMagenta, #d670d6); }
+.ansi-96 { color: var(--vscode-terminal-ansiBrightCyan, #29b8db); }
+.ansi-97 { color: var(--vscode-terminal-ansiBrightWhite, #e5e5e5); }
+
 .serial__input {
   display: flex;
   gap: 0.4rem;

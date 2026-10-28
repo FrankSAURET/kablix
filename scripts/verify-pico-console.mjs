@@ -3,7 +3,9 @@
 // Le programme est injecté par le raw REPL : une frappe mêlée au protocole le
 // cassait. Le moteur retient donc les frappes tant qu'il tient le CDC, puis les
 // rend au programme. Contrôles :
+//   - lancement : bannière MicroPython en couleur, puis `>>>`, puis la sortie ;
 //   - « abc⏎ » tapé PENDANT le démarrage du firmware arrive à input() ;
+//   - fin : bannière en couleur, ligne « Type "help()"… » masquée ;
 //   - Ctrl-C arrête le programme et rend l'invite `>>>`, sans l'invite « > »
 //     du raw REPL qu'une vraie carte ne montre pas ;
 //   - une commande tapée ensuite s'exécute au REPL (un Ctrl-E, réservé au
@@ -89,6 +91,10 @@ let marque = 0;
 const timer = setInterval(() => {
   if (etape === 'lecture' && serial.includes('LU ')) {
     controles.push(["« abc⏎ » tapé au démarrage reçu par input()", serial.includes("LU 'abc'")]);
+    controles.push([
+      'lancement : bannière en couleur, puis >>> avant la sortie',
+      /^\x1b\[36mMicroPython [^\r\n\x1b]+\x1b\[0m\r\n>>> \r\nDEBUT/.test(serial),
+    ]);
     // Ctrl-E au milieu du programme : sans filtre, le script le prendrait pour
     // une demande de pause du débogueur (ici sans effet visible, mais il ne
     // doit pas non plus atteindre stdin) ; puis Ctrl-C.
@@ -105,6 +111,7 @@ const timer = setInterval(() => {
     controles.push(['Ctrl-C : KeyboardInterrupt', apres.includes('KeyboardInterrupt')]);
     controles.push(['Ctrl-C : invite >>> rendue', apres.includes('>>> ')]);
     controles.push(['pas d\'invite « > » du raw REPL affichée', !/(^|\n)>\r?\n/.test(apres)]);
+    controles.push(['fin : bannière en couleur, sans la ligne help()', /\x1b\[36mMicroPython /.test(apres) && !serial.includes('help()')]);
     marque = serial.length;
     engine.writeSerial('print(6*7)\r');
     etape = 'repl';
@@ -125,7 +132,7 @@ const timer = setInterval(() => {
 }, 250);
 
 function bilan() {
-  let bon = controles.length === 5;
+  let bon = controles.length === 7;
   console.log('');
   for (const [nom, ok] of controles) {
     console.log(`${ok ? 'OK ' : 'KO '} ${nom}`);

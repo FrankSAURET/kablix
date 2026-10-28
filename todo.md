@@ -5,6 +5,19 @@
 
 ---
 
+# v2026.10.3.278 — console Pico : bannière en couleur, `>>>` à chaque lancement, plus de ligne d'envoi
+1. ✅ Demande de Frank : compléter l'analogie avec la vraie carte — bannière du REPL en couleur (sans la ligne `help()`), saut de ligne et `>>>` à chaque lancement ; supprimer la ligne « Envoyer au microcontrôleur » pour les Pico.
+2. ✅ [serialbuffer.mts](src/webview/serialbuffer.mts) : couleurs ANSI SGR (30-37, 90-97, 0/39) rendues en `<span class="ansi-NN">` (`runs` = début de chaque couleur). Sans couleur, DOM inchangé (un nœud texte) ; avec couleur, l'ajout du delta va dans le dernier nœud, réécriture seulement au changement de couleur, backspace ou troncature. Classes `.ansi-NN` dans [styles.css](media/styles.css), palette du terminal VS Code.
+3. ✅ [pico.mts](src/webview/engines/pico.mts) : bannière lue au premier passage en raw REPL (Ctrl-B avant Ctrl-A tant qu'elle est inconnue), réémise en cyan + `>>> ` + saut de ligne à l'entrée en `stdout` (pas pendant un rejeu silencieux). REPL interactif : `emitRepl` colore la bannière et masque « Type "help()"… » (début de ligne retenu tant qu'il peut l'être). Bouton REPL : Ctrl-B au lieu de CR LF, la bannière s'affiche.
+4. ✅ Défaut de la v277 trouvé par le banc : le « > » du raw REPL arrivait dans le même paquet que la fin du programme, `swallowRawPrompt` coupait alors au premier « > » du paquet suivant — celui de `>>>` — et avalait la bannière. `onCdcData` traite désormais caractère par caractère.
+5. ✅ [sim.mts](src/webview/sim.mts) : toute Pico passe la console en terminal (`setReplMode(isPicoBoard(board), isRepl)`), ligne d'envoi masquée pour les Pico, même à l'arrêt (`setReplMode`, `updateSerialTitle`).
+6. ✅ Bancs : [verify-serial.mjs](scripts/verify-serial.mjs) +4 contrôles couleur ; [verify-pico-console.mjs](scripts/verify-pico-console.mjs) +2 (bannière colorée puis `>>>` avant la sortie ; bannière de fin sans `help()`), 7/7 rp2040 et rp2350.
+7. ✅ Doc FR ([USAGE.md](docs/fr/USAGE.md)), CHANGELOG.
+8. ⏳ Doc EN/ES/ZH : avant publication.
+9. ⏳ Essai F5 par Frank (couleur dans les thèmes clair/sombre).
+
+---
+
 # v2026.10.3.277 — console Pico simulée = terminal de la vraie carte (option A)
 1. ✅ Demande de Frank : la console simulée se comportait autrement que la carte réelle (moniteur ligne à ligne pendant le programme, vrai REPL seulement sans script). Option A retenue parmi trois (B : séparer USB/UART0 ; C : vrai `main.py` + redémarrage).
 2. ✅ [sim.mts](src/webview/sim.mts) : `setReplMode(isRepl || isPython, isRepl)` — tout lancement MicroPython passe la console en terminal brut (frappes octet par octet, écho par le firmware, Ctrl-C). Le focus n'est pris que par le bouton REPL, un programme laisse le clavier en place.

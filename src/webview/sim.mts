@@ -665,7 +665,8 @@ let replMode = false;
 
 function setReplMode(active: boolean, focus = active): void {
   replMode = active;
-  serialInputRow.hidden = active;
+  // Pico : la console est le terminal, jamais de ligne d'envoi (même à l'arrêt).
+  serialInputRow.hidden = active || isPicoBoard(board);
   serialEl.classList.toggle('serial__out--repl', active);
   // contenteditable (plutôt que juste tabindex) : c'est ce qui fait émettre au
   // navigateur un vrai événement `paste` avec clipboardData rempli — sans ça,
@@ -855,6 +856,7 @@ function updateSerialTitle(): void {
   serialTitleEl.textContent =
     isPicoBoard(board) ? t('Console') : t('Serial monitor');
   replBtn.hidden = !isPicoBoard(board);
+  serialInputRow.hidden = replMode || isPicoBoard(board);
 }
 
 function b64ToBytes(b64: string): Uint8Array {
@@ -5306,8 +5308,9 @@ ${detail}
   if (isRepl && !serialVisible) setSerialVisible(true, false);
   // Programme MicroPython : même console-terminal que le REPL (frappes brutes,
   // Ctrl-C), comme sur la carte réelle — le moteur retient les frappes tant
-  // qu'il injecte le script.
-  setReplMode(isRepl || isPython, isRepl);
+  // qu'il injecte le script. Toute Pico passe par là : elle n'a plus de ligne
+  // « Envoyer au microcontrôleur ».
+  setReplMode(isPicoBoard(board), isRepl);
   updateDebugButtons();
   setStatus(
     isPython
