@@ -7666,6 +7666,7 @@ export class Editor {
       box.type = 'checkbox';
       box.className = 'inspector__checkbox';
       box.checked = current !== '';
+      if (prop.tint) box.classList.add(`inspector__tint--${prop.tint}`);
       box.addEventListener('change', () => {
         setAttr(prop.attr, box.checked ? '1' : '');
       });
@@ -7863,9 +7864,12 @@ export class Editor {
     }
     // Zones de saisie aux couleurs du servo (coxa violet, patella vert, celles du
     // connecteur) : fond franc + texte blanc gras, définis en CSS (`inspector__tint--…`).
+    // Seulement les éléments posés APRÈS le libellé de CETTE propriété : `host` est
+    // toute la section, la balayer entière recolorait les champs précédents.
     if (prop.tint) {
-      for (const el of host.querySelectorAll<HTMLInputElement>('input:not([type=checkbox])')) {
-        el.classList.add(`inspector__tint--${prop.tint}`);
+      for (let n = label.nextElementSibling; n; n = n.nextElementSibling) {
+        const champs = n instanceof HTMLInputElement ? [n] : n.querySelectorAll<HTMLInputElement>('input');
+        for (const el of champs) el.classList.add(`inspector__tint--${prop.tint}`);
       }
     }
   }

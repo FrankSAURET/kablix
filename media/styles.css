@@ -1567,6 +1567,39 @@ textarea {
   color: #fff;
   font-weight: 700;
 }
+/* Case à cocher d'un servo : carré plein de la même couleur, coche blanche
+   quand elle est cochée (la case native ne se colore que cochée). */
+.inspector__checkbox.inspector__tint--coxa,
+.inspector__checkbox.inspector__tint--patella {
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  margin-top: 0;
+  margin-bottom: 0;
+  border: 1px solid;
+  border-radius: 2px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 11px 11px;
+  cursor: pointer;
+}
+.inspector__checkbox.inspector__tint--coxa {
+  background-color: #9141ac;
+  border-color: #6d2f82;
+}
+.inspector__checkbox.inspector__tint--patella {
+  background-color: #26a269;
+  border-color: #1c7a4f;
+}
+.inspector__checkbox.inspector__tint--coxa:checked,
+.inspector__checkbox.inspector__tint--patella:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8.5l3 3 7-7' fill='none' stroke='%23fff' stroke-width='2.5'/%3E%3C/svg%3E");
+}
+.inspector__checkbox.inspector__tint--coxa:focus-visible,
+.inspector__checkbox.inspector__tint--patella:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, #0e639c);
+  outline-offset: 1px;
+}
 
 /* Saisie refusée (hors plage, ou canal déjà pris) : la case revient à sa valeur
    et clignote en rouge — l'explication est dans son infobulle. */

@@ -40,7 +40,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 **Robot araignée**
 
 - **Câblage des servomoteurs** : l'aide de la section précise que la coxa (violet) balaie la patte au sol et que la patella (vert) la lève et la baisse.
-- **Champs colorés** : dans les propriétés de la patte et du robot araignée, les zones de saisie des servos sont violettes pour la coxa et vertes pour la patella, aux couleurs du connecteur, texte blanc gras.
+- **Champs colorés** : dans les propriétés de la patte et du robot araignée, les zones de saisie et les cases à cocher des servos sont violettes pour la coxa et vertes pour la patella, aux couleurs du connecteur, texte blanc gras.
 
 ### Correction
 

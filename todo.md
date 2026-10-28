@@ -5,6 +5,14 @@
 
 ---
 
+# v2026.10.3.275 — robot araignée : coxa enfin violette, cases à cocher colorées
+1. ✅ Cause, mesurée en Chrome headless (vrai éditeur + styles.css) : [editor.mts](src/webview/diagram/editor.mts) `appendPropControl` balayait `host.querySelectorAll('input')` — `host` est TOUTE la section repliable. Chaque champ recevait donc `tint--coxa` ET `tint--patella`, et la règle patella (déclarée après) gagnait : tout vert.
+2. ✅ Teinte posée seulement sur les éléments qui suivent le libellé de la propriété. Résultat relevé : violet/vert alternés sur les 8 canaux et les 8 angles à 0°.
+3. ✅ Cases « Inverser » : classe de teinte aussi ; [styles.css](media/styles.css) : case dessinée (`appearance: none`), carré plein violet/vert, coche blanche en SVG data: quand cochée.
+4. ⏳ Coup d'œil de Frank dans VS Code (thème clair et sombre).
+
+---
+
 # v2026.10.3.274 — terminal « Pico » : les print de la vraie carte s'affichent
 1. ✅ Cause : depuis la v.273, après l'envoi, personne ne lit le port série (MicroPico reste déconnecté). MicroPython n'écrit sur l'USB que si l'hôte tient le port : les `print` partaient dans le vide.
 2. ✅ [pico-upload.py](scripts/pico-upload.py) `--monitor` : après l'envoi, redémarrage LOGICIEL (Ctrl-B, attente `>>>`, Ctrl-D) au lieu de `machine.reset` — l'USB ne tombe pas, aucun `print` du démarrage perdu. Ligne `DONE:` puis relais brut carte → stdout, stdin → carte. Carte débranchée/réinitialisée : réouverture du port (`STATUS: waiting/open` sur stderr). Fin de stdin = fin du relais. Sans `--monitor`, comportement inchangé (machine.reset).
