@@ -653,15 +653,17 @@ const clearSerial = (): void => {
 };
 
 /**
- * Mode REPL interactif (Pico, firmware MicroPython sans script) : la console
+ * Mode terminal (Pico MicroPython, REPL seul OU programme) : la console
  * elle-même capture le clavier et transmet chaque touche au microcontrôleur
- * octet par octet — comme un vrai terminal série, c'est le firmware qui fait
- * l'écho (aucun texte inséré localement). La ligne d'envoi séparée n'a plus
- * lieu d'être dans ce mode.
+ * octet par octet — comme le terminal d'une vraie carte, c'est le firmware qui
+ * fait l'écho (aucun texte inséré localement). Ctrl-C arrête le programme et
+ * rend `>>>`. La ligne d'envoi séparée n'a plus lieu d'être dans ce mode.
+ * `focus` : seul le REPL lancé exprès prend la main ; un programme laisse le
+ * clavier là où il était, comme le terminal d'un envoi sur la carte réelle.
  */
 let replMode = false;
 
-function setReplMode(active: boolean): void {
+function setReplMode(active: boolean, focus = active): void {
   replMode = active;
   serialInputRow.hidden = active;
   serialEl.classList.toggle('serial__out--repl', active);
@@ -669,7 +671,7 @@ function setReplMode(active: boolean): void {
   // navigateur un vrai événement `paste` avec clipboardData rempli — sans ça,
   // Ctrl+V ne déclenche rien sur un <pre> simplement focusable.
   serialEl.contentEditable = active ? 'true' : 'false';
-  if (active) serialEl.focus();
+  if (focus) serialEl.focus();
 }
 
 /** Traduit une touche du clavier en octet(s) série (Entrée → CR, Retour → DEL, flèches ignorées). */
@@ -5302,7 +5304,10 @@ ${detail}
   // Lancer le REPL ouvre la console (sans mémoriser : choix de course, pas de
   // l'élève) — AVANT setReplMode, dont le focus échoue sur une section masquée.
   if (isRepl && !serialVisible) setSerialVisible(true, false);
-  setReplMode(isRepl);
+  // Programme MicroPython : même console-terminal que le REPL (frappes brutes,
+  // Ctrl-C), comme sur la carte réelle — le moteur retient les frappes tant
+  // qu'il injecte le script.
+  setReplMode(isRepl || isPython, isRepl);
   updateDebugButtons();
   setStatus(
     isPython

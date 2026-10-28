@@ -97,7 +97,7 @@
   - **⏸ pause/reprendre**
   - **pas à pas**
   - le sélecteur de **vitesse**, un animal par réglage : 🦅 500 %, 🐆 200 %, 🐇 100 % (temps réel), 🐢 10 %, 🐌 1 %, ou ✎ **Personnalisé** (tape un pourcentage de 1 à 10 000 %, pour voir une pile se vider en quelques minutes). L'accéléré est un **souhait** : la simulation va aussi vite qu'elle peut, jamais plus.
-  - **REPL** : pour Pico uniquement, affiche la console python traditionnelle (n'apparaît que si la carte posée est un Pico)
+  - **REPL** : pour Pico uniquement, démarre la carte sans programme, à l'invite `>>>` de la console python traditionnelle (n'apparaît que si la carte posée est un Pico)
   - **moniteur série / console**
   - **Traceur** de courbes
   - **rouvrir l'analyseur logique** : n'apparaît que si l'onglet de l'analyseur a été fermé alors qu'une pince est toujours posée sur le schéma. Un clic le rouvre avec sa dernière mesure.
@@ -333,7 +333,7 @@ Pour fournir votre propre firmware (hors ligne, version précise…) : placez un
 
 > ⚠ **Fonctionnement entièrement hors-ligne.** Pour qu'un poste sans Internet n'ait jamais à télécharger le firmware, **placez le `.uf2` dans le dossier du projet** : il sera versionné et distribué avec le projet. Kablix cherche le firmware **d'abord dans le workspace**, puis dans le firmware téléchargé/mémorisé, et ne propose le téléchargement qu'en dernier recours. Un projet qui embarque son firmware est ainsi reproductible et autonome.
 
-Le firmware démarre dans le simulateur (bootrom + flash + USB), puis le script est injecté via le **raw REPL**. Les `print()` apparaissent dans le moniteur série ; à la fin du script, le **REPL interactif** reste disponible via le champ d'envoi ou en cliquant sur le bouton REPL.
+Le firmware démarre dans le simulateur (bootrom + flash + USB), puis le script est injecté via le **raw REPL**. La console se comporte comme le terminal d'une vraie carte : les `print()` s'y affichent, on y tape **directement** (cliquer dans la console), touche par touche, et c'est la carte qui renvoie l'écho — `input()` lit ce qu'on tape. Ce qui est tapé pendant le démarrage est gardé et remis au programme dès qu'il tourne. **Ctrl-C** arrête le programme et rend l'invite `>>>` du **REPL interactif** ; un programme qui se termine y laisse aussi la main. Le bouton REPL démarre la carte sans programme, directement à l'invite `>>>`.
 
 ### Envoyer le programme sur une vraie carte Pico
 
@@ -399,7 +399,7 @@ Le choix vaut pour **cette variable** et il est mémorisé **dans le projet**, c
 ### Moniteur série
 
 - **Sortie** : USART (Uno), USB-CDC et UART0 (Pico), en temps réel.
-- **Entrée** : champ de saisie + `Entrée` (ou bouton Envoyer). Sur le Pico, l'entrée alimente l'USB-CDC (REPL MicroPython) **et** l'UART0.
+- **Entrée** : champ de saisie + `Entrée` (ou bouton Envoyer). Sur le Pico en MicroPython, pas de champ de saisie : on tape directement dans la console, chaque touche part vers l'USB-CDC (REPL MicroPython), comme dans le terminal d'une vraie carte.
 - **Erreurs de compilation** : quand le programme ne compile pas, les messages **complets** du compilateur s'affichent ici, sous un titre `── Échec de la compilation ──` (le moniteur se déplie tout seul s'il était replié). La bulle de notification, elle, ne rappelle que la **première** erreur — `fichier.ino:12 : 'digitalWrit' was not declared in this scope` : c'est presque toujours celle qu'il faut corriger d'abord, les suivantes en découlent.
 
 ### Traceur de courbes

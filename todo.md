@@ -5,6 +5,18 @@
 
 ---
 
+# v2026.10.3.277 — console Pico simulée = terminal de la vraie carte (option A)
+1. ✅ Demande de Frank : la console simulée se comportait autrement que la carte réelle (moniteur ligne à ligne pendant le programme, vrai REPL seulement sans script). Option A retenue parmi trois (B : séparer USB/UART0 ; C : vrai `main.py` + redémarrage).
+2. ✅ [sim.mts](src/webview/sim.mts) : `setReplMode(isRepl || isPython, isRepl)` — tout lancement MicroPython passe la console en terminal brut (frappes octet par octet, écho par le firmware, Ctrl-C). Le focus n'est pris que par le bouton REPL, un programme laisse le clavier en place.
+3. ✅ [pico.mts](src/webview/engines/pico.mts) : `inputHeld` + `pendingInput` — frappes retenues tant que le moteur tient le CDC (démarrage avec script, injection raw REPL, bascule instrumentée, rejeu silencieux, pause du débogueur où `__kx` avalerait tout), rendues par `flushPendingInput()` (entrée en `stdout`, fin de rejeu, fin du programme, reprise). En `stdout`, `\x05 \x06 \x07 \x10 \x1b` tapés au clavier sont écartés (canal du débogueur et du pont réseau).
+4. ✅ Invite « > » du raw REPL avalée à la fin du programme (`swallowRawPrompt`), elle s'affichait avant la bannière.
+5. ✅ Banc [verify-pico-console.mjs](scripts/verify-pico-console.mjs) (`verify:pico-console`, ajouté à `verify:all:serie`) : vrai firmware 1.29.0, « abc⏎ » tapé au démarrage lu par `input()`, Ctrl-C → KeyboardInterrupt + `>>>` sans « > », `print(6*7)` → 42. 5/5 sur rp2040 et rp2350. **Contre-épreuve** (`git stash` du moteur) : rouge, `input()` n'a jamais reçu la frappe.
+6. ✅ Doc FR ([USAGE.md](docs/fr/USAGE.md)) : console Pico, entrée du moniteur (l'ancienne phrase « USB-CDC **et** UART0 » était fausse : le code n'alimente que le CDC quand il existe), bouton REPL.
+7. ⏳ `docs/en`, `docs/es`, `docs/zh` USAGE : mêmes trois passages (avant publication).
+8. ⏳ Essai F5 par Frank : taper dans la console pendant un programme, Ctrl-C, `input()`. Le geste clavier réel dans la webview n'est pas couvert par un banc CDP.
+
+---
+
 # v2026.10.3.276 — bouton ■ : le terminal Pico rend le port et se ferme
 1. ✅ Demande de Frank : quitter le programme réel (■) doit rendre la connexion et fermer le REPL. Avant : Ctrl-C relayé, mais relais et terminal restaient, port tenu.
 2. ✅ [picoConsole.ts](src/picoConsole.ts) `stopAndClose()` : Ctrl-C ×3 puis fin de stdin — le relais (`monitor` de pico-upload.py) vide la réponse de la carte et ferme le port lui-même ; 3 s sans sortie → kill. Puis terminal fermé.

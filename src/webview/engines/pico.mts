@@ -354,6 +354,14 @@ export class PicoEngine implements SimEngine {
   private speedFraction = 1;
   private replPhase: ReplPhase = 'idle';
   private replBuffer = '';
+  /**
+   * Frappes de l'élève retenues tant que le moteur tient le CDC (démarrage,
+   * injection raw REPL, rejeu silencieux) : mêlées au protocole, elles le
+   * casseraient. Rendues au firmware dès que le programme tourne.
+   */
+  private pendingInput: number[] = [];
+  /** Fin de programme : l'invite « > » du raw REPL est encore à venir, à ne pas afficher. */
+  private swallowRawPrompt = false;
   // Contrôle de flux raw-paste : le firmware accorde une fenêtre d'octets et
   // la ré-augmente (\x01) au fur et à mesure qu'il consomme le script.
   private scriptBytes: Uint8Array = new Uint8Array(0);
@@ -1530,9 +1538,43 @@ export class PicoEngine implements SimEngine {
     // des programmes qui l'utilisent, jamais nos frappes en entrée. Sans CDC
     // (programme C bare-metal en RAM), l'UART0 reste le seul canal série.
     for (const byte of new TextEncoder().encode(text)) {
-      if (this.cdc) this.cdc.sendSerialByte(byte);
-      else this.mcu.uart[0].feedByte(byte);
+      if (!this.cdc) this.mcu.uart[0].feedByte(byte);
+      else if (this.inputHeld) this.pendingInput.push(byte);
+      else this.sendInputByte(byte);
     }
+  }
+
+  /**
+   * Vrai tant que le CDC appartient au moteur : script pas encore lancé
+   * (démarrage du firmware, injection), bascule vers la version instrumentée,
+   * rejeu silencieux, pause (__kx lit stdin et avalerait tout ce qui n'est pas
+   * une commande). Sans script ni pause, rien n'est jamais retenu.
+   */
+  private get inputHeld(): boolean {
+    if (this.silentReplay || this.pendingDebug || this.isPaused) return true;
+    if (this.script === null) return false;
+    return this.replPhase !== 'stdout' && this.replPhase !== 'stderr' && this.replPhase !== 'done';
+  }
+
+  /**
+   * Frappe de l'élève vers le firmware. Pendant que le script tourne, stdin est
+   * aussi le canal du débogueur (\x05 \x06 \x07 \x10) et du pont réseau (ESC) :
+   * ces octets, tapés au clavier (Ctrl-E, Ctrl-[…), sont écartés. Ctrl-C passe —
+   * le firmware l'intercepte avant tout lecteur de stdin.
+   */
+  private sendInputByte(byte: number): void {
+    if (this.replPhase === 'stdout' && PicoEngine.STDIN_RESERVED.has(byte)) return;
+    this.cdc?.sendSerialByte(byte);
+  }
+
+  private static readonly STDIN_RESERVED = new Set([0x05, 0x06, 0x07, 0x10, 0x1b]);
+
+  /** Rend au firmware les frappes retenues, si le moteur a lâché le CDC. */
+  private flushPendingInput(): void {
+    if (this.inputHeld || this.pendingInput.length === 0) return;
+    const bytes = this.pendingInput;
+    this.pendingInput = [];
+    for (const byte of bytes) this.sendInputByte(byte);
   }
 
   start(): void {
@@ -1609,6 +1651,7 @@ export class PicoEngine implements SimEngine {
       // \x07 (BEL) : __kx désactive le mode pas à pas et rend la main au script.
       this.cdc?.sendSerialByte(0x07);
     }
+    this.flushPendingInput();
   }
 
   /** Un pas de débogage MicroPython (exposé via `step` en mode script). */
@@ -1717,6 +1760,7 @@ export class PicoEngine implements SimEngine {
       this.sim.reanchor();
       this.onRunning?.();
     }
+    this.flushPendingInput();
   }
 
   // --- Bascule vers le script instrumenté -------------------------------------
@@ -1762,6 +1806,7 @@ export class PicoEngine implements SimEngine {
     this.pendingDebug = false;
     this.replPhase = 'wait-raw';
     this.replBuffer = '';
+    this.swallowRawPrompt = false;
     this.cdc.sendSerialByte(3);
     this.cdc.sendSerialByte(3);
     this.cdc.sendSerialByte(1);
@@ -1807,6 +1852,7 @@ export class PicoEngine implements SimEngine {
     this.onDebugRestart?.('end');
     if (buf) this.onSerial?.(buf);
     this.onRunning?.();
+    this.flushPendingInput();
   }
 
   // --- USB-CDC : console MicroPython + injection raw REPL ---------------------
@@ -1825,7 +1871,15 @@ export class PicoEngine implements SimEngine {
   }
 
   private onCdcData(buffer: Uint8Array): void {
-    const text = Array.from(buffer, (b) => String.fromCharCode(b)).join('');
+    let text = Array.from(buffer, (b) => String.fromCharCode(b)).join('');
+    if (this.swallowRawPrompt && this.replPhase === 'done') {
+      // Invite « > » du raw REPL, émise juste avant que Ctrl-B rende le REPL
+      // normal : une vraie carte ne la montre jamais.
+      const i = text.indexOf('>');
+      if (i < 0) return;
+      this.swallowRawPrompt = false;
+      text = text.slice(i + 1);
+    }
     if (this.replPhase === 'idle' || this.replPhase === 'done') {
       this.emitSerial(text);
       return;
@@ -2022,6 +2076,7 @@ export class PicoEngine implements SimEngine {
         if (ch === '\x04') {
           // Fin d'exécution : on repasse en REPL interactif (Ctrl-B).
           this.replPhase = 'done';
+          this.swallowRawPrompt = true;
           this.cdc?.sendSerialByte(2);
           // Une pause coopérative ne peut plus aboutir : état remis au repos.
           if (this.isPaused && !this.pausedByStop) this.isPaused = false;
@@ -2032,6 +2087,7 @@ export class PicoEngine implements SimEngine {
           } else {
             // Programme terminé sans avoir croisé le point d'arrêt : plus rien à attendre.
             this.endSilentReplay();
+            this.flushPendingInput();
           }
         } else {
           this.emitSerial(ch);

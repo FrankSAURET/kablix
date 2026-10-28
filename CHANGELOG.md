@@ -36,6 +36,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **MicroPython 1.29.0** (24 août 2026) pour les Pico, Pico W, Pico 2 et Pico 2 W. Le premier téléchargement prend désormais la dernière version publiée sur micropython.org (celle-ci en repli hors ligne).
 - **Vérification du firmware activée par défaut** : le réglage `checkFirmwareUpdatesOnStartup` est coché ; sa description dit ce qu'il fait (chercher la dernière version en ligne et la proposer si elle est plus récente).
 - **Moteur de simulation Pico et Pico W mis à jour** (rp2040js 1.4.1) : un programme qui lit ou écrit tout au bout de la mémoire ne fait plus planter la simulation.
+- **Console de la Pico simulée, comme le terminal d'une vraie carte** : pendant un programme MicroPython, on tape directement dans la console, touche par touche, plus dans un champ séparé. `input()` lit ce qu'on tape, Ctrl-C arrête le programme et rend l'invite `>>>`. Ce qui est tapé pendant le démarrage n'est plus perdu.
 
 **Robot araignée**
 
@@ -50,8 +51,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Mise à jour du firmware** : la vérification ne trouvait jamais de version plus récente sur micropython.org et répondait toujours « à jour ». Elle propose maintenant la dernière version stable (les préversions sont ignorées).
 - **Système de fichiers en simulation** : la Pico simulée démarre avec sa mémoire flash formatée, comme la vraie carte. `open('fichier', 'w')` ne lève plus ENODEV, `os.statvfs('/')` annonce la place libre, et un fichier écrit est toujours là après `machine.soft_reset()` ou Ctrl-D. `rp2.Flash()` relit ce qu'on y a écrit.
 - **Pico 2 : redémarrage logiciel** : `machine.soft_reset()` ou Ctrl-D dans le REPL ne figent plus la simulation.
-- **Envoi avec MicroPico** : l'envoi et l'arrêt du programme ne bloquent plus sur « Accès refusé » quand l'extension MicroPico tient le port de la carte. Kablix la déconnecte avant d'écrire sur la carte. Après un envoi, MicroPico reste déconnecté pour ne pas arrêter le programme qui vient de démarrer. Le bouton ■ Arrêter le reconnecte.
-- **`print` visibles après un envoi** : la sortie du programme envoyé sur la carte s'affiche dans un terminal « Pico », dès la première ligne. On peut y taper (Ctrl-C arrête le programme et rend le REPL). Le bouton ■ Arrêter stoppe le programme, ferme ce terminal et libère le port ; le fermer à la main libère aussi le port.
+- **Fin de programme** : un « > » isolé ne s'affiche plus avant l'invite `>>>`.
 
 ## 2026.10.3 (16 octobre 2026)
 
