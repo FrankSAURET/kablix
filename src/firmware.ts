@@ -474,6 +474,40 @@ export async function upgradeFirmware(context: vscode.ExtensionContext): Promise
   }
 }
 
+/** Puce d'une variante, telle que l'annonce le lecteur BOOTSEL de la carte. */
+export function chipOf(variant: FirmwareVariant): 'RP2040' | 'RP2350' {
+  return variant === 'pico2' || variant === 'pico2w' ? 'RP2350' : 'RP2040';
+}
+
+/** Nom lisible d'une variante (« Raspberry Pi Pico W »). */
+export function firmwareLabel(variant: FirmwareVariant): string {
+  return FIRMWARES[variant].label;
+}
+
+/**
+ * Firmware à poser sur la carte réelle : exactement celui de la simulation
+ * (même résolution, même cache). La carte du dessin choisit la variante ; un
+ * dessin Arduino, ou aucun atelier ouvert, fait demander la carte.
+ * Rend `undefined` si l'utilisateur renonce.
+ */
+export async function firmwareForRealBoard(
+  context: vscode.ExtensionContext,
+  board: Board | undefined
+): Promise<{ path: string; variant: FirmwareVariant } | undefined> {
+  const variant =
+    board && board.startsWith('pico') ? firmwareVariantOf(board) : await pickVariant();
+  if (!variant) return undefined;
+  try {
+    // Le repli de la simulation peut rendre le firmware d'une autre carte : la
+    // variante réelle se relit dans le nom du fichier (contrôle de la puce).
+    const path = await resolveMicropythonFirmware(context, variant);
+    return { path, variant: variantOfFileName(baseName(vscode.Uri.file(path))) ?? variant };
+  } catch (err) {
+    if (err instanceof FirmwareCancelled) return undefined;
+    throw err;
+  }
+}
+
 /** Retire du cache les anciens fichiers de la même variante (évite l'accumulation). */
 async function removeOtherCachedFiles(
   context: vscode.ExtensionContext,

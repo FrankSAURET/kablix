@@ -3,7 +3,7 @@
   "displayName": "Kablix",
   "private": true,
   "version": "2026.10.3",
-  "buildNumber": 279,
+  "buildNumber": 280,
   "description": "%kablix.description%",
   "publisher": "electropol-fr",
   "author": {
@@ -98,6 +98,11 @@
       {
         "command": "kablix.upgradePicoFirmware",
         "title": "%kablix.cmd.upgradePicoFirmware%",
+        "category": "Kablix"
+      },
+      {
+        "command": "kablix.flashPicoFirmware",
+        "title": "%kablix.cmd.flashPicoFirmware%",
         "category": "Kablix"
       },
       {

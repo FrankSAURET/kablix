@@ -5,6 +5,17 @@
 
 ---
 
+# v2026.10.3.280 — même firmware sur la carte réelle
+1. ✅ Demande de Frank : menu « Mettre à jour le firmware du Pico » renommé « … (en simulation) » ; nouvelle entrée juste dessous « Mettre le même firmware sur la carte réelle » (commande `kablix.flashPicoFirmware`).
+2. ✅ [firmware.ts](src/firmware.ts) : `firmwareForRealBoard` = même résolution que la simulation (`resolveMicropythonFirmware`), variante d'après la carte du dessin (`SimulatorPanel.board`), demandée si dessin Arduino ou aucun atelier ; variante relue dans le nom du fichier (repli de la simulation).
+3. ✅ [picoUploader.ts](src/picoUploader.ts) : `flashFirmware` — fenêtre modale dans tous les cas : lecteur BOOTSEL nommé (`INFO_UF2.TXT`), ou port série nommé puis `machine.bootloader()` et attente du lecteur (15 s), ou « Aucune carte » + Réessayer. Puce du lecteur (`Board-ID`) comparée à celle du firmware. Console et MicroPico libérés avant, MicroPico reconnecté 3 s après.
+4. ✅ [pico-upload.py](scripts/pico-upload.py) : option `--bootloader`.
+5. ✅ FR : menu, palette, messages, [USAGE.md](docs/fr/USAGE.md), CHANGELOG.
+6. ⏳ EN/ES/ZH (clé de menu renommée, ES/ZH retombent sur l'anglais) : avant publication.
+7. ⏳ Essai sur vraie carte par Frank (port série → BOOTSEL → copie ; carte déjà en BOOTSEL ; carte absente ; Pico 2 avec firmware Pico).
+
+---
+
 # v2026.10.3.279 — bannière Pico lisible en thème clair
 1. ✅ Retour de Frank : le cyan de la bannière est invisible en thème clair. `.ansi-36` prend la couleur des liens du thème (`--vscode-textLink-foreground`) au lieu de `--vscode-terminal-ansiCyan` ([styles.css](media/styles.css)).
 2. ⏳ Essai F5 par Frank (thèmes clair et sombre).

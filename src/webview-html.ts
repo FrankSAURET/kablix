@@ -143,7 +143,8 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
         <li role="menuitem" data-cmd="kablix.exportWokwiDiagram">${l10n.t('Export a Wokwi diagram')}</li>
         <li role="menuitem" data-cmd="kablix.exportPartsCsv">${l10n.t('Export the part list (CSV)')}</li>
         <li class="more-menu__sep" role="separator"></li>
-        <li role="menuitem" data-cmd="kablix.upgradePicoFirmware">${l10n.t('Update the Pico firmware')}</li>
+        <li role="menuitem" data-cmd="kablix.upgradePicoFirmware">${l10n.t('Update the Pico firmware (simulation)')}</li>
+        <li role="menuitem" data-cmd="kablix.flashPicoFirmware">${l10n.t('Put the same firmware on the real board')}</li>
         <li role="menuitem" data-cmd="kablix.checkLibraryUpdates">${l10n.t('Check for library updates')}</li>
         <li class="more-menu__sep" role="separator"></li>
         <li role="menuitem" data-cmd="kablix.saveDefaultLayout">${l10n.t('Save this layout as default')}</li>

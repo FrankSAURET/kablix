@@ -12,6 +12,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - **Fichiers web d'un serveur** : l'envoi vers la carte emporte aussi les pages HTML, CSS, JS et images que le programme lit. Tout le dossier `www/` ou `static/` part, ainsi que les fichiers cités dans le code, avec leur arborescence.
 - **Simulation identique à la carte** : le programme retrouve ces mêmes fichiers par `open()` et `os.listdir()` (24 Ko au maximum en simulation).
+- **Même firmware sur la carte réelle** : nouvelle entrée du menu, sous « Mettre à jour le firmware du Pico (en simulation) ». Elle installe sur la vraie Pico le firmware de la simulation, après une fenêtre d'autorisation qui nomme le port ou demande de brancher la carte.
 - **Bouton ■ Arrêter** dans l'onglet d'un programme MicroPython, à côté du bouton Envoyer : il arrête le programme qui tourne sur la carte et la laisse au REPL. Grisé quand aucune carte n'est branchée.
 
 **Console et traceur**

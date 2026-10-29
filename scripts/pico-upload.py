@@ -5,6 +5,7 @@ Ecrit des fichiers sur une carte Raspberry Pi Pico branchee en USB.
 Appele par l'extension (src/picoUploader.ts), jamais a la main :
     python pico-upload.py --port COM3 --files '[{"path": "...", "remote": "main.py"}]'
     python pico-upload.py --port COM3 --stop      (arrete le programme en cours)
+    python pico-upload.py --port COM3 --bootloader (mode BOOTSEL, avant un firmware)
     python pico-upload.py --port COM3 --files '[...]' --monitor
         (envoi, redemarrage logiciel, puis le port reste ouvert : la sortie de
         la carte suit la ligne DONE sur stdout, la saisie arrive par stdin)
@@ -308,11 +309,48 @@ def stop_program(port: str, baud: int) -> int:
     return 0
 
 
+def enter_bootloader(port: str, baud: int) -> int:
+    """
+    Bascule la carte en mode BOOTSEL (machine.bootloader) : elle disparait du
+    port serie et revient en lecteur USB « RPI-RP2 » / « RP2350 », pret a
+    recevoir un .uf2. Pas d'accuse de reception : l'USB tombe aussitot.
+    """
+    try:
+        ser = serial.Serial(port, baud, timeout=0.1)
+    except serial.SerialException as exc:
+        print("ERROR: cannot open %s (%s). Close any serial monitor using it." % (port, exc))
+        return 2
+    try:
+        time.sleep(0.2)
+        try:
+            enter_raw_repl(ser)
+        except ReplError as exc:
+            print("ERROR: no MicroPython prompt on %s (%s). Is the board running MicroPython?"
+                  % (port, exc))
+            return 3
+        ser.write(b"import machine\nmachine.bootloader()")
+        ser.write(b"\x04")
+        try:
+            ser.flush()
+        except serial.SerialException:
+            pass
+        time.sleep(0.3)
+    finally:
+        try:
+            ser.close()
+        except (serial.SerialException, OSError):
+            pass
+    print("DONE: board restarted in BOOTSEL mode")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Write files to a Raspberry Pi Pico")
     parser.add_argument("--port", required=True, help="COM3, /dev/ttyACM0, ...")
     parser.add_argument("--files", help='JSON: [{"path":..., "remote":...}]')
     parser.add_argument("--stop", action="store_true", help="stop the running program (Ctrl-C)")
+    parser.add_argument("--bootloader", action="store_true",
+                        help="restart the board in BOOTSEL mode (firmware update)")
     parser.add_argument("--monitor", action="store_true",
                         help="keep the port open and relay the board output (after --files: soft reboot)")
     parser.add_argument("--baud", type=int, default=115200)
@@ -320,6 +358,8 @@ def main() -> int:
 
     if args.stop:
         return stop_program(args.port, args.baud)
+    if args.bootloader:
+        return enter_bootloader(args.port, args.baud)
     if args.monitor and not args.files:
         return monitor(None, args.port, args.baud)
     if not args.files:

@@ -411,6 +411,11 @@ export class SimulatorPanel {
    * MicroPython montrées à Pylance côté Pico. L'ordre compte — la carte doit
    * être écrite dans arduino.yaml AVANT que l'extension d'en face la relise.
    */
+  /** Carte du dessin (lue par « Mettre le même firmware sur la carte réelle »). */
+  public get board(): Board {
+    return this.currentBoard;
+  }
+
   private setCurrentBoard(board: Board): void {
     this.currentBoard = board;
     const hint = this.codeFileUri ?? this.projectUri ?? this.documentUri;
@@ -2276,6 +2281,7 @@ export class SimulatorPanel {
             'kablix.exportWokwiDiagram',
             'kablix.exportPartsCsv',
             'kablix.upgradePicoFirmware',
+            'kablix.flashPicoFirmware',
             'kablix.checkLibraryUpdates',
             'kablix.saveDefaultLayout',
             'kablix.rearrangeLayout',

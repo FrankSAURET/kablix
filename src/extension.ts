@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { SimulatorPanel, chooseSvgEditor, useSvgEditorMemory } from './panel';
 import { GuidePanel, SHOW_GUIDE } from './guide';
 import { promptLibraryUpdates } from './updates';
-import { upgradeFirmware, checkFirmwareUpdate } from './firmware';
+import { upgradeFirmware, checkFirmwareUpdate, firmwareForRealBoard, firmwareLabel, chipOf } from './firmware';
 import { saveDefaultLayout, applyDefaultLayout, kablixColumn } from './layout';
 import { registerProjixEditor, ProjixEditorProvider } from './projix-editor';
 import { associateProjix, promptProjixAssociationOnFirstRun, refreshProjixIcon } from './associate';
@@ -193,6 +193,16 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand('kablix.upgradePicoFirmware', () => {
       void upgradeFirmware(context);
+    }),
+    vscode.commands.registerCommand('kablix.flashPicoFirmware', async () => {
+      // Même firmware que la simulation, choisi d'après la carte du dessin.
+      try {
+        const fw = await firmwareForRealBoard(context, SimulatorPanel.active()?.board);
+        if (!fw) return;
+        await picoUploader.flashFirmware(fw.path, firmwareLabel(fw.variant), chipOf(fw.variant));
+      } catch (err) {
+        void vscode.window.showErrorMessage(err instanceof Error ? err.message : String(err));
+      }
     }),
     vscode.commands.registerCommand('kablix.openHelp', () => {
       void GuidePanel.show(context.extensionUri);

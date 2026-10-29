@@ -25,6 +25,7 @@
 import * as vscode from 'vscode';
 import { execFile, spawn } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
+import { copyFile, readdir } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { collectPythonLibs } from './compiler';
 import { MICROPICO_EXTENSION_ID } from './intellisense';
@@ -172,6 +173,56 @@ async function detectMac(): Promise<PicoPort[]> {
     .map((s) => s.trim())
     .filter(Boolean)
     .map((port) => ({ port, label: `Raspberry Pi Pico (${port})` }));
+}
+
+/** Carte en mode BOOTSEL : un lecteur USB qui attend un .uf2. */
+export interface BootselDrive {
+  /** Racine du lecteur : `E:\`, `/media/frank/RPI-RP2`, `/Volumes/RP2350`. */
+  path: string;
+  /** Puce annoncée par `INFO_UF2.TXT` (`Board-ID`), si lisible. */
+  chip: 'RP2040' | 'RP2350' | undefined;
+}
+
+/** Délai laissé à la carte pour réapparaître en lecteur après `machine.bootloader()`. */
+const BOOTSEL_WAIT_MS = 15000;
+
+/**
+ * Lecteurs BOOTSEL montés. Le bootloader du RP2040 (« RPI-RP2 ») comme celui
+ * du RP2350 (« RP2350 ») exposent un `INFO_UF2.TXT` dont la ligne `Board-ID`
+ * dit la puce : c'est lui qui distingue une carte d'une clé USB quelconque.
+ */
+async function findBootselDrives(): Promise<BootselDrive[]> {
+  let roots: string[];
+  if (process.platform === 'win32') {
+    roots = 'DEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((l) => `${l}:\\`);
+  } else {
+    const user = process.env.USER ?? '';
+    const parents =
+      process.platform === 'darwin' ? ['/Volumes'] : [`/media/${user}`, `/run/media/${user}`, '/media'];
+    roots = [];
+    for (const parent of parents) {
+      try {
+        for (const name of await readdir(parent)) roots.push(join(parent, name));
+      } catch {
+        // dossier de montage absent sur ce système
+      }
+    }
+  }
+  const drives: BootselDrive[] = [];
+  for (const root of roots) {
+    const info = join(root, 'INFO_UF2.TXT');
+    if (!existsSync(info)) continue;
+    let text = '';
+    try {
+      text = readFileSync(info, 'latin1');
+    } catch {
+      // lecteur en cours de montage : la puce reste inconnue
+    }
+    const id = text.match(/Board-ID:\s*(\S+)/)?.[1] ?? '';
+    const chip = /RP2350/i.test(id) ? 'RP2350' : /RP2/i.test(id) ? 'RP2040' : undefined;
+    drives.push({ path: root, chip });
+  }
+  return drives;
 }
 
 /**
@@ -558,6 +609,200 @@ export class PicoUploader {
     } finally {
       // Carte au REPL, plus rien à interrompre : MicroPico peut reprendre le port.
       if (microPico) reconnectMicroPico(out);
+      this.busy = false;
+      void this.refresh();
+    }
+  }
+
+  /**
+   * Pose sur la carte réelle le firmware de la simulation. Fenêtre modale
+   * d'autorisation dans tous les cas :
+   * - carte déjà en mode BOOTSEL (lecteur USB) : on nomme le lecteur ;
+   * - carte sous MicroPython sur un port série : on nomme le port, puis
+   *   `machine.bootloader()` la passe en BOOTSEL avant la copie ;
+   * - rien de branché : la fenêtre demande de brancher la carte, « Réessayer ».
+   * La puce du lecteur est comparée à celle du firmware : un firmware RP2040
+   * ne part jamais sur une Pico 2, et inversement.
+   */
+  async flashFirmware(
+    uf2Path: string,
+    boardLabel: string,
+    chip: 'RP2040' | 'RP2350'
+  ): Promise<void> {
+    if (this.busy) {
+      void vscode.window.showInformationMessage(
+        vscode.l10n.t('An upload is already running.')
+      );
+      return;
+    }
+    const file = basename(uf2Path);
+    const install = vscode.l10n.t('Install');
+    const retry = vscode.l10n.t('Retry');
+    const keep = vscode.l10n.t(
+      'The files on the board (main.py, modules…) are normally kept.'
+    );
+
+    for (;;) {
+      const drives = await findBootselDrives();
+      if (drives.length > 0) {
+        const drive = drives[0];
+        const choice = await vscode.window.showWarningMessage(
+          vscode.l10n.t('Install {0} on the Pico board in update mode (drive {1})?', file, drive.path),
+          { modal: true, detail: `${boardLabel} — ${chip}. ${keep}` },
+          install
+        );
+        if (choice !== install) return;
+        await this.copyFirmware(uf2Path, drive, chip, false);
+        return;
+      }
+
+      await this.refresh();
+      if (this.ports.length > 0) {
+        const port = await this.pickPort();
+        if (!port) return;
+        const choice = await vscode.window.showWarningMessage(
+          vscode.l10n.t('Install {0} on the Pico board connected to {1}?', file, port),
+          {
+            modal: true,
+            detail: `${boardLabel} — ${chip}. ${vscode.l10n.t(
+              'Kablix restarts the board in update mode (BOOTSEL), then copies the firmware.'
+            )} ${keep}`,
+          },
+          install
+        );
+        if (choice !== install) return;
+        this.lastPort = port;
+        await this.bootselThenCopy(uf2Path, port, chip);
+        return;
+      }
+
+      const choice = await vscode.window.showWarningMessage(
+        vscode.l10n.t('No Pico board detected.'),
+        {
+          modal: true,
+          detail: vscode.l10n.t(
+            'Plug the board in over USB, then click Retry. If it does not run MicroPython yet, hold its BOOTSEL button while plugging it in.'
+          ),
+        },
+        retry
+      );
+      if (choice !== retry) return;
+    }
+  }
+
+  /** Carte sous MicroPython : bascule en BOOTSEL, attend son lecteur, copie. */
+  private async bootselThenCopy(
+    uf2Path: string,
+    port: string,
+    chip: 'RP2040' | 'RP2350'
+  ): Promise<void> {
+    const out = this.channel();
+    out.clear();
+    out.appendLine(`> ${port} — BOOTSEL`);
+    this.busy = true;
+    let drive: BootselDrive | undefined;
+    try {
+      drive = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: vscode.l10n.t('Restarting the Pico in update mode ({0})…', port),
+          cancellable: false,
+        },
+        async () => {
+          await this.console.release();
+          this.microPicoHeld ||= await releaseMicroPico();
+          await this.runTool(['--port', port, '--bootloader'], out);
+          const deadline = Date.now() + BOOTSEL_WAIT_MS;
+          while (Date.now() < deadline) {
+            await new Promise((r) => setTimeout(r, 500));
+            const found = await findBootselDrives();
+            if (found.length > 0) return found[0];
+          }
+          return undefined;
+        }
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      out.show(true);
+      void vscode.window.showErrorMessage(
+        vscode.l10n.t('Firmware installation failed: {0}', message)
+      );
+      if (this.microPicoHeld) reconnectMicroPico(out);
+      this.microPicoHeld = false;
+      return;
+    } finally {
+      this.busy = false;
+    }
+    if (!drive) {
+      void vscode.window.showErrorMessage(
+        vscode.l10n.t(
+          'The board did not appear in update mode. Unplug it, hold BOOTSEL while plugging it back in, then try again.'
+        )
+      );
+      return;
+    }
+    await this.copyFirmware(uf2Path, drive, chip, true);
+  }
+
+  /**
+   * Copie le .uf2 sur le lecteur BOOTSEL. La carte redémarre d'elle-même dès
+   * le dernier bloc écrit et le lecteur disparaît : une erreur de fermeture
+   * avec un lecteur déjà parti est donc une réussite.
+   */
+  private async copyFirmware(
+    uf2Path: string,
+    drive: BootselDrive,
+    chip: 'RP2040' | 'RP2350',
+    fromSerial: boolean
+  ): Promise<void> {
+    if (drive.chip && drive.chip !== chip) {
+      void vscode.window.showErrorMessage(
+        vscode.l10n.t(
+          'This board has a {0} chip, but the firmware is for {1}. Choose the matching board in the drawing, then try again.',
+          drive.chip,
+          chip
+        )
+      );
+      return;
+    }
+    const out = this.channel();
+    if (!fromSerial) out.clear();
+    out.appendLine(`> ${drive.path} — ${basename(uf2Path)}`);
+    this.busy = true;
+    try {
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: vscode.l10n.t('Installing the firmware on the Pico ({0})…', drive.path),
+          cancellable: false,
+        },
+        async () => {
+          try {
+            await copyFile(uf2Path, join(drive.path, basename(uf2Path)));
+          } catch (err) {
+            if (existsSync(join(drive.path, 'INFO_UF2.TXT'))) throw err;
+          }
+          // La carte redémarre : on attend que le lecteur s'en aille.
+          const deadline = Date.now() + BOOTSEL_WAIT_MS;
+          while (existsSync(join(drive.path, 'INFO_UF2.TXT')) && Date.now() < deadline) {
+            await new Promise((r) => setTimeout(r, 300));
+          }
+        }
+      );
+      out.appendLine('DONE: firmware copied, board restarting');
+      void vscode.window.showInformationMessage(
+        vscode.l10n.t('MicroPython installed on the Pico ({0}). The board restarts.', basename(uf2Path))
+      );
+      // MicroPico reprend la carte une fois qu'elle a réapparu sur son port.
+      if (this.microPicoHeld) setTimeout(() => reconnectMicroPico(out), 3000);
+      this.microPicoHeld = false;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      out.show(true);
+      void vscode.window.showErrorMessage(
+        vscode.l10n.t('Firmware installation failed: {0}', message)
+      );
+    } finally {
       this.busy = false;
       void this.refresh();
     }
