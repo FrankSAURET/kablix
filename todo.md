@@ -5,6 +5,12 @@
 
 ---
 
+# v2026.10.3.279 — bannière Pico lisible en thème clair
+1. ✅ Retour de Frank : le cyan de la bannière est invisible en thème clair. `.ansi-36` prend la couleur des liens du thème (`--vscode-textLink-foreground`) au lieu de `--vscode-terminal-ansiCyan` ([styles.css](media/styles.css)).
+2. ⏳ Essai F5 par Frank (thèmes clair et sombre).
+
+---
+
 # v2026.10.3.278 — console Pico : bannière en couleur, `>>>` à chaque lancement, plus de ligne d'envoi
 1. ✅ Demande de Frank : compléter l'analogie avec la vraie carte — bannière du REPL en couleur (sans la ligne `help()`), saut de ligne et `>>>` à chaque lancement ; supprimer la ligne « Envoyer au microcontrôleur » pour les Pico.
 2. ✅ [serialbuffer.mts](src/webview/serialbuffer.mts) : couleurs ANSI SGR (30-37, 90-97, 0/39) rendues en `<span class="ansi-NN">` (`runs` = début de chaque couleur). Sans couleur, DOM inchangé (un nœud texte) ; avec couleur, l'ajout du delta va dans le dernier nœud, réécriture seulement au changement de couleur, backspace ou troncature. Classes `.ansi-NN` dans [styles.css](media/styles.css), palette du terminal VS Code.

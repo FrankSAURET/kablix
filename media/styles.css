@@ -3151,7 +3151,9 @@ body.vscode-light .inspector__ref--nouveau {
 .ansi-33 { color: var(--vscode-terminal-ansiYellow, #e5e510); }
 .ansi-34 { color: var(--vscode-terminal-ansiBlue, #2472c8); }
 .ansi-35 { color: var(--vscode-terminal-ansiMagenta, #bc3fbc); }
-.ansi-36 { color: var(--vscode-terminal-ansiCyan, #11a8cd); }
+/* Cyan = bannière MicroPython de la Pico : couleur des liens du thème, lisible
+   en clair comme en sombre (le cyan du terminal disparaît sur fond clair). */
+.ansi-36 { color: var(--vscode-textLink-foreground, #3794ff); }
 .ansi-37 { color: var(--vscode-terminal-ansiWhite, #e5e5e5); }
 .ansi-90 { color: var(--vscode-terminal-ansiBrightBlack, #666); }
 .ansi-91 { color: var(--vscode-terminal-ansiBrightRed, #f14c4c); }
