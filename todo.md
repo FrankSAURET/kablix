@@ -3,6 +3,12 @@
 
 ---
 
+# v2026.11.0.282 — 2026.11.0 en ligne
+
+1. ✅ Publication confirmée par Frank le 2 novembre 2026. CHANGELOG : `## 2026.11.1 (prochaine publication)` ouverte. CLAUDE.md : état des versions à jour.
+
+---
+
 # v2026.11.0.281 — préparation de la publication 2026.11.0
 
 1. ✅ **Numéro** : publication le 2 novembre, mois changé → `2026.11.0` (la `2026.10.4` prévue n'existe pas). `package.json` et `package-lock.json` en `2026.11.0`, `buildNumber` 281, CLAUDE.md à jour.
@@ -10,7 +16,7 @@
 3. ✅ **Lot de traduction ES/ZH** : 25 chaînes de l'extension (`bundle.l10n.es/zh-cn.json` : envoi et arrêt sur la Pico, fichiers web, console Pico, même firmware sur la carte réelle ; clé « Update the Pico firmware » renommée « … (simulation) »), 6 clés du manifeste (`package.nls.es/zh-cn.json` : 2 commandes Arrêter, firmware simulation/carte réelle, réglage `hidePythonRunButton`, description de `checkFirmwareUpdatesOnStartup`), note « Wire the servos » (`i18n-es.mts`, `i18n-zh.mts`). `verify:i18n` vert (17/17).
 4. ✅ **Docs EN/ES/ZH** ([USAGE](docs/en/USAGE.md)) : menu hamburger (firmware simulation / carte réelle), bouton REPL, paragraphe « même firmware sur la carte réelle », console Pico = terminal de la carte, entrée du moniteur série. `verify:docs` vert.
 5. ✅ **README EN/ES/ZH** : retouches de Frank reportées (« vérification automatique du code par rapport au montage », ligne « actionneurs animés »).
-6. ⏳ **Reste à Frank** : publier (`npm run publier`). Après la mise en ligne : ouvrir `## 2026.11.1 (prochaine publication)` dans le CHANGELOG.
+6. ✅ **Reste à Frank** : publier (`npm run publier`). Après la mise en ligne : ouvrir `## 2026.11.1 (prochaine publication)` dans le CHANGELOG.
 
 ---
 
