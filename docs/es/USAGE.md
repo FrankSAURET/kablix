@@ -85,7 +85,7 @@
   - el botón **Nombres**, que muestra el nombre en el componente **seleccionado** o en todos los componentes, o el id de los componentes (la referencia).
   - **reorganizar**: restablece la disposición de Kablix (código a un lado, Kablix al otro, paneles cerrados). Puede intercambiar las dos zonas y ajustar su anchura con el ratón, y después usar **Guardar esta disposición como predeterminada** (menú hamburguesa): se recuerdan tanto el lado de Kablix **como** la anchura, y «reorganizar» los restablece — incluso devolviendo Kablix al lado elegido si ha cambiado desde entonces.
   - **modo texto** (el icono «T»): coloca **etiquetas** libres en la hoja — un título de circuito, una nota, el nombre de una zona. Una etiqueta **seleccionada** se edita en el panel de la derecha: **color del texto**, **color del fondo**, **opacidad del fondo** (hasta cero: el texto queda solo, sin recuadro de color), **tamaño del texto** y **fuente**. Las etiquetas son solo decoración: la simulación las ignora, pero la exportación SVG las incluye.
-  - el **menú hamburguesa** para las funciones menos frecuentes: importar / exportar un esquema **Wokwi**, exportar la **lista de componentes (CSV)**, actualizar el **firmware del Pico**, buscar **actualizaciones de las bibliotecas**, guardar la disposición predeterminada, abrir los **Ajustes** de Kablix (los ajustes de la extensión en la pantalla de VS Code, ya filtrados).
+  - el **menú hamburguesa** para las funciones menos frecuentes: importar / exportar un esquema **Wokwi**, exportar la **lista de componentes (CSV)**, actualizar el **firmware del Pico** de la simulación o poner el mismo en la **placa real**, buscar **actualizaciones de las bibliotecas**, guardar la disposición predeterminada, abrir los **Ajustes** de Kablix (los ajustes de la extensión en la pantalla de VS Code, ya filtrados).
   - el acceso a esta **ayuda**.
   - el **nombre del proyecto** actual.
   - el **archivo de código** del proyecto, justo al lado del nombre: **clic = cambiar**, **doble clic = abrir** (se abre del lado del código).
@@ -97,7 +97,7 @@
   - **⏸ pausa/reanudar**
   - **paso a paso**
   - el selector de **velocidad**, un animal por ajuste: 🦅 500 %, 🐆 200 %, 🐇 100 % (tiempo real), 🐢 10 %, 🐌 1 %, o ✎ **Personalizado** (escriba un porcentaje de 1 a 10 000 %, para ver una pila agotarse en unos minutos). Acelerar es un **deseo**: la simulación va tan deprisa como puede, nunca más.
-  - **REPL**: solo para el Pico, muestra la consola Python tradicional (solo aparece cuando la placa del lienzo es un Pico)
+  - **REPL**: solo para el Pico, arranca la placa sin programa, en el indicador `>>>` de la consola Python tradicional (solo aparece cuando la placa del lienzo es un Pico)
   - **monitor serie / consola**
   - **Trazador**
   - **reabrir el analizador lógico**: solo aparece cuando se ha cerrado la pestaña del analizador mientras sigue habiendo una pinza en el esquema. Un clic la vuelve a abrir con su última medida.
@@ -334,7 +334,9 @@ Para usar su propio firmware (sin conexión, una versión concreta…): coloque 
 
 > ⚠ **Funcionamiento totalmente sin conexión.** Para que un equipo sin Internet nunca tenga que descargar el firmware, **coloque el `.uf2` en la carpeta del proyecto**: se versionará y se entregará con el proyecto. Kablix busca el firmware **primero en el espacio de trabajo**, luego en el firmware descargado/guardado, y solo propone la descarga como último recurso. Un proyecto que lleva su firmware es así reproducible y autónomo.
 
-El firmware arranca dentro del simulador (bootrom + flash + USB) y luego el script se inyecta mediante el **raw REPL**. Las llamadas a `print()` aparecen en el monitor serie; al final del script, el **REPL interactivo** sigue disponible mediante el campo de entrada o haciendo clic en el botón REPL.
+**El mismo firmware en la placa real.** El menú hamburguesa ofrece **Actualizar el firmware del Pico (simulación)** y, justo debajo, **Poner el mismo firmware en la placa real**. Esta segunda función instala en la Pico real el firmware exacto de la simulación, elegido según la placa del esquema (Pico, Pico W, Pico 2, Pico 2 W). Una ventana pide siempre autorización: indica el **puerto** de la placa si funciona con MicroPython (Kablix la pasa entonces a modo BOOTSEL), o su **unidad** si ya está en modo BOOTSEL. Sin placa, la ventana pide conectarla (con el botón BOOTSEL pulsado si aún no tiene MicroPython) y luego **Reintentar**. Un chip que no corresponde al firmware (RP2040 frente a RP2350) se rechaza. Los archivos de la placa se conservan normalmente.
+
+El firmware arranca dentro del simulador (bootrom + flash + USB) y luego el script se inyecta mediante el **raw REPL**. La consola se comporta como el terminal de una placa real: cada ejecución muestra en color el banner de la placa (`MicroPython v1.29.0 on …; Raspberry Pi Pico with RP2040`) y luego el indicador `>>>`, y ahí aparecen los `print()`; se escribe **directamente** en ella (clic en la consola), tecla a tecla, y es la placa la que devuelve el eco — `input()` lee lo que se escribe. Lo que se escribe durante el arranque se guarda y se entrega al programa en cuanto se ejecuta. **Ctrl-C** detiene el programa y devuelve el indicador `>>>` del **REPL interactivo**; un programa que termina también deja ahí el control. El botón REPL arranca la placa sin programa, directamente en el indicador `>>>`.
 
 ### Enviar el programa a una placa Pico real
 
@@ -400,7 +402,7 @@ La elección vale para **esa variable** y se recuerda **en el proyecto**, como l
 ### Monitor serie
 
 - **Salida**: USART (Uno), USB-CDC y UART0 (Pico), en tiempo real.
-- **Entrada**: campo de entrada + `Intro` (o el botón Enviar). En la Pico, la entrada alimenta el USB-CDC (REPL de MicroPython) **y** el UART0.
+- **Entrada**: campo de entrada + `Intro` (o el botón Enviar). En la Pico, no hay campo de entrada: se escribe directamente en la consola, cada tecla va a la placa (USB-CDC del REPL de MicroPython), como en el terminal de una placa real.
 - **Errores de compilación**: cuando el programa no compila, los mensajes **completos** del compilador se muestran aquí, bajo un encabezado `── Build failed ──` (el monitor se despliega solo si estaba plegado). La burbuja de notificación solo recuerda el **primer** error —`file.ino:12: 'digitalWrit' was not declared in this scope`—: casi siempre es el que hay que corregir primero, los demás se derivan de él.
 
 ### Trazador

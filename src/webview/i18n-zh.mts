@@ -572,8 +572,8 @@ export const ZH: Record<string, string> = {
     '设置舵机零位',
   'Servo parameters':
     '舵机参数',
-  'Type the output each servo is plugged into: 0 to 15, marked 1 to 16 on the board. The same channel cannot be used twice, and a servo left empty does not move.':
-    '填写每个舵机所接的输出：0 到 15，板上标为 1 到 16。同一通道不能用两次，留空的舵机不会动。',
+  'Type the output each servo is plugged into: 0 to 15, marked 1 to 16 on the board. The coxa servo (purple) sweeps the leg along the ground; the patella servo (green) lifts and lowers it. The same channel cannot be used twice, and a servo left empty does not move.':
+    '填写每个舵机所接的输出：0 到 15，板上标为 1 到 16。coxa 舵机（紫色）让腿贴地前后摆动；patella 舵机（绿色）让腿抬起和放下。同一通道不能用两次，留空的舵机不会动。',
   'Channel {0} to {1} (marked {2} to {3} on the board).':
     '通道 {0} 到 {1}（板上标为 {2} 到 {3}）。',
   'Channel {0} is already used by another servo.':

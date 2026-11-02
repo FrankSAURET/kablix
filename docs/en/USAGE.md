@@ -85,7 +85,7 @@
   - the **Names** button, which shows the name on the **selected** part or on all parts, or the parts' id (the reference).
   - **rearrange**: restores the Kablix layout (code on one side, Kablix on the other, panels closed). You can swap the two zones and set their width with the mouse, then use **Save this layout as the default** (hamburger menu): both the side of Kablix **and** the width are remembered, and “rearrange” restores them — including moving Kablix back to the chosen side if it has changed since.
   - **text mode** (the “T” icon): places free **labels** on the sheet — a circuit title, a note, the name of an area. A **selected** label is edited in the right-hand panel: **text color**, **background color**, **background opacity** (down to zero: the text stays on its own, with no colored box), **text size** and **font**. Labels are decoration only: the simulation ignores them, but the SVG export carries them along.
-  - the **hamburger menu** for less frequent functions: import / export a **Wokwi** diagram, export the **part list (CSV)**, update the **Pico firmware**, check for **library updates**, save the default layout, open Kablix's **Settings** (the extension's settings in VS Code's screen, already filtered).
+  - the **hamburger menu** for less frequent functions: import / export a **Wokwi** diagram, export the **part list (CSV)**, update the simulation's **Pico firmware** or put the same one on the **real board**, check for **library updates**, save the default layout, open Kablix's **Settings** (the extension's settings in VS Code's screen, already filtered).
   - access to this **help**.
   - the current **project name**.
   - the project's **code file**, right next to the name: **click = change**, **double-click = open** (it opens on the code side).
@@ -97,7 +97,7 @@
   - **⏸ pause/resume**
   - **step**
   - the **speed** selector, one animal per setting: 🦅 500 %, 🐆 200 %, 🐇 100 % (real time), 🐢 10 %, 🐌 1 %, or ✎ **Custom** (type a percentage from 1 to 10,000 %, to watch a battery drain in a few minutes). Speeding up is a **wish**: the simulation runs as fast as it can, never faster.
-  - **REPL**: for Pico only, shows the traditional Python console (it only appears when the board on the canvas is a Pico)
+  - **REPL**: for Pico only, starts the board without a program, at the `>>>` prompt of the traditional Python console (it only appears when the board on the canvas is a Pico)
   - **serial monitor / console**
   - **Plotter**
   - **reopen the logic analyzer**: only appears when the analyzer tab has been closed while a clip is still on the diagram. A click reopens it with its last measurement.
@@ -334,7 +334,9 @@ To provide your own firmware (offline, a specific version…): put an official `
 
 > ⚠ **Fully offline operation.** So that a machine without Internet never has to download the firmware, **put the `.uf2` in the project folder**: it will be versioned and shipped with the project. Kablix looks for the firmware **in the workspace first**, then in the downloaded/stored firmware, and only offers the download as a last resort. A project that carries its firmware is thus reproducible and self-contained.
 
-The firmware boots inside the simulator (bootrom + flash + USB), then the script is injected through the **raw REPL**. `print()` calls appear in the serial monitor; at the end of the script the **interactive REPL** stays available through the input field or by clicking the REPL button.
+**Same firmware on the real board.** The hamburger menu offers **Update the Pico firmware (simulation)**, then just below **Put the same firmware on the real board**. This second function installs on the real Pico the exact firmware of the simulation, chosen from the board in the diagram (Pico, Pico W, Pico 2, Pico 2 W). A window always asks for permission: it names the board's **port** if it runs MicroPython (Kablix then switches it to BOOTSEL mode), or its **drive** if it is already in BOOTSEL mode. With no board, the window asks you to plug it in (BOOTSEL button held down if it does not have MicroPython yet) then **Retry**. A chip that does not match the firmware (RP2040 versus RP2350) is refused. The board's files are normally kept.
+
+The firmware boots inside the simulator (bootrom + flash + USB), then the script is injected through the **raw REPL**. The console behaves like the terminal of a real board: each run shows the board's banner in colour (`MicroPython v1.29.0 on …; Raspberry Pi Pico with RP2040`) then the `>>>` prompt, and `print()` output appears there; you type **directly** into it (click in the console), key by key, and the board sends back the echo — `input()` reads what you type. What is typed during startup is kept and handed to the program as soon as it runs. **Ctrl-C** stops the program and gives back the `>>>` prompt of the **interactive REPL**; a program that ends also leaves you there. The REPL button starts the board without a program, straight at the `>>>` prompt.
 
 ### Sending the program to a real Pico board
 
@@ -400,7 +402,7 @@ The choice applies to **that variable** and is remembered **in the project**, li
 ### Serial monitor
 
 - **Output**: USART (Uno), USB-CDC and UART0 (Pico), in real time.
-- **Input**: input field + `Enter` (or the Send button). On the Pico, the input feeds the USB-CDC (MicroPython REPL) **and** UART0.
+- **Input**: input field + `Enter` (or the Send button). On the Pico, no input field: you type directly into the console, each key goes to the board (USB-CDC of the MicroPython REPL), as in the terminal of a real board.
 - **Build errors**: when the program does not compile, the **full** compiler messages are shown here, under a `── Build failed ──` heading (the monitor unfolds on its own if it was collapsed). The notification bubble only recalls the **first** error — `file.ino:12: 'digitalWrit' was not declared in this scope`: it is almost always the one to fix first, the others follow from it.
 
 ### Plotter

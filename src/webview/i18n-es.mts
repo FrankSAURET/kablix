@@ -572,8 +572,8 @@ export const ES: Record<string, string> = {
     'Ajustar el cero de los servos',
   'Servo parameters':
     'Parámetros de los servos',
-  'Type the output each servo is plugged into: 0 to 15, marked 1 to 16 on the board. The same channel cannot be used twice, and a servo left empty does not move.':
-    'Indique la salida en la que está conectado cada servo: 0 a 15, marcadas 1 a 16 en la placa. Un mismo canal no puede usarse dos veces, y un servo que se deje vacío no se mueve.',
+  'Type the output each servo is plugged into: 0 to 15, marked 1 to 16 on the board. The coxa servo (purple) sweeps the leg along the ground; the patella servo (green) lifts and lowers it. The same channel cannot be used twice, and a servo left empty does not move.':
+    'Indique la salida en la que está conectado cada servo: 0 a 15, marcadas 1 a 16 en la placa. El servo de coxa (violeta) barre la pata a ras de suelo; el servo de patella (verde) la levanta y la baja. Un mismo canal no puede usarse dos veces, y un servo que se deje vacío no se mueve.',
   'Channel {0} to {1} (marked {2} to {3} on the board).':
     'Canal {0} a {1} (marcados {2} a {3} en la placa).',
   'Channel {0} is already used by another servo.':

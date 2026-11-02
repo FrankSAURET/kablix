@@ -56,9 +56,10 @@ Mi biblioteca de pruebas está disponible aquí: [TestKablix](https://github.com
 - ✅ **Trazador**: curvas en directo, y **sondas** colocadas en un pin para ver su tensión
 - ✅ **Pilas, baterías y autonomía**: consumo real de la placa en el trazador (reposo profundo incluido), Power bank que se vacía, pilas 4 × AA, 9 V, CR2032 y LiPo para instalar desde la biblioteca, velocidad de simulación libre hasta 10 000 %. Una pila en cortocircuito explota y abre una página de advertencia.
 - ✅ **Simulación física**: la luminosidad depende de la resistencia en serie, los LED sin resistencia se queman, los servos no arrancan, la alimentación tiene en cuenta la corriente, la resistencia se pone roja antes de quemarse…
-- ✅ **Lectura del código frente al esquema**: en cada ▶, Kablix señala `analogWrite` en un pin sin PWM, un pin leído sin `pinMode` o sin nada conectado, un componente cableado a un pin que el código nunca usa; una entrada al aire oscila y un bucle de espera bloqueante se señala. Nunca bloquea, y Kablix calla ante la menor duda.
+- ✅ **Verificación automática del código frente al montaje**: en cada ▶, Kablix señala `analogWrite` en un pin sin PWM, un pin leído sin `pinMode` o sin nada conectado, un componente cableado a un pin que el código nunca usa; una entrada al aire oscila y un bucle de espera bloqueante se señala. Nunca bloquea, y Kablix calla ante la menor duda.
 - ✅ **Logros (insignias)**: 16 insignias que acreditan una competencia medida en la simulación (ley de Ohm, nivel lógico, bus I²C decodificado…) o premian la forma de trabajar (primer componente quemado, paso a paso, esquema limpio…). Nunca por tiempo invertido.
 - ✅ **Sensores interactivos**: cursores y botones para llama, gas, sonido, luz, temperatura y movimiento, que controlan en directo la entrada del circuito.
+- ✅ **Actuadores animados**: servomotores, motores, ventiladores e incluso sistemas completos están animados.
 - ✅ **Instrumentos de medida**: multímetro, osciloscopio, generador de funciones y analizador lógico.
 
 > Las ayudas están en la carpeta `docs/<código de país>/`.  

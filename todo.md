@@ -1,18 +1,28 @@
 # À faire
 ## ne pas faire pour l'instant
 
+---
 
+# v2026.11.0.281 — préparation de la publication 2026.11.0
+
+1. ✅ **Numéro** : publication le 2 novembre, mois changé → `2026.11.0` (la `2026.10.4` prévue n'existe pas). `package.json` et `package-lock.json` en `2026.11.0`, `buildNumber` 281, CLAUDE.md à jour.
+2. ✅ **CHANGELOG daté du 2 novembre 2026**, contenu inchangé (déjà rangé par thème).
+3. ✅ **Lot de traduction ES/ZH** : 25 chaînes de l'extension (`bundle.l10n.es/zh-cn.json` : envoi et arrêt sur la Pico, fichiers web, console Pico, même firmware sur la carte réelle ; clé « Update the Pico firmware » renommée « … (simulation) »), 6 clés du manifeste (`package.nls.es/zh-cn.json` : 2 commandes Arrêter, firmware simulation/carte réelle, réglage `hidePythonRunButton`, description de `checkFirmwareUpdatesOnStartup`), note « Wire the servos » (`i18n-es.mts`, `i18n-zh.mts`). `verify:i18n` vert (17/17).
+4. ✅ **Docs EN/ES/ZH** ([USAGE](docs/en/USAGE.md)) : menu hamburger (firmware simulation / carte réelle), bouton REPL, paragraphe « même firmware sur la carte réelle », console Pico = terminal de la carte, entrée du moniteur série. `verify:docs` vert.
+5. ✅ **README EN/ES/ZH** : retouches de Frank reportées (« vérification automatique du code par rapport au montage », ligne « actionneurs animés »).
+6. ⏳ **Reste à Frank** : publier (`npm run publier`). Après la mise en ligne : ouvrir `## 2026.11.1 (prochaine publication)` dans le CHANGELOG.
 
 ---
 
 # v2026.10.3.280 — même firmware sur la carte réelle
+
 1. ✅ Demande de Frank : menu « Mettre à jour le firmware du Pico » renommé « … (en simulation) » ; nouvelle entrée juste dessous « Mettre le même firmware sur la carte réelle » (commande `kablix.flashPicoFirmware`).
 2. ✅ [firmware.ts](src/firmware.ts) : `firmwareForRealBoard` = même résolution que la simulation (`resolveMicropythonFirmware`), variante d'après la carte du dessin (`SimulatorPanel.board`), demandée si dessin Arduino ou aucun atelier ; variante relue dans le nom du fichier (repli de la simulation).
 3. ✅ [picoUploader.ts](src/picoUploader.ts) : `flashFirmware` — fenêtre modale dans tous les cas : lecteur BOOTSEL nommé (`INFO_UF2.TXT`), ou port série nommé puis `machine.bootloader()` et attente du lecteur (15 s), ou « Aucune carte » + Réessayer. Puce du lecteur (`Board-ID`) comparée à celle du firmware. Console et MicroPico libérés avant, MicroPico reconnecté 3 s après.
 4. ✅ [pico-upload.py](scripts/pico-upload.py) : option `--bootloader`.
 5. ✅ FR : menu, palette, messages, [USAGE.md](docs/fr/USAGE.md), CHANGELOG.
 6. ⏳ EN/ES/ZH (clé de menu renommée, ES/ZH retombent sur l'anglais) : avant publication.
-7. ⏳ Essai sur vraie carte par Frank (port série → BOOTSEL → copie ; carte déjà en BOOTSEL ; carte absente ; Pico 2 avec firmware Pico).
+7. ✅ Essai sur vraie carte par Frank (port série → BOOTSEL → copie ; carte déjà en BOOTSEL ; carte absente ; Pico 2 avec firmware Pico).
 
 ---
 
@@ -1790,6 +1800,3 @@ Constaté dans src/arduino/arduino.ts :
 6. ⏳ Enregistrement des modifications en cours de Frank (README, archives, programmes de test DS18B20, `c_cpp_properties.json`) — reporté au lot suivant, rien n'avait été enregistré.
 
 ---
-
-
-
