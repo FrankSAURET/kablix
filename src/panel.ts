@@ -10,11 +10,19 @@ import {
   loadPythonProgram,
   loadMicropythonRepl,
   CompileFailed,
+  chercherArduinoCli,
   type Board,
   type CompileResult,
   type ToolPaths,
 } from './compiler';
 import { pistesArduinoIde } from './arduinoCliPistes';
+import {
+  candidatEvident,
+  chercherBibliotheques,
+  enTeteManquant,
+  installerBibliotheque,
+  type Candidat,
+} from './arduinoLibs';
 import { AnalyseurPanel, type AnalyseurVersHote, type EtatAnalyseur } from './analyseur-panel';
 import { AnalyseurJournal, csvExport, PROFONDEUR_DEFAUT, type VoieExport } from './analyseur-journal';
 import {
@@ -995,8 +1003,90 @@ export class SimulatorPanel {
         title: l10n.t('Compilation failed'),
         text: err.log,
       });
+      // Bibliothèque absente du poste (« Servo.h: No such file or directory ») :
+      // on propose de l'installer plutôt que de laisser l'élève chercher.
+      const enTete = enTeteManquant(err.log);
+      if (enTete && this.currentSourceUri?.fsPath.toLowerCase().endsWith('.ino')) {
+        void this.proposerBibliotheque(message, enTete);
+        return;
+      }
     }
     vscode.window.showErrorMessage(`Kablix : ${message}`);
+  }
+
+  /**
+   * Erreur « en-tête introuvable » : bouton « Installer la bibliothèque ». On
+   * cherche dans l'index Arduino qui fournit l'en-tête, on installe avec le
+   * MÊME arduino-cli que celui qui compile (sinon le carnet de croquis visé
+   * pourrait différer), puis on relance la compilation.
+   */
+  private async proposerBibliotheque(message: string, enTete: string): Promise<void> {
+    const bouton = l10n.t('Install the library');
+    const choix = await vscode.window.showErrorMessage(
+      `Kablix : ${message}
+` +
+        l10n.t('The library that provides {0} is not installed on this computer.', enTete),
+      bouton
+    );
+    if (choix !== bouton) return;
+    const cheminCli = chercherArduinoCli(this.toolPaths()).chemin;
+    if (!cheminCli) {
+      vscode.window.showErrorMessage(l10n.t('Kablix: arduino-cli not found, cannot install the library.'));
+      return;
+    }
+    let candidats: Candidat[];
+    try {
+      candidats = await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: l10n.t('Kablix: searching the Arduino library index for {0}…', enTete) },
+        () => chercherBibliotheques(cheminCli, enTete)
+      );
+    } catch (err) {
+      vscode.window.showErrorMessage(
+        l10n.t('Kablix: the Arduino library index could not be read (internet connection?).') +
+          `
+${err instanceof Error ? err.message : String(err)}`
+      );
+      return;
+    }
+    if (candidats.length === 0) {
+      vscode.window.showWarningMessage(
+        l10n.t(
+          'Kablix: no library of the Arduino index provides {0}. Install it by hand (Arduino IDE library manager).',
+          enTete
+        )
+      );
+      return;
+    }
+    let retenu = candidatEvident(candidats);
+    if (!retenu) {
+      const pick = await vscode.window.showQuickPick(
+        candidats.slice(0, 15).map((c) => ({
+          label: c.nom,
+          description: [c.version, c.auteur].filter(Boolean).join(' — '),
+          detail: c.phrase,
+          c,
+        })),
+        { title: l10n.t('Which library provides {0}?', enTete), ignoreFocusOut: true }
+      );
+      if (!pick) return;
+      retenu = pick.c;
+    }
+    const nom = retenu.nom;
+    try {
+      await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: l10n.t('Kablix: installing the {0} library…', nom) },
+        () => installerBibliotheque(cheminCli, nom)
+      );
+    } catch (err) {
+      vscode.window.showErrorMessage(
+        l10n.t('Kablix: installation of the {0} library failed.', nom) +
+          `
+${err instanceof Error ? err.message : String(err)}`
+      );
+      return;
+    }
+    vscode.window.showInformationMessage(l10n.t('Kablix: {0} library installed, compiling again.', nom));
+    await this.compileActiveFile(false);
   }
 
   /**

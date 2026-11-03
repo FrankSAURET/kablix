@@ -321,5 +321,15 @@
   "The board did not appear in update mode. Unplug it, hold BOOTSEL while plugging it back in, then try again.": "La carte n'est pas apparue en mode mise à jour. Débranchez-la, maintenez BOOTSEL en la rebranchant, puis réessayez.",
   "This board has a {0} chip, but the firmware is for {1}. Choose the matching board in the drawing, then try again.": "Cette carte porte une puce {0}, mais le firmware est prévu pour {1}. Choisissez la bonne carte dans le schéma, puis réessayez.",
   "Installing the firmware on the Pico ({0})…": "Installation du firmware sur la Pico ({0})…",
-  "MicroPython installed on the Pico ({0}). The board restarts.": "MicroPython installé sur la Pico ({0}). La carte redémarre."
+  "MicroPython installed on the Pico ({0}). The board restarts.": "MicroPython installé sur la Pico ({0}). La carte redémarre.",
+  "Install the library": "Installer la bibliothèque",
+  "The library that provides {0} is not installed on this computer.": "La bibliothèque qui fournit {0} n’est pas installée sur cet ordinateur.",
+  "Kablix: arduino-cli not found, cannot install the library.": "Kablix : arduino-cli introuvable, impossible d’installer la bibliothèque.",
+  "Kablix: searching the Arduino library index for {0}…": "Kablix : recherche de {0} dans l’index des bibliothèques Arduino…",
+  "Kablix: the Arduino library index could not be read (internet connection?).": "Kablix : impossible de lire l’index des bibliothèques Arduino (connexion internet ?).",
+  "Kablix: no library of the Arduino index provides {0}. Install it by hand (Arduino IDE library manager).": "Kablix : aucune bibliothèque de l’index Arduino ne fournit {0}. Installez-la à la main (gestionnaire de bibliothèques de l’IDE Arduino).",
+  "Which library provides {0}?": "Quelle bibliothèque fournit {0} ?",
+  "Kablix: installing the {0} library…": "Kablix : installation de la bibliothèque {0}…",
+  "Kablix: installation of the {0} library failed.": "Kablix : l’installation de la bibliothèque {0} a échoué.",
+  "Kablix: {0} library installed, compiling again.": "Kablix : bibliothèque {0} installée, nouvelle compilation."
 }

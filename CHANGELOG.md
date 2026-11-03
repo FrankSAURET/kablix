@@ -6,6 +6,12 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ## 2026.11.1 (prochaine publication)
 
+### Nouveauté
+
+**Compilation Arduino**
+
+- **Bibliothèque manquante installée en un clic** : quand la compilation échoue sur un en-tête introuvable (`Servo.h: No such file or directory`), la notification propose « Installer la bibliothèque ». Kablix cherche dans l'index Arduino la bibliothèque qui fournit ce fichier et l'installe. S'il y a plusieurs candidates, il les présente dans une liste. Il relance ensuite la compilation. Utile sur les postes où l'IDE Arduino n'a jamais été ouvert avec le compte de l'élève : Servo et les autres bibliothèques « intégrées » n'y sont pas installées.
+
 ## 2026.11.0 (2 novembre 2026)
 
 ### Nouveauté

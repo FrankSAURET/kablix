@@ -3,6 +3,17 @@
 
 ---
 
+# v2026.11.0.283 — bibliothèque Arduino manquante : bouton « Installer la bibliothèque »
+
+1. ✅ Signalé par Frank : « Servo.h introuvable » sur certains postes d'élèves, même après réinstallation de la carte. Cause : Servo n'est pas dans le cœur `arduino:avr` ; Arduino IDE 2 l'installe au premier lancement, par utilisateur. Un poste où l'IDE n'a jamais tourné sous ce compte (ou un profil réinitialisé) ne l'a pas.
+2. ✅ [arduinoLibs.ts](src/arduinoLibs.ts) : en-tête manquant relevé dans la sortie de gcc, recherche dans l'index Arduino (`lib search`, index mis à jour s'il est vide), classement (nom exact ou correspondance connue DHT/GFX/U8g2…, AVR seulement, officielle Arduino d'abord), installation par `lib install` avec le même arduino-cli que la compilation.
+3. ✅ [panel.ts](src/panel.ts) : sur l'erreur de compilation d'un `.ino`, bouton « Installer la bibliothèque ». Candidat évident installé directement, sinon liste à choisir ; puis nouvelle compilation.
+4. ✅ Banc `verify:arduinolibs` (22 contrôles, vraie recherche dans l'index comprise : Servo, Adafruit NeoPixel, LiquidCrystal I2C, DHT sensor library).
+5. ✅ FR : 10 chaînes dans `bundle.l10n.fr.json`, CHANGELOG.
+6. ⏳ ES/ZH : avant publication.
+
+---
+
 # v2026.11.0.282 — 2026.11.0 en ligne
 
 1. ✅ Publication confirmée par Frank le 2 novembre 2026. CHANGELOG : `## 2026.11.1 (prochaine publication)` ouverte. CLAUDE.md : état des versions à jour.
