@@ -835,9 +835,11 @@ export class SimulatorPanel {
       }
       // Compilation/chargement réussi : mémorise la signature pour que ▶ puisse
       // sauter une recompilation tant que le source n'a pas changé.
+      // Infos de débogage ratées : pas de mémo, le ▶ suivant recompile et retente.
       const mtime = await this.mtimeOf(doc.uri);
+      const debugRate = result.payload.format === 'avr-progmem' && result.payload.debugNote === 'failed';
       this.lastCompiled =
-        mtime !== undefined
+        mtime !== undefined && !debugRate
           ? { path: filePath, mtime, board: this.currentBoard }
           : undefined;
       this.runProgram(result, filePath.split(/[\\/]/).pop() ?? filePath);
@@ -975,11 +977,23 @@ export class SimulatorPanel {
     this.sendBreakpoints(); // synchronise la gouttière avec le programme qui démarre
     // Résumé des infos de débogage (aide à diagnostiquer « aucune variable »).
     let dbg = '';
-    if (result.payload.board === 'uno') {
+    if (result.payload.format === 'avr-progmem') {
       const info = result.payload.debug;
+      if (result.payload.debugNote === 'failed') {
+        // Sans ces infos, aucun point d'arrêt ne s'arrête : on le dit franchement.
+        vscode.window.showWarningMessage(
+          l10n.t(
+            'Kablix: avr-objdump failed to read the debug info (busy computer?). Breakpoints, stepping and variables are unavailable for this run: run again.'
+          )
+        );
+        if (result.log) console.log(`[Kablix] ${result.log}`);
+        return;
+      }
       dbg = info
         ? l10n.t(' — debug: {0} lines, {1} variable(s)', info.lines.length, info.globals.length)
-        : l10n.t(' — debug info unavailable (avr-objdump not found)');
+        : result.payload.debugNote === 'absent'
+          ? l10n.t(' — debug info unavailable (avr-objdump not found)')
+          : l10n.t(' — no debug info in this program');
     }
     vscode.window.showInformationMessage(
       l10n.t('Kablix: {0} loaded into the simulator.', label) + dbg

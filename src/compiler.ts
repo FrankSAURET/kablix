@@ -50,7 +50,14 @@ const RAM_START = 0x20000000;
  * prohibitif).
  */
 export type ProgramPayload =
-  | { board: 'uno'; format: 'avr-progmem'; bytes: number[]; debug?: AvrDebugInfo }
+  | {
+      board: 'uno';
+      format: 'avr-progmem';
+      bytes: number[];
+      debug?: AvrDebugInfo;
+      /** Pourquoi `debug` manque : outil introuvable, ou lecture ratée (poste saturé…). */
+      debugNote?: 'absent' | 'failed';
+    }
   | { board: 'pico'; format: 'rp2040-ram'; b64: string }
   | {
       board: 'pico';
@@ -1417,9 +1424,17 @@ function flattenGlobal(
   return [{ name, addr, size: type.size, type: type.name }];
 }
 
+/** Infos de débogage AVR, ou la raison de leur absence. */
+interface AvrDebugResult {
+  debug?: AvrDebugInfo;
+  note?: 'absent' | 'failed';
+}
+
 /**
  * Extrait table des lignes et globales de l'ELF via avr-objdump. Toute
  * défaillance est non bloquante : la compilation aboutit sans infos de débogage.
+ * Un échec de lecture est marqué `failed` : sans ces infos, aucun point d'arrêt
+ * ne s'arrête, et le résultat ne doit pas entrer dans le cache (voir `compile`).
  */
 async function extractAvrDebug(
   elfPath: string,
@@ -1427,21 +1442,30 @@ async function extractAvrDebug(
   log: string[],
   arduinoCli: string | null,
   searchDir?: string
-): Promise<AvrDebugInfo | undefined> {
+): Promise<AvrDebugResult> {
   try {
-    if (!existsSync(elfPath)) return undefined;
+    if (!existsSync(elfPath)) return { note: 'failed' };
     const objdump = await findAvrObjdump(arduinoCli, searchDir);
     if (!objdump) {
       log.push('avr-objdump introuvable : pas à pas et variables indisponibles.');
-      return undefined;
+      return { note: 'absent' };
     }
     // Les deux relevés DWARF sont indépendants : les lancer EN PARALLÈLE divise
     // l'attente par deux (mesuré : 5,1 s → 2,7 s sur un croquis moyen, l'essentiel
     // du coût étant le démarrage de l'outil, inspecté par l'antivirus).
-    const [decoded, info] = await Promise.all([
-      run(objdump, ['--dwarf=decodedline', elfPath]),
-      run(objdump, ['--dwarf=info', elfPath]),
-    ]);
+    const releves = () =>
+      Promise.all([run(objdump, ['--dwarf=decodedline', elfPath]), run(objdump, ['--dwarf=info', elfPath])]);
+    let decoded: string;
+    let info: string;
+    try {
+      [decoded, info] = await releves();
+    } catch (err) {
+      // Poste saturé (mémoire, antivirus) : le lancement peut échouer une fois
+      // sans que l'outil soit en cause. Un second essai, après une pause.
+      log.push(`avr-objdump a échoué, nouvel essai : ${(err as Error).message.split('\n')[0]}`);
+      await new Promise((r) => setTimeout(r, 500));
+      [decoded, info] = await releves();
+    }
     const lines = parseDecodedLines(decoded, srcPath);
     const dwarf = parseDwarfVariables(info, srcPath);
     const { globals, locals } = dwarf;
@@ -1449,21 +1473,23 @@ async function extractAvrDebug(
     // d'en-tête qu'il appelle (Serial.begin(9600) de HardwareSerial.h) : sans
     // ligne de l'élève, elles ne sont pas « dans le croquis » pour le pas à pas.
     const functions = dwarf.functions.filter((f) => lines.some((l) => l.addr >= f.lo && l.addr < f.hi));
-    if (lines.length === 0 && globals.length === 0) return undefined;
+    if (lines.length === 0 && globals.length === 0) return {};
     log.push(
       `Infos de débogage : ${lines.length} point(s) de ligne, ${globals.length} variable(s) lisible(s)` +
         (locals.length > 0 ? `, ${locals.length} locale(s) non lisible(s)` : '') +
         `, ${functions.length} fonction(s) bornée(s).`
     );
     return {
-      lines,
-      globals,
-      locals: locals.length > 0 ? locals : undefined,
-      functions: functions.length > 0 ? functions : undefined,
+      debug: {
+        lines,
+        globals,
+        locals: locals.length > 0 ? locals : undefined,
+        functions: functions.length > 0 ? functions : undefined,
+      },
     };
   } catch (err) {
     log.push(`Infos de débogage indisponibles : ${(err as Error).message}`);
-    return undefined;
+    return { note: 'failed' };
   }
 }
 
@@ -1477,7 +1503,9 @@ async function extractAvrDebug(
  * modification) ne survit pas au rechargement de la fenêtre ; ce cache-ci, si.
  */
 // 2 : les infos de débogage portent l'étendue des fonctions (pas à pas).
-const CACHE_FORMAT = 2;
+// 3 : écarte les entrées rangées sans infos de débogage après un échec
+// d'avr-objdump (poste saturé : plus aucun point d'arrêt, durablement).
+const CACHE_FORMAT = 3;
 /** Nombre d'entrées gardées ; au-delà, les plus anciennes sont recyclées. */
 const CACHE_MAX_ENTRIES = 60;
 const CACHE_MAX_SOURCES = 300;
@@ -1671,7 +1699,10 @@ export async function compile(
     return { payload: slot.hit.payload, log: `${slot.hit.log}\nSources inchangées : programme repris du cache.`.trim() };
   }
   const res = await compileFresh(board, filePath, extensionPath, toolPaths);
-  if (slot) cacheStore(slot, res);
+  // Infos de débogage ratées (poste saturé) : surtout pas en cache, sinon chaque
+  // lancement suivant reprendrait ce programme sans aucun point d'arrêt.
+  const debugRate = res.payload.format === 'avr-progmem' && res.payload.debugNote === 'failed';
+  if (slot && !debugRate) cacheStore(slot, res);
   return res;
 }
 
@@ -1766,8 +1797,11 @@ async function compileFresh(
       }
       const hex = readFileSync(join(tmp, `${basename(filePath)}.hex`), 'utf8');
       // L'ELF (compilé avec -g par la plateforme AVR) livre les infos de débogage.
-      const debug = await extractAvrDebug(join(tmp, `${basename(filePath)}.elf`), filePath, log, cli, searchDir);
-      return { payload: { board: 'uno', format: 'avr-progmem', bytes: hexToProgmem(hex), debug }, log: log.join('\n') };
+      const { debug, note } = await extractAvrDebug(join(tmp, `${basename(filePath)}.elf`), filePath, log, cli, searchDir);
+      return {
+        payload: { board: 'uno', format: 'avr-progmem', bytes: hexToProgmem(hex), debug, debugNote: note },
+        log: log.join('\n'),
+      };
     };
 
     if (ext === '.ino') {
@@ -1791,9 +1825,15 @@ async function compileFresh(
       // -O0 -g3 : débogage fidèle (lignes + variables non optimisées).
       await runSource(avrCompiler, [`-mmcu=${mmcu}`, '-O0', '-g3', '-DF_CPU=16000000UL', '-o', elf, filePath]);
       await run(objcopy, ['-O', 'ihex', '-R', '.eeprom', elf, hex]);
-      const debug = await extractAvrDebug(elf, filePath, log, arduinoCli, searchDir);
+      const { debug, note } = await extractAvrDebug(elf, filePath, log, arduinoCli, searchDir);
       return {
-        payload: { board: 'uno', format: 'avr-progmem', bytes: hexToProgmem(readFileSync(hex, 'utf8')), debug },
+        payload: {
+          board: 'uno',
+          format: 'avr-progmem',
+          bytes: hexToProgmem(readFileSync(hex, 'utf8')),
+          debug,
+          debugNote: note,
+        },
         log: log.join('\n'),
       };
     }

@@ -3,6 +3,17 @@
 
 ---
 
+# v2026.11.0.284 — points d'arrêt Arduino morts sur un poste saturé
+
+1. ✅ Signalé par Frank (03/11, autre poste, jamais chez lui) : aucun point d'arrêt ne s'arrête. Cause : `avr-objdump` échoue sur un poste saturé, `extractAvrDebug` rend un programme sans infos de débogage, `AvrEngine.setBreakpoints` vide alors la liste sans rien dire. Et le cache disque de compilation RANGEAIT ce programme : défaut permanent tant que le croquis ne change pas, propre à la machine.
+2. ✅ [compiler.ts](src/compiler.ts) : `debugNote` (`absent` / `failed`) dans le programme AVR ; second essai d'`avr-objdump` après 500 ms ; résultat `failed` jamais mis en cache ; `CACHE_FORMAT` 3 (écarte les entrées déjà empoisonnées).
+3. ✅ [panel.ts](src/panel.ts) : avertissement si la lecture a échoué (au lieu de « avr-objdump introuvable », faux) ; pas de mémo `lastCompiled`, le ▶ suivant recompile ; « pas d'infos de débogage dans ce programme » pour un `.hex` direct.
+4. ✅ Banc [verify-debug-objdump.mjs](scripts/verify-debug-objdump.mjs) (`verify:debug-objdump`, dans `verify:all:serie`) : faux `avr-objdump.cmd` qui échoue, puis vrai outil dans le même cache. 11 contrôles ; contre-épreuve `--ancien` : 7 échecs (« les infos de débogage reviennent » compris, le défaut de Frank). `verify:compiler` : motif du parallélisme assoupli.
+5. ✅ FR : 2 chaînes dans `bundle.l10n.fr.json`, CHANGELOG.
+6. ⏳ ES/ZH : avant publication.
+
+---
+
 # v2026.11.0.283 — bibliothèque Arduino manquante : bouton « Installer la bibliothèque »
 
 1. ✅ Signalé par Frank : « Servo.h introuvable » sur certains postes d'élèves, même après réinstallation de la carte. Cause : Servo n'est pas dans le cœur `arduino:avr` ; Arduino IDE 2 l'installe au premier lancement, par utilisateur. Un poste où l'IDE n'a jamais tourné sous ce compte (ou un profil réinitialisé) ne l'a pas.

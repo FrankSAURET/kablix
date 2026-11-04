@@ -171,6 +171,8 @@
   "Actual speed: simulated time over real time (100% = on time)": "Vitesse réelle : temps simulé rapporté au temps réel (100 % = à l'heure)",
   " — debug: {0} lines, {1} variable(s)": " — débogage : {0} lignes, {1} variable(s)",
   " — debug info unavailable (avr-objdump not found)": " — infos de débogage indisponibles (avr-objdump introuvable)",
+  " — no debug info in this program": " — pas d'infos de débogage dans ce programme",
+  "Kablix: avr-objdump failed to read the debug info (busy computer?). Breakpoints, stepping and variables are unavailable for this run: run again.": "Kablix : avr-objdump n'a pas pu lire les infos de débogage (ordinateur surchargé ?). Points d'arrêt, pas à pas et variables sont indisponibles pour ce lancement : relancez.",
   "Start an interactive MicroPython REPL (no script)": "Démarrer un REPL MicroPython interactif (sans script)",
   "Code file: {0} — click to change, double-click to open": "Fichier de code : {0} — cliquer pour changer, double-cliquer pour ouvrir",
   "Kablix: the project code file \"{0}\" was not found on this computer. Click the 📄 chip to choose the file to run.": "Kablix : le fichier de code du projet « {0} » est introuvable sur ce poste. Cliquez la puce 📄 pour choisir le fichier à exécuter.",

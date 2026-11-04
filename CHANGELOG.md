@@ -12,6 +12,12 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - **Bibliothèque manquante installée en un clic** : quand la compilation échoue sur un en-tête introuvable (`Servo.h: No such file or directory`), la notification propose « Installer la bibliothèque ». Kablix cherche dans l'index Arduino la bibliothèque qui fournit ce fichier et l'installe. S'il y a plusieurs candidates, il les présente dans une liste. Il relance ensuite la compilation. Utile sur les postes où l'IDE Arduino n'a jamais été ouvert avec le compte de l'élève : Servo et les autres bibliothèques « intégrées » n'y sont pas installées.
 
+### Correction
+
+**Débogage Arduino**
+
+- **Points d'arrêt sans effet sur un ordinateur surchargé** : si la lecture des infos de débogage échouait, plus aucun point d'arrêt ne s'arrêtait, et ce jusqu'à la modification du croquis. Kablix fait maintenant un second essai, puis signale l'échec et retente au lancement suivant.
+
 ## 2026.11.0 (2 novembre 2026)
 
 ### Nouveauté

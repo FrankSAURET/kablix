@@ -297,7 +297,7 @@ check(
 );
 check(
   'les deux relevés avr-objdump partent en parallèle',
-  /await Promise\.all\(\[[\s\S]{0,240}--dwarf=decodedline[\s\S]{0,240}--dwarf=info/.test(compilerSrc)
+  /Promise\.all\(\[[\s\S]{0,240}--dwarf=decodedline[\s\S]{0,240}--dwarf=info/.test(compilerSrc)
 );
 
 const sim = src('src/webview/sim.mts');
