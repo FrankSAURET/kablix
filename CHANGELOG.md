@@ -35,6 +35,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - Le rectangle de sélection prend un composant dès que son dessin visible est encadré. La patte d'araignée, plus petite que sa feuille, et ses fils manquaient à la copie.
 - Les curseurs de mesure de l'oscilloscope affichés partent avec l'image copiée.
 
+**Disposition**
+
+- Un `.projix` placé dans le même panneau que son programme ne devient plus gris quand on clique sur son onglet, et le programme se ferme normalement.
+
 ## 2026.11.1 (4 novembre 2026)
 
 ### Nouveauté

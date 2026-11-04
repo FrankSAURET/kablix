@@ -3,6 +3,15 @@
 
 ---
 
+# v2026.11.1.291 — .projix gris quand son programme est dans le même panneau
+
+1. ✅ Retour de Frank (`Etalonnage pattes.projix`, programme `extrema.py`) : clic sur l'onglet du .projix → il prend le focus et le perd aussitôt, panneau gris ; `extrema.py` impossible à fermer ; glissé dans un autre panneau, tout marche.
+2. ✅ Cause : `revealCodeOnActivate` ramène le programme dans `codeColumn`, qui était la colonne du .projix lui-même. Le programme recouvrait le simulateur ; fermé, le .projix redevenait actif et le rouvrait.
+3. ✅ Correction : rien n'est ramené quand `panel.viewColumn === codeColumn` ([panel.ts](src/panel.ts)). Contrôle ajouté à [verify-layout.mjs](scripts/verify-layout.mjs) (77 verts).
+4. ⏳ Essai par Frank sur son projet.
+
+---
+
 # v2026.11.1.290 — copie en image : patte, fils, curseurs, sélection en simulation
 
 1. ✅ Retour de Frank (`testkablix/Patte-pico-sans 16servo.projix`) : rectangle autour de tout ce qui se voit → copie sans la patte ni les fils ; curseurs de l'oscillo absents même avec Ctrl+A ; aucune sélection possible en simulation, donc pas de copie avec les courbes.

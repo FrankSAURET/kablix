@@ -501,6 +501,8 @@ ok('projet déjà ouvert : programme montré SANS focus, jamais un binaire, ni u
   /public async revealCodeOnActivate\([\s\S]{0,900}?\\\.\(hex\|uf2\|elf\|bin\)\$[\s\S]{0,200}?this\.gone\.has\('code'\)[\s\S]{0,900}?this\.revealSource\(uri, true\)/.test(panelSrc));
 ok('projet déjà ouvert : un clic DANS le simulateur ne recouvre pas un fichier du même dossier (.h) ouvert devant',
   /if \(!devientVisible\) \{[\s\S]{0,400}?TabInputText && dossier\(devant\.uri\) === dossier\(uri\)\) return;/.test(panelSrc));
+ok('projet déjà ouvert : Kablix DANS la colonne du code → programme non ramené (il recouvrirait le simulateur)',
+  /this\.gone\.has\('code'\)\) return;[\s\S]{0,500}?\n\s*if \(this\.panel\.viewColumn === codeColumn\(this\.context\)\) return;[\s\S]{0,900}?this\.revealSource\(uri, true\)/.test(panelSrc));
 ok('projet déjà ouvert : pas de relance en boucle quand le focus revient à Kablix (revealingCode)',
   /this\.revealingCode = true;[\s\S]{0,300}?finally \{\s*this\.revealingCode = false;/.test(panelSrc));
 

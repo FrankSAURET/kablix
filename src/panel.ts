@@ -1460,6 +1460,11 @@ ${err instanceof Error ? err.message : String(err)}`
     if (!uri || this.revealingCode || this.pendingCodeReveal) return;
     if (/\.(hex|uf2|elf|bin)$/i.test(uri.fsPath)) return;
     if (this.gone.has('code')) return; // supprimé du disque : rien à rouvrir
+    // Kablix posé DANS la colonne du code (un seul groupe, ou .projix glissé à
+    // gauche) : le programme s'ouvrirait par-dessus le simulateur, qui perdrait
+    // la main à chaque clic sur son onglet — et le programme fermé reviendrait
+    // aussitôt, le .projix redevenant actif (retour de Frank, 04/11/2026).
+    if (this.panel.viewColumn === codeColumn(this.context)) return;
     if (!devientVisible) {
       const dossier = (u: vscode.Uri): string => u.fsPath.replace(/[\\/][^\\/]*$/, '').toLowerCase();
       const groupe = vscode.window.tabGroups.all.find((g) => g.viewColumn === codeColumn(this.context));
