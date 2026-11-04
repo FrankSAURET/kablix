@@ -832,11 +832,17 @@ export class OscilloElement extends HTMLElement {
     return bornes ? (bornes.min + bornes.max) / 2 : 0;
   }
 
-  /** Plus basse et plus haute tension de la fenêtre affichée, ou null si vide. */
+  /**
+   * Plus basse et plus haute tension récentes, ou null si vide. Prise sur au
+   * moins une SECONDE, pas sur la seule largeur d'écran : un servo pulse 1,5 ms
+   * toutes les 20 ms, et sous 1 ms/div les 10 dernières ms ne voyaient souvent
+   * aucune impulsion. La mi-hauteur tombait alors à 0 V, plus rien ne
+   * déclenchait, et la courbe clignotait entre calée et défilante.
+   */
   private envelope(): { min: number; max: number } | null {
     if (this.count === 0) return null;
     const fin = this.bufT[(this.head - 1 + BUF) % BUF];
-    const debut = fin - this.secondsDiv * 10;
+    const debut = fin - Math.max(this.secondsDiv * 10, 1);
     let min = Infinity;
     let max = -Infinity;
     for (let n = 0; n < this.count; n++) {
@@ -956,13 +962,25 @@ export class OscilloElement extends HTMLElement {
     const debuts = new Float64Array(COLS);
     const fins = new Float64Array(COLS);
     const vus = new Uint8Array(COLS);
+    // Mode retenue : le palier en cours au bord gauche (dernier relevé AVANT
+    // l'écran) part de la colonne 0, sinon la trace commençait au premier front.
+    let precedent: number | null = null;
+    // Relevés APRÈS l'écran (fenêtre déclenchée) : ignorés, sinon ils
+    // s'entassaient dans la dernière colonne en barre verticale parasite.
+    let deborde = false;
     for (let n = 0; n < this.count; n++) {
       const i = (this.head - this.count + n + 2 * BUF) % BUF;
       const t = this.bufT[i];
-      if (t < t0) continue;
+      if (t < t0) {
+        precedent = this.bufV[i];
+        continue;
+      }
       let c = Math.round(((t - t0) / win) * (COLS - 1));
+      if (c > COLS - 1) {
+        deborde = true;
+        continue;
+      }
       if (c < 0) c = 0;
-      else if (c > COLS - 1) c = COLS - 1;
       const v = this.bufV[i];
       if (!vus[c]) {
         vus[c] = 1;
@@ -975,6 +993,16 @@ export class OscilloElement extends HTMLElement {
       }
       fins[c] = v;
     }
+    if (this.hold && precedent !== null) {
+      if (!vus[0]) {
+        vus[0] = 1;
+        mins[0] = maxs[0] = debuts[0] = fins[0] = precedent;
+      } else {
+        debuts[0] = precedent;
+        if (precedent < mins[0]) mins[0] = precedent;
+        if (precedent > maxs[0]) maxs[0] = precedent;
+      }
+    }
     const pas = PLOT.w / (COLS - 1);
     const y = (v: number): number => {
       const py = ZERO.y - v * perVolt;
@@ -984,6 +1012,8 @@ export class OscilloElement extends HTMLElement {
     // Dernière tension tracée (mode retenue) : c'est le palier que tient la
     // courbe jusqu'à la colonne suivante.
     let tenu: number | null = null;
+    // Dernière colonne sautée parce qu'elle prolongeait le palier.
+    let prolonge: string | null = null;
     for (let c = 0; c < COLS; c++) {
       if (!vus[c]) continue;
       const px = (PLOT.x + c * pas).toFixed(2);
@@ -998,6 +1028,14 @@ export class OscilloElement extends HTMLElement {
       // PAS bougé. On rejoint donc la colonne à plat, puis on saute d'un coup.
       // Sans ce palier, un créneau se dessinait en pente d'un front au suivant :
       // il ressemblait à un triangle (retour de Frank sur oscillo-pico2).
+      // Colonne qui ne fait que PROLONGER le palier (relevé de fin d'image, à
+      // la même tension) : rien à y poser. Sinon le tracé changeait de sommets
+      // d'une image à l'autre pour une courbe identique.
+      if (d && tenu !== null && haut === bas && haut === y(tenu).toFixed(2)) {
+        prolonge = px;
+        continue;
+      }
+      prolonge = null;
       if (!d) d += `M${px},${y(debuts[c]).toFixed(2)}`;
       else if (tenu !== null) d += `L${px},${y(tenu).toFixed(2)}`;
       if (haut !== bas) {
@@ -1010,6 +1048,12 @@ export class OscilloElement extends HTMLElement {
         d += `L${px},${haut}`;
       }
       tenu = fins[c];
+    }
+    // Le signal continue après l'écran : le dernier palier va jusqu'au bord
+    // droit ; sinon jusqu'au dernier relevé (le présent, en défilement).
+    if (this.hold && tenu !== null) {
+      if (deborde) d += `L${(PLOT.x + PLOT.w).toFixed(2)},${y(tenu).toFixed(2)}`;
+      else if (prolonge !== null) d += `L${prolonge},${y(tenu).toFixed(2)}`;
     }
     path.setAttribute('d', d);
     path.style.display = d ? '' : 'none';

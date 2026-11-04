@@ -3,6 +3,16 @@
 
 ---
 
+# v2026.11.1.289 — oscillo : courbe qui clignote sous 1 ms/div
+
+1. ✅ Retour de Frank : `testkablix/Patte-pico-sans 16servo.projix` (sonde sur coxa.PWM, servo 50 Hz, 1 ms/div, déclenchement automatique) — la courbe clignote sous 1 ms/div, défaut antérieur au lot 288.
+2. ✅ Cause : la mi-hauteur automatique se prenait sur la seule largeur d'écran (10 ms). Une image sur deux, aucune impulsion dedans → niveau 0 V → aucun front trouvé → retour au défilement. Correction : `envelope()` sur au moins 1 s ([oscillo-element.mts](src/webview/composants/oscillo-element.mts)).
+3. ✅ `redraw()` : relevés après la fenêtre déclenchée ignorés (ils s'entassaient en barre dans la dernière colonne), palier tenu jusqu'au bord droit ; palier d'avant la fenêtre posé en colonne 0 ; colonnes qui ne font que prolonger le palier sautées (tracé identique d'une image à l'autre).
+4. ✅ [verify-oscillo.mjs](scripts/verify-oscillo.mjs) : servo 50 Hz image par image comme sim.mts — trace immobile sur 50 images, une seule impulsion (2 sauts), départ au bord gauche. Contre-épreuve sur l'ancien code : 3 échecs (21 tracés différents). 107 contrôles verts.
+5. ⏳ Essai F5 par Frank sur le projet servo.
+
+---
+
 # v2026.11.1.288 — oscillo : nouveau dessin, curseurs de mesure T et V
 
 1. ✅ Demande de Frank : oscillo retouché dans [Composants2D.svg](Composants2D.svg) (écran, boutons), cases « Curseurs » T et V ; cochées, deux lignes pointillées de part et d'autre du centre à un carreau d'écart, flèche double et écart en temps / tension ; le tout recalé sur le nouvel écran et suivant les déplacements.

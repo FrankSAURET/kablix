@@ -19,6 +19,13 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - **Nouveau dessin** : écran plus grand, carreaux de 20 px, boutons plus gros.
 
+### Correction
+
+**Oscilloscope**
+
+- Sur une impulsion brève et espacée (servo à 50 Hz), la courbe ne clignote plus sous 1 ms/div : le déclenchement automatique reste calé d'une image à l'autre.
+- Plus de barre verticale parasite au bord droit de l'écran quand le déclenchement est calé ; le palier en cours part bien du bord gauche.
+
 ## 2026.11.1 (4 novembre 2026)
 
 ### Nouveauté

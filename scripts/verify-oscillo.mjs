@@ -596,6 +596,39 @@ async function run() {
 	el.clearTrace();
 	await wait(5);
 
+	// --- Servo à 50 Hz sous 1 ms/div : image par image, comme sim.mts ----------
+	// Impulsion de 1,5 ms toutes les 20 ms, écran de 10 ms, déclenchement posé
+	// tout seul. Une image sur deux, les 10 dernières ms ne contenaient AUCUN
+	// front : la mi-hauteur tombait à 0 V, plus rien ne déclenchait, la courbe
+	// redéfilait — elle clignotait (retour de Frank, Patte-pico-sans 16servo).
+	el.setAttribute('voltsdiv', '1');
+	el.setAttribute('sdiv', '0.001');
+	el.setAttribute('triggerpos', '0.099');
+	el.removeAttribute('trigger');
+	await wait(5);
+	const servoTraces = [];
+	let dernier = 0;
+	for (let image = 1; image <= 60; image++) {
+		const maintenant = image * 16.7;
+		const salve = [];
+		for (let p = 0; p * 20 <= maintenant; p++) {
+			for (const [t, avant, apres] of [[p * 20, 0, 3.3], [p * 20 + 1.5, 3.3, 0]]) {
+				if (t > dernier && t <= maintenant) salve.push(t, avant, t, apres);
+			}
+		}
+		const haut = (maintenant % 20) < 1.5 ? 3.3 : 0;
+		salve.push(maintenant, haut);
+		dernier = maintenant;
+		el.pushMany(salve);
+		if (image > 10) servoTraces.push(trace.getAttribute('d'));
+	}
+	res.servoDistinctes = new Set(servoTraces).size;
+	res.servoEchantillons = [...new Set(servoTraces)].slice(0, 4);
+	res.servoD = servoTraces[servoTraces.length - 1];
+	el.removeAttribute('triggerpos');
+	el.clearTrace();
+	await wait(5);
+
 	// --- Éditeur réel : pastilles des prises banane -----------------------------
 	const editor = new Editor(
 		document.getElementById('canvas'), document.getElementById('palette'),
@@ -833,6 +866,17 @@ if (chrome) {
       pente.pentes > 20 && pente.sauts === 0);
     check(`contre-épreuve : la MÊME salve en retenue fait un escalier (${tenu.plats} plats, ${tenu.sauts} sauts, ${tenu.pentes} pentes)`,
       tenu.sauts > 20 && tenu.pentes === 0);
+
+    // Servo à 50 Hz sous 1 ms/div : la trace ne doit plus bouger d'une image à
+    // l'autre (déclenchement tenu), et l'écran ne montre qu'UNE impulsion : deux
+    // sauts, pas de barre parasite tassée au bord droit par les relevés d'après.
+    check(`servo 50 Hz à 1 ms/div : trace immobile sur 50 images (${r.servoDistinctes} tracé(s) différent(s))`,
+      r.servoDistinctes === 1);
+    if (r.servoDistinctes !== 1) console.log(r.servoEchantillons.join('\n'));
+    const servo = marches(r.servoD);
+    check(`servo 50 Hz : une seule impulsion à l'écran (${servo.sauts} sauts)`, servo.sauts === 2);
+    const departServo = Number(/^M([\d.]+)/.exec(r.servoD ?? '')?.[1]);
+    check(`servo 50 Hz : le palier part du bord gauche (x = ${departServo})`, Math.abs(departServo - GAUCHE) < 0.01);
 
     check('éditeur : prises banane SANS pastille rouge/noire (2 .pin nus)',
       r.oscPads[0] === 2 && r.oscPads[1] === 0 && r.oscPads[2] === 0);
