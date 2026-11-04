@@ -12,8 +12,8 @@
 5. ✅ Banc [verify-copie-selection.mjs](scripts/verify-copie-selection.mjs) (`verify:copie-selection`, dans `verify:all:serie`) sur le vrai projet : 18 contrôles. Contre-épreuve sur l'ancien code : 11 échecs. `verify:souris` : rectangle en simulation à vraie souris (62 contrôles), contre-épreuve 2 échecs. `verify:oscillo` adapté.
 6. ✅ FR : chaîne de l'inspecteur dans `i18n.mts`, [USAGE.md](docs/fr/USAGE.md) (raccourcis, copie avec les courbes), CHANGELOG.
 7. ⏳ ES/ZH de la chaîne de l'inspecteur, EN de USAGE : avant publication.
-8. ℹ️ Le découpage de la courbe au bord de l'écran (`clip-path`) reste retiré à l'export (plantage Inkscape) : une courbe hors calibre déborde de l'écran sur l'image.
-9. ⏳ Essai F5 par Frank.
+8. ℹ️ Le `clip-path` de l'écran reste retiré à l'export (plantage Inkscape), sans effet visible : la courbe est déjà bornée par calcul (`y()` de `redraw` ramène chaque point dans l'écran) et les curseurs à ±5 div. Seule la demi-épaisseur du trait (0,6 px) peut mordre le bord. Contrôle « écrêtage » de `verify:oscillo` (100 V à 1 V/div).
+9. ✅ Essai F5 par Frank.
 
 ---
 
