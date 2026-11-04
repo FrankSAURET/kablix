@@ -1,4 +1,4 @@
 board: arduino:avr:uno
-sketch: Arduino/led-strip-uno/led-strip-uno.ino
+sketch: Arduino/78xx-uno/78xx-uno.ino
 port: COM3
 output: .build
