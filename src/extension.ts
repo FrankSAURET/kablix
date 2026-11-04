@@ -19,6 +19,7 @@ import { memoriserModeExtension } from './version';
 import { redetecterArduinoCli } from './arduinoCliPistes';
 import { AnalyseurJournal } from './analyseur-journal';
 import { AnalyseurPanel } from './analyseur-panel';
+import { demarrerTraceFocus } from './trace-focus';
 
 const l10n = vscode.l10n;
 
@@ -28,6 +29,7 @@ const l10n = vscode.l10n;
 const STARTUP_GRACE_MS = 3000;
 
 export function activate(context: vscode.ExtensionContext): void {
+  demarrerTraceFocus(context); // TRACE TEMPORAIRE v2026.11.1.292
   // Numéro de build interne visible seulement hors production (voir version.ts).
   memoriserModeExtension(context.extensionMode);
 

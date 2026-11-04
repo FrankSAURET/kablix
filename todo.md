@@ -3,6 +3,15 @@
 
 ---
 
+# v2026.11.1.292 — trace temporaire du focus (.projix gris)
+
+1. ✅ Retour de Frank sur la 291 : « la fenêtre s'est affichée puis est redevenue grise ». Le garde de la 291 ne couvre que `revealCodeOnActivate` ; la cause n'est pas tranchée.
+2. ✅ [trace-focus.ts](src/trace-focus.ts) : canal de sortie « Kablix — trace focus ». Heure, état de l'onglet .projix, étapes de la disposition, `revealSource`, photo des groupes à chaque changement d'onglet ou de groupe. Branchée dans [extension.ts](src/extension.ts), [projix-editor.ts](src/projix-editor.ts), [panel.ts](src/panel.ts).
+3. ⬜ Frank reproduit, copie le canal ; corriger d'après la trace.
+4. ⬜ Retirer la trace (tout appel `trace(`, le fichier, l'appel dans `activate`).
+
+---
+
 # v2026.11.1.291 — .projix gris quand son programme est dans le même panneau
 
 1. ✅ Retour de Frank (`Etalonnage pattes.projix`, programme `extrema.py`) : clic sur l'onglet du .projix → il prend le focus et le perd aussitôt, panneau gris ; `extrema.py` impossible à fermer ; glissé dans un autre panneau, tout marche.
