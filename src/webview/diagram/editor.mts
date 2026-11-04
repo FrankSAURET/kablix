@@ -719,7 +719,12 @@ export class Editor {
     // Clic sur le fond : pose un point de fil, ou désélectionne.
     this.canvas.addEventListener('pointerdown', (e) => {
       if (e.target !== this.canvas && e.target !== this.world && e.target !== this.svg) return;
-      if (this.locked) return; // simulation : pas d'édition
+      if (this.locked) {
+        // Simulation : pas d'édition, mais le rectangle de sélection reste permis
+        // — il ne sert qu'à COPIER (Ctrl+C), courbes de l'oscillo comprises.
+        if (e.button === 0 && !this.pending) this.startMarquee(e);
+        return;
+      }
       // Mode texte : le clic sur le fond POSE une étiquette et ouvre sa saisie,
       // au lieu de démarrer un rectangle de sélection.
       if (this.textMode && !this.pending && e.button === 0) {
@@ -3887,7 +3892,9 @@ export class Editor {
         this.duplicateSelection();
         return;
       }
-      if (k === 'a' && !this.locked) {
+      if (k === 'a') {
+        // Permis en simulation : sélectionner ne modifie rien, et c'est le seul
+        // moyen de copier le schéma avec ses courbes en cours de mesure.
         e.preventDefault();
         this.selectAllParts();
         return;
@@ -5802,6 +5809,7 @@ export class Editor {
 
   // --- Sélection + éditeur de composants --------------------------------------
   private select(sel: Selection): void {
+    this.canvas.classList.remove('canvas--sim-select');
     // Retire la mise en évidence précédente (fil + câblages internes affichés).
     if (this.selection?.kind === 'wire') {
       this.setWireHighlight(this.selection.id, false);
@@ -6137,8 +6145,22 @@ export class Editor {
         : members.length === 1
           ? { kind: 'part', id: members[0] }
           : { kind: 'text', id: textes[0] };
+    if (this.locked) this.markSimSelection();
     this.setPartHighlight();
     this.renderInspector();
+  }
+
+  /**
+   * Sélection faite PENDANT la simulation (rectangle, Ctrl+A) : elle ne sert
+   * qu'à copier. Pas de sélection unique (l'inspecteur ouvrirait les propriétés
+   * d'un composant en pleine simulation) et une classe sur le canvas, qui rend
+   * le cadre visible — masqué sinon en simulation.
+   */
+  private markSimSelection(): void {
+    if (this.selection?.kind === 'wire') this.setWireHighlight(this.selection.id, false);
+    this.selection = null;
+    const any = this.selectedParts.size + this.selectedTexts.size + this.selectedWires.size > 0;
+    this.canvas.classList.toggle('canvas--sim-select', any);
   }
 
   /**
@@ -6297,6 +6319,7 @@ export class Editor {
       if (soleWireSelection || this.selectedWires.size > 0) {
         for (const id of this.selectedWires) this.setWireHighlight(id, true);
       }
+      if (this.locked) this.markSimSelection();
       this.renderInspector();
     };
     window.addEventListener('pointermove', move);
@@ -6309,14 +6332,19 @@ export class Editor {
    * Composants dont la boîte englobante est ENTIÈREMENT contenue dans le
    * rectangle (coords monde). Un composant seulement effleuré par le cadre n'est
    * pas pris : il faut l'encadrer complètement pour le sélectionner.
+   *
+   * La boîte est celle du DESSIN (`drawExtent`, le cadre de sélection), pas
+   * `.part__body` : la feuille de la patte d'araignée est bien plus grande que
+   * la patte dessinée, et encadrer tout ce qui se voit ne la prenait pas — ses
+   * fils non plus, du coup, à la copie (retour de Frank). Rotation comprise.
    */
   private partsInRect(x: number, y: number, w: number, h: number): string[] {
     const ids: string[] = [];
     for (const [id, r] of this.rendered) {
-      const body = r.container.querySelector('.part__body') as HTMLElement | null;
-      const pw = body?.offsetWidth || 40;
-      const ph = body?.offsetHeight || 40;
-      if (r.part.x >= x && r.part.x + pw <= x + w && r.part.y >= y && r.part.y + ph <= y + h) {
+      const e = this.drawExtent(id);
+      const px = r.part.x + e.dx;
+      const py = r.part.y + e.dy;
+      if (px >= x && px + e.w <= x + w && py >= y && py + e.h <= y + h) {
         ids.push(id);
       }
     }
@@ -6959,6 +6987,17 @@ export class Editor {
     const title = document.createElement('h3');
     title.textContent = t('Properties');
     this.inspector.appendChild(title);
+
+    // Sélection faite en simulation : elle ne sert qu'à copier. Aucune action
+    // de groupe (rotation, suppression…) — le schéma est verrouillé.
+    if (this.locked && this.canvas.classList.contains('canvas--sim-select')) {
+      const sub = document.createElement('p');
+      sub.className = 'inspector__hint';
+      sub.textContent = t('{0} item(s) selected — Ctrl+C copies them as a picture, curves included.',
+        this.selectedParts.size + this.selectedTexts.size + this.selectedWires.size);
+      this.inspector.appendChild(sub);
+      return;
+    }
 
     // Sélection multiple : résumé + actions de groupe (rotation/miroir/suppression).
     if (this.selectedParts.size > 1 || (this.selectedParts.size === 1 && this.selectedTexts.size > 0)) {
@@ -9142,6 +9181,12 @@ function stripEditorMarkup(root: SVGElement): void {
   // bouton de l'alim (`fill="transparent"`, rendue NOIRE par Inkscape) donnait
   // un rond noir sur le bouton (« circle1282 »).
   for (const el of Array.from(root.querySelectorAll('[data-no-export]'))) el.remove();
+  // Ajouts d'AFFICHAGE (curseurs de mesure de l'oscillo…) : exportés s'ils se
+  // voient à l'écran, retirés s'ils sont masqués.
+  for (const el of Array.from(root.querySelectorAll('[data-export-shown]'))) {
+    if ((el as SVGElement).style.display === 'none') el.remove();
+    else el.removeAttribute('data-export-shown');
+  }
   // Groupes d'interaction (rotation du bouton de l'alim en simulation) : APLATIS.
   // Leur rotation CSS (`style.transform: rotate(deg)` autour de `transform-origin`)
   // est bakée en attribut `transform` SVG sur chaque enfant, puis les enfants

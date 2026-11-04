@@ -3,6 +3,20 @@
 
 ---
 
+# v2026.11.1.290 — copie en image : patte, fils, curseurs, sélection en simulation
+
+1. ✅ Retour de Frank (`testkablix/Patte-pico-sans 16servo.projix`) : rectangle autour de tout ce qui se voit → copie sans la patte ni les fils ; curseurs de l'oscillo absents même avec Ctrl+A ; aucune sélection possible en simulation, donc pas de copie avec les courbes.
+2. ✅ Cause 1 : `partsInRect` exigeait d'englober `.part__body` ; la feuille SVG de la patte dépasse largement la patte dessinée. Il mesure maintenant le dessin (`drawExtent`, le cadre de sélection, rotation comprise). Fils : copiés quand leurs deux bouts sont sélectionnés, ils reviennent avec la patte ([editor.mts](src/webview/diagram/editor.mts)).
+3. ✅ Cause 2 : curseurs T/V et coche marqués `data-no-export`. Nouvel attribut `data-export-shown` : exporté s'il est affiché, retiré s'il est masqué (`stripEditorMarkup`). Traits de prise transparents toujours retirés (noirs dans Inkscape) ([oscillo-element.mts](src/webview/composants/oscillo-element.mts)).
+4. ✅ Simulation : rectangle (clic gauche sur le fond) et Ctrl+A permis. `markSimSelection()` : pas de sélection unique, classe `canvas--sim-select` qui rend le cadre visible ([styles.css](media/styles.css)) ; inspecteur réduit à un résumé sans bouton. Suppr et déplacements restent bloqués.
+5. ✅ Banc [verify-copie-selection.mjs](scripts/verify-copie-selection.mjs) (`verify:copie-selection`, dans `verify:all:serie`) sur le vrai projet : 18 contrôles. Contre-épreuve sur l'ancien code : 11 échecs. `verify:souris` : rectangle en simulation à vraie souris (62 contrôles), contre-épreuve 2 échecs. `verify:oscillo` adapté.
+6. ✅ FR : chaîne de l'inspecteur dans `i18n.mts`, [USAGE.md](docs/fr/USAGE.md) (raccourcis, copie avec les courbes), CHANGELOG.
+7. ⏳ ES/ZH de la chaîne de l'inspecteur, EN de USAGE : avant publication.
+8. ℹ️ Le découpage de la courbe au bord de l'écran (`clip-path`) reste retiré à l'export (plantage Inkscape) : une courbe hors calibre déborde de l'écran sur l'image.
+9. ⏳ Essai F5 par Frank.
+
+---
+
 # v2026.11.1.289 — oscillo : courbe qui clignote sous 1 ms/div
 
 1. ✅ Retour de Frank : `testkablix/Patte-pico-sans 16servo.projix` (sonde sur coxa.PWM, servo 50 Hz, 1 ms/div, déclenchement automatique) — la courbe clignote sous 1 ms/div, défaut antérieur au lot 288.

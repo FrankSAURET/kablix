@@ -653,6 +653,8 @@ const FR: Record<string, string> = {
   '{0} wire(s) selected': '{0} câble(s) sélectionné(s)',
   'Delete these wires': 'Supprimer ces câbles',
   '{0} label(s) selected': '{0} étiquette(s) sélectionnée(s)',
+  '{0} item(s) selected — Ctrl+C copies them as a picture, curves included.':
+    '{0} élément(s) sélectionné(s) — Ctrl+C les copie en image, courbes comprises.',
   'Delete these labels': 'Supprimer ces étiquettes',
   'Common cathode (K)': 'Cathode commune (K)',
   'Common anode (A)': 'Anode commune (A)',

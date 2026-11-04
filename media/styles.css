@@ -2041,6 +2041,12 @@ body.vscode-light .inspector__ref--nouveau {
   visibility: hidden;
 }
 
+/* Sélection faite PENDANT la simulation (rectangle, Ctrl+A) pour copier en
+   image : son cadre se voit, sinon on ne sait pas ce qui part à la copie. */
+.canvas--locked.canvas--sim-select .part--selected .part__selbox {
+  visibility: visible;
+}
+
 /* Composant mis en cause par un message de défaut (relais sans diode de roue
    libre, diode montée à l'envers…) : MÊME rectangle que la sélection, en rouge
    et en trait plein. Il doit rester visible PENDANT la simulation, où le canvas

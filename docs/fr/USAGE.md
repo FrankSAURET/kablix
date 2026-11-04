@@ -849,7 +849,7 @@ Pour couper cette mise au point : réglage **`kablix.syncIntelliSense`** (actif 
 | `Échap`                                      | Annuler le câblage en cours / désélectionner                                                         |
 | `Ctrl` (pendant le glissement d'une poignée) | Réticule + alignement H/V du coude                                                                   |
 | `Ctrl` (pendant le glissement d'un segment)  | Déplacement libre du segment, hors grille                                                            |
-| `Ctrl+A`                                     | Sélectionner tous les composants                                                                     |
+| `Ctrl+A`                                     | Sélectionner tous les composants — autorisé même en simulation                                       |
 | `Ctrl+C`                                     | Copier la sélection (composants + fils) — autorisé même en simulation                                |
 | `Ctrl+V`                                     | Coller la sélection, **y compris dans un autre projet Kablix**                                       |
 | `Ctrl+D`                                     | Dupliquer la sélection sur place                                                                     |
@@ -858,6 +858,10 @@ Pour couper cette mise au point : réglage **`kablix.syncIntelliSense`** (actif 
 
 ### Copier-coller d'un projet à l'autre
 
-`Ctrl+C` place dans le presse-papier **une image SVG** de la sélection : collée dans un document, un mail ou un logiciel de dessin, elle reste un dessin vectoriel comme avant. Ce même SVG transporte discrètement le schéma (composants, positions, réglages, fils) dans une balise `<metadata>` que les visionneuses ignorent.
+`Ctrl+C` place dans le presse-papier **une image SVG** de la sélection : collée dans un document, un mail ou un logiciel de dessin, elle reste un dessin vectoriel comme avant. Les fils partent avec les composants qu'ils relient (les deux bouts doivent être sélectionnés), et les curseurs de mesure affichés sur l'oscilloscope aussi.
+
+**Copier avec les courbes** : pendant la simulation (en marche ou en pause), le rectangle de sélection et `Ctrl+A` restent permis. Ils ne servent qu'à copier : le cadre de sélection s'affiche, rien ne peut être déplacé ni supprimé. `Ctrl+C` copie alors l'image avec les courbes de l'oscilloscope telles qu'elles sont à l'écran.
+
+Ce même SVG transporte discrètement le schéma (composants, positions, réglages, fils) dans une balise `<metadata>` que les visionneuses ignorent.
 
 Résultat : `Ctrl+V` dans **un autre projet Kablix** recrée les composants et leurs fils, décalés de 20 px pour rester visibles ; un second collage se décale encore. Les composants inconnus du projet d'accueil (composants personnalisés absents) sont ignorés, le reste est collé. Coller un texte quelconque ne fait rien, et le collage est refusé pendant une simulation.

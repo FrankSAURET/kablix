@@ -13,6 +13,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - **Position horizontale du déclenchement** : une flèche au bas de l'écran se glisse à la souris pendant la simulation. Elle place le point de déclenchement n'importe où sur la largeur, pour voir aussi ce qui précède le front.
 - **Curseurs de mesure T et V** : deux cases à cocher sous l'écran font paraître deux lignes pointillées, verticales (T) ou horizontales (V). Une flèche double affiche leur écart en temps ou en tension. Les lignes se glissent à la souris pendant la simulation.
 
+**Copie en image**
+
+- **Sélection pendant la simulation** : le rectangle de sélection et Ctrl+A marchent aussi en simulation, même en pause. Ctrl+C copie alors le schéma en image avec les courbes en cours. Rien ne se modifie : la sélection sert seulement à copier.
+
 ### Modification
 
 **Oscilloscope**
@@ -25,6 +29,11 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - Sur une impulsion brève et espacée (servo à 50 Hz), la courbe ne clignote plus sous 1 ms/div : le déclenchement automatique reste calé d'une image à l'autre.
 - Plus de barre verticale parasite au bord droit de l'écran quand le déclenchement est calé ; le palier en cours part bien du bord gauche.
+
+**Copie en image**
+
+- Le rectangle de sélection prend un composant dès que son dessin visible est encadré. La patte d'araignée, plus petite que sa feuille, et ses fils manquaient à la copie.
+- Les curseurs de mesure de l'oscilloscope affichés partent avec l'image copiée.
 
 ## 2026.11.1 (4 novembre 2026)
 

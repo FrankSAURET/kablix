@@ -294,6 +294,27 @@ try {
 	ok('l AUTRE étiquette du lot la suit', bouge('Alpha') === 100, String(bouge('Alpha')));
 	ok('celle hors du lot ne bouge pas', bouge('Gamma') === 0, String(bouge('Gamma')));
 
+	// --- 6 bis. Rectangle de sélection PENDANT la simulation (v2026.11.1.290) ---
+	// Il ne sert qu'à copier en image, courbes comprises. Avant : aucun geste de
+	// sélection en simulation, même en pause.
+	await ev(`(() => {
+		window.editor.clear();
+		window.editor.addPart('resistor', 200, 200);
+		window.editor.addPart('resistor', 200, 260);
+		window.editor.addPart('resistor', 200, 600);
+		window.editor.select(null);
+		window.editor.setLocked(true);
+	})()`);
+	await attendre(200);
+	await lasso(orig.x + 150, orig.y + 150, orig.x + 400, orig.y + 400);
+	await attendre(200);
+	ok('simulation : le rectangle sélectionne DEUX composants',
+		(await ev('window.editor.selectedParts.size')) === 2, String(await ev('window.editor.selectedParts.size')));
+	ok('simulation : et leur cadre se voit',
+		(await ev(`[...document.querySelectorAll('.part--selected .part__selbox')]
+			.filter((b) => getComputedStyle(b).visibility === 'visible').length`)) === 2);
+	await ev('window.editor.setLocked(false)');
+
 	// --- 7. Le CLIC DROIT quitte le mode étiquette -----------------------------
 	await ev('window.editor.toggleTextMode(true)');
 	ok('le mode étiquette est bien allumé', (await ev('window.editor.isTextMode()')) === true);

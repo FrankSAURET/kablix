@@ -470,8 +470,12 @@ async function run() {
 	el.setAttribute('sdiv', '1');
 	await wait(5);
 	res.cacDepart = [vis('#oscillo-cursors-t'), vis('#oscillo-cursors-v'), vis('#oscillo-cac-t-coche'), vis('#oscillo-cac-v-coche')];
-	res.cacNoExport = ['#oscillo-cursors-t', '#oscillo-cursors-v', '#oscillo-zone-cac-t', '#oscillo-zone-cac-v', '#oscillo-cac-t-coche']
-		.every((s) => sh.querySelector(s).hasAttribute('data-no-export'));
+	// Zones de clic et traits de prise : jamais exportés. Curseurs et coche :
+	// exportés quand ils sont affichés (copie en image avec la mesure).
+	res.cacNoExport = ['#oscillo-zone-cac-t', '#oscillo-zone-cac-v', '#oscillo-cursor-t1-zone', '#oscillo-cursor-v2-zone']
+		.every((s) => sh.querySelector(s).hasAttribute('data-no-export')) &&
+		['#oscillo-cursors-t', '#oscillo-cursors-v', '#oscillo-cac-t-coche', '#oscillo-cac-v-coche']
+			.every((s) => sh.querySelector(s).hasAttribute('data-export-shown') && !sh.querySelector(s).hasAttribute('data-no-export'));
 	// La zone de clic contient la case dessinée.
 	const caseT = bb(sh.querySelector('#oscille-cac-T'));
 	const zT = bb(sh.querySelector('#oscillo-zone-cac-t'));
@@ -765,7 +769,7 @@ if (chrome) {
     check(`position : tirée loin à gauche, retour au bord gauche (${r.posGauche})`, r.posGauche === '0');
     // --- Curseurs de mesure --------------------------------------------------------
     check('curseurs : cachés et cases décochées au départ', JSON.stringify(r.cacDepart) === '[false,false,false,false]');
-    check('curseurs : hors du dessin exporté', r.cacNoExport === true);
+    check('curseurs : exportés s\'ils sont affichés, zones de clic jamais', r.cacNoExport === true);
     check('curseurs : la zone de clic couvre la case T dessinée', r.cacZone === true);
     check('curseurs : case INERTE en édition', r.cacEdition === null);
     check('curseurs : case T cochée → coche et deux lignes T, V toujours caché',

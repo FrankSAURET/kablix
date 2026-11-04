@@ -416,7 +416,9 @@ export class OscilloElement extends HTMLElement {
     for (const role of ['t', 'v'] as CursorRole[]) {
       const g = document.createElementNS(SVG_NS, 'g');
       g.id = `oscillo-cursors-${role}`;
-      g.setAttribute('data-no-export', '');
+      // Gardés à la copie en image quand ils sont affichés : c'est une mesure,
+      // elle fait partie de ce qu'on veut montrer (retour de Frank).
+      g.setAttribute('data-export-shown', '');
       g.setAttribute('clip-path', 'url(#oscillo-clip)');
       const couleur = CURSOR_COLOR[role];
       for (const k of [0, 1]) {
@@ -433,6 +435,7 @@ export class OscilloElement extends HTMLElement {
         prise.setAttribute('stroke', 'transparent');
         prise.setAttribute('stroke-width', '6');
         prise.setAttribute('pointer-events', 'stroke');
+        prise.setAttribute('data-no-export', ''); // transparent = noir dans Inkscape
         prise.addEventListener('pointerdown', (e) => this.onMeasureCursor(role, k, e as PointerEvent));
         g.appendChild(prise);
       }
@@ -507,7 +510,7 @@ export class OscilloElement extends HTMLElement {
       coche.setAttribute('stroke-linecap', 'round');
       coche.setAttribute('stroke-linejoin', 'round');
       coche.setAttribute('pointer-events', 'none');
-      coche.setAttribute('data-no-export', '');
+      coche.setAttribute('data-export-shown', '');
       svg.appendChild(coche);
       const zone = document.createElementNS(SVG_NS, 'rect');
       zone.id = `oscillo-zone-cac-${role}`;
