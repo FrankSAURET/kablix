@@ -3,12 +3,18 @@
 
 ---
 
+# v2026.11.1.286 — 2026.11.1 en ligne
+
+1. ✅ Publication confirmée par Frank le 4 novembre 2026. CHANGELOG : `## 2026.11.2 (prochaine publication)` ouverte. CLAUDE.md : état des versions à jour.
+
+---
+
 # v2026.11.1.285 — préparation de la publication 2026.11.1
 
 1. ✅ **Numéro** : même mois (novembre) → `2026.11.1`. `package.json` et `package-lock.json` en `2026.11.1`, `buildNumber` 285, CLAUDE.md à jour.
 2. ✅ **CHANGELOG daté du 4 novembre 2026**, contenu inchangé (déjà rangé par thème).
 3. ✅ **Lot de traduction ES/ZH** : 12 chaînes de l'extension (`bundle.l10n.es/zh-cn.json` : bouton « Installer la bibliothèque » et ses messages, échec de lecture des infos de débogage). Aucune doc ni README touché depuis la 2026.11.0 : rien à reporter en EN/ES/ZH.
-4. ⏳ **Reste à Frank** : publier (`npm run publier`). Après la mise en ligne : ouvrir `## 2026.11.2 (prochaine publication)` dans le CHANGELOG.
+4. ✅ **Reste à Frank** : publier (`npm run publier`). Après la mise en ligne : ouvrir `## 2026.11.2 (prochaine publication)` dans le CHANGELOG.
 
 ---
 
