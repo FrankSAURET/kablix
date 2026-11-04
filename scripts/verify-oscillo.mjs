@@ -401,6 +401,50 @@ async function run() {
 	clicTrig();
 	await wait(5);
 	res.edgeRetour = el.getAttribute('triggeredge');
+	// Flèche de POSITION du déclenchement (bord bas de l'écran). Le créneau
+	// reste bas une seconde avant chaque front montant, haut la seconde d'avant :
+	// à 10 s par écran, 5 % de largeur = 0,5 s avant le front (en bas), 15 % =
+	// 1,5 s avant (en haut). Position 0 = l'écran commence sur le front (en haut).
+	const fleche = sh.querySelector('#oscillo-trigger-pos');
+	res.posNoExport = !!fleche && fleche.hasAttribute('data-no-export');
+	res.posDefaut = fleche && fleche.getAttribute('d');
+	const glisser = (xDessin) => {
+		const boite = svg.getBoundingClientRect();
+		fleche.dispatchEvent(new PointerEvent('pointerdown', {
+			bubbles: true, composed: true, cancelable: true,
+			clientX: boite.left + xDessin, clientY: boite.top + 205,
+		}));
+		window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+	};
+	el.removeAttribute('trigger');
+	el.removeAttribute('simulating');
+	await wait(5);
+	glisser(10.34 + 0.05 * 198.2);
+	res.posEdition = el.getAttribute('triggerpos');
+	el.setAttribute('simulating', '');
+	await wait(5);
+	el.clearTrace();
+	creneau();
+	await wait(5);
+	let vuP = null;
+	el.addEventListener('scope-scale', (e) => { vuP = e.detail; });
+	glisser(10.34 + 0.05 * 198.2);
+	await wait(5);
+	res.pos5 = el.getAttribute('triggerpos');
+	res.posEvt = vuP && vuP.triggerpos;
+	res.posFleche5 = fleche.getAttribute('d');
+	res.dPos5 = trace.getAttribute('d').slice(0, 13);
+	el.setAttribute('triggerpos', '0.15');
+	await wait(5);
+	res.dPos15 = trace.getAttribute('d').slice(0, 11);
+	glisser(400);
+	await wait(5);
+	res.posLoin = el.getAttribute('triggerpos');
+	res.posFlecheLoin = fleche.getAttribute('d');
+	glisser(-50);
+	await wait(5);
+	res.posGauche = el.getAttribute('triggerpos');
+	el.removeAttribute('triggerpos');
 	el.removeAttribute('trigger');
 	el.removeAttribute('simulating');
 	el.clearTrace();
@@ -592,6 +636,24 @@ if (chrome) {
     check('déclenchement : bouton de sens INERTE en édition', r.edgeEdition === 'rising');
     check('déclenchement : un clic bascule le sens, un autre le ramène',
       r.edgeClic === 'falling' && r.edgeRetour === 'rising');
+    // Flèche de position : pointe en haut, base sur le bord bas de l'écran.
+    const sommet = (d) => /L([\d.]+),([\d.]+)L/.exec(d || '')?.slice(1).map(Number) ?? [NaN, NaN];
+    const BAS = 9.76 + 198.2;
+    check('position : flèche hors du dessin exporté', r.posNoExport === true);
+    check(`position : flèche au coin bas-gauche par défaut (${r.posDefaut})`,
+      pres(sommet(r.posDefaut)[0], GAUCHE, 0.05) && pres(sommet(r.posDefaut)[1], BAS - 7, 0.05)
+      && /^M[\d.]+,207\.96L/.test(r.posDefaut || ''));
+    check('position : flèche INERTE en édition', r.posEdition === null);
+    check(`position : flèche tirée à 5 % de la largeur (${r.pos5})`,
+      near(Number(r.pos5), 0.05, 0.02) && pres(sommet(r.posFleche5)[0], GAUCHE + 0.05 * LARGEUR, 0.3));
+    check('position : réglage renvoyé à l\'hôte (scope-scale)', near(Number(r.posEvt), 0.05, 0.02));
+    check(`position : 5 % → l'écran montre le bas du créneau AVANT le front (${r.dPos5})`,
+      r.dPos5 === 'M10.34,108.86');
+    check(`position : 15 % → la demi-période haute d'avant (${r.dPos15})`,
+      r.dPos15 === 'M10.34,9.76');
+    check(`position : tirée loin à droite, la flèche s'arrête au bord (${r.posLoin})`,
+      r.posLoin === '1' && pres(sommet(r.posFlecheLoin)[0], GAUCHE + LARGEUR, 0.05));
+    check(`position : tirée loin à gauche, retour au bord gauche (${r.posGauche})`, r.posGauche === '0');
     // --- Escalier ---------------------------------------------------------------
     // Un créneau ne se dessine correctement que si le trait TIENT le palier puis
     // saute d'un coup : sinon il monte en pente d'un front au suivant, et

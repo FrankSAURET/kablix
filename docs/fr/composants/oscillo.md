@@ -25,6 +25,7 @@ Si la courbe part vers le bas au lieu du haut, les deux fils sont inversés — 
 | `sdiv` | Largeur d'un carreau, en secondes — **nombre libre** | `1` |
 | `trigger` | Tension de **déclenchement**, en volts. **Vide** = posée toute seule | *(vide)* |
 | `triggeredge` | Sens du front qui déclenche : `rising` (montant) ou `falling` (descendant) | `rising` |
+| `triggerpos` | **Position** du déclenchement sur la largeur de l'écran : `0` = bord gauche, `1` = bord droit | `0` |
 
 Les deux se règlent dans le panneau à tout moment, ou **à la souris sur les boutons pendant la simulation**.
 
@@ -45,10 +46,11 @@ Dec : 0,8 V
 
 ## Le déclenchement
 
-Sans lui, une courbe qui se répète **glisse sans arrêt** : chaque image repart là où le hasard l'a laissée, et un créneau bien régulier a l'air de courir sur l'écran. Le déclenchement règle ça comme on recale un film sur la même image : l'appareil cherche, en remontant le temps, le dernier endroit où le signal **traverse une tension donnée dans un sens donné**, et il met **ce point-là au bord gauche** de l'écran. La courbe se redessine alors toujours au même endroit, immobile.
+Sans lui, une courbe qui se répète **glisse sans arrêt** : chaque image repart là où le hasard l'a laissée, et un créneau bien régulier a l'air de courir sur l'écran. Le déclenchement règle ça comme on recale un film sur la même image : l'appareil cherche, en remontant le temps, le dernier endroit où le signal **traverse une tension donnée dans un sens donné**, et il met **ce point-là sous la flèche du bas** de l'écran (au bord gauche, au départ). La courbe se redessine alors toujours au même endroit, immobile.
 
 - **Le curseur** — le petit triangle bleu collé au bord **gauche** de l'écran — donne la **tension**. Pendant la simulation, on le **prend à la souris** et on le monte ou on le descend ; le cartouche suit (`Dec : …`). Tant qu'on n'y touche pas, il se pose tout seul **à mi-hauteur du signal**, ce qui tombe juste sur à peu près tout (créneau, sinus, dent de scie).
 - **Le petit bouton** en bas à droite du dessin choisit le **sens** : sa moitié bleue **en haut** = front **montant** (le signal grimpe en traversant), **en bas** = front **descendant**. Un clic bascule de l'un à l'autre.
+- **La flèche du bas** — même triangle bleu, collé au bord **bas** de l'écran, pointe en haut — donne la **position** de ce point. Pendant la simulation, on la **prend à la souris** et on la glisse à gauche ou à droite. Poussée vers la droite, elle montre aussi **ce qui précède** le front. Contrairement à un vrai oscilloscope, elle ne sort jamais de l'écran.
 
 Si le signal ne traverse jamais cette tension — une tension continue, ou un curseur monté trop haut — il n'y a rien sur quoi se caler : la courbe **redéfile** comme avant. C'est le signe qu'il faut redescendre le curseur dans le signal.
 

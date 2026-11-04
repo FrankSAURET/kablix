@@ -24,6 +24,12 @@
 //    touche pas, il se pose tout seul à mi-hauteur du signal.
 // Sans passage trouvé (tension continue), la trace redéfile comme avant.
 //
+// POSITION HORIZONTALE (v2026.11.1.287) : une seconde flèche, au bord BAS de
+// l'écran, dit OÙ se pose l'instant du déclenchement (attribut `triggerpos`,
+// fraction de la largeur, 0 = bord gauche, comme avant). La poussée vers la
+// droite montre ce qui précède le front. Contrairement à un vrai appareil, elle
+// ne sort jamais de l'écran.
+//
 // EN SIMULATION : les trois lignes du cartouche `text-info` du dessin rappellent
 // les deux calibres et la tension de déclenchement.
 //
@@ -151,7 +157,7 @@ export class OscilloElement extends HTMLElement {
   ];
 
   static get observedAttributes(): string[] {
-    return ['voltsdiv', 'sdiv', 'trigger', 'triggeredge', 'simulating'];
+    return ['voltsdiv', 'sdiv', 'trigger', 'triggeredge', 'triggerpos', 'simulating'];
   }
 
   private root: ShadowRoot;
@@ -205,6 +211,14 @@ export class OscilloElement extends HTMLElement {
     if (s === null || s.trim() === '') return null;
     const v = Number(s);
     return Number.isFinite(v) ? v : null;
+  }
+
+  /** Place de l'instant du déclenchement sur la largeur de l'écran : 0 = bord
+   *  gauche (défaut), 1 = bord droit. Toujours bornée à l'écran. */
+  get triggerPos(): number {
+    const v = Number(this.getAttribute('triggerpos'));
+    if (!Number.isFinite(v)) return 0;
+    return Math.min(1, Math.max(0, v));
   }
 
   /** Rang du calibre horizontal dans SDIV_STEPS (le cran le plus proche). */
@@ -340,6 +354,16 @@ export class OscilloElement extends HTMLElement {
     trace.setAttribute('clip-path', 'url(#oscillo-clip)');
     svg.appendChild(trace);
 
+    // Flèche de POSITION du déclenchement : même triangle, collé au bord bas de
+    // l'écran, pointe en haut. Posée AVANT le curseur de tension : au coin
+    // bas-gauche où ils se croisent, c'est le curseur de tension qui se prend.
+    const fleche = document.createElementNS(SVG_NS, 'path');
+    fleche.id = 'oscillo-trigger-pos';
+    fleche.setAttribute('fill', TRACE_COLOR);
+    fleche.setAttribute('data-no-export', '');
+    fleche.addEventListener('pointerdown', (e) => this.onPosCursor(e as PointerEvent));
+    svg.appendChild(fleche);
+
     // Curseur de déclenchement : petit triangle collé au bord gauche de l'écran,
     // à la hauteur de la tension qui déclenche. Il se prend à la souris.
     // `data-no-export` : il ne fait pas partie du dessin de Frank.
@@ -442,6 +466,32 @@ export class OscilloElement extends HTMLElement {
     suivre(e);
   }
 
+  /** Flèche de position prise à la souris : elle glisse le long du bord bas,
+   *  sans jamais quitter l'écran. */
+  private onPosCursor(e: PointerEvent): void {
+    if (!this.hasAttribute('simulating')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const svg = (e.currentTarget as SVGElement).ownerSVGElement;
+    if (!svg) return;
+    const suivre = (ev: PointerEvent): void => {
+      const boite = svg.getBoundingClientRect();
+      const xDessin = ((ev.clientX - boite.left) / boite.width) * SCOPE_W;
+      const pos = Math.min(1, Math.max(0, (xDessin - PLOT.x) / PLOT.w));
+      this.setAttribute('triggerpos', String(Math.round(pos * 1000) / 1000));
+      this.updateTrigger();
+      this.redraw();
+    };
+    const lacher = (): void => {
+      window.removeEventListener('pointermove', suivre);
+      window.removeEventListener('pointerup', lacher);
+      this.announce();
+    };
+    window.addEventListener('pointermove', suivre);
+    window.addEventListener('pointerup', lacher);
+    suivre(e);
+  }
+
   /** Clic sur un bouton : la moitié droite le tourne à droite, la gauche à
    *  gauche — comme un vrai bouton qu'on pousse d'un côté ou de l'autre. */
   private onKnob(role: KnobRole, e: PointerEvent): void {
@@ -484,6 +534,7 @@ export class OscilloElement extends HTMLElement {
         sdiv: this.secondsDiv,
         trigger: this.getAttribute('trigger') ?? '',
         triggeredge: this.triggerEdge,
+        triggerpos: this.triggerPos,
       },
       bubbles: true,
       composed: true,
@@ -500,6 +551,8 @@ export class OscilloElement extends HTMLElement {
     if (zt) zt.style.cursor = curseur;
     const cur = this.root.querySelector('#oscillo-trigger-cursor') as SVGElement | null;
     if (cur) cur.style.cursor = this.hasAttribute('simulating') ? 'ns-resize' : '';
+    const fl = this.root.querySelector('#oscillo-trigger-pos') as SVGElement | null;
+    if (fl) fl.style.cursor = this.hasAttribute('simulating') ? 'ew-resize' : '';
   }
 
   /**
@@ -539,6 +592,15 @@ export class OscilloElement extends HTMLElement {
     if (mover) {
       const h = mover.height?.baseVal?.value ?? 0;
       mover.setAttribute('transform', this.triggerEdge === 'falling' ? `translate(0,${h})` : 'translate(0,0)');
+    }
+    // Flèche de position : base sur le bord bas, pointe vers le haut. Elle peut
+    // déborder d'un demi-triangle sur les arrondis, jamais au-delà.
+    const fl = this.root.querySelector('#oscillo-trigger-pos') as SVGElement | null;
+    if (fl) {
+      const fx = PLOT.x + this.triggerPos * PLOT.w;
+      const fy = PLOT.y + PLOT.h;
+      const h = TRIG_CURSOR_W / 2;
+      fl.setAttribute('d', `M${(fx - h).toFixed(2)},${fy.toFixed(2)}L${fx.toFixed(2)},${(fy - TRIG_CURSOR_W).toFixed(2)}L${(fx + h).toFixed(2)},${fy.toFixed(2)}Z`);
     }
     const cur = this.root.querySelector('#oscillo-trigger-cursor') as SVGElement | null;
     if (!cur) return;
@@ -583,25 +645,29 @@ export class OscilloElement extends HTMLElement {
    * Instant posé au BORD GAUCHE de l'écran. Sans déclenchement, c'est « il y a
    * une largeur d'écran » : la trace défile, le présent au bord droit. Avec, on
    * remonte le temps jusqu'au dernier passage du signal par la tension de
-   * déclenchement, dans le bon sens, ET assez ancien pour qu'un écran entier
-   * tienne derrière : la courbe se redessine alors toujours au même endroit,
-   * comme un film recalé sur la même image. Aucun passage (tension continue) :
-   * on redéfile, mieux vaut une trace qui glisse qu'un écran vide.
+   * déclenchement, dans le bon sens, ET assez ancien pour que la fin de l'écran
+   * (ce qui suit la flèche de position) soit déjà arrivée : la courbe se
+   * redessine alors toujours au même endroit, comme un film recalé sur la même
+   * image. L'écran commence `triggerPos` largeurs AVANT ce passage. Aucun
+   * passage (tension continue) : on redéfile, mieux vaut une trace qui glisse
+   * qu'un écran vide.
    */
   private windowStart(win: number): number {
     const fin = this.bufT[(this.head - 1 + BUF) % BUF];
     const defaut = fin - win;
     if (this.count < 2) return defaut;
+    const avant = this.triggerPos * win;
+    const limite = fin - (win - avant);
     const niveau = this.triggerLevel();
     const monte = this.triggerEdge === 'rising';
     for (let n = this.count - 1; n >= 1; n--) {
       const i = (this.head - this.count + n + 2 * BUF) % BUF;
       const t = this.bufT[i];
-      if (t > defaut) continue; // trop récent : il manquerait la fin de l'écran
+      if (t > limite) continue; // trop récent : il manquerait la fin de l'écran
       const j = (i - 1 + BUF) % BUF;
       const a = this.bufV[j];
       const b = this.bufV[i];
-      if (monte ? a < niveau && b >= niveau : a > niveau && b <= niveau) return t;
+      if (monte ? a < niveau && b >= niveau : a > niveau && b <= niveau) return t - avant;
     }
     return defaut;
   }

@@ -6,6 +6,12 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ## 2026.11.2 (prochaine publication)
 
+### Nouveauté
+
+**Oscilloscope**
+
+- **Position horizontale du déclenchement** : une flèche au bas de l'écran se glisse à la souris pendant la simulation. Elle place le point de déclenchement n'importe où sur la largeur, pour voir aussi ce qui précède le front.
+
 ## 2026.11.1 (4 novembre 2026)
 
 ### Nouveauté

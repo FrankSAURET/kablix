@@ -4248,7 +4248,7 @@ function bindInputs(): void {
     if (!el) continue;
     const onScale = (e: Event): void => {
       const d = (e as CustomEvent).detail as
-        | { voltsdiv?: number; sdiv?: number; trigger?: string; triggeredge?: string }
+        | { voltsdiv?: number; sdiv?: number; trigger?: string; triggeredge?: string; triggerpos?: number }
         | undefined;
       if (!d) return;
       editor.updatePartAttr(part.id, 'voltsdiv', String(d.voltsdiv ?? 1));
@@ -4256,6 +4256,7 @@ function bindInputs(): void {
       // Déclenchement : le sens, et la tension du curseur (vide = posée toute seule).
       editor.updatePartAttr(part.id, 'trigger', d.trigger ?? '');
       editor.updatePartAttr(part.id, 'triggeredge', d.triggeredge ?? 'rising');
+      editor.updatePartAttr(part.id, 'triggerpos', String(d.triggerpos ?? 0));
     };
     el.addEventListener('scope-scale', onScale);
     inputRemovers.push(() => el.removeEventListener('scope-scale', onScale));

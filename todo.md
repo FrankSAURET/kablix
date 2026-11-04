@@ -3,6 +3,17 @@
 
 ---
 
+# v2026.11.1.287 — oscillo : flèche de position horizontale du déclenchement
+
+1. ✅ Demande de Frank : flèche au bord bas de l'écran, même triangle que le curseur de tension, pointe en haut, déborde sur les arrondis mais jamais hors de l'écran. [oscillo-element.mts](src/webview/composants/oscillo-element.mts) : attribut `triggerpos` (fraction de largeur, 0 = bord gauche = comportement d'avant), glissé à la souris en simulation seulement, `windowStart` recule l'écran de `triggerpos × largeur` et exige que la fin de l'écran (après la flèche) soit arrivée.
+2. ✅ [catalog.mts](src/webview/diagram/catalog.mts) : `triggerpos: '0'` ; [sim.mts](src/webview/sim.mts) : enregistré dans le schéma via `scope-scale`.
+3. ✅ Banc `verify:oscillo` : 9 contrôles de plus (88 au total, verts) — flèche hors export, inerte en édition, 5 % / 15 % décalent la trace du créneau comme attendu, butées aux deux bords, renvoi à l'hôte. Contre-épreuve sur l'ancien élément : échec.
+4. ✅ FR : [oscillo.md](docs/fr/composants/oscillo.md), CHANGELOG.
+5. ⏳ EN/ES/ZH de la fiche d'aide : avant publication.
+6. ⏳ Essai F5 par Frank.
+
+---
+
 # v2026.11.1.286 — 2026.11.1 en ligne
 
 1. ✅ Publication confirmée par Frank le 4 novembre 2026. CHANGELOG : `## 2026.11.2 (prochaine publication)` ouverte. CLAUDE.md : état des versions à jour.
