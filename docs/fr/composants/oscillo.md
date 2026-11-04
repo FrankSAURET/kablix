@@ -26,6 +26,8 @@ Si la courbe part vers le bas au lieu du haut, les deux fils sont inversés — 
 | `trigger` | Tension de **déclenchement**, en volts. **Vide** = posée toute seule | *(vide)* |
 | `triggeredge` | Sens du front qui déclenche : `rising` (montant) ou `falling` (descendant) | `rising` |
 | `triggerpos` | **Position** du déclenchement sur la largeur de l'écran : `0` = bord gauche, `1` = bord droit | `0` |
+| `cursort` / `cursorv` | Case **T** / **V** des curseurs de mesure : `1` = cochée | `0` |
+| `cursortpos` / `cursorvpos` | Place des deux lignes du curseur, en carreaux depuis le centre | `-0.5,0.5` |
 
 Les deux se règlent dans le panneau à tout moment, ou **à la souris sur les boutons pendant la simulation**.
 
@@ -34,7 +36,7 @@ Les deux se règlent dans le panneau à tout moment, ou **à la souris sur les b
 Chaque bouton se tourne d'un cran par **clic** : sur sa **moitié droite** pour tourner à droite, sur sa **moitié gauche** pour tourner à gauche. La **molette** de la souris marche aussi.
 
 - **Volts/Div** (bouton de gauche) : cinq crans dessinés, `0,1 · 0,5 · 1 · 2 · 5` volts par carreau, avec **butée** aux deux bouts. Plus le chiffre est petit, plus la courbe est haute. L'écran fait 5 carreaux au-dessus de l'axe et 5 en dessous : à 1 V/div, il montre de −5 V à +5 V.
-- **s/Div** (bouton de droite) : **sans butée**, il tourne tant qu'on veut. Vers la **droite** la courbe se **dilate** (moins de secondes par carreau, on voit le détail) ; vers la **gauche** elle se **rétracte** (on voit plus longtemps). Un tour complet vaut un facteur **10**, soit huit crans. Pas de liste `1-2-5` : les valeurs intermédiaires existent (`1,33 s/div`, `562 ms/div`…).
+- **s/Div** (bouton de droite) : **sans butée**, il tourne tant qu'on veut. Vers la **droite** la courbe se **dilate** (moins de secondes par carreau, on voit le détail) ; vers la **gauche** elle se **rétracte** (on voit plus longtemps). Les crans suivent la suite `1 - 2 - 5` de tous les oscilloscopes (`1 ms`, `2 ms`, `5 ms`, `10 ms`…) : un tour complet vaut un facteur **10**, soit trois crans.
 
 Le cartouche **sous l'écran** rappelle les deux calibres et la tension de déclenchement, dans l'unité qui parle :
 
@@ -53,6 +55,15 @@ Sans lui, une courbe qui se répète **glisse sans arrêt** : chaque image repar
 - **La flèche du bas** — même triangle bleu, collé au bord **bas** de l'écran, pointe en haut — donne la **position** de ce point. Pendant la simulation, on la **prend à la souris** et on la glisse à gauche ou à droite. Poussée vers la droite, elle montre aussi **ce qui précède** le front. Contrairement à un vrai oscilloscope, elle ne sort jamais de l'écran.
 
 Si le signal ne traverse jamais cette tension — une tension continue, ou un curseur monté trop haut — il n'y a rien sur quoi se caler : la courbe **redéfile** comme avant. C'est le signe qu'il faut redescendre le curseur dans le signal.
+
+## Les curseurs de mesure
+
+Deux cases à cocher, sous l'écran à côté de **Curseurs**, servent à **mesurer** sur la courbe :
+
+- **T** fait paraître deux lignes **verticales** pointillées orange. L'écart entre elles s'affiche en **temps** au-dessus de la flèche double (`ΔT = 2,5 ms`) : la durée d'une période, d'une impulsion, d'un retard.
+- **V** fait paraître deux lignes **horizontales** pointillées violettes. L'écart s'affiche en **tension** à côté de la flèche double (`ΔV = 1 V`) : l'amplitude d'un signal, une chute de tension.
+
+Au départ, les deux lignes se posent de part et d'autre du centre de l'écran, à un carreau l'une de l'autre. Pendant la simulation, on **coche** ou **décoche** d'un clic, et on **prend chaque ligne à la souris** pour la poser où l'on veut ; elle ne sort jamais de l'écran. Les lignes restent à leur place quand on tourne un bouton : c'est l'écart lu qui suit le nouveau calibre, comme sur un vrai appareil.
 
 ## Ce que montre l'écran
 

@@ -4248,7 +4248,10 @@ function bindInputs(): void {
     if (!el) continue;
     const onScale = (e: Event): void => {
       const d = (e as CustomEvent).detail as
-        | { voltsdiv?: number; sdiv?: number; trigger?: string; triggeredge?: string; triggerpos?: number }
+        | {
+          voltsdiv?: number; sdiv?: number; trigger?: string; triggeredge?: string; triggerpos?: number;
+          cursort?: string; cursorv?: string; cursortpos?: string; cursorvpos?: string;
+        }
         | undefined;
       if (!d) return;
       editor.updatePartAttr(part.id, 'voltsdiv', String(d.voltsdiv ?? 1));
@@ -4257,6 +4260,11 @@ function bindInputs(): void {
       editor.updatePartAttr(part.id, 'trigger', d.trigger ?? '');
       editor.updatePartAttr(part.id, 'triggeredge', d.triggeredge ?? 'rising');
       editor.updatePartAttr(part.id, 'triggerpos', String(d.triggerpos ?? 0));
+      // Curseurs de mesure : cases cochées et place des lignes.
+      if (d.cursort !== undefined) editor.updatePartAttr(part.id, 'cursort', d.cursort);
+      if (d.cursorv !== undefined) editor.updatePartAttr(part.id, 'cursorv', d.cursorv);
+      if (d.cursortpos !== undefined) editor.updatePartAttr(part.id, 'cursortpos', d.cursortpos);
+      if (d.cursorvpos !== undefined) editor.updatePartAttr(part.id, 'cursorvpos', d.cursorvpos);
     };
     el.addEventListener('scope-scale', onScale);
     inputRemovers.push(() => el.removeEventListener('scope-scale', onScale));

@@ -1,10 +1,18 @@
 // Élément visuel maison <kablix-oscillo> : oscilloscope de table à deux prises
-// banane (dessin de Frank ./externe/oscillo.svg, 220×270 px).
+// banane (dessin de Frank ./externe/oscillo.svg, 230×300 px depuis la retouche
+// de v2026.11.1.288 : écran agrandi, boutons plus gros, cases « Curseurs »).
 //
 // L'ÉCRAN porte une grille de 10 carreaux sur 10, dessinée à la main : ses
-// traits tombent tous les 19,82 px (et non 20), les deux axes au milieu. La
-// trace suit CETTE grille au pixel près, sinon la courbe glisserait par rapport
-// aux carreaux.
+// traits tombent tous les 20 px, les deux axes au milieu. La trace suit CETTE
+// grille au pixel près, sinon la courbe glisserait par rapport aux carreaux.
+//
+// CURSEURS DE MESURE (v2026.11.1.288) : deux cases à cocher du dessin, T et V.
+// Cochée, chacune fait paraître deux lignes pointillées (T = verticales, V =
+// horizontales), posées d'abord de part et d'autre du centre, à un carreau
+// l'une de l'autre. Une flèche double les relie et affiche l'écart : en temps
+// pour T, en tension pour V. Les lignes se glissent à la souris en simulation ;
+// leur place est gardée EN CARREAUX depuis le centre, comme sur un vrai
+// appareil : changer de calibre change l'écart lu, pas la place des lignes.
 //
 // DEUX BOUTONS, aiguille dessinée au repos sur la graduation « 0,1 » :
 //  - VOLTS/DIV (à gauche) : cinq crans dessinés (0,1 · 0,5 · 1 · 2 · 5 volts par
@@ -45,13 +53,14 @@ import drawing from './externe/oscillo.svg';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-export const SCOPE_W = 220;
-export const SCOPE_H = 270;
+export const SCOPE_W = 230;
+export const SCOPE_H = 300;
 
-/** Grille DESSINÉE : 10 carreaux de 19,82 px, zéro au croisement des axes. */
-const DIV = 19.82;
-const PLOT = { x: 10.34, y: 9.76, w: 198.2, h: 198.2 };
-const ZERO = { x: 109.44, y: 108.86 };
+/** Grille DESSINÉE : 10 carreaux de 20 px, zéro au croisement des axes. Le
+ *  cadre de l'écran (`rect2141`) est mesuré au rendu. */
+const DIV = 20;
+const PLOT = { x: 14.75, y: 14.25, w: 199.5, h: 199.5 };
+const ZERO = { x: 114.75, y: 114.25 };
 
 /** Cartouche de texte DESSINÉ sous l'écran : trois lignes empilées (calibre
  *  vertical, calibre horizontal, tension de déclenchement). */
@@ -61,7 +70,22 @@ const INFO_ID = 'text-info';
  *  demi-hauteur pour dire « front descendant ». */
 const TRIG_MOVER = 'trigger-button-mover';
 /** Zone cliquable posée sur ce bouton (px du dessin, mesurés au rendu). */
-const TRIG_ZONE = { x: 178.6, y: 223.7, w: 10.5, h: 24 };
+const TRIG_ZONE = { x: 194.41, y: 247.33, w: 10.5, h: 24 };
+
+/** Cases à cocher « Curseurs » du dessin (ids tels qu'écrits dans la planche,
+ *  `oscille-` compris) et zone cliquable qui couvre la case ET sa lettre. */
+type CursorRole = 't' | 'v';
+const CURSOR_BOXES: Record<CursorRole, { ids: string[]; x: number; y: number }> = {
+  t: { ids: ['oscille-cac-T', 'oscillo-cac-T', 'oscillo-cac-t'], x: 57.51, y: 232.26 },
+  v: { ids: ['oscillo-cac-v', 'oscillo-cac-V'], x: 73.39, y: 232.26 },
+};
+const CAC_SIZE = 8;
+/** Couleurs des curseurs : franches sur le gris de l'écran, distinctes du bleu
+ *  de la trace et entre elles. */
+const CURSOR_COLOR: Record<CursorRole, string> = { t: '#e66100', v: '#9c27b0' };
+/** Place de départ des deux lignes, en carreaux depuis le centre : de part et
+ *  d'autre du zéro, un carreau d'écart. */
+const CURSOR_DEFAULT: readonly [number, number] = [-0.5, 0.5];
 
 /** Curseur de déclenchement : petit triangle collé au bord gauche de l'écran. */
 const TRIG_CURSOR_W = 7;
@@ -79,15 +103,16 @@ const STEP_DEG = 75;
 
 type KnobRole = 'volts' | 'time';
 
-/** Pivot des deux boutons, dans le repère local de leur groupe. */
-const KNOB_PIVOT = { x: 243.662, y: 74.82 };
+/** Pivot des deux boutons, dans le repère local de leur groupe (le même pour
+ *  les deux : Frank a dupliqué le bouton, seul le groupe est décalé). */
+const KNOB_PIVOT = { x: 655.092, y: 251.078 };
 /** Aiguille et zone cliquable de chaque bouton (le reste ne tourne pas). */
 const KNOBS: Record<KnobRole, { needle: string; cx: number; cy: number }> = {
-  volts: { needle: 'path1704', cx: 129.3, cy: 233.01 },
-  time: { needle: 'path2-6-0', cx: 161.87, cy: 233.01 },
+  volts: { needle: 'path2143', cx: 136.4, cy: 259.59 },
+  time: { needle: 'path2157', cx: 175.1, cy: 259.59 },
 };
 /** Rayon de la zone cliquable posée sur un bouton (px du dessin). */
-const KNOB_R = 11;
+const KNOB_R = 15;
 
 /** Bouton s/div : un tour = un facteur 10, en trois crans (voir SDIV_STEPS). */
 const TIME_STEPS = 3;
@@ -117,7 +142,7 @@ export const SDIV_DEFAULT = 1;
 /** Tampon de trace : ~68 s d'historique à 60 images/s. */
 const BUF = 4096;
 /** Une colonne de trace par pixel de large. */
-const COLS = 199;
+const COLS = 200;
 
 export interface PinInfo {
   name: string;
@@ -141,6 +166,13 @@ function timeLabel(s: number): string {
   return `${fmt(s * 1e6)} µs/div`;
 }
 
+/** Durée dans l'unité qui parle (écart des curseurs T). */
+function durationLabel(s: number): string {
+  if (s >= 1) return `${fmt(s)} s`;
+  if (s >= 1e-3) return `${fmt(s * 1e3)} ms`;
+  return `${fmt(s * 1e6)} µs`;
+}
+
 /** Quatre chiffres utiles : l'attribut du schéma reste lisible, et un
  *  aller-retour sur le bouton retombe bien sur la valeur de départ. */
 function round4(x: number): number {
@@ -152,12 +184,13 @@ function round4(x: number): number {
 export class OscilloElement extends HTMLElement {
   // Centres des prises banane du dessin (+ rouge à gauche, GND noire à droite).
   readonly pinInfo: PinInfo[] = [
-    { name: '+', x: 50, y: 250, signals: [] },
-    { name: 'GND', x: 70, y: 250, signals: [] },
+    { name: '+', x: 50, y: 280, signals: [] },
+    { name: 'GND', x: 70, y: 280, signals: [] },
   ];
 
   static get observedAttributes(): string[] {
-    return ['voltsdiv', 'sdiv', 'trigger', 'triggeredge', 'triggerpos', 'simulating'];
+    return ['voltsdiv', 'sdiv', 'trigger', 'triggeredge', 'triggerpos',
+      'cursort', 'cursorv', 'cursortpos', 'cursorvpos', 'simulating'];
   }
 
   private root: ShadowRoot;
@@ -219,6 +252,28 @@ export class OscilloElement extends HTMLElement {
     const v = Number(this.getAttribute('triggerpos'));
     if (!Number.isFinite(v)) return 0;
     return Math.min(1, Math.max(0, v));
+  }
+
+  /** Case T ou V cochée (attribut `cursort` / `cursorv` à « 1 »). */
+  cursorOn(role: CursorRole): boolean {
+    const v = this.getAttribute(`cursor${role}`);
+    return v === '1' || v === 'true';
+  }
+
+  /** Place des deux lignes d'un curseur, en carreaux depuis le centre (vers la
+   *  droite pour T, vers le HAUT pour V), bornée à l'écran. */
+  cursorPos(role: CursorRole): [number, number] {
+    const brut = (this.getAttribute(`cursor${role}pos`) ?? '').split(',').map((s) => Number(s));
+    const borne = (x: number, d: number): number => (Number.isFinite(x) ? Math.min(5, Math.max(-5, x)) : d);
+    if (brut.length !== 2) return [CURSOR_DEFAULT[0], CURSOR_DEFAULT[1]];
+    return [borne(brut[0], CURSOR_DEFAULT[0]), borne(brut[1], CURSOR_DEFAULT[1])];
+  }
+
+  /** Écart entre les deux lignes, dans l'unité du curseur : secondes pour T,
+   *  volts pour V. */
+  cursorDelta(role: CursorRole): number {
+    const [a, b] = this.cursorPos(role);
+    return round4(Math.abs(b - a) * (role === 't' ? this.secondsDiv : this.voltsDiv));
   }
 
   /** Rang du calibre horizontal dans SDIV_STEPS (le cran le plus proche). */
@@ -305,6 +360,7 @@ export class OscilloElement extends HTMLElement {
     this.updateKnobs();
     this.updateTrigger();
     this.updateCalibre();
+    this.updateCursors();
     this.updateZones();
     this.redraw();
   }
@@ -354,6 +410,58 @@ export class OscilloElement extends HTMLElement {
     trace.setAttribute('clip-path', 'url(#oscillo-clip)');
     svg.appendChild(trace);
 
+    // Curseurs de mesure T et V : deux lignes pointillées chacun, une flèche
+    // double entre elles et l'écart écrit à côté. Posés SOUS les deux flèches
+    // de déclenchement, qui restent prenables aux bords de l'écran.
+    for (const role of ['t', 'v'] as CursorRole[]) {
+      const g = document.createElementNS(SVG_NS, 'g');
+      g.id = `oscillo-cursors-${role}`;
+      g.setAttribute('data-no-export', '');
+      g.setAttribute('clip-path', 'url(#oscillo-clip)');
+      const couleur = CURSOR_COLOR[role];
+      for (const k of [0, 1]) {
+        const ligne = document.createElementNS(SVG_NS, 'line');
+        ligne.id = `oscillo-cursor-${role}${k + 1}`;
+        ligne.setAttribute('stroke', couleur);
+        ligne.setAttribute('stroke-width', '1.2');
+        ligne.setAttribute('stroke-dasharray', '4 2.5');
+        ligne.setAttribute('pointer-events', 'none');
+        g.appendChild(ligne);
+        // Prise à la souris : un trait transparent plus large que le pointillé.
+        const prise = document.createElementNS(SVG_NS, 'line');
+        prise.id = `oscillo-cursor-${role}${k + 1}-zone`;
+        prise.setAttribute('stroke', 'transparent');
+        prise.setAttribute('stroke-width', '6');
+        prise.setAttribute('pointer-events', 'stroke');
+        prise.addEventListener('pointerdown', (e) => this.onMeasureCursor(role, k, e as PointerEvent));
+        g.appendChild(prise);
+      }
+      const fleche = document.createElementNS(SVG_NS, 'path');
+      fleche.id = `oscillo-cursor-${role}-arrow`;
+      fleche.setAttribute('stroke', couleur);
+      fleche.setAttribute('stroke-width', '0.9');
+      fleche.setAttribute('fill', couleur);
+      fleche.setAttribute('pointer-events', 'none');
+      g.appendChild(fleche);
+      // Fond de l'étiquette : le texte reste lisible même posé sur la trace.
+      const fond = document.createElementNS(SVG_NS, 'rect');
+      fond.id = `oscillo-cursor-${role}-label-bg`;
+      fond.setAttribute('fill', '#d6d6d6');
+      fond.setAttribute('fill-opacity', '0.85');
+      fond.setAttribute('rx', '1.5');
+      fond.setAttribute('pointer-events', 'none');
+      g.appendChild(fond);
+      const texte = document.createElementNS(SVG_NS, 'text');
+      texte.id = `oscillo-cursor-${role}-label`;
+      texte.setAttribute('fill', couleur);
+      texte.setAttribute('font-size', '7.5');
+      texte.setAttribute('font-weight', 'bold');
+      texte.setAttribute('font-family', 'sans-serif');
+      texte.setAttribute('pointer-events', 'none');
+      g.appendChild(texte);
+      svg.appendChild(g);
+    }
+
     // Flèche de POSITION du déclenchement : même triangle, collé au bord bas de
     // l'écran, pointe en haut. Posée AVANT le curseur de tension : au coin
     // bas-gauche où ils se croisent, c'est le curseur de tension qui se prend.
@@ -385,6 +493,33 @@ export class OscilloElement extends HTMLElement {
     zoneTrig.setAttribute('data-no-export', '');
     zoneTrig.addEventListener('pointerdown', (e) => this.onTriggerButton(e as PointerEvent));
     svg.appendChild(zoneTrig);
+
+    // Cases « Curseurs » : coche dessinée par-dessus la case de Frank, et zone
+    // cliquable qui prend la case et sa lettre au-dessus.
+    for (const role of ['t', 'v'] as CursorRole[]) {
+      const c = CURSOR_BOXES[role];
+      const coche = document.createElementNS(SVG_NS, 'path');
+      coche.id = `oscillo-cac-${role}-coche`;
+      coche.setAttribute('d', `M${c.x + 1.6},${c.y + 4.2}L${c.x + 3.4},${c.y + 6.2}L${c.x + 6.6},${c.y + 1.8}`);
+      coche.setAttribute('fill', 'none');
+      coche.setAttribute('stroke', CURSOR_COLOR[role]);
+      coche.setAttribute('stroke-width', '1.6');
+      coche.setAttribute('stroke-linecap', 'round');
+      coche.setAttribute('stroke-linejoin', 'round');
+      coche.setAttribute('pointer-events', 'none');
+      coche.setAttribute('data-no-export', '');
+      svg.appendChild(coche);
+      const zone = document.createElementNS(SVG_NS, 'rect');
+      zone.id = `oscillo-zone-cac-${role}`;
+      zone.setAttribute('x', String(c.x - 2));
+      zone.setAttribute('y', String(c.y - 11));
+      zone.setAttribute('width', String(CAC_SIZE + 4));
+      zone.setAttribute('height', String(CAC_SIZE + 13));
+      zone.setAttribute('fill', 'transparent');
+      zone.setAttribute('data-no-export', '');
+      zone.addEventListener('pointerdown', (e) => this.onCac(role, e as PointerEvent));
+      svg.appendChild(zone);
+    }
 
     // Zones cliquables des deux boutons (simulation seulement, comme l'inter du
     // multimètre : en édition le clic sert à sélectionner et déplacer).
@@ -423,8 +558,50 @@ export class OscilloElement extends HTMLElement {
     this.updateKnobs();
     this.updateTrigger();
     this.updateCalibre();
+    this.updateCursors();
     this.updateZones();
     this.redraw();
+  }
+
+  /** Clic sur une case « Curseurs » : coche ↔ décoche (simulation seulement,
+   *  comme les boutons). */
+  private onCac(role: CursorRole, e: PointerEvent): void {
+    if (!this.hasAttribute('simulating')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    this.setAttribute(`cursor${role}`, this.cursorOn(role) ? '0' : '1');
+    this.announce();
+  }
+
+  /** Ligne de curseur prise à la souris : elle suit le pointeur (en x pour T,
+   *  en y pour V) sans quitter l'écran, l'écart se relit à chaque pas. */
+  private onMeasureCursor(role: CursorRole, k: number, e: PointerEvent): void {
+    if (!this.hasAttribute('simulating') || !this.cursorOn(role)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const svg = (e.currentTarget as SVGElement).ownerSVGElement;
+    if (!svg) return;
+    const suivre = (ev: PointerEvent): void => {
+      const boite = svg.getBoundingClientRect();
+      // Pixels d'écran → carreaux depuis le centre (vers le HAUT pour V).
+      const div = role === 't'
+        ? (((ev.clientX - boite.left) / boite.width) * SCOPE_W - ZERO.x) / DIV
+        : (ZERO.y - ((ev.clientY - boite.top) / boite.height) * SCOPE_H) / DIV;
+      const bornes = role === 't'
+        ? [(PLOT.x - ZERO.x) / DIV, (PLOT.x + PLOT.w - ZERO.x) / DIV]
+        : [(ZERO.y - PLOT.y - PLOT.h) / DIV, (ZERO.y - PLOT.y) / DIV];
+      const pos = this.cursorPos(role);
+      pos[k] = Math.round(Math.min(bornes[1], Math.max(bornes[0], div)) * 100) / 100;
+      this.setAttribute(`cursor${role}pos`, `${pos[0]},${pos[1]}`);
+    };
+    const lacher = (): void => {
+      window.removeEventListener('pointermove', suivre);
+      window.removeEventListener('pointerup', lacher);
+      this.announce();
+    };
+    window.addEventListener('pointermove', suivre);
+    window.addEventListener('pointerup', lacher);
+    suivre(e);
   }
 
   /** Clic sur le bouton de sens : montant ↔ descendant, comme un inverseur. */
@@ -535,6 +712,10 @@ export class OscilloElement extends HTMLElement {
         trigger: this.getAttribute('trigger') ?? '',
         triggeredge: this.triggerEdge,
         triggerpos: this.triggerPos,
+        cursort: this.cursorOn('t') ? '1' : '0',
+        cursorv: this.cursorOn('v') ? '1' : '0',
+        cursortpos: this.cursorPos('t').join(','),
+        cursorvpos: this.cursorPos('v').join(','),
       },
       bubbles: true,
       composed: true,
@@ -553,6 +734,90 @@ export class OscilloElement extends HTMLElement {
     if (cur) cur.style.cursor = this.hasAttribute('simulating') ? 'ns-resize' : '';
     const fl = this.root.querySelector('#oscillo-trigger-pos') as SVGElement | null;
     if (fl) fl.style.cursor = this.hasAttribute('simulating') ? 'ew-resize' : '';
+    for (const role of ['t', 'v'] as CursorRole[]) {
+      const zc = this.root.querySelector(`#oscillo-zone-cac-${role}`) as SVGElement | null;
+      if (zc) zc.style.cursor = curseur;
+      for (const k of [1, 2]) {
+        const p = this.root.querySelector(`#oscillo-cursor-${role}${k}-zone`) as SVGElement | null;
+        if (p) p.style.cursor = this.hasAttribute('simulating') ? (role === 't' ? 'ew-resize' : 'ns-resize') : '';
+      }
+    }
+  }
+
+  /**
+   * Curseurs de mesure : coches des cases, lignes, flèche double et écart.
+   * La flèche de T court en haut de l'écran, celle de V au bord droit : loin
+   * du centre où passe d'ordinaire la courbe.
+   */
+  private updateCursors(): void {
+    for (const role of ['t', 'v'] as CursorRole[]) {
+      const on = this.cursorOn(role);
+      const coche = this.root.querySelector(`#oscillo-cac-${role}-coche`) as SVGElement | null;
+      if (coche) coche.style.display = on ? '' : 'none';
+      const g = this.root.querySelector(`#oscillo-cursors-${role}`) as SVGElement | null;
+      if (!g) continue;
+      g.style.display = on ? '' : 'none';
+      if (!on) continue;
+      const [a, b] = this.cursorPos(role);
+      // Place des lignes en px du dessin.
+      const px = [a, b].map((d) => (role === 't' ? ZERO.x + d * DIV : ZERO.y - d * DIV));
+      for (const k of [0, 1]) {
+        for (const suffixe of ['', '-zone']) {
+          const l = this.root.querySelector(`#oscillo-cursor-${role}${k + 1}${suffixe}`);
+          if (!l) continue;
+          if (role === 't') {
+            l.setAttribute('x1', px[k].toFixed(2)); l.setAttribute('x2', px[k].toFixed(2));
+            l.setAttribute('y1', String(PLOT.y)); l.setAttribute('y2', String(PLOT.y + PLOT.h));
+          } else {
+            l.setAttribute('y1', px[k].toFixed(2)); l.setAttribute('y2', px[k].toFixed(2));
+            l.setAttribute('x1', String(PLOT.x)); l.setAttribute('x2', String(PLOT.x + PLOT.w));
+          }
+        }
+      }
+      // Flèche double : un trait, une pointe vers chaque ligne. Lignes trop
+      // proches pour deux pointes : le trait seul.
+      const lo = Math.min(px[0], px[1]);
+      const hi = Math.max(px[0], px[1]);
+      const P = 3.5; // longueur d'une pointe
+      const L = 1.8; // demi-largeur d'une pointe
+      const fixe = role === 't' ? PLOT.y + 20 : PLOT.x + PLOT.w - 20;
+      const pt = (le: number, tr: number): string => (role === 't' ? `${le.toFixed(2)},${tr.toFixed(2)}` : `${tr.toFixed(2)},${le.toFixed(2)}`);
+      let d = `M${pt(lo, fixe)}L${pt(hi, fixe)}`;
+      if (hi - lo > 2 * P + 1) {
+        d += `M${pt(lo, fixe)}L${pt(lo + P, fixe - L)}L${pt(lo + P, fixe + L)}Z`;
+        d += `M${pt(hi, fixe)}L${pt(hi - P, fixe - L)}L${pt(hi - P, fixe + L)}Z`;
+      }
+      const fleche = this.root.querySelector(`#oscillo-cursor-${role}-arrow`);
+      fleche?.setAttribute('d', d);
+      // Écart écrit à côté de la flèche : au-dessus pour T, à gauche pour V,
+      // toujours dans l'écran.
+      const texte = this.root.querySelector(`#oscillo-cursor-${role}-label`) as SVGTextElement | null;
+      const fond = this.root.querySelector(`#oscillo-cursor-${role}-label-bg`);
+      if (!texte || !fond) continue;
+      const delta = this.cursorDelta(role);
+      texte.textContent = role === 't' ? `ΔT = ${durationLabel(delta)}` : `ΔV = ${fmt(delta)} V`;
+      // Largeur mesurée ; estimée (≈ 0,55 em par signe) tant que l'élément
+      // n'est pas encore affiché et que la mesure rend zéro.
+      let w = 0;
+      try { w = texte.getComputedTextLength(); } catch { w = 0; }
+      if (!(w > 0)) w = texte.textContent.length * 7.5 * 0.55;
+      const h = 9;
+      let tx: number;
+      let ty: number;
+      if (role === 't') {
+        tx = Math.min(PLOT.x + PLOT.w - w - 2, Math.max(PLOT.x + 2, (lo + hi) / 2 - w / 2));
+        ty = fixe - 4;
+      } else {
+        tx = fixe - w - 4;
+        ty = Math.min(PLOT.y + PLOT.h - 3, Math.max(PLOT.y + h, (lo + hi) / 2 + 2.6));
+      }
+      texte.setAttribute('x', tx.toFixed(2));
+      texte.setAttribute('y', ty.toFixed(2));
+      fond.setAttribute('x', (tx - 1.5).toFixed(2));
+      fond.setAttribute('y', (ty - 7).toFixed(2));
+      fond.setAttribute('width', (w + 3).toFixed(2));
+      fond.setAttribute('height', String(h));
+    }
   }
 
   /**

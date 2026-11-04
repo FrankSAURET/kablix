@@ -200,7 +200,7 @@ async function run() {
 	const sh = el.shadowRoot;
 	const svg = sh.querySelector('svg');
 	const res = {};
-	res.drawn = !!sh.querySelector('#Ecran-4') && !!sh.querySelector('#oscillo-bouton-tension')
+	res.drawn = !!sh.querySelector('#oscillo-ecran') && !!sh.querySelector('#oscillo-bouton-tension')
 		&& !!sh.querySelector('#oscillo-bouton-s_div');
 	const box = svg.getBoundingClientRect();
 	res.size = [Math.round(box.width), Math.round(box.height)];
@@ -216,7 +216,7 @@ async function run() {
 	res.calDepart = cal();
 	res.calLignes = lignes().length;
 	// Le cartouche est SOUS l'écran, pas dedans : il ne cache aucune courbe.
-	res.calSousEcran = bb(info)[1] >= sh.querySelector('#Ecran-4').getBoundingClientRect().bottom - 0.5;
+	res.calSousEcran = bb(info)[1] >= sh.querySelector('#oscillo-ecran').getBoundingClientRect().bottom - 0.5;
 	// --- Trace calée sur la grille DESSINÉE ------------------------------------
 	// Un carré 0/5 V à 1 V/div doit monter de exactement 5 carreaux, du zéro
 	// (croisement des axes) au trait du haut.
@@ -345,7 +345,7 @@ async function run() {
 	await wait(10);
 	res.decAuto = lignes()[2];
 	res.curAuto = cur.getAttribute('d');
-	res.dMontant = trace.getAttribute('d').slice(0, 11);
+	res.dMontant = trace.getAttribute('d').slice(0, 12);
 	res.moverHaut = bb(mover);
 	el.setAttribute('triggeredge', 'falling');
 	await wait(10);
@@ -354,7 +354,7 @@ async function run() {
 	el.setAttribute('triggeredge', 'rising');
 	await wait(5);
 	// Curseur pris à la souris. Le dessin est à l'échelle 1:1 : viser la 4e
-	// graduation au-dessus du zéro, c'est viser 108,86 − 4 × 19,82 = 29,58 px.
+	// graduation au-dessus du zéro, c'est viser 114,25 − 4 × 20 = 34,25 px.
 	const tirer = (yDessin) => {
 		const boite = svg.getBoundingClientRect();
 		cur.dispatchEvent(new PointerEvent('pointerdown', {
@@ -365,7 +365,7 @@ async function run() {
 	};
 	el.removeAttribute('simulating');
 	await wait(5);
-	tirer(29.58);
+	tirer(34.25);
 	res.curseurEdition = el.getAttribute('trigger');
 	el.setAttribute('simulating', '');
 	await wait(5);
@@ -374,13 +374,13 @@ async function run() {
 	await wait(5);
 	let vuT = null;
 	el.addEventListener('scope-scale', (e) => { vuT = e.detail; });
-	tirer(29.58);
+	tirer(34.25);
 	await wait(5);
 	res.trigVolts = el.getAttribute('trigger');
 	res.decManuel = lignes()[2];
 	res.curManuel = cur.getAttribute('d');
 	res.evtTrig = vuT && [vuT.trigger, vuT.triggeredge];
-	res.dManuel = trace.getAttribute('d').slice(0, 11);
+	res.dManuel = trace.getAttribute('d').slice(0, 12);
 	// Bouton de sens : inerte en édition, bascule en simulation.
 	const clicTrig = () => {
 		const b = zoneTrig.getBoundingClientRect();
@@ -412,14 +412,14 @@ async function run() {
 		const boite = svg.getBoundingClientRect();
 		fleche.dispatchEvent(new PointerEvent('pointerdown', {
 			bubbles: true, composed: true, cancelable: true,
-			clientX: boite.left + xDessin, clientY: boite.top + 205,
+			clientX: boite.left + xDessin, clientY: boite.top + 210,
 		}));
 		window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
 	};
 	el.removeAttribute('trigger');
 	el.removeAttribute('simulating');
 	await wait(5);
-	glisser(10.34 + 0.05 * 198.2);
+	glisser(14.75 + 0.05 * 199.5);
 	res.posEdition = el.getAttribute('triggerpos');
 	el.setAttribute('simulating', '');
 	await wait(5);
@@ -428,7 +428,7 @@ async function run() {
 	await wait(5);
 	let vuP = null;
 	el.addEventListener('scope-scale', (e) => { vuP = e.detail; });
-	glisser(10.34 + 0.05 * 198.2);
+	glisser(14.75 + 0.05 * 199.5);
 	await wait(5);
 	res.pos5 = el.getAttribute('triggerpos');
 	res.posEvt = vuP && vuP.triggerpos;
@@ -436,7 +436,7 @@ async function run() {
 	res.dPos5 = trace.getAttribute('d').slice(0, 13);
 	el.setAttribute('triggerpos', '0.15');
 	await wait(5);
-	res.dPos15 = trace.getAttribute('d').slice(0, 11);
+	res.dPos15 = trace.getAttribute('d').slice(0, 12);
 	glisser(400);
 	await wait(5);
 	res.posLoin = el.getAttribute('triggerpos');
@@ -448,6 +448,82 @@ async function run() {
 	el.removeAttribute('trigger');
 	el.removeAttribute('simulating');
 	el.clearTrace();
+	await wait(5);
+
+	// --- Curseurs de mesure T et V ----------------------------------------------
+	const vis = (sel) => { const n = sh.querySelector(sel); return !!n && n.style.display !== 'none'; };
+	const ligne = (id) => { const l = sh.querySelector(id); return ['x1', 'y1', 'x2', 'y2'].map((a) => Number(l.getAttribute(a))); };
+	const texteCur = (r) => sh.querySelector('#oscillo-cursor-' + r + '-label').textContent;
+	const clicCac = (r) => {
+		const z = sh.querySelector('#oscillo-zone-cac-' + r);
+		const b = z.getBoundingClientRect();
+		z.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, composed: true, cancelable: true, clientX: b.left + b.width / 2, clientY: b.bottom - 3 }));
+	};
+	const tirerLigne = (id, xD, yD) => {
+		const boite = svg.getBoundingClientRect();
+		sh.querySelector(id).dispatchEvent(new PointerEvent('pointerdown', {
+			bubbles: true, composed: true, cancelable: true, clientX: boite.left + xD, clientY: boite.top + yD,
+		}));
+		window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+	};
+	el.setAttribute('voltsdiv', '1');
+	el.setAttribute('sdiv', '1');
+	await wait(5);
+	res.cacDepart = [vis('#oscillo-cursors-t'), vis('#oscillo-cursors-v'), vis('#oscillo-cac-t-coche'), vis('#oscillo-cac-v-coche')];
+	res.cacNoExport = ['#oscillo-cursors-t', '#oscillo-cursors-v', '#oscillo-zone-cac-t', '#oscillo-zone-cac-v', '#oscillo-cac-t-coche']
+		.every((s) => sh.querySelector(s).hasAttribute('data-no-export'));
+	// La zone de clic contient la case dessinée.
+	const caseT = bb(sh.querySelector('#oscille-cac-T'));
+	const zT = bb(sh.querySelector('#oscillo-zone-cac-t'));
+	res.cacZone = zT[0] <= caseT[0] && zT[1] <= caseT[1] && zT[0] + zT[2] >= caseT[0] + caseT[2] && zT[1] + zT[3] >= caseT[1] + caseT[3];
+	clicCac('t');
+	res.cacEdition = el.getAttribute('cursort');
+	el.setAttribute('simulating', '');
+	await wait(5);
+	let vuC = null;
+	el.addEventListener('scope-scale', (e) => { vuC = e.detail; });
+	clicCac('t');
+	await wait(5);
+	res.cacT = [el.getAttribute('cursort'), vis('#oscillo-cursors-t'), vis('#oscillo-cac-t-coche'), vis('#oscillo-cursors-v')];
+	res.cacEvt = vuC && [vuC.cursort, vuC.cursortpos];
+	res.ligneT = [ligne('#oscillo-cursor-t1'), ligne('#oscillo-cursor-t2')];
+	res.texteT1 = texteCur('t');
+	res.flecheT = sh.querySelector('#oscillo-cursor-t-arrow').getAttribute('d');
+	// Ligne 2 tirée sur la 2e graduation à droite du centre : 2,5 carreaux d'écart.
+	tirerLigne('#oscillo-cursor-t2-zone', 114.75 + 2 * 20, 60);
+	await wait(5);
+	res.posT = el.getAttribute('cursortpos');
+	res.texteT2 = texteCur('t');
+	res.ligneT2 = ligne('#oscillo-cursor-t2');
+	res.evtPosT = vuC && vuC.cursortpos;
+	el.setAttribute('sdiv', '0.001');
+	await wait(5);
+	res.texteTms = texteCur('t');
+	res.ligneTms = ligne('#oscillo-cursor-t2');
+	el.setAttribute('sdiv', '1');
+	// Curseur V : lignes horizontales, écart en volts.
+	clicCac('v');
+	await wait(5);
+	res.cacV = [el.getAttribute('cursorv'), vis('#oscillo-cursors-v')];
+	res.ligneV = [ligne('#oscillo-cursor-v1'), ligne('#oscillo-cursor-v2')];
+	res.texteV1 = texteCur('v');
+	el.setAttribute('voltsdiv', '0.5');
+	await wait(5);
+	res.texteV05 = texteCur('v');
+	el.setAttribute('voltsdiv', '1');
+	// Ligne 1 tirée loin sous l'écran : elle s'arrête au bord bas.
+	tirerLigne('#oscillo-cursor-v1-zone', 60, 400);
+	await wait(5);
+	res.posVBas = el.getAttribute('cursorvpos');
+	res.texteVBas = texteCur('v');
+	// Décocher T : tout disparaît, V reste.
+	clicCac('t');
+	await wait(5);
+	res.cacTOff = [el.getAttribute('cursort'), vis('#oscillo-cursors-t'), vis('#oscillo-cac-t-coche'), vis('#oscillo-cursors-v')];
+	el.setAttribute('cursorv', '0');
+	el.removeAttribute('cursortpos');
+	el.removeAttribute('cursorvpos');
+	el.removeAttribute('simulating');
 	await wait(5);
 
 	// --- Escalier : ce que verse la sonde du moteur -----------------------------
@@ -564,13 +640,13 @@ if (chrome) {
     check('rendu headless : mesures produites', false);
   } else {
     const r = JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
-    // Grille DESSINÉE par Frank : 10 carreaux de 19,82 px, zéro au croisement
-    // des axes (105,99 ; 108,86). Toute la trace se cale là-dessus.
-    const DIV = 19.82, ZERO_Y = 108.86, GAUCHE = 10.34, LARGEUR = 198.2;
+    // Grille DESSINÉE par Frank : 10 carreaux de 20 px, zéro au croisement
+    // des axes (114,75 ; 114,25). Toute la trace se cale là-dessus.
+    const DIV = 20, ZERO_Y = 114.25, GAUCHE = 14.75, LARGEUR = 199.5, HAUT = 14.25;
     const pres = (a, b, eps = 0.6) => Math.abs(a - b) <= eps;
     check('rendu : dessin de Frank présent (écran + les deux boutons)', r.drawn === true);
-    check('rendu : 220×270 px (1:1 viewBox)', r.size[0] === 220 && r.size[1] === 270);
-    check('rendu : broches +@50,250 GND@70,250', r.pins === '+@50,250 GND@70,250');
+    check('rendu : 230×300 px (1:1 viewBox)', r.size[0] === 230 && r.size[1] === 300);
+    check('rendu : broches +@50,280 GND@70,280', r.pins === '+@50,280 GND@70,280');
     check('rendu : sans mesure, écran vierge (aucune courbe)', r.vide === true);
     check('rendu : calibres écrits « Vert : 1 V/div | Hor : 1 s/div »',
       r.calDepart === 'Vert : 1 V/div | Hor : 1 s/div');
@@ -585,7 +661,7 @@ if (chrome) {
       pres(r.large[2], 2 * DIV, 1.5) && pres(r.large[0] + r.large[2], GAUCHE + LARGEUR, 1.5));
     check('rendu : calibre horizontal suivi (5 s/div)', r.calLarge === 'Vert : 1 V/div | Hor : 5 s/div');
     check('rendu : 100 V à 1 V/div → courbe écrêtée au bord de l\'écran, pas hors cadre',
-      pres(r.ecrete[1], 9.76) && r.ecrete[3] <= 1);
+      pres(r.ecrete[1], HAUT) && r.ecrete[3] <= 1);
     check('rendu : nouveau lancement → écran effacé', r.videAuDemarrage === true);
     check('rendu : calibre en millisecondes sous la seconde', r.calMs === 'Vert : 1 V/div | Hor : 50 ms/div');
     check('rendu : calibre en microsecondes sous la milliseconde', r.calUs === 'Vert : 1 V/div | Hor : 20 µs/div');
@@ -611,16 +687,16 @@ if (chrome) {
     check(`rendu : le bouton s/div s'arrête à sa butée basse (50 crans de plus : ${r.sdivLoin} s/div)`,
       near(r.sdivLoin, 1e-6, 1e-9));
     // --- Déclenchement ---------------------------------------------------------
-    const hauteurCurseur = (d) => Number(/L17\.34,([\d.]+)/.exec(d || '')?.[1]);
+    const hauteurCurseur = (d) => Number(/L21\.75,([\d.]+)/.exec(d || '')?.[1]);
     check('déclenchement : curseur et zone de clic hors du dessin exporté', r.trigNoExport === true);
     check('déclenchement : la zone de clic recouvre le bouton dessiné',
       r.trigZone.every((v, i) => pres(v, r.trigBouton[i], 0.6)));
     check(`déclenchement : niveau posé tout seul à mi-hauteur du créneau (${r.decAuto})`,
       r.decAuto === 'Dec : 2,5 V' && pres(hauteurCurseur(r.curAuto), ZERO_Y - 2.5 * DIV, 0.1));
     check('déclenchement : front MONTANT → l\'écran commence en haut du créneau',
-      r.dMontant === 'M10.34,9.76');
+      r.dMontant === 'M14.75,14.25');
     check('déclenchement : front DESCENDANT → l\'écran commence en bas',
-      r.dDescendant === 'M10.34,108.86');
+      r.dDescendant === 'M14.75,114.25');
     check('déclenchement : la moitié bleue du bouton descend d\'exactement sa hauteur',
       pres(r.moverBas[1] - r.moverHaut[1], r.moverHaut[3], 0.3) &&
       pres(r.moverBas[2], r.moverHaut[2], 0.1));
@@ -632,28 +708,55 @@ if (chrome) {
     check('déclenchement : réglage renvoyé à l\'hôte (scope-scale)',
       !!r.evtTrig && near(Number(r.evtTrig[0]), 4, 0.02) && r.evtTrig[1] === 'rising');
     check('déclenchement : à 4 V le créneau cale encore sur le front montant',
-      r.dManuel === 'M10.34,9.76');
+      r.dManuel === 'M14.75,14.25');
     check('déclenchement : bouton de sens INERTE en édition', r.edgeEdition === 'rising');
     check('déclenchement : un clic bascule le sens, un autre le ramène',
       r.edgeClic === 'falling' && r.edgeRetour === 'rising');
     // Flèche de position : pointe en haut, base sur le bord bas de l'écran.
     const sommet = (d) => /L([\d.]+),([\d.]+)L/.exec(d || '')?.slice(1).map(Number) ?? [NaN, NaN];
-    const BAS = 9.76 + 198.2;
+    const BAS = HAUT + LARGEUR;
     check('position : flèche hors du dessin exporté', r.posNoExport === true);
     check(`position : flèche au coin bas-gauche par défaut (${r.posDefaut})`,
       pres(sommet(r.posDefaut)[0], GAUCHE, 0.05) && pres(sommet(r.posDefaut)[1], BAS - 7, 0.05)
-      && /^M[\d.]+,207\.96L/.test(r.posDefaut || ''));
+      && /^M[\d.]+,213\.75L/.test(r.posDefaut || ''));
     check('position : flèche INERTE en édition', r.posEdition === null);
     check(`position : flèche tirée à 5 % de la largeur (${r.pos5})`,
       near(Number(r.pos5), 0.05, 0.02) && pres(sommet(r.posFleche5)[0], GAUCHE + 0.05 * LARGEUR, 0.3));
     check('position : réglage renvoyé à l\'hôte (scope-scale)', near(Number(r.posEvt), 0.05, 0.02));
     check(`position : 5 % → l'écran montre le bas du créneau AVANT le front (${r.dPos5})`,
-      r.dPos5 === 'M10.34,108.86');
+      r.dPos5 === 'M14.75,114.25');
     check(`position : 15 % → la demi-période haute d'avant (${r.dPos15})`,
-      r.dPos15 === 'M10.34,9.76');
+      r.dPos15 === 'M14.75,14.25');
     check(`position : tirée loin à droite, la flèche s'arrête au bord (${r.posLoin})`,
       r.posLoin === '1' && pres(sommet(r.posFlecheLoin)[0], GAUCHE + LARGEUR, 0.05));
     check(`position : tirée loin à gauche, retour au bord gauche (${r.posGauche})`, r.posGauche === '0');
+    // --- Curseurs de mesure --------------------------------------------------------
+    check('curseurs : cachés et cases décochées au départ', JSON.stringify(r.cacDepart) === '[false,false,false,false]');
+    check('curseurs : hors du dessin exporté', r.cacNoExport === true);
+    check('curseurs : la zone de clic couvre la case T dessinée', r.cacZone === true);
+    check('curseurs : case INERTE en édition', r.cacEdition === null);
+    check('curseurs : case T cochée → coche et deux lignes T, V toujours caché',
+      JSON.stringify(r.cacT) === '["1",true,true,false]');
+    check('curseurs : case renvoyée à l\'hôte (scope-scale)', !!r.cacEvt && r.cacEvt[0] === '1' && r.cacEvt[1] === '-0.5,0.5');
+    check(`curseurs : T verticaux, de part et d'autre du centre, un carreau d'écart (${r.ligneT.map((l) => l[0]).join(' / ')})`,
+      pres(r.ligneT[0][0], 104.75, 0.01) && pres(r.ligneT[1][0], 124.75, 0.01)
+      && r.ligneT.every((l) => l[0] === l[2] && pres(l[1], HAUT, 0.01) && pres(l[3], HAUT + LARGEUR, 0.01)));
+    check(`curseurs : écart T à 1 s/div → « ${r.texteT1} »`, r.texteT1 === 'ΔT = 1 s');
+    check('curseurs : flèche double T (trait + deux pointes)', (r.flecheT.match(/M/g) || []).length === 3);
+    check(`curseurs : ligne T glissée sur la 2e graduation (${r.posT})`,
+      r.posT === '-0.5,2' && pres(r.ligneT2[0], 154.75, 0.01) && r.evtPosT === '-0.5,2');
+    check(`curseurs : écart relu au glissé → « ${r.texteT2} »`, r.texteT2 === 'ΔT = 2,5 s');
+    check(`curseurs : calibre changé, lignes immobiles, écart relu en ms (« ${r.texteTms} »)`,
+      r.texteTms === 'ΔT = 2,5 ms' && pres(r.ligneTms[0], 154.75, 0.01));
+    check(`curseurs : V horizontaux, un carreau d'écart (${r.ligneV.map((l) => l[1]).join(' / ')})`,
+      r.cacV[0] === '1' && r.cacV[1] === true && pres(r.ligneV[0][1], 124.25, 0.01) && pres(r.ligneV[1][1], 104.25, 0.01)
+      && r.ligneV.every((l) => l[1] === l[3] && pres(l[0], GAUCHE, 0.01)));
+    check(`curseurs : écart V à 1 V/div → « ${r.texteV1} », à 0,5 V/div → « ${r.texteV05} »`,
+      r.texteV1 === 'ΔV = 1 V' && r.texteV05 === 'ΔV = 0,5 V');
+    check(`curseurs : ligne V tirée sous l'écran, arrêtée au bord bas (${r.posVBas}, ${r.texteVBas})`,
+      r.posVBas === '-4.97,0.5' && r.texteVBas === 'ΔV = 5,47 V');
+    check('curseurs : case T décochée → lignes T et coche cachées, V reste',
+      JSON.stringify(r.cacTOff) === '["0",false,false,true]');
     // --- Escalier ---------------------------------------------------------------
     // Un créneau ne se dessine correctement que si le trait TIENT le palier puis
     // saute d'un coup : sinon il monte en pente d'un front au suivant, et

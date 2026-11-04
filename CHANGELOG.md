@@ -11,6 +11,13 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 **Oscilloscope**
 
 - **Position horizontale du déclenchement** : une flèche au bas de l'écran se glisse à la souris pendant la simulation. Elle place le point de déclenchement n'importe où sur la largeur, pour voir aussi ce qui précède le front.
+- **Curseurs de mesure T et V** : deux cases à cocher sous l'écran font paraître deux lignes pointillées, verticales (T) ou horizontales (V). Une flèche double affiche leur écart en temps ou en tension. Les lignes se glissent à la souris pendant la simulation.
+
+### Modification
+
+**Oscilloscope**
+
+- **Nouveau dessin** : écran plus grand, carreaux de 20 px, boutons plus gros.
 
 ## 2026.11.1 (4 novembre 2026)
 

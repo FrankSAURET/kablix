@@ -3,6 +3,21 @@
 
 ---
 
+# v2026.11.1.288 — oscillo : nouveau dessin, curseurs de mesure T et V
+
+1. ✅ Demande de Frank : oscillo retouché dans [Composants2D.svg](Composants2D.svg) (écran, boutons), cases « Curseurs » T et V ; cochées, deux lignes pointillées de part et d'autre du centre à un carreau d'écart, flèche double et écart en temps / tension ; le tout recalé sur le nouvel écran et suivant les déplacements.
+2. ✅ Réextraction : `node scripts/_extract-composants.mjs oscillo` → [oscillo.svg](src/webview/composants/externe/oscillo.svg) 230×300, prises +@50,280 GND@70,280.
+3. ✅ [oscillo-element.mts](src/webview/composants/oscillo-element.mts) recalé au rendu Chrome : grille 20 px pile (cadre 14,75/14,25, 199,5 px ; zéro 114,75/114,25), 200 colonnes, aiguilles `path2143`/`path2157`, pivot local commun (655,09 ; 251,08), zones des boutons r = 15, bouton de sens déplacé.
+4. ✅ Curseurs : attributs `cursort`/`cursorv` (« 1 » = cochée) et `cursortpos`/`cursorvpos` (carreaux depuis le centre, défaut `-0.5,0.5`). Coche dessinée par-dessus la case, zone de clic case + lettre, lignes glissables (simulation seulement, bornées à l'écran), T orange `#e66100`, V violet `#9c27b0`. Flèche T en haut de l'écran, flèche V au bord droit ; étiquette `ΔT = …` / `ΔV = …` sur fond clair. Les lignes gardent leur place au changement de calibre, l'écart lu suit. Ids de la planche lus tels quels (`oscille-cac-T`, `oscillo-cac-v`).
+5. ✅ [catalog.mts](src/webview/diagram/catalog.mts) : 4 attributs par défaut ; [sim.mts](src/webview/sim.mts) : enregistrés via `scope-scale`.
+6. ✅ Banc `verify:oscillo` : géométrie recalée + 16 contrôles curseurs (105 au total, verts). `verify:diagram`, `components`, `multimetre`, `gbf`, `docs`, `export`, `proprietes`, `layout` verts. Schémas de test inchangés (pas de chevauchement avec la nouvelle taille).
+7. ✅ FR : [oscillo.md](docs/fr/composants/oscillo.md) (section curseurs, propriétés ; au passage, la suite 1-2-5 du s/Div corrigée), illustration recapturée, CHANGELOG.
+8. ℹ️ Cartouche : le dessin écrit « Hor » en 1re ligne, le code garde l'ordre Vert / Hor / Dec (celui des tests).
+9. ⏳ EN/ES/ZH de la fiche d'aide : avant publication.
+10. ⏳ Essai F5 par Frank.
+
+---
+
 # v2026.11.1.287 — oscillo : flèche de position horizontale du déclenchement
 
 1. ✅ Demande de Frank : flèche au bord bas de l'écran, même triangle que le curseur de tension, pointe en haut, déborde sur les arrondis mais jamais hors de l'écran. [oscillo-element.mts](src/webview/composants/oscillo-element.mts) : attribut `triggerpos` (fraction de largeur, 0 = bord gauche = comportement d'avant), glissé à la souris en simulation seulement, `windowStart` recule l'écran de `triggerpos × largeur` et exige que la fin de l'écran (après la flèche) soit arrivée.
