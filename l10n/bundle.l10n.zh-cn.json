@@ -171,6 +171,8 @@
   "Actual speed: simulated time over real time (100% = on time)": "实际速度：仿真时间与真实时间之比（100% = 实时）",
   " — debug: {0} lines, {1} variable(s)": " — 调试：{0} 行，{1} 个变量",
   " — debug info unavailable (avr-objdump not found)": " — 调试信息不可用（找不到 avr-objdump）",
+  " — no debug info in this program": " — 此程序不含调试信息",
+  "Kablix: avr-objdump failed to read the debug info (busy computer?). Breakpoints, stepping and variables are unavailable for this run: run again.": "Kablix：avr-objdump 未能读取调试信息（电脑负载过高？）。本次运行无法使用断点、单步执行和变量：请重新运行。",
   "Start an interactive MicroPython REPL (no script)": "启动交互式 MicroPython REPL（不运行脚本）",
   "Code file: {0} — click to change, double-click to open": "代码文件：{0} — 单击更换，双击打开",
   "Kablix: the project code file \"{0}\" was not found on this computer. Click the 📄 chip to choose the file to run.": "Kablix：在本机上找不到项目代码文件 “{0}”。单击 📄 标签选择要运行的文件。",
@@ -321,5 +323,15 @@
   "The board did not appear in update mode. Unplug it, hold BOOTSEL while plugging it back in, then try again.": "开发板未以更新模式出现。请拔下它，按住 BOOTSEL 重新插入，然后重试。",
   "This board has a {0} chip, but the firmware is for {1}. Choose the matching board in the drawing, then try again.": "这块开发板使用 {0} 芯片，但固件适用于 {1}。请在电路图中选择对应的开发板，然后重试。",
   "Installing the firmware on the Pico ({0})…": "正在将固件安装到 Pico（{0}）…",
-  "MicroPython installed on the Pico ({0}). The board restarts.": "MicroPython 已安装到 Pico（{0}）。开发板正在重启。"
+  "MicroPython installed on the Pico ({0}). The board restarts.": "MicroPython 已安装到 Pico（{0}）。开发板正在重启。",
+  "Install the library": "安装库",
+  "The library that provides {0} is not installed on this computer.": "此电脑上未安装提供 {0} 的库。",
+  "Kablix: arduino-cli not found, cannot install the library.": "Kablix：找不到 arduino-cli，无法安装库。",
+  "Kablix: searching the Arduino library index for {0}…": "Kablix：正在 Arduino 库索引中搜索 {0}…",
+  "Kablix: the Arduino library index could not be read (internet connection?).": "Kablix：无法读取 Arduino 库索引（网络连接？）。",
+  "Kablix: no library of the Arduino index provides {0}. Install it by hand (Arduino IDE library manager).": "Kablix：Arduino 索引中没有提供 {0} 的库。请手动安装（Arduino IDE 库管理器）。",
+  "Which library provides {0}?": "哪个库提供 {0}？",
+  "Kablix: installing the {0} library…": "Kablix：正在安装 {0} 库…",
+  "Kablix: installation of the {0} library failed.": "Kablix：{0} 库安装失败。",
+  "Kablix: {0} library installed, compiling again.": "Kablix：{0} 库已安装，正在重新编译。"
 }

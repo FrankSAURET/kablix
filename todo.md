@@ -3,6 +3,15 @@
 
 ---
 
+# v2026.11.1.285 — préparation de la publication 2026.11.1
+
+1. ✅ **Numéro** : même mois (novembre) → `2026.11.1`. `package.json` et `package-lock.json` en `2026.11.1`, `buildNumber` 285, CLAUDE.md à jour.
+2. ✅ **CHANGELOG daté du 4 novembre 2026**, contenu inchangé (déjà rangé par thème).
+3. ✅ **Lot de traduction ES/ZH** : 12 chaînes de l'extension (`bundle.l10n.es/zh-cn.json` : bouton « Installer la bibliothèque » et ses messages, échec de lecture des infos de débogage). Aucune doc ni README touché depuis la 2026.11.0 : rien à reporter en EN/ES/ZH.
+4. ⏳ **Reste à Frank** : publier (`npm run publier`). Après la mise en ligne : ouvrir `## 2026.11.2 (prochaine publication)` dans le CHANGELOG.
+
+---
+
 # v2026.11.0.284 — points d'arrêt Arduino morts sur un poste saturé
 
 1. ✅ Signalé par Frank (03/11, autre poste, jamais chez lui) : aucun point d'arrêt ne s'arrête. Cause : `avr-objdump` échoue sur un poste saturé, `extractAvrDebug` rend un programme sans infos de débogage, `AvrEngine.setBreakpoints` vide alors la liste sans rien dire. Et le cache disque de compilation RANGEAIT ce programme : défaut permanent tant que le croquis ne change pas, propre à la machine.
@@ -10,7 +19,7 @@
 3. ✅ [panel.ts](src/panel.ts) : avertissement si la lecture a échoué (au lieu de « avr-objdump introuvable », faux) ; pas de mémo `lastCompiled`, le ▶ suivant recompile ; « pas d'infos de débogage dans ce programme » pour un `.hex` direct.
 4. ✅ Banc [verify-debug-objdump.mjs](scripts/verify-debug-objdump.mjs) (`verify:debug-objdump`, dans `verify:all:serie`) : faux `avr-objdump.cmd` qui échoue, puis vrai outil dans le même cache. 11 contrôles ; contre-épreuve `--ancien` : 7 échecs (« les infos de débogage reviennent » compris, le défaut de Frank). `verify:compiler` : motif du parallélisme assoupli.
 5. ✅ FR : 2 chaînes dans `bundle.l10n.fr.json`, CHANGELOG.
-6. ⏳ ES/ZH : avant publication.
+6. ✅ ES/ZH : faits à la préparation de la 2026.11.1.
 
 ---
 
@@ -21,7 +30,7 @@
 3. ✅ [panel.ts](src/panel.ts) : sur l'erreur de compilation d'un `.ino`, bouton « Installer la bibliothèque ». Candidat évident installé directement, sinon liste à choisir ; puis nouvelle compilation.
 4. ✅ Banc `verify:arduinolibs` (22 contrôles, vraie recherche dans l'index comprise : Servo, Adafruit NeoPixel, LiquidCrystal I2C, DHT sensor library).
 5. ✅ FR : 10 chaînes dans `bundle.l10n.fr.json`, CHANGELOG.
-6. ⏳ ES/ZH : avant publication.
+6. ✅ ES/ZH : faits à la préparation de la 2026.11.1.
 
 ---
 

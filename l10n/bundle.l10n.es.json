@@ -171,6 +171,8 @@
   "Actual speed: simulated time over real time (100% = on time)": "Velocidad real: tiempo simulado frente a tiempo real (100 % = a tiempo)",
   " — debug: {0} lines, {1} variable(s)": " — depuración: {0} líneas, {1} variable(s)",
   " — debug info unavailable (avr-objdump not found)": " — información de depuración no disponible (avr-objdump no encontrado)",
+  " — no debug info in this program": " — sin información de depuración en este programa",
+  "Kablix: avr-objdump failed to read the debug info (busy computer?). Breakpoints, stepping and variables are unavailable for this run: run again.": "Kablix: avr-objdump no pudo leer la información de depuración (¿ordenador sobrecargado?). Los puntos de interrupción, el paso a paso y las variables no están disponibles en esta ejecución: vuelva a lanzarla.",
   "Start an interactive MicroPython REPL (no script)": "Iniciar un REPL MicroPython interactivo (sin script)",
   "Code file: {0} — click to change, double-click to open": "Archivo de código: {0} — clic para cambiar, doble clic para abrir",
   "Kablix: the project code file \"{0}\" was not found on this computer. Click the 📄 chip to choose the file to run.": "Kablix: el archivo de código del proyecto «{0}» no se ha encontrado en este equipo. Haga clic en el chip 📄 para elegir el archivo que ejecutar.",
@@ -321,5 +323,15 @@
   "The board did not appear in update mode. Unplug it, hold BOOTSEL while plugging it back in, then try again.": "La placa no apareció en modo actualización. Desconéctela, mantenga pulsado BOOTSEL al volver a conectarla e inténtelo de nuevo.",
   "This board has a {0} chip, but the firmware is for {1}. Choose the matching board in the drawing, then try again.": "Esta placa lleva un chip {0}, pero el firmware es para {1}. Elija la placa correspondiente en el esquema e inténtelo de nuevo.",
   "Installing the firmware on the Pico ({0})…": "Instalando el firmware en la Pico ({0})…",
-  "MicroPython installed on the Pico ({0}). The board restarts.": "MicroPython instalado en la Pico ({0}). La placa se reinicia."
+  "MicroPython installed on the Pico ({0}). The board restarts.": "MicroPython instalado en la Pico ({0}). La placa se reinicia.",
+  "Install the library": "Instalar la biblioteca",
+  "The library that provides {0} is not installed on this computer.": "La biblioteca que proporciona {0} no está instalada en este ordenador.",
+  "Kablix: arduino-cli not found, cannot install the library.": "Kablix: arduino-cli no encontrado, no se puede instalar la biblioteca.",
+  "Kablix: searching the Arduino library index for {0}…": "Kablix: buscando {0} en el índice de bibliotecas Arduino…",
+  "Kablix: the Arduino library index could not be read (internet connection?).": "Kablix: no se pudo leer el índice de bibliotecas Arduino (¿conexión a internet?).",
+  "Kablix: no library of the Arduino index provides {0}. Install it by hand (Arduino IDE library manager).": "Kablix: ninguna biblioteca del índice Arduino proporciona {0}. Instálela a mano (gestor de bibliotecas del IDE Arduino).",
+  "Which library provides {0}?": "¿Qué biblioteca proporciona {0}?",
+  "Kablix: installing the {0} library…": "Kablix: instalando la biblioteca {0}…",
+  "Kablix: installation of the {0} library failed.": "Kablix: la instalación de la biblioteca {0} ha fallado.",
+  "Kablix: {0} library installed, compiling again.": "Kablix: biblioteca {0} instalada, nueva compilación."
 }
