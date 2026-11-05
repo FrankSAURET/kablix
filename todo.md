@@ -3,6 +3,16 @@
 
 ---
 
+# v2026.11.1.294 — repères de chargement de la page (.projix gris)
+
+1. ✅ Trace 293 lue : projet vide → la page envoie ses photos ; projet AVEC l'araignée (Etalonnage, test1, test2 après rechargement) → AUCUN message, pas même l'événement `load`. La page ne s'exécute pas, ou se fige avant.
+2. ✅ Banc sans affichage (`scratchpad/banc-gris.mjs` : vrai HTML + `dist/webview.js` dans Chrome, faux hôte qui envoie `loadProject`) : Etalonnage et test1 se chargent sans figer. Le défaut tient à ce que VS Code ajoute (état mémorisé, réglages, autres messages), pas au seul schéma.
+3. ✅ Repères ajoutés : côté page « début du script », DOMContentLoaded, load, battement chaque seconde (20 fois, avec l'écart), messages reçus, longues tâches > 150 ms ; côté hôte, les 40 premiers messages dans chaque sens et le vidage de la file d'attente.
+4. ⬜ Frank rouvre Etalonnage (gris) ; lire où la page s'arrête.
+5. ⬜ Retirer toutes les traces 292-294.
+
+---
+
 # v2026.11.1.293 — trace de la page (.projix gris)
 
 1. ✅ Trace 292 lue (`output_logging_20261105T113400`) : quand c'est gris, l'onglet est actif ET visible pour VS Code, rien ne le recouvre. Gris de la capture mesuré : `rgb(128,128,128)` uniforme, opaque — absent des styles de Kablix.

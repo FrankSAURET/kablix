@@ -2133,6 +2133,8 @@ ${err instanceof Error ? err.message : String(err)}`
       trace(`page : ${msg.text}`, false); // TRACE TEMPORAIRE v2026.11.1.293
       return;
     }
+    // TRACE TEMPORAIRE v2026.11.1.294 : les 40 premiers messages reçus de la page.
+    if (this.traceRecus++ < 40) trace(`page → hôte : ${String(msg?.type)}`, false);
     switch (msg?.type) {
       case 'ready':
         // La webview écoute enfin : tout ce qui a été émis pendant son chargement
@@ -3258,7 +3260,15 @@ ${err instanceof Error ? err.message : String(err)}`
    * seule une réouverture réparait. La file supprime la course : rien ne part
    * avant que la webview écoute pour de bon.
    */
+  /** TRACE TEMPORAIRE v2026.11.1.294 : compteurs des messages journalisés. */
+  private traceRecus = 0;
+  private traceEnvoyes = 0;
+
   private post(message: unknown): void {
+    // TRACE TEMPORAIRE v2026.11.1.294 : les 40 premiers messages envoyés.
+    if (this.traceEnvoyes++ < 40) {
+      trace(`hôte → page : ${String((message as { type?: unknown })?.type)}${this.webviewReady ? '' : ' (en file)'}`, false);
+    }
     if (!this.webviewReady) {
       this.postQueue.push(message);
       // Filet : si « ready » n'arrive jamais (bundle en erreur), on finit par
@@ -3280,6 +3290,7 @@ ${err instanceof Error ? err.message : String(err)}`
       this.readyTimer = undefined;
     }
     this.webviewReady = true;
+    trace(`file vidée : ${this.postQueue.length} message(s)`, false); // TRACE TEMPORAIRE v2026.11.1.294
     const attente = this.postQueue.splice(0);
     for (const m of attente) void this.panel.webview.postMessage(m);
   }

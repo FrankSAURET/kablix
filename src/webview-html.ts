@@ -31,7 +31,23 @@ const TRACE_DOM_SCRIPT = `(() => {
   };
   addEventListener('error', (e) => envoyer('ERREUR ' + e.message + ' @ ' + e.filename + ':' + e.lineno + ':' + e.colno));
   addEventListener('unhandledrejection', (e) => envoyer('PROMESSE REJETÉE ' + (e.reason && (e.reason.stack || e.reason.message) || e.reason)));
-  addEventListener('load', () => { setTimeout(() => photo('1,5 s'), 1500); setTimeout(() => photo('5 s'), 5000); });
+  addEventListener('load', () => { envoyer('load à ' + (performance.now() | 0) + ' ms'); setTimeout(() => photo('1,5 s'), 1500); setTimeout(() => photo('5 s'), 5000); });
+  // v294 : repères de chargement, battement, messages reçus, longues tâches.
+  envoyer('début du script à ' + (performance.now() | 0) + ' ms');
+  document.addEventListener('DOMContentLoaded', () => envoyer('DOMContentLoaded à ' + (performance.now() | 0) + ' ms'));
+  let n = 0, avant = performance.now();
+  const battement = setInterval(() => {
+    const m = performance.now();
+    envoyer('battement ' + (++n) + ' (écart ' + ((m - avant) | 0) + ' ms)');
+    avant = m;
+    if (n >= 20) clearInterval(battement);
+  }, 1000);
+  let recus = 0;
+  addEventListener('message', (e) => { if (recus++ < 40) envoyer('reçu ' + (e.data && e.data.type) + ' à ' + (performance.now() | 0) + ' ms'); });
+  try {
+    new PerformanceObserver((l) => { for (const t of l.getEntries()) if (t.duration > 150) envoyer('longue tâche ' + (t.duration | 0) + ' ms à ' + (t.startTime | 0) + ' ms'); })
+      .observe({ type: 'longtask', buffered: true });
+  } catch {}
   document.addEventListener('visibilitychange', () => setTimeout(() => photo('visibilité'), 300));
   addEventListener('focus', () => setTimeout(() => photo('focus'), 300));
 })();`;
