@@ -237,7 +237,9 @@ declare global {
   }
 }
 initLocale(window.KABLIX_LANG);
-const vscode = acquireVsCodeApi();
+// TRACE TEMPORAIRE v2026.11.1.293 : l'API est déjà prise par le script de trace
+// du HTML (webview-html.ts) ; une seconde prise lèverait une exception.
+const vscode = ((window as unknown as { __kablixApi?: VsCodeApi }).__kablixApi ?? acquireVsCodeApi());
 // Atelier sauvegardé d'un précédent affichage (déplacement d'onglet) ; restauré
 // une fois les composants personnalisés chargés, puis oublié.
 let restoredState = vscode.getState() as PersistedState | undefined;

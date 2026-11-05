@@ -3,6 +3,17 @@
 
 ---
 
+# v2026.11.1.293 — trace de la page (.projix gris)
+
+1. ✅ Trace 292 lue (`output_logging_20261105T113400`) : quand c'est gris, l'onglet est actif ET visible pour VS Code, rien ne le recouvre. Gris de la capture mesuré : `rgb(128,128,128)` uniforme, opaque — absent des styles de Kablix.
+2. ✅ « Recharger les webviews » laisse le gris : ce n'est pas un calque perdu, la page Kablix elle-même affiche ce gris.
+3. ℹ️ Repéré au passage (+163,66 s) : .projix rouvert dans la colonne du code → `revealPendingCodeFile` y montre le code par-dessus, puis le remet devant 60 ms après ; `lockSimulatorGroup` verrouille alors la colonne du code. Garde de la 291 à étendre à ce chemin.
+4. ✅ Outils de développement de la webview inutilisables (« active-frame » = panneau Claude). Script autonome `TRACE_DOM_SCRIPT` dans [webview-html.ts](src/webview-html.ts), avant `webview.js` : erreurs de la page, élément sous 3 points, zoom, palette, nombre de composants, à 1,5 s, 5 s, et à chaque changement de visibilité ou de focus → message `traceDom` → canal « Kablix — trace focus ». L'API VS Code est prise une fois par ce script, `sim.mts` la reprend par `window.__kablixApi`.
+5. ⬜ Frank reproduit ; corriger d'après la trace.
+6. ⬜ Retirer les traces 292 et 293 (`trace(`, `trace-focus.ts`, `TRACE_DOM_SCRIPT`, `__kablixApi`, cas `traceDom`).
+
+---
+
 # v2026.11.1.292 — trace temporaire du focus (.projix gris)
 
 1. ✅ Retour de Frank sur la 291 : « la fenêtre s'est affichée puis est redevenue grise ». Le garde de la 291 ne couvre que `revealCodeOnActivate` ; la cause n'est pas tranchée.

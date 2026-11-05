@@ -2129,6 +2129,10 @@ ${err instanceof Error ? err.message : String(err)}`
     // Toute interaction de la webview marque cette session comme « active » :
     // les commandes globales (Enregistrer, Wokwi…) la ciblent.
     SimulatorPanel.lastActive = this;
+    if (msg?.type === 'traceDom') {
+      trace(`page : ${msg.text}`, false); // TRACE TEMPORAIRE v2026.11.1.293
+      return;
+    }
     switch (msg?.type) {
       case 'ready':
         // La webview écoute enfin : tout ce qui a été émis pendant son chargement

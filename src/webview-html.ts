@@ -5,6 +5,37 @@ import { versionPublique } from './version';
 
 const l10n = vscode.l10n;
 
+/**
+ * TRACE TEMPORAIRE (v2026.11.1.293) — atelier entièrement gris chez Frank.
+ * Script autonome, posé AVANT webview.js : il survit à un plantage du bundle.
+ * Il prend l'API VS Code (une seule prise par page, sim.mts la récupère via
+ * `window.__kablixApi`) et envoie à l'hôte, qui l'écrit dans « Kablix — trace
+ * focus » : erreurs de la page, et élément sous trois points de l'écran.
+ */
+const TRACE_DOM_SCRIPT = `(() => {
+  const api = acquireVsCodeApi();
+  window.__kablixApi = api;
+  const envoyer = (text) => { try { api.postMessage({ type: 'traceDom', text }); } catch {} };
+  const nom = (e) => e ? e.tagName + '.' + String(e.className && e.className.baseVal !== undefined ? e.className.baseVal : e.className) + (e.id ? '#' + e.id : '') : '(rien)';
+  const photo = (quand) => {
+    const l = [quand + ' : fenêtre ' + innerWidth + 'x' + innerHeight + ', visibilité ' + document.visibilityState + ', corps ' + document.body.className];
+    for (const [x, y] of [[innerWidth / 2, innerHeight / 2], [30, 60], [innerWidth - 30, innerHeight - 30]]) {
+      const e = document.elementFromPoint(x, y);
+      const chaine = [];
+      for (let p = e; p && chaine.length < 6; p = p.parentElement) chaine.push(nom(p));
+      l.push('  ' + (x | 0) + ',' + (y | 0) + ' fond ' + (e ? getComputedStyle(e).backgroundColor : '-') + ' : ' + chaine.join(' < '));
+    }
+    const z = document.querySelector('.canvas__zoom');
+    l.push('  zoom ' + (z ? z.textContent : '(absent)') + ', palette ' + !!document.querySelector('.palette') + ', composants ' + document.querySelectorAll('.part').length);
+    envoyer(l.join('\\n'));
+  };
+  addEventListener('error', (e) => envoyer('ERREUR ' + e.message + ' @ ' + e.filename + ':' + e.lineno + ':' + e.colno));
+  addEventListener('unhandledrejection', (e) => envoyer('PROMESSE REJETÉE ' + (e.reason && (e.reason.stack || e.reason.message) || e.reason)));
+  addEventListener('load', () => { setTimeout(() => photo('1,5 s'), 1500); setTimeout(() => photo('5 s'), 5000); });
+  document.addEventListener('visibilitychange', () => setTimeout(() => photo('visibilité'), 300));
+  addEventListener('focus', () => setTimeout(() => photo('focus'), 300));
+})();`;
+
 /** Nonce CSP : aléa cryptographique (Math.random serait prédictible). */
 function getNonce(): string {
   return randomBytes(24).toString('base64');
@@ -374,6 +405,7 @@ window.KABLIX_NONCE = ${JSON.stringify(nonce)};
 window.KABLIX_PINOUT_BASE = ${JSON.stringify(pinoutBase.toString())};
 window.KABLIX_WORKER_URL = ${JSON.stringify(workerUri.toString())};
 window.KABLIX_SIM_WORKER = ${JSON.stringify(simWorker)};</script>
+  <script nonce="${nonce}">${TRACE_DOM_SCRIPT}</script>
   ${scriptDictionnaire(webview, extensionUri, nonce)}
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
