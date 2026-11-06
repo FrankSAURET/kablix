@@ -3,6 +3,14 @@
 
 ---
 
+# v2026.11.1.299 — sélecteur de transistor : liste des modèles invisible chez un élève
+
+1. ✅ Cause : `.inspector__reflist` est un enfant flex de `.panel__scroll` (colonne, hauteur bornée). Avec `overflow-y: auto`, sa `min-height: auto` vaut 0 → panneau trop court (écran bas, mise à l'échelle Windows, zoom) = liste écrasée à 0 px au lieu du défilement du panneau. Langue hors de cause.
+2. ✅ [styles.css](media/styles.css) : `flex-shrink: 0` sur `.inspector__reflist` (le `max-height: 13rem` reste).
+3. ✅ `verify:ascenseur` : OK.
+
+---
+
 # v2026.11.1.298 — fiche LM35A : noms des pattes sous le dessin
 
 1. ✅ Retouches de Frank intégrées telles quelles : texte de `fr.md`, `montage-positif.svg`, `montage-negatif.svg`, nouveau `montage-negatif-alim-unipolaire.svg` (2 × 1N4148 + 18 kΩ, Vout = VAN1 − VAN2).

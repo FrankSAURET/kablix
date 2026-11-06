@@ -49,6 +49,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - Un `.projix` ouvert depuis le panneau du code est ramené du côté de Kablix. Son programme ne s'ouvre plus par-dessus l'atelier, et le panneau du code n'est plus verrouillé.
 - Un `.projix` resté en arrière-plan à la réouverture de VS Code charge son schéma normalement quand on l'affiche, même longtemps après.
 
+**Transistor**
+
+- Sur un écran de faible hauteur (petite résolution, mise à l'échelle Windows, zoom), la liste « Modèles correspondants » du sélecteur de transistor ne disparaît plus : elle garde sa hauteur et le panneau Propriétés défile.
+
 ## 2026.11.1 (4 novembre 2026)
 
 ### Nouveauté

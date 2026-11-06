@@ -1627,6 +1627,11 @@ textarea {
   max-height: 13rem;
   overflow-y: auto;
   margin-top: 0.15rem;
+  /* Enfant flex d'une colonne défilante (.panel__scroll) : avec `overflow`, sa
+     hauteur minimale automatique tombe à 0. Écran court (petite résolution,
+     mise à l'échelle Windows, zoom) → la liste s'écrasait à 0 px et
+     disparaissait au lieu de faire défiler le panneau (poste d'un élève). */
+  flex-shrink: 0;
 }
 
 .inspector__ref {
