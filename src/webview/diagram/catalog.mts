@@ -1600,7 +1600,7 @@ export function partCategory(def: PartDef): string {
     case 'diode':
     case 'capacitor':
     case 'transistor':
-      return 'Passive'; // « Discrets » (composants discrets : R, LED, diode, condo…)
+      return 'Discretes'; // « Discrets » (composants discrets : R, LED, diode, condo, transistor…)
     case 'logic-ic':
       return 'Integrated circuits';
     case 'psu':
@@ -1638,14 +1638,26 @@ export function partCategory(def: PartDef): string {
     case 'araignee':
       return 'Systems';
     default:
-      return 'Passive';
+      return 'Discretes';
   }
+}
+
+/**
+ * Ancien nom de catégorie → nom actuel. « Passive » était faux en anglais (un
+ * transistor, une LED ne sont pas passifs) : renommé « Discretes » en
+ * v2026.11.1.297 (Frank). Les composants perso, les .kompix et l'état de pliage
+ * de la palette enregistrés avant portent encore l'ancien nom.
+ */
+export function normalizeCategory(category: string): string;
+export function normalizeCategory(category: string | undefined): string | undefined;
+export function normalizeCategory(category: string | undefined): string | undefined {
+  return category === 'Passive' ? 'Discretes' : category;
 }
 
 /** Ordre d'affichage des catégories dans la palette. */
 export const CATEGORY_ORDER: readonly string[] = [
   'Boards',
-  'Passive', // « Discrets » : juste sous Cartes & platines
+  'Discretes', // « Discrets » : juste sous Cartes & platines
   'Displays & LEDs',
   'Controls',
   'Sensors',
@@ -1832,7 +1844,7 @@ export function registerCustomPart(data: CustomPartData): PartDef {
       innerOffset: data.innerOffset,
       params: data.params,
       control: data.control,
-      category: data.category,
+      category: normalizeCategory(data.category),
       hasHelp: data.hasHelp,
       openDrain: data.openDrain,
       probeMirrors: data.probeMirrors,

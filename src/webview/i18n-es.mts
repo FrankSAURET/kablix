@@ -160,8 +160,8 @@ export const ES: Record<string, string> = {
     'Instrumentos de medida',
   'Misc':
     'Varios',
-  'Passive':
-    'Pasivos',
+  'Discretes':
+    'Discretos',
   'Custom parts':
     'Componentes personalizados',
   '+ Create a part':

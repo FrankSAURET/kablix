@@ -128,7 +128,7 @@ const FR: Record<string, string> = {
   'Systems': 'Systèmes',
   'Instruments': 'Appareils de mesure',
   'Misc': 'Divers',
-  'Passive': 'Discrets',
+  'Discretes': 'Discrets',
   'Batteries': 'Piles / Batteries',
   'Custom parts': 'Composants personnalisés',
   '+ Create a part': '+ Créer un composant',

@@ -160,8 +160,8 @@ export const ZH: Record<string, string> = {
     '测量仪器',
   'Misc':
     '其他',
-  'Passive':
-    '无源器件',
+  'Discretes':
+    '分立器件',
   'Custom parts':
     '自定义元件',
   '+ Create a part':

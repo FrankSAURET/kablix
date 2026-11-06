@@ -8,6 +8,7 @@
 // chaque changement de direction et colorés selon la nappe Dupont.
 import {
   CATEGORY_ORDER,
+  normalizeCategory,
   PALETTE_CATALOG,
   capacitorDefOf,
   hasPca9685Pads,
@@ -1395,7 +1396,7 @@ export class Editor {
     }
     if (typeof state.showRecents === 'boolean') this.showRecents = state.showRecents;
     if (Array.isArray(state.collapsed)) {
-      this.paletteCollapsed = new Set(state.collapsed.filter((x): x is string => typeof x === 'string'));
+      this.paletteCollapsed = new Set(state.collapsed.filter((x): x is string => typeof x === 'string').map((x) => normalizeCategory(x)));
     }
     if (state.fold === 'expand' || state.fold === 'collapse' || state.fold === 'auto') {
       this.paletteFold = state.fold;

@@ -3,6 +3,15 @@
 
 ---
 
+# v2026.11.1.297 — catégorie « Passive » renommée « Discretes »
+
+1. ✅ « Passive » faux en anglais (transistor, LED, diode = semi-conducteurs, pas des passifs). Clé renommée `Discretes` (choix de Frank, jargon des catalogues) dans [catalog.mts](src/webview/diagram/catalog.mts) (`partCategory`, `CATEGORY_ORDER`) et les tables i18n. FR inchangé (« Discrets ») ; ES « Pasivos » → « Discretos », ZH « 无源器件 » → « 分立器件 » (clé renommée, donc touchées d'office).
+2. ✅ Compatibilité : `normalizeCategory()` lit encore `Passive` — composants perso et `.kompix` enregistrés avant, état de pliage mémorisé de la palette ([editor.mts](src/webview/diagram/editor.mts)).
+3. ✅ `docs/fr/USAGE.md` : valeur `Discretes` dans la table du manifeste, ancien nom accepté.
+4. ⏳ `docs/en/USAGE.md` (lignes 578 et 692), `docs/es/USAGE.md`, `docs/zh/USAGE.md` : remplacer `Passive` / « Passive » avant publication.
+
+---
+
 # v2026.11.1.296 — deux défauts de disposition vus dans la trace du .projix gris
 
 1. ✅ `.projix` ouvert depuis la colonne du code alors que la disposition est déjà posée dans la session (`applyDefaultLayout` ne fait plus rien) : [projix-editor.ts](src/projix-editor.ts) appelle `sortTabsIntoColumns` avant `lockSimulatorGroup`, l'atelier repart côté Kablix et le verrou avec lui. Avant : verrou sur la zone du code, programme ouvert par-dessus l'atelier.
@@ -18,7 +27,7 @@
 1. ✅ La fiche existait déjà (`kablix_components/help/lm35a/fr.md`, embarquée dans le `.kompix`, présente dans la copie installée) ; enrichie : schémas `montage-positif.svg` et `montage-negatif.svg` (figures 1 et 2 de la datasheet TI, fond blanc pour le thème sombre), programmes complets Arduino (A0) et Pico (GP27), avertissement entrée ADC et tensions négatives. Mention Béta retirée (composant validé en .238).
 2. ✅ Composant `lm35a` : 2026.10.2 → 2026.11.0, `build-kompix lm35a` + index.
 3. ⏳ Fiche EN/ES/ZH du LM35A : avant publication.
-4. ⬜ Catégorie « Passive » (FR « Discrets ») : terme faux en anglais (transistor = actif). Proposition à Frank : « Discretes » / « Discrete components », ES « Discretos », ZH « 分立器件 ». En attente de sa décision.
+4. ✅ Catégorie « Passive » : traitée en v297 (Frank a choisi « Discretes »).
 
 ---
 
