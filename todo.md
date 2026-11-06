@@ -8,8 +8,10 @@
 1. ✅ Trace 293 lue : projet vide → la page envoie ses photos ; projet AVEC l'araignée (Etalonnage, test1, test2 après rechargement) → AUCUN message, pas même l'événement `load`. La page ne s'exécute pas, ou se fige avant.
 2. ✅ Banc sans affichage (`scratchpad/banc-gris.mjs` : vrai HTML + `dist/webview.js` dans Chrome, faux hôte qui envoie `loadProject`) : Etalonnage et test1 se chargent sans figer. Le défaut tient à ce que VS Code ajoute (état mémorisé, réglages, autres messages), pas au seul schéma.
 3. ✅ Repères ajoutés : côté page « début du script », DOMContentLoaded, load, battement chaque seconde (20 fois, avec l'écart), messages reçus, longues tâches > 150 ms ; côté hôte, les 40 premiers messages dans chaque sens et le vidage de la file d'attente.
-4. ⬜ Frank rouvre Etalonnage (gris) ; lire où la page s'arrête.
-5. ⬜ Retirer toutes les traces 292-294.
+4. ℹ️ 06/11 : plus reproductible. VS Code a redémarré (la fenêtre fautive tournait depuis le 04/11) ; Etalonnage, test1 et test2 s'ouvrent normalement. Cause probable : affichage des webviews dégradé dans la vieille fenêtre. Si le gris revient : lire les repères de la page dans le canal « Kablix — trace focus ».
+5. ⏳ Traces 292-294 GARDÉES quelques jours (décision de Frank, 06/11), puis à retirer : `trace(`, `trace-focus.ts`, `TRACE_DOM_SCRIPT`, `__kablixApi`, cas `traceDom`, compteurs `traceRecus`/`traceEnvoyes`.
+6. ⬜ `revealPendingCodeFile` : ne pas montrer le code quand Kablix est dans la colonne du code (voir aussi `lockSimulatorGroup`).
+7. ⬜ Filet de 20 s de `post()` : un onglet `.projix` restauré mais caché ne charge sa page qu'une fois affiché ; le filet déclare la page prête trop tôt. Attendre « ready » tant que le panneau n'a jamais été visible.
 
 ---
 
