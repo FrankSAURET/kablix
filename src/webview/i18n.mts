@@ -60,6 +60,8 @@ const FR: Record<string, string> = {
     'L\'alimentation ne fournit pas le courant de la bobine : augmentez son courant maximal, ou mettez moins de bobines sur la même source.',
   // Même étiquette pour les composants qui viennent d'exploser : l'explosion dit
   // qui est mort, le texte dit pourquoi.
+  'This resistor burned out: it turned more power into heat than its package can shed. Fit a higher wattage one, or raise the resistance.':
+    'Cette résistance a grillé : elle transformait en chaleur plus de puissance que son boîtier ne peut en évacuer. Prenez-en une de plus forte puissance, ou augmentez sa valeur.',
   'This LED burned out: with no series resistor (or far too small a one) the current goes past what the junction can take.':
     'Cette LED a grillé : sans résistance série (ou avec une trop faible), le courant dépasse ce que la jonction supporte.',
   'This capacitor broke down: the voltage across it went past its rated working voltage. Pick one rated well above the supply voltage.':

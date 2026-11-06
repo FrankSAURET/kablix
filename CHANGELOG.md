@@ -59,6 +59,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - Une entrée réglée en `Pin.PULL_UP` que rien ne pilote lit 1, comme sur la vraie carte. Elle lisait 0 alors que le voltmètre affichait 3,3 V. Même chose pour `Pin.PULL_DOWN`, qui lit 0.
 - L'interrupteur à glissière fonctionne avec la broche reliée à son commun (patte du milieu) et les côtés reliés à la masse ou au plus. Seul le montage inverse, commun à la masse, était reconnu.
 
+**Traduction**
+
+- L'explication affichée à côté d'une résistance grillée est en français.
+
 ## 2026.11.1 (4 novembre 2026)
 
 ### Nouveauté

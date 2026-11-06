@@ -104,6 +104,18 @@ for (const f of sources) {
     if (!appels.has(s)) appels.set(s, new Set());
     appels.get(s).add(relative(root, f).replace(/\\/g, '/'));
   }
+  // Tables de textes passées à t() par variable (`t(why)`) : invisibles au motif
+  // ci-dessus. La table BURN_NOTE de sim.mts a ainsi laissé une étiquette en
+  // anglais (v2026.11.1.302) : chacune de ses valeurs compte comme un appel.
+  for (const bloc of txt.matchAll(/const BURN_NOTE = \{([\s\S]*?)\n\}/g)) {
+    for (const m of bloc[1].matchAll(/^\s*\w+:\s*'((?:[^'\\]|\\.)*)'/gm)) {
+      const s = m[1].replace(/\\'/g, "'");
+      nbAppels++;
+      if (!missing(s)) continue;
+      if (!appels.has(s)) appels.set(s, new Set());
+      appels.get(s).add(relative(root, f).replace(/\\/g, '/'));
+    }
+  }
 }
 ok(`webview : les ${nbAppels} appels t('…') ont tous leur traduction`, appels.size === 0,
   [...appels].map(([s, fs]) => `${JSON.stringify(s)} (${[...fs].join(', ')})`).join(' · '));

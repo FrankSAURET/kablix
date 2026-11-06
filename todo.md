@@ -3,6 +3,14 @@
 
 ---
 
+# v2026.11.1.302 — étiquette « résistance grillée » restée en anglais
+
+1. ✅ Retour de Frank : l'étiquette d'une résistance grillée s'affichait en anglais. Traduction FR absente de [i18n.mts](src/webview/i18n.mts).
+2. ✅ Cause : la table `BURN_NOTE` de [sim.mts](src/webview/sim.mts) passe par `t(why)` (variable), invisible à `verify:i18n`. [verify-i18n.mjs](scripts/verify-i18n.mjs) lit maintenant les valeurs de cette table (428 appels). Contre-épreuve : échoue sans la traduction.
+3. ⏳ ES/ZH de cette chaîne : avant publication.
+
+---
+
 # v2026.11.1.301 — Pico : entrée PULL_UP lue à 0, interrupteur à glissière commun → broche
 
 1. ✅ Retour de Frank (TestChauffage, pico2w) : `Pin(26, IN, PULL_UP)` lisait 0 alors que le voltmètre affichait 3,3 V. Deux causes.
