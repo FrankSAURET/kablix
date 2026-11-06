@@ -140,6 +140,33 @@ function contenu(item) {
   return (item.defs.length ? `<defs>${item.defs.join('')}</defs>` : '') + item.body;
 }
 
+/** Boîtiers TO-92 / TO-220… : reconnus à leur libellé « (TO-92) », « (TO-220) ». */
+const BOITIER_TO = /\(TO-?\d/i;
+
+/**
+ * Illustration de tête de fiche d'un composant en boîtier TO : le dessin, plus le
+ * NOM de chaque patte écrit sous son bout (Frank, v2026.11.1.299). Texte noir à
+ * halo blanc, lisible en thème clair comme sombre. La vignette du gestionnaire,
+ * elle, garde le dessin nu.
+ */
+function illustrationAvecNoms(ext) {
+  const [, , w, h] = ext.viewBox.split(/\s+/).map(Number);
+  const pins = nomsUniques(ext.pins);
+  // Sous le bout des pattes (≈ 3 unités sous le point de connexion), pas sous le cadre.
+  const bas = Math.max(...pins.map((p) => p.y)) + 3;
+  // Le nom d'une patte au bord du dessin déborde : on élargit le cadre.
+  const x0 = Math.min(0, ...pins.map((p) => p.x - 6));
+  const x1 = Math.max(w, ...pins.map((p) => p.x + 6));
+  const H = Math.max(h, bas + 6);
+  const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const textes = pins.map((p) =>
+    `<text x="${p.x}" y="${bas + 4.5}" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-weight="bold" font-size="4" fill="#000" stroke="#fff" stroke-width="0.9" paint-order="stroke" stroke-linejoin="round">${esc(p.name)}</text>`).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="${x0} 0 ${x1 - x0} ${H}" width="${(x1 - x0) * 10}" height="${H * 10}">` +
+    // Attributs d'atelier Inkscape retirés comme dans ext.svg : sans leur espace
+    // de noms, l'image refuse de se charger.
+    contenu(ext).replace(/\s(?:inkscape|sodipodi):[\w-]+="[^"]*"/g, '') + textes + '</svg>';
+}
+
 /**
  * Images WebP du lot, en un seul passage de Chrome : la vignette du gestionnaire
  * ET l'illustration de tête de fiche, qui est le même dessin en plus grand —
@@ -148,17 +175,19 @@ function contenu(item) {
 function vignettes(dessins) {
   mkdirSync(SCRATCH, { recursive: true });
   const page = join(SCRATCH, 'kompix-thumbs.html');
-  const svgs = dessins.map((d) => Buffer.from(d.svg, 'utf8').toString('base64'));
+  // Une paire par composant : [SVG de la vignette, SVG de l'illustration].
+  const b64 = (t) => Buffer.from(t, 'utf8').toString('base64');
+  const svgs = dessins.map((d) => [b64(d.thumb), b64(d.illu)]);
   writeFileSync(page, `<!doctype html><meta charset="utf-8"><body><pre id="out"></pre><script>
 const SVGS = ${JSON.stringify(svgs)};
 const TAILLES = ${JSON.stringify([VIGNETTE, ILLUSTRATION])};
 (async () => {
   const parts = [];
-  for (const b64 of SVGS) {
-    const img = new Image();
-    await new Promise((ok, ko) => { img.onload = ok; img.onerror = ko; img.src = 'data:image/svg+xml;base64,' + b64; });
+  for (const paire of SVGS) {
     const rendus = [];
-    for (const { w: W, h: H } of TAILLES) {
+    for (const [n, { w: W, h: H }] of TAILLES.entries()) {
+      const img = new Image();
+      await new Promise((ok, ko) => { img.onload = ok; img.onerror = ko; img.src = 'data:image/svg+xml;base64,' + paire[n]; });
       // Dessin CONTENU dans le cadre, proportions gardées, fond transparent.
       const c = document.createElement('canvas');
       c.width = W; c.height = H;
@@ -233,7 +262,10 @@ async function main() {
   }
   if (dessins.length === 0) process.exit(1);
 
-  const thumbs = vignettes(dessins.map((d) => d.ext));
+  const thumbs = vignettes(dessins.map((d) => ({
+    thumb: d.ext.svg,
+    illu: BOITIER_TO.test(d.comp.label ?? '') ? illustrationAvecNoms(d.ext) : d.ext.svg,
+  })));
 
   mkdirSync(OUT_DIR, { recursive: true });
   for (const [i, d] of dessins.entries()) {

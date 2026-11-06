@@ -1,6 +1,6 @@
 # Capteur de température LM35A
 
-![Capteur de température LM35A](lm35a-broches.svg)
+![Capteur de température LM35A](lm35a.webp)
 
 Un thermomètre analogique qui donne une **tension proportionnelle à la température** : **10 mV par °C**, soit 250 mV à 25 °C. Aucun étalonnage, aucun calcul compliqué : on lit la tension et on multiplie par 100.
 
@@ -20,7 +20,7 @@ Vu de face, côté plat (inscription) tourné vers soi (de gauche à droite) :
 
 ## Alimentation : 4 V minimum
 
-Le LM35A ne démarre pas en dessous **4 V**. Le 3,3 V d'une carte ne suffit donc pas.
+Le LM35A ne démarre pas en dessous de **4 V**. Le 3,3 V d'une carte ne suffit donc pas.
 
 - **Arduino (Uno, Mega)** : le 5 V convient.
 - **Raspberry Pi Pico** : ne pas utiliser **3V3**. Alimenter Vs par **VSYS** (Patte 39 - 5 V quand la carte est sur l'USB). La sortie reste en dessous de 1,5 V jusqu'à 150 °C : elle ne risque rien sur l'entrée ADC, limitée à 3,3 V.

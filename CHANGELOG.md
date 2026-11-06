@@ -29,7 +29,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Bibliothèque de composants**
 
-- **LM35A** : la fiche d'aide nomme les pattes sous le dessin du composant. Elle montre les câblages de la datasheet (températures positives seules, puis positives et négatives, avec une alimentation double ou unique) et donne un programme complet pour Arduino et pour Pico.
+- **Boîtiers TO-92 et TO-220** : la fiche d'aide écrit le nom de chaque patte sous le dessin du composant. Valable pour les transistors, le capteur à effet Hall, le LM35A, le DS18B20 et le régulateur L78SxxCV.
+- **LM35A** : la fiche d'aide montre les câblages de la datasheet (températures positives seules, puis positives et négatives, avec une alimentation double ou unique) et donne un programme complet pour Arduino et pour Pico.
 
 ### Correction
 

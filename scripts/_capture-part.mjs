@@ -53,10 +53,11 @@ const PARTS = {
   // change (`text`, une ligne par saut de ligne) — comme dans le catalogue.
   // Le composant de bibliothèque : illustré avec la référence la plus courante,
   // celle que le sélecteur propose en tête de liste.
-  transistor: { module: 'transistor-element.mjs', tag: 'kablix-transistor', width: 200, attrs: { text: 'PN\n2222A', named: '1' } },
-  pn2222a: { module: 'transistor-element.mjs', tag: 'kablix-transistor', width: 200, attrs: { text: 'PN\n2222A', named: '1' } },
-  npn: { module: 'transistor-element.mjs', tag: 'kablix-transistor', width: 200, attrs: { text: 'NPN' } },
-  pnp: { module: 'transistor-element.mjs', tag: 'kablix-transistor', width: 200, attrs: { symbol: 'pnp', text: 'PNP' } },
+  // `pinNames` : nom des pattes écrit sous le dessin (tous les boîtiers TO).
+  transistor: { module: 'transistor-element.mjs', tag: 'kablix-transistor', width: 200, pinNames: true, attrs: { text: 'PN\n2222A', named: '1' } },
+  pn2222a: { module: 'transistor-element.mjs', tag: 'kablix-transistor', width: 200, pinNames: true, attrs: { text: 'PN\n2222A', named: '1' } },
+  npn: { module: 'transistor-element.mjs', tag: 'kablix-transistor', width: 200, pinNames: true, attrs: { text: 'NPN' } },
+  pnp: { module: 'transistor-element.mjs', tag: 'kablix-transistor', width: 200, pinNames: true, attrs: { symbol: 'pnp', text: 'PNP' } },
   relais: { module: 'relais-element.mjs', tag: 'kablix-relais' },
   // Boutons poussoirs : capuchon au REPOS, couleur du catalogue pour le grand
   // modèle (le 6 mm n'a que son capuchon rouge).
@@ -64,7 +65,7 @@ const PARTS = {
   'button-6mm': { module: 'pushbutton-6mm-element.mjs', tag: 'kablix-pushbutton-6mm' },
   // Capteur à effet Hall : boîtier partagé TO92S (dessin étroit et haut comme le
   // TO-92 du transistor) — illustré hors simulation, donc sans son aimant.
-  hall: { module: 'hall-element.mjs', tag: 'kablix-hall', width: 160 },
+  hall: { module: 'hall-element.mjs', tag: 'kablix-hall', width: 160, pinNames: true },
   // Potentiomètre ajustable : illustré avec le code le plus parlant (104 =
   // 100 kΩ), vis à mi-course.
   'pot-rot2': { module: 'pot-rot2-element.mjs', tag: 'kablix-pot-rot2', width: 200, attrs: { ohms: '100000', value: '50' } },
@@ -182,9 +183,30 @@ setTimeout(() => {
   const px = box.width / vb.width; // px CSS par unité de viewBox
   const scale = ${spec.height ? `${spec.height} / ((y1 - y0) * px)` : `${spec.width ?? WIDTH} / ((x1 - x0) * px)`};
   el.style.transformOrigin = '0 0';
-  el.style.transform = 'scale(' + scale + ') translate(' + (-x0 * px) + 'px,' + (-y0 * px) + 'px)';
+  // Marge latérale quand les noms de pattes débordent du dessin (patte au bord).
+  const marge = ${spec.pinNames ? 24 : 0};
+  el.style.transform = 'translate(' + marge + 'px,0) scale(' + scale + ') translate(' + (-x0 * px) + 'px,' + (-y0 * px) + 'px)';
   // La page est recadrée sur le dessin mis à l'échelle (marge de 4 px).
-  const w = Math.ceil((x1 - x0) * px * scale + 8), h = Math.ceil((y1 - y0) * px * scale + 8);
+  const w = Math.ceil((x1 - x0) * px * scale + 8 + 2 * marge);
+  let h = Math.ceil((y1 - y0) * px * scale + 8);
+  // Boîtiers TO-92 / TO-220 : nom de chaque patte SOUS le dessin (Frank,
+  // v2026.11.1.299). pinInfo est en unités du viewBox. Texte noir à halo blanc :
+  // lisible sur le fond clair comme sur le fond sombre de l'aide.
+  if (${spec.pinNames ? 'true' : 'false'} && el.pinInfo) {
+    const k = px * scale;
+    // Sous le bas réel du dessin (le bout des pattes dépasse le point de connexion,
+    // et getBBox ignore l'épaisseur du trait qui dessine la patte : +14 px).
+    const bas = Math.max(y1, ...el.pinInfo.map((p) => p.y));
+    const top = 4 + (bas - y0) * k + 14;
+    for (const p of el.pinInfo) {
+      const s = document.createElement('span');
+      s.textContent = p.name;
+      s.style.cssText = 'position:absolute;transform:translateX(-50%);font:bold 16px "Segoe UI",Arial,sans-serif;color:#000;'
+        + 'text-shadow:0 0 2px #fff,0 0 2px #fff,0 0 3px #fff;white-space:nowrap;left:' + (4 + marge + (p.x - x0) * k) + 'px;top:' + top + 'px';
+      document.body.appendChild(s);
+    }
+    h = Math.max(h, Math.ceil(top + 24));
+  }
   document.body.style.width = w + 'px';
   document.body.style.height = h + 'px';
   document.getElementById('size').textContent = w + 'x' + h;

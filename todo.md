@@ -3,6 +3,18 @@
 
 ---
 
+# v2026.11.1.300 — noms des pattes sous le dessin : tous les boîtiers TO-92 / TO-220
+
+1. ✅ Natifs : [_capture-part.mjs](scripts/_capture-part.mjs) — option `pinNames` (nom de chaque `pinInfo` sous le bout des pattes, noir à halo blanc, marge latérale 24 px, +14 px car getBBox ignore l'épaisseur du trait). Posée sur transistor, pn2222a, npn, pnp, hall ; images recapturées.
+2. ✅ Bibliothèque : [build-kompix.mjs](scripts/build-kompix.mjs) — `illustrationAvecNoms()` pour tout libellé « (TO-… ) » : seule l'illustration `help/<type>.webp` porte les noms, la vignette du gestionnaire reste nue. Attributs inkscape/sodipodi retirés (sinon l'image ne charge pas).
+3. ✅ lm35a 2026.11.2, ds18b20 2026.11.0, l78sxxcv 2026.11.0 ; paquets + index reconstruits.
+4. ✅ Fiche LM35A : en-tête revenu à `lm35a.webp` (généré) ; l'ancien `lm35a-broches.svg` fait main déplacé dans `A Examiner/kablix_components/help/lm35a/`.
+5. ✅ Coquille corrigée par Frank dans `help/lm35a/fr.md` enregistrée.
+6. ✅ `verify:kompix` 43/43, `verify:docs` 29 OK.
+7. ℹ️ Le dessin DS18B20 de la planche porte « DSB1820 » au lieu de « DS18B20 » : à Frank de trancher.
+
+---
+
 # v2026.11.1.299 — sélecteur de transistor : liste des modèles invisible chez un élève
 
 1. ✅ Cause : `.inspector__reflist` est un enfant flex de `.panel__scroll` (colonne, hauteur bornée). Avec `overflow-y: auto`, sa `min-height: auto` vaut 0 → panneau trop court (écran bas, mise à l'échelle Windows, zoom) = liste écrasée à 0 px au lieu du défilement du panneau. Langue hors de cause.
