@@ -3,6 +3,15 @@
 
 ---
 
+# v2026.11.1.295 — fiche d'aide LM35A enrichie
+
+1. ✅ La fiche existait déjà (`kablix_components/help/lm35a/fr.md`, embarquée dans le `.kompix`, présente dans la copie installée) ; enrichie : schémas `montage-positif.svg` et `montage-negatif.svg` (figures 1 et 2 de la datasheet TI, fond blanc pour le thème sombre), programmes complets Arduino (A0) et Pico (GP27), avertissement entrée ADC et tensions négatives. Mention Béta retirée (composant validé en .238).
+2. ✅ Composant `lm35a` : 2026.10.2 → 2026.11.0, `build-kompix lm35a` + index.
+3. ⏳ Fiche EN/ES/ZH du LM35A : avant publication.
+4. ⬜ Catégorie « Passive » (FR « Discrets ») : terme faux en anglais (transistor = actif). Proposition à Frank : « Discretes » / « Discrete components », ES « Discretos », ZH « 分立器件 ». En attente de sa décision.
+
+---
+
 # v2026.11.1.294 — repères de chargement de la page (.projix gris)
 
 1. ✅ Trace 293 lue : projet vide → la page envoie ses photos ; projet AVEC l'araignée (Etalonnage, test1, test2 après rechargement) → AUCUN message, pas même l'événement `load`. La page ne s'exécute pas, ou se fige avant.

@@ -23,6 +23,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - **Nouveau dessin** : écran plus grand, carreaux de 20 px, boutons plus gros.
 
+**Bibliothèque de composants**
+
+- **LM35A** : la fiche d'aide montre les deux câblages de la datasheet (températures positives seules, puis positives et négatives) et donne un programme complet pour Arduino et pour Pico.
+
 ### Correction
 
 **Oscilloscope**

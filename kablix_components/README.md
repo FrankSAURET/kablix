@@ -45,7 +45,7 @@ Composants de cette bibliothèque, à installer depuis Kablix (**⚙ Gérer les 
 | <img src="thumbnails/grove-uno.webp" alt="Grove Shield (Uno)" width="64"> | `grove-uno` | Grove Shield (Uno) | 2026.9.2 | Boards | Grove Base Shield V2 for Arduino Uno: 16 Grove sockets (4 analog, 7 digital, 4 I2C, 1 UART) wired to the… |
 | <img src="thumbnails/ir-barrier.webp" alt="Through-beam IR barrier" width="64"> | `ir-barrier` | Through-beam IR barrier | 2026.9.1 | Sensors | Through-beam infrared barrier (emitter + receiver): while the beam reaches the receiver its output transistor… |
 | <img src="thumbnails/l78sxxcv.webp" alt="Voltage regulator L78SxxCV (TO-220)" width="64"> | `l78sxxcv` | Voltage regulator L78SxxCV (TO-220) | 2026.10.2 | Integrated circuits | STMicroelectronics L78S positive linear regulator, 2 A, TO-220. Pick the output voltage (5, 6, 8, 8.5, 9, 12… |
-| <img src="thumbnails/lm35a.webp" alt="Temperature sensor LM35A (TO-92)" width="64"> | `lm35a` | Temperature sensor LM35A (TO-92) | 2026.10.2 | Sensors | Texas Instruments LM35A analog temperature sensor (-55 to +150 °C, ±0.5 °C): the output voltage is 10 mV per… |
+| <img src="thumbnails/lm35a.webp" alt="Temperature sensor LM35A (TO-92)" width="64"> | `lm35a` | Temperature sensor LM35A (TO-92) | 2026.11.0 | Sensors | Texas Instruments LM35A analog temperature sensor (-55 to +150 °C, ±0.5 °C): the output voltage is 10 mV per… |
 | <img src="thumbnails/pile-4aa.webp" alt="Battery pack 4 × AA" width="64"> | `pile-4aa` | Battery pack 4 × AA | 2026.10.0 | Batteries | Holder of four AA alkaline cells in series: 6.4 V when new, down to 4.4 V when flat, 2500 mAh. It drains at… |
 | <img src="thumbnails/pile-9v.webp" alt="Battery 9 V" width="64"> | `pile-9v` | Battery 9 V | 2026.10.0 | Batteries | 9 V alkaline battery (6LR61): 9.5 V when new, down to 6.0 V when flat, 500 mAh. It drains at the pace of what… |
 | <img src="thumbnails/pile-cr2032.webp" alt="Coin cell CR2032" width="64"> | `pile-cr2032` | Coin cell CR2032 | 2026.10.0 | Batteries | CR2032 lithium coin cell: 3.0 V when new, down to 2.0 V when flat, 220 mAh. Enough for a Pico on VSYS, not… |
@@ -59,7 +59,7 @@ Composants de cette bibliothèque, à installer depuis Kablix (**⚙ Gérer les 
 Déjà livrés avec l'extension : rien à télécharger, ils sont dans la palette. **À consulter avant d'en dessiner un nouveau.**
 
 <details>
-<summary><strong>76 composant(s) livrés</strong></summary>
+<summary><strong>77 composant(s) livrés</strong></summary>
 
 | | Type | Label | Catégorie | Description |
 |---|------|-------|-----------|-------------|
@@ -102,6 +102,7 @@ Déjà livrés avec l'extension : rien à télécharger, ils sont dans la palett
 | <img src="../docs/img/composants/led.webp" alt="LED" width="64"> | `led` | [LED](../docs/fr/composants/led.md) | Discrets | Diode électroluminescente 5 mm. S'allume quand l'anode est au + et la cathode à la masse, via une résistance… |
 | <img src="../docs/img/composants/led-bar.webp" alt="Barre de LED" width="64"> | `led-bar` | [Barre de LED](../docs/fr/composants/led-bar.md) | Afficheurs | Barregraphe de 10 LED indépendantes (anodes A1–A10, cathodes C1–C10). |
 | <img src="../docs/img/composants/led-ring.webp" alt="Anneau NeoPixel" width="64"> | `led-ring` | [Anneau NeoPixel](../docs/fr/composants/led-ring.md) | Afficheurs | Anneau de LED RGB adressables (WS2812). |
+| <img src="../docs/img/composants/led-strip.webp" alt="Ruban de LED" width="64"> | `led-strip` | [Ruban de LED](../docs/fr/composants/led-strip.md) | Afficheurs | Ruban de LED RGB adressables, extensible : le nombre de LED est une propriété. Pour tenir sur la feuille, le… |
 | <img src="../docs/img/composants/mega.webp" alt="Arduino Mega 2560" width="64"> | `mega` | [Arduino Mega 2560](../docs/fr/composants/mega.md) | Cartes & platines | Carte ATmega2560 : 54 E/S numériques (15 PWM), 16 entrées analogiques, 4 UART. |
 | <img src="../docs/img/composants/microsd.webp" alt="Carte microSD (SPI)" width="64"> | `microsd` | [Carte microSD (SPI)](../docs/fr/composants/microsd.md) | Divers | Lecteur de carte microSD en SPI : stockage de fichiers. |
 | <img src="../docs/img/composants/moteur-dc.webp" alt="Moteur à courant continu" width="64"> | `moteur-dc` | [Moteur à courant continu](../docs/fr/composants/moteur-dc.md) | Actionneurs | Petit moteur à courant continu, avec son pignon de sortie. Il tourne d'autant plus vite que la tension… |
@@ -175,4 +176,4 @@ Le point décisif est le dernier : tant qu'un composant de bibliothèque peut d�
 
 ---
 
-Généré le 14/10/2026 18:08:12 — Kablix v2026.10.2
+Généré le 06/11/2026 11:14:15 — Kablix v2026.11.1
