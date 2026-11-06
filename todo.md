@@ -3,6 +3,16 @@
 
 ---
 
+# v2026.11.1.296 — deux défauts de disposition vus dans la trace du .projix gris
+
+1. ✅ `.projix` ouvert depuis la colonne du code alors que la disposition est déjà posée dans la session (`applyDefaultLayout` ne fait plus rien) : [projix-editor.ts](src/projix-editor.ts) appelle `sortTabsIntoColumns` avant `lockSimulatorGroup`, l'atelier repart côté Kablix et le verrou avec lui. Avant : verrou sur la zone du code, programme ouvert par-dessus l'atelier.
+2. ✅ `revealPendingCodeFile` ([panel.ts](src/panel.ts)) : même garde que `revealCodeOnActivate` (v291), rien n'est montré si Kablix est resté dans la colonne du code (une seule zone, tri abandonné).
+3. ✅ Filet de 20 s de `post()` : nouvel `armReadyTimer` ; la file n'est vidée qu'après 20 s pleines À L'ÉCRAN (visible au départ et au terme du délai), sinon réarmé ; arrêt si la session est close. Avant : un onglet restauré caché (page chargée seulement à l'affichage, 27 s plus tard le 06/11) était déclaré prêt trop tôt, et la suite partait vers une page qui n'écoutait pas. `SimulatorHost` gagne `visible`.
+4. ✅ `verify-layout` : 3 contrôles de plus (80).
+5. ⏳ Les traces 292-294 restent (voir v294).
+
+---
+
 # v2026.11.1.295 — fiche d'aide LM35A enrichie
 
 1. ✅ La fiche existait déjà (`kablix_components/help/lm35a/fr.md`, embarquée dans le `.kompix`, présente dans la copie installée) ; enrichie : schémas `montage-positif.svg` et `montage-negatif.svg` (figures 1 et 2 de la datasheet TI, fond blanc pour le thème sombre), programmes complets Arduino (A0) et Pico (GP27), avertissement entrée ADC et tensions négatives. Mention Béta retirée (composant validé en .238).
@@ -19,8 +29,8 @@
 3. ✅ Repères ajoutés : côté page « début du script », DOMContentLoaded, load, battement chaque seconde (20 fois, avec l'écart), messages reçus, longues tâches > 150 ms ; côté hôte, les 40 premiers messages dans chaque sens et le vidage de la file d'attente.
 4. ℹ️ 06/11 : plus reproductible. VS Code a redémarré (la fenêtre fautive tournait depuis le 04/11) ; Etalonnage, test1 et test2 s'ouvrent normalement. Cause probable : affichage des webviews dégradé dans la vieille fenêtre. Si le gris revient : lire les repères de la page dans le canal « Kablix — trace focus ».
 5. ⏳ Traces 292-294 GARDÉES quelques jours (décision de Frank, 06/11), puis à retirer : `trace(`, `trace-focus.ts`, `TRACE_DOM_SCRIPT`, `__kablixApi`, cas `traceDom`, compteurs `traceRecus`/`traceEnvoyes`.
-6. ⬜ `revealPendingCodeFile` : ne pas montrer le code quand Kablix est dans la colonne du code (voir aussi `lockSimulatorGroup`).
-7. ⬜ Filet de 20 s de `post()` : un onglet `.projix` restauré mais caché ne charge sa page qu'une fois affiché ; le filet déclare la page prête trop tôt. Attendre « ready » tant que le panneau n'a jamais été visible.
+6. ✅ (v296) `revealPendingCodeFile` : ne pas montrer le code quand Kablix est dans la colonne du code (voir aussi `lockSimulatorGroup`).
+7. ✅ (v296) Filet de 20 s de `post()` : un onglet `.projix` restauré mais caché ne charge sa page qu'une fois affiché ; le filet déclare la page prête trop tôt. Attendre « ready » tant que le panneau n'a jamais été visible.
 
 ---
 

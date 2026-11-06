@@ -303,6 +303,9 @@ const HIDDEN_VARS_KEY = 'kablix.hiddenVars';
 export interface SimulatorHost {
   readonly webview: vscode.Webview;
   readonly viewColumn: vscode.ViewColumn | undefined;
+  /** Onglet à l'écran. Un onglet restauré mais caché ne charge sa page qu'une
+   *  fois affiché : tant qu'il est caché, l'absence de « ready » est normale. */
+  readonly visible: boolean;
   reveal(column?: vscode.ViewColumn, preserveFocus?: boolean): void;
   dispose(): void;
   onDidDispose(listener: () => void, thisArgs: unknown, disposables: vscode.Disposable[]): void;
@@ -1433,6 +1436,10 @@ ${err instanceof Error ? err.message : String(err)}`
     if (!uri) return;
     // Artefact compilé : binaire, aucun intérêt à l'afficher.
     if (/\.(hex|uf2|elf|bin)$/i.test(uri.fsPath)) return;
+    // Kablix resté DANS la colonne du code (une seule zone, pas pu le ramener
+    // de son côté) : le programme s'ouvrirait par-dessus le simulateur. Même
+    // garde que revealCodeOnActivate (trace du 05/11/2026, +163,66 s).
+    if (this.panel.viewColumn === codeColumn(this.context)) return;
     try {
       await this.revealSource(uri, true);
       this.panel.reveal(undefined, false); // focus rendu à Kablix
@@ -3273,15 +3280,44 @@ ${err instanceof Error ? err.message : String(err)}`
       this.postQueue.push(message);
       // Filet : si « ready » n'arrive jamais (bundle en erreur), on finit par
       // envoyer quand même — au pire c'est le comportement d'avant, jamais pire.
-      if (this.readyTimer === undefined) {
-        this.readyTimer = setTimeout(() => this.flushPostQueue(), 20_000);
-      }
+      if (this.readyTimer === undefined) this.armReadyTimer();
       return;
     }
     void this.panel.webview.postMessage(message);
   }
 
   private readyTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /**
+   * Arme le filet de 20 s. Un onglet restauré mais CACHÉ ne charge sa page
+   * qu'une fois affiché (constaté le 06/11/2026 : page lancée 27 s après la
+   * création) : tant qu'il est caché, l'absence de « ready » est normale, et
+   * vider la file déclarerait la page prête trop tôt — tout ce qui suivrait
+   * partirait sans file d'attente, vers une page qui n'écoute pas encore. On
+   * ne vide donc qu'après 20 s pleines À L'ÉCRAN : visible au départ du délai
+   * ET à son terme. Sinon on réarme.
+   */
+  private armReadyTimer(): void {
+    const visibleAuDepart = this.hostVisible();
+    this.readyTimer = setTimeout(() => {
+      this.readyTimer = undefined;
+      if (this.webviewReady) return;
+      const visible = this.hostVisible();
+      if (visible === undefined) return; // onglet fermé entre-temps
+      if (visible && visibleAuDepart) this.flushPostQueue();
+      else this.armReadyTimer();
+    }, 20_000);
+  }
+
+  /** Onglet à l'écran ; `undefined` s'il est fermé (l'hôte refuse alors toute lecture). */
+  private hostVisible(): boolean | undefined {
+    if (!SimulatorPanel.panels.has(this)) return undefined; // session close
+    try {
+      return this.panel.visible;
+    } catch {
+      return undefined;
+    }
+  }
 
   /** « ready » reçu : la webview écoute, on vide la file dans l'ordre d'émission. */
   private flushPostQueue(): void {
@@ -3401,6 +3437,9 @@ function wrapWebviewPanel(panel: vscode.WebviewPanel): SimulatorHost {
     },
     get viewColumn() {
       return panel.viewColumn;
+    },
+    get visible() {
+      return panel.visible;
     },
     reveal: (column, preserveFocus) => panel.reveal(column, preserveFocus),
     dispose: () => panel.dispose(),

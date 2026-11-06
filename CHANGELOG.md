@@ -42,6 +42,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 **Disposition**
 
 - Un `.projix` placé dans le même panneau que son programme ne devient plus gris quand on clique sur son onglet, et le programme se ferme normalement.
+- Un `.projix` ouvert depuis le panneau du code est ramené du côté de Kablix. Son programme ne s'ouvre plus par-dessus l'atelier, et le panneau du code n'est plus verrouillé.
+- Un `.projix` resté en arrière-plan à la réouverture de VS Code charge son schéma normalement quand on l'affiche, même longtemps après.
 
 ## 2026.11.1 (4 novembre 2026)
 

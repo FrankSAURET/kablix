@@ -2,9 +2,11 @@ import * as vscode from 'vscode';
 import { SimulatorPanel, strikeThroughText } from './panel';
 import {
   applyDefaultLayout,
+  codeColumn,
   editorGroupCount,
   lockSimulatorGroup,
   settleLayoutAfterCode,
+  sortTabsIntoColumns,
 } from './layout';
 import { unpackProject } from './projix';
 import { PROJIX_VIEW_TYPE } from './openproject';
@@ -113,6 +115,9 @@ export class ProjixEditorProvider implements vscode.CustomEditorProvider<ProjixD
         },
         get viewColumn() {
           return panel.viewColumn;
+        },
+        get visible() {
+          return panel.visible;
         },
         reveal: (column, preserveFocus) => panel.reveal(column, preserveFocus),
         dispose: () => panel.dispose(),
@@ -235,6 +240,17 @@ export class ProjixEditorProvider implements vscode.CustomEditorProvider<ProjixD
       trace('disposition : début');
       void applyDefaultLayout(this.context)
         .then(() => trace('disposition : grille posée'))
+        .then(async () => {
+          // Disposition déjà posée dans la session : applyDefaultLayout n'a rien
+          // fait. Un .projix ouvert depuis la colonne du CODE (zone active au
+          // clic dans l'explorateur) y resterait : le verrou tomberait sur la
+          // zone du code et le programme s'ouvrirait par-dessus l'atelier. On le
+          // ramène de son côté (le tri replace aussi le verrou sur la zone Kablix).
+          if (panel.viewColumn === codeColumn(this.context)) {
+            await sortTabsIntoColumns(this.context);
+            trace(`disposition : atelier ramené, col ${panel.viewColumn}`);
+          }
+        })
         .then(() => lockSimulatorGroup())
         .then(async () => {
           trace('disposition : groupe verrouillé');

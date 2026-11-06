@@ -505,6 +505,12 @@ ok('projet déjà ouvert : Kablix DANS la colonne du code → programme non rame
   /this\.gone\.has\('code'\)\) return;[\s\S]{0,500}?\n\s*if \(this\.panel\.viewColumn === codeColumn\(this\.context\)\) return;[\s\S]{0,900}?this\.revealSource\(uri, true\)/.test(panelSrc));
 ok('projet déjà ouvert : pas de relance en boucle quand le focus revient à Kablix (revealingCode)',
   /this\.revealingCode = true;[\s\S]{0,300}?finally \{\s*this\.revealingCode = false;/.test(panelSrc));
+ok('première ouverture : Kablix DANS la colonne du code → programme non montré (il recouvrirait le simulateur)',
+  /public async revealPendingCodeFile\(\)[\s\S]{0,600}?\n\s*if \(this\.panel\.viewColumn === codeColumn\(this\.context\)\) return;[\s\S]{0,200}?this\.revealSource\(uri, true\)/.test(panelSrc));
+ok('.projix ouvert depuis la colonne du code : ramené côté Kablix AVANT le verrou et le programme',
+  /applyDefaultLayout\(this\.context\)[\s\S]{0,900}?if \(panel\.viewColumn === codeColumn\(this\.context\)\) \{\s*await sortTabsIntoColumns\(this\.context\);[\s\S]{0,300}?lockSimulatorGroup\(\)[\s\S]{0,300}?revealPendingCodeFile\(\)/.test(editorSrc));
+ok('file d\'attente : le filet de 20 s ne vide la file qu\'après 20 s À L\'ÉCRAN (onglet restauré caché)',
+  /const visibleAuDepart = this\.hostVisible\(\);[\s\S]{0,300}?if \(visible && visibleAuDepart\) this\.flushPostQueue\(\);\s*else this\.armReadyTimer\(\);/.test(panelSrc));
 
 // 16. v2026.7.188 — le panneau d'accueil est réduit à UN bouton. La VUE reste
 //     déclarée : c'est elle qui porte l'icône de la barre d'activité et le
