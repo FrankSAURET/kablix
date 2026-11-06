@@ -29,7 +29,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Bibliothèque de composants**
 
-- **LM35A** : la fiche d'aide montre les deux câblages de la datasheet (températures positives seules, puis positives et négatives) et donne un programme complet pour Arduino et pour Pico.
+- **LM35A** : la fiche d'aide nomme les pattes sous le dessin du composant. Elle montre les câblages de la datasheet (températures positives seules, puis positives et négatives, avec une alimentation double ou unique) et donne un programme complet pour Arduino et pour Pico.
 
 ### Correction
 

@@ -3,6 +3,15 @@
 
 ---
 
+# v2026.11.1.298 — fiche LM35A : noms des pattes sous le dessin
+
+1. ✅ Retouches de Frank intégrées telles quelles : texte de `fr.md`, `montage-positif.svg`, `montage-negatif.svg`, nouveau `montage-negatif-alim-unipolaire.svg` (2 × 1N4148 + 18 kΩ, Vout = VAN1 − VAN2).
+2. ✅ En-tête de fiche : nouveau `lm35a-broches.svg` = dessin du paquet (`schema.svg`) + Vs / Vout / GND sous chaque patte, aux x du manifeste, fond blanc. Remplace `lm35a.webp` dans `fr.md` (le `.webp` reste ajouté d'office par `build-kompix`). Produit par un script ponctuel (scratchpad `broches.py`) : à refaire si le dessin du LM35A change sur la planche.
+3. ✅ Composant `lm35a` : 2026.11.0 → 2026.11.1, paquet + index reconstruits.
+4. ℹ️ Coquille dans le texte de Frank, non corrigée : « ne démarre pas en dessous **4 V** » (manque « de »).
+
+---
+
 # v2026.11.1.297 — catégorie « Passive » renommée « Discretes »
 
 1. ✅ « Passive » faux en anglais (transistor, LED, diode = semi-conducteurs, pas des passifs). Clé renommée `Discretes` (choix de Frank, jargon des catalogues) dans [catalog.mts](src/webview/diagram/catalog.mts) (`partCategory`, `CATEGORY_ORDER`) et les tables i18n. FR inchangé (« Discrets ») ; ES « Pasivos » → « Discretos », ZH « 无源器件 » → « 分立器件 » (clé renommée, donc touchées d'office).

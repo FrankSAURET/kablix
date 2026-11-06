@@ -268,7 +268,7 @@
     {
       "type": "lm35a",
       "label": "Temperature sensor LM35A (TO-92)",
-      "version": "2026.11.0",
+      "version": "2026.11.1",
       "author": "Frank Sauret",
       "description": "Texas Instruments LM35A analog temperature sensor (-55 to +150 °C, ±0.5 °C): the output voltage is 10 mV per °C. It needs at least 4 V on Vs — on a Pico, power it from VSYS, not from 3V3. Between Vs and GND it only reads positive temperatures; for negative ones, add a negative supply -Vs and a resistor from Vout to -Vs (R = -Vs / 50 µA). In simulation a slider sets the temperature; the output is clipped at 0 V unless a negative rail -Vs pulls it down (a meter then reads the negative voltage; the board input still reads 0 V), and it stays at 0 V while Vs is below 4 V.",
       "category": "Sensors",
@@ -447,5 +447,5 @@
       }
     }
   ],
-  "generated": "2026-11-06T10:14:14.191Z"
+  "generated": "2026-11-06T12:13:31.116Z"
 }

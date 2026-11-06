@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" viewBox="-4 -4 48 54" width="480" height="540">
+  <!-- En-tête de la fiche LM35A : dessin du composant (planche Composants2D.svg) et nom des pattes. Fond blanc : lisible en thème sombre. -->
+  <rect x="-4" y="-4" width="48" height="54" rx="1" fill="#ffffff"/>
+  <g id="lm35a"><defs><linearGradient
+   inkscape:collect="always"
+   xlink:href="#linearGradient40"
+   id="linearGradient71"
+   gradientUnits="userSpaceOnUse"
+   gradientTransform="translate(104.308,254.06566)"
+   x1="60.568413"
+   y1="26.252117"
+   x2="62.625877"
+   y2="26.252117" /><linearGradient
+   inkscape:collect="always"
+   xlink:href="#linearGradient40"
+   id="linearGradient75"
+   gradientUnits="userSpaceOnUse"
+   gradientTransform="matrix(-1,0,0,1,231.30799,254.06566)"
+   x1="60.568413"
+   y1="26.252117"
+   x2="62.625877"
+   y2="26.252117" /><linearGradient
+   inkscape:collect="always"
+   xlink:href="#linearGradient40"
+   id="linearGradient76"
+   gradientUnits="userSpaceOnUse"
+   gradientTransform="matrix(-2.6662052,0,0,2.6662052,330.05769,205.53269)"
+   x1="60.568413"
+   y1="26.252117"
+   x2="61.350346"
+   y2="26.241121" /><linearGradient
+   id="linearGradient40"
+   inkscape:collect="always"><stop
+     style="stop-color:#8c8c8c;stop-opacity:1;"
+     offset="0"
+     id="stop39" /><stop
+     style="stop-color:#9b9b9b;stop-opacity:1;"
+     offset="0.33892617"
+     id="stop41" /><stop
+     style="stop-color:#bababa;stop-opacity:1;"
+     offset="1"
+     id="stop40" /></linearGradient></defs><g transform="matrix(3.7795,0,0,3.7795,-614.2349,-1030.2482)"><path id="connector3pin-6-6-lm35" style="color:#000000;display:inline;overflow:visible;visibility:visible;fill:none;stroke:url(#linearGradient71);stroke-width:0.571501;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;marker:none;enable-background:accumulate" d="M 166.64812,277.46573 V 279.5672 M 165.16216,281.06836 V 283.16982 M 166.64812,279.5672 165.16216,281.05316" sodipodi:nodetypes="cccccc"></path><path id="connector3pin-6-0-85-lm35" style="color:#000000;display:inline;overflow:visible;visibility:visible;fill:none;stroke:url(#linearGradient75);stroke-width:0.571501;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;marker:none;enable-background:accumulate" d="M 168.96787,277.46573 V 279.5672 M 170.45383,281.06836 V 283.16982 M 168.96787,279.5672 170.45383,281.05316" sodipodi:nodetypes="cccccc"></path><path id="connector3pin-6-0-8-7-lm35" style="color:#000000;display:inline;overflow:visible;visibility:visible;fill:none;stroke:url(#linearGradient76);stroke-width:0.571502;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;marker:none;enable-background:accumulate" d="M 167.80799,277.52743 V 283.13037" sodipodi:nodetypes="cc"></path><g id="g259-1-lm35" transform="translate(103.72583,257.42441)"><rect width="3.8878717" x="62.076065" y="17.061712" height="2.9485514" style="fill:#1a1a1a;stroke-width:0.264583" id="rect9553-8-lm35"></rect><path style="fill:#141414;stroke-width:0.264583" id="path9555-9-lm35" d="M 65.669666,17.061711 V 17.779963 20.189167 20.728807 C 65.855012,20.519744 65.963936,20.273788 65.963936,20.010556 V 20.010556 17.061711 Z"></path><path style="fill:#242424;stroke-width:0.264583" id="path9557-2-lm35" d="M 62.370626,17.061711 H 62.076357 V 20.010263 20.010263 C 62.076357,20.273495 62.185573,20.519452 62.370626,20.728514 V 20.188874 17.779963 Z"></path><path style="fill:#1f1f1f;stroke-width:0.264583" id="path9559-7-lm35" d="M 62.076064,17.061711 V 17.061711 C 62.076064,17.324943 62.18528,17.571193 62.370333,17.779963 H 65.672009 C 65.857062,17.571193 65.966278,17.324943 65.966278,17.061711 V 17.061711 Z"></path><path style="fill:#141414;stroke-width:0.264583" id="path9561-9-lm35" d="M 64.020292,15.69753 C 62.946282,15.69753 62.076064,16.308323 62.076064,17.062297 H 65.963936 C 65.963936,16.308323 65.094303,15.69753 64.020292,15.69753 Z"></path><rect width="3.3016751" x="62.370625" y="17.779963" height="2.9485514" id="rect9563-5-lm35" style="stroke-width:0.264583"></rect></g><g style="font-size:3px;font-family:OCRA;fill:#e6e6e6;stroke-width:0.903615" id="txt-TO92-4-lm35" transform="matrix(0.29280552,0,0,0.29280552,164.58529,275.75046)">
+    <text x="10.757889" y="2.4170942" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'OCR A Std';-inkscape-font-specification:'OCR A Std';text-align:center;text-anchor:middle;stroke-width:0.903615" id="tspan150901-3-lm35">LM35A</text>
+   </g></g></g>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="3" font-weight="bold" fill="#000">
+    <text x="10" y="46" text-anchor="middle">Vs</text><text x="20" y="46" text-anchor="middle">Vout</text><text x="30" y="46" text-anchor="middle">GND</text>
+  </g>
+</svg>

@@ -1,8 +1,8 @@
 # Capteur de température LM35A
 
-![Capteur de température LM35A](lm35a.webp)
+![Capteur de température LM35A](lm35a-broches.svg)
 
-Un thermomètre analogique. Il rend une **tension proportionnelle à la température** : **10 mV par °C**, soit 250 mV à 25 °C. Aucun étalonnage, aucun calcul compliqué : on lit la tension et on multiplie par 100.
+Un thermomètre analogique qui donne une **tension proportionnelle à la température** : **10 mV par °C**, soit 250 mV à 25 °C. Aucun étalonnage, aucun calcul compliqué : on lit la tension et on multiplie par 100.
 
 Mesure de **−55 à +150 °C**, à **±0,5 °C** près à 25 °C.
 
@@ -10,7 +10,7 @@ Composant de bibliothèque : il s'installe par le gestionnaire de composants, il
 
 ## Broches
 
-Vu de face, côté plat (inscription) tourné vers soi :
+Vu de face, côté plat (inscription) tourné vers soi (de gauche à droite) :
 
 | Broche | Rôle |
 | --- | --- |
@@ -20,10 +20,10 @@ Vu de face, côté plat (inscription) tourné vers soi :
 
 ## Alimentation : 4 V minimum
 
-Le LM35A ne démarre pas sous **4 V**. Le 3,3 V d'une carte ne suffit donc pas.
+Le LM35A ne démarre pas en dessous **4 V**. Le 3,3 V d'une carte ne suffit donc pas.
 
 - **Arduino (Uno, Mega)** : le 5 V convient.
-- **Raspberry Pi Pico** : ne pas utiliser **3V3**. Alimenter Vs par **VSYS** (5 V quand la carte est sur l'USB). La sortie reste en dessous de 1,5 V jusqu'à 150 °C : elle ne risque rien sur l'entrée ADC, limitée à 3,3 V.
+- **Raspberry Pi Pico** : ne pas utiliser **3V3**. Alimenter Vs par **VSYS** (Patte 39 - 5 V quand la carte est sur l'USB). La sortie reste en dessous de 1,5 V jusqu'à 150 °C : elle ne risque rien sur l'entrée ADC, limitée à 3,3 V.
 
 ## Câblage
 
@@ -43,7 +43,8 @@ Il faut une **alimentation négative −Vs** et une **résistance R1 de Vout ver
 
 Calcul : **R1 = −Vs / 50 µA**. Pour −Vs = −5 V, R1 = 100 kΩ.
 
-Attention : l'entrée analogique d'une carte Arduino ou Pico **ne lit pas les tensions négatives** (et peut souffrir sous −0,5 V). Ce montage sert avec un multimètre, un oscilloscope ou un convertisseur bipolaire.
+**Attention** : l'entrée analogique d'une carte Arduino ou Pico **ne lit pas les tensions négatives** (et peut souffrir sous −0,5 V). Ce montage sert avec un multimètre, un oscilloscope ou en utilisant le montage ci-dessous ; il faudra alors mesurer les 2 tensions analogiques (attention il est obligatoire de mesurer les 2 tensions car les diodes ont une importante variation de leur tension de seuil en fonction de la température) .  
+![Pleine échelle, −55 °C à +150 °C](montage-negatif-alim-unipolaire.svg)
 
 ## Exemple Arduino
 
