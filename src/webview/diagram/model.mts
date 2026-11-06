@@ -3873,28 +3873,60 @@ export function buttonBindings(diagram: Diagram): ButtonBinding[] {
 export interface SwitchBinding {
   partId: string;
   mcuPin: string;
-  /** Pour l'interrupteur à glissière : côté relié (broche 1 ou 3). */
+  /** Pour l'interrupteur à glissière : côté relié à la broche (1 ou 3), absent si la broche est sur le commun. */
   side?: 1 | 3;
+  /**
+   * Pour l'interrupteur à glissière : niveau lu par la broche selon la position
+   * (indice 0 = commun relié au côté 1, indice 1 = commun relié au côté 3).
+   */
+  levels?: [boolean, boolean];
   /** Pour le DIP switch : numéro de canal (1..8). */
   channel?: number;
 }
 
 /**
- * Interrupteurs à glissière câblés [broche 1 ou 3] ↔ MCU avec le commun (2)
- * à la masse : la broche MCU est tirée à LOW quand l'interrupteur connecte
- * ce côté.
+ * Interrupteurs à glissière reliés au MCU, dans tous les sens de câblage :
+ *  - broche sur un côté (1 ou 3), commun à la masse : ce côté connecté = LOW,
+ *    sinon HIGH (rappel au plus) ;
+ *  - broche sur un côté, commun au plus : connecté = HIGH, sinon LOW ;
+ *  - broche sur le COMMUN (2), un côté à la masse et/ou l'autre au plus : la
+ *    broche lit le rail du côté connecté ; côté en l'air = repos, l'inverse du
+ *    rail de l'autre côté (rappel au plus face à la masse, comme un bouton).
+ *    Ce montage était ignoré : la broche n'était jamais posée et lisait 0 alors
+ *    que le voltmètre montrait 3,3 V (Frank, TestChauffage).
+ * `levels` = niveau lu pour chaque position (0 → côté 1, 1 → côté 3).
  */
 export function slideSwitchBindings(diagram: Diagram): SwitchBinding[] {
   const nets = buildNets(diagram);
   const bindings: SwitchBinding[] = [];
+  /** Rail d'un réseau : false = masse, true = plus, null = ni l'un ni l'autre. */
+  const rail = (netId: string): boolean | null =>
+    netHasGnd(diagram, nets, netId) ? false : netHasVcc(diagram, nets, netId) ? true : null;
   for (const part of diagram.parts) {
     if (partDef(part.type).kind !== 'slide-switch') continue;
-    const common = nets.netOf({ partId: part.id, pin: '2' });
-    if (!netHasGnd(diagram, nets, common)) continue;
-    for (const side of [1, 3] as const) {
-      const mcuPin = mcuDigitalOnNet(diagram, nets, nets.netOf({ partId: part.id, pin: String(side) }));
-      if (mcuPin) bindings.push({ partId: part.id, mcuPin, side });
+    const netOf = (pin: string) => nets.netOf({ partId: part.id, pin });
+    const common = netOf('2');
+    const commonRail = rail(common);
+    if (commonRail !== null) {
+      for (const side of [1, 3] as const) {
+        const mcuPin = mcuDigitalOnNet(diagram, nets, netOf(String(side)));
+        if (!mcuPin) continue;
+        // Connecté → le rail du commun ; ouvert → le rappel opposé.
+        const on = commonRail;
+        const levels: [boolean, boolean] = side === 1 ? [on, !on] : [!on, on];
+        bindings.push({ partId: part.id, mcuPin, side, levels });
+      }
+      continue;
     }
+    const mcuPin = mcuDigitalOnNet(diagram, nets, common);
+    if (!mcuPin) continue;
+    const r1 = rail(netOf('1'));
+    const r3 = rail(netOf('3'));
+    if (r1 === null && r3 === null) continue;
+    // Côté en l'air : repos = l'inverse du rail câblé de l'autre côté.
+    const l1 = r1 ?? !r3!;
+    const l3 = r3 ?? !r1!;
+    bindings.push({ partId: part.id, mcuPin, levels: [l1, l3] });
   }
   return bindings;
 }

@@ -132,6 +132,13 @@ const ENTREE = [
   'p = Pin(16, Pin.IN, Pin.PULL_DOWN)',  // repasse en entrée : rappel au 0
   'time.sleep_ms(50)',
   'print("ENTREE", p.value())',
+  // Entrée que rien ne pilote : elle lit son rappel interne (Frank, TestChauffage).
+  'q = Pin(26, Pin.IN, Pin.PULL_UP)',
+  'time.sleep_ms(50)',
+  'print("RAPPEL_HAUT", q.value())',
+  'q = Pin(26, Pin.IN, Pin.PULL_DOWN)',
+  'time.sleep_ms(50)',
+  'print("RAPPEL_BAS", q.value())',
   'while True:',
   '    time.sleep_ms(200)',
   '',
@@ -151,7 +158,11 @@ for (const fw of firmwares) {
   ok(`[${nom}] « LED OFF » aussi : la relecture suit les DEUX niveaux`,
     /LED OFF/.test(r.serial));
 
-  const e = await run(fw, ENTREE, { maxMs: 90_000, jusqua: (s) => /ENTREE \d/.test(s) });
+  const e = await run(fw, ENTREE, { maxMs: 90_000, jusqua: (s) => /RAPPEL_BAS \d/.test(s) });
+  ok(`[${nom}] entrée PULL_UP que rien ne pilote : lit 1`,
+    /RAPPEL_HAUT 1/.test(e.serial), `série ${JSON.stringify(e.serial.slice(-200))}`);
+  ok(`[${nom}] entrée PULL_DOWN que rien ne pilote : lit 0`,
+    /RAPPEL_BAS 0/.test(e.serial), `série ${JSON.stringify(e.serial.slice(-200))}`);
   ok(`[${nom}] en SORTIE, la broche se relit à son propre niveau (1)`,
     /SORTIE 1/.test(e.serial), `série ${JSON.stringify(e.serial.slice(-200))}`);
   ok(`[${nom}] repassée en ENTRÉE, elle relit le schéma (0), pas l'ancienne sortie`,

@@ -215,6 +215,39 @@ console.log('Nouveaux composants (netlist) :');
   check('barre LED : LED 1 allumée seule', bar[0] === 1 && bar.slice(1).every((v) => v === 0));
   const sw = slideSwitchBindings(extDiagram);
   check('interrupteur : côté 1 lié à D5', sw.length === 1 && sw[0].mcuPin === '5' && sw[0].side === 1);
+  check('interrupteur : côté 1 connecté = LOW, sinon HIGH', sw[0].levels?.[0] === false && sw[0].levels?.[1] === true);
+}
+
+// Interrupteur à glissière avec la broche sur le COMMUN (Frank, TestChauffage) :
+// commun → GP26, côté 3 → masse, côté 1 en l'air.
+console.log('Interrupteur à glissière, broche sur le commun :');
+{
+  const parts = [
+    { id: 'pico', type: 'pico2w', x: 0, y: 0 },
+    { id: 'sw', type: 'slide-switch', x: 0, y: 0 },
+  ];
+  const masse = {
+    parts,
+    wires: [
+      { id: 'c1', a: { partId: 'sw', pin: '2' }, b: { partId: 'pico', pin: 'GP26' } },
+      { id: 'c2', a: { partId: 'sw', pin: '3' }, b: { partId: 'pico', pin: 'GND.4' } },
+    ],
+  };
+  const sw = slideSwitchBindings(masse);
+  check('commun → GP26 : lié', sw.length === 1 && sw[0].mcuPin === 'GP26');
+  check('côté 1 (en l\'air) = HIGH, côté 3 (masse) = LOW', sw[0]?.levels?.[0] === true && sw[0]?.levels?.[1] === false);
+  const plus = {
+    parts,
+    wires: [
+      { id: 'c1', a: { partId: 'sw', pin: '2' }, b: { partId: 'pico', pin: 'GP26' } },
+      { id: 'c2', a: { partId: 'sw', pin: '1' }, b: { partId: 'pico', pin: '3V3' } },
+      { id: 'c3', a: { partId: 'sw', pin: '3' }, b: { partId: 'pico', pin: 'GND.4' } },
+    ],
+  };
+  const sw2 = slideSwitchBindings(plus);
+  check('côté 1 (3V3) = HIGH, côté 3 (masse) = LOW', sw2[0]?.levels?.[0] === true && sw2[0]?.levels?.[1] === false);
+  const enLair = { parts, wires: [{ id: 'c1', a: { partId: 'sw', pin: '2' }, b: { partId: 'pico', pin: 'GP26' } }] };
+  check('aucun rail câblé : pas de liaison', slideSwitchBindings(enLair).length === 0);
   const dip = dipSwitchBindings(extDiagram);
   check('DIP : canal 3 lié à D6', dip.length === 1 && dip[0].mcuPin === '6' && dip[0].channel === 3);
   const joy = joystickBindings(extDiagram);

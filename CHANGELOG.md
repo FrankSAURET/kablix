@@ -54,6 +54,11 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - Sur un écran de faible hauteur (petite résolution, mise à l'échelle Windows, zoom), la liste « Modèles correspondants » du sélecteur de transistor ne disparaît plus : elle garde sa hauteur et le panneau Propriétés défile.
 
+**Entrées de la Pico**
+
+- Une entrée réglée en `Pin.PULL_UP` que rien ne pilote lit 1, comme sur la vraie carte. Elle lisait 0 alors que le voltmètre affichait 3,3 V. Même chose pour `Pin.PULL_DOWN`, qui lit 0.
+- L'interrupteur à glissière fonctionne avec la broche reliée à son commun (patte du milieu) et les côtés reliés à la masse ou au plus. Seul le montage inverse, commun à la masse, était reconnu.
+
 ## 2026.11.1 (4 novembre 2026)
 
 ### Nouveauté

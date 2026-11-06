@@ -3846,14 +3846,14 @@ function bindInputs(): void {
     inputRemovers.push(() => el.removeEventListener('input', apply));
   }
 
-  // Interrupteur à glissière : la broche du côté connecté est tirée à LOW.
+  // Interrupteur à glissière : niveau lu selon la position (voir slideSwitchBindings).
   for (const binding of slideSwitchBindings(editor.diagram)) {
     const el = editor.elementOf(binding.partId);
-    if (!el) continue;
+    if (!el || !binding.levels) continue;
+    const levels = binding.levels;
     const apply = () => {
-      // value=0 → connecte le côté 1 ; value=1 → connecte le côté 3.
-      const connected = (Number(el.value ?? 0) === 0 ? 1 : 3) === binding.side;
-      engine?.setInput(binding.mcuPin, !connected);
+      // value=0 → commun relié au côté 1 ; value=1 → au côté 3.
+      engine?.setInput(binding.mcuPin, levels[Number(el.value ?? 0) === 0 ? 0 : 1]);
     };
     apply();
     el.addEventListener('input', apply);

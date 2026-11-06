@@ -458,6 +458,12 @@ export class PicoEngine implements SimEngine {
     id: string; pin: string; index: number; auto: Ds18b20;
     etaitBas: boolean;
   }> = [];
+  /**
+   * Broches dont un composant impose le niveau (setInput au moins une fois).
+   * Les autres suivent leur rappel interne : rp2040js ne le reporte pas dans
+   * inputValue, et une entrée PULL_UP sans rien d'autre lisait 0 au lieu de 1.
+   */
+  private pilotees = new Set<number>();
 
   constructor(program: PicoProgram, famille: PicoFamily = 'rp2040') {
     this.sim = new KablixSimulator(famille);
@@ -507,6 +513,12 @@ export class PicoEngine implements SimEngine {
         this.sampleSpiSelect();
         this.applyKeypads();
         this.onUpdate?.();
+      });
+      // Entrée laissée à son seul rappel interne : le pad lit le niveau du rappel.
+      pin.addListener((state) => {
+        if (this.pilotees.has(pin.index)) return;
+        if (state === GPIOPinState.InputPullUp) pin.setInputValue(true);
+        else if (state === GPIOPinState.InputPullDown) pin.setInputValue(false);
       });
     }
     // UART0 relié au moniteur série (programmes C bare-metal / pico-sdk).
@@ -704,6 +716,7 @@ export class PicoEngine implements SimEngine {
   setInput(name: string, value: boolean): void {
     const i = gpioIndex(name);
     if (i === null) return;
+    this.pilotees.add(i);
     this.mcu.gpio[i].setInputValue(value);
     this.noterFrontEntree(name, i);
   }

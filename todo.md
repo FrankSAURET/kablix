@@ -3,6 +3,17 @@
 
 ---
 
+# v2026.11.1.301 — Pico : entrée PULL_UP lue à 0, interrupteur à glissière commun → broche
+
+1. ✅ Retour de Frank (TestChauffage, pico2w) : `Pin(26, IN, PULL_UP)` lisait 0 alors que le voltmètre affichait 3,3 V. Deux causes.
+2. ✅ [model.mts](src/webview/diagram/model.mts) `slideSwitchBindings` : ne gérait que « commun à la masse, broche sur un côté ». Gère maintenant broche sur le commun (côtés masse/plus/en l'air ; côté en l'air = inverse du rail opposé) et commun au plus. Nouveau champ `levels` (niveau lu par position), utilisé par [sim.mts](src/webview/sim.mts).
+3. ✅ [pico.mts](src/webview/engines/pico.mts) : rp2040js ne reporte pas le rappel interne dans `inputValue`. Broche jamais posée par `setInput` (ensemble `pilotees`) → un écouteur pose 1 en PULL_UP, 0 en PULL_DOWN.
+4. ✅ Tests : `verify:diagram` (3 montages commun → broche), `verify:pin-readback` (PULL_UP = 1, PULL_DOWN = 0 ; contre-épreuve : échoue sur l'ancien code).
+5. ⏳ Limite : un rappel EXTERNE contraire au rappel interne (10 kΩ vers la masse + PULL_UP) n'est pas résolu électriquement ; la broche lit le rappel interne. À reprendre si besoin via le solveur (tension du nœud).
+6. ℹ️ Moteur AVR non touché (avr8js gère déjà le rappel interne dans PIN).
+
+---
+
 # v2026.11.1.300 — noms des pattes sous le dessin : tous les boîtiers TO-92 / TO-220
 
 1. ✅ Natifs : [_capture-part.mjs](scripts/_capture-part.mjs) — option `pinNames` (nom de chaque `pinInfo` sous le bout des pattes, noir à halo blanc, marge latérale 24 px, +14 px car getBBox ignore l'épaisseur du trait). Posée sur transistor, pn2222a, npn, pnp, hall ; images recapturées.
