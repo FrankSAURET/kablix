@@ -3,6 +3,13 @@
 
 ---
 
+# v2026.11.2.304 — 2026.11.2 en ligne
+
+1. ✅ Publication confirmée par Frank le 9 novembre 2026. CHANGELOG : `## 2026.11.3 (prochaine publication)` ouverte. CLAUDE.md : état des versions à jour.
+2. ℹ️ Traces 292-294 gardées (réponse de Frank, 09/11).
+
+---
+
 # v2026.11.2.303 — préparation de la publication 2026.11.2
 
 1. ✅ **Numéro** : même mois (novembre) → `2026.11.2`. `package.json` et `package-lock.json` en `2026.11.2`, `buildNumber` 303, CLAUDE.md à jour.
@@ -14,7 +21,7 @@
 7. ✅ **L78SxxCV** : fiche `help/l78sxxcv/en|es|zh.md` (⏳ de v.230-236) ; bloc `l10n` FR/ES/ZH ajouté ; mention « Béta » retirée de la fiche FR (validé en v238) ; composant 2026.11.0 → 2026.11.1. Paquets + index reconstruits, `verify:kompix` 43/43.
 8. ✅ **Défaut trouvé** : `verify:i18n` ne relisait que les composants natifs. Il construit maintenant aussi ceux de la bibliothèque (`registerCustomPart`) ; paramètres couverts par `l10n.fr.params` acceptés. Six libellés restaient en anglais même en français : « Output voltage (V) », « Heatsink (°C/W, 0 = none) » (L78SxxCV), « Reader mode (jumper) », « Move the tag in or out of the antenna loop », « Tag away », « Tag in the loop » (Grove RFID) ; plus `5 V`, `UART`, `Wiegand` (identiques partout). Traduits FR/ES/ZH. Contre-épreuve : le banc échouait avant l'ajout.
 9. ⏳ Traces 292-294 (`trace(`, `trace-focus.ts`, `TRACE_DOM_SCRIPT`, `__kablixApi`, `traceDom`) toujours dans le code : à Frank de dire si elles partent avant la mise en ligne.
-10. ⬜ **Reste à Frank** : publier (`npm run publier`). Après la mise en ligne : ouvrir `## 2026.11.3 (prochaine publication)` dans le CHANGELOG.
+10. ✅ **Reste à Frank** : publier (`npm run publier`). Après la mise en ligne : ouvrir `## 2026.11.3 (prochaine publication)` dans le CHANGELOG.
 
 ---
 
