@@ -25,6 +25,9 @@ Si la traza baja en lugar de subir, las dos puntas están intercambiadas — no 
 | `sdiv` | Anchura de un cuadro, en segundos — **cualquier número** | `1` |
 | `trigger` | Tensión de **disparo**, en voltios. **Vacía** = se ajusta sola | *(vacía)* |
 | `triggeredge` | Qué flanco dispara: `rising` (subida) o `falling` (bajada) | `rising` |
+| `triggerpos` | **Posición** del disparo a lo ancho de la pantalla: `0` = borde izquierdo, `1` = borde derecho | `0` |
+| `cursort` / `cursorv` | Casilla **T** / **V** de los cursores de medida: `1` = marcada | `0` |
+| `cursortpos` / `cursorvpos` | Posición de las dos líneas del cursor, en cuadros desde el centro | `-0.5,0.5` |
 
 Ambas se ajustan en el panel en cualquier momento, o **con el ratón en los mandos durante la simulación**.
 
@@ -33,7 +36,7 @@ Ambas se ajustan en el panel en cualquier momento, o **con el ratón en los mand
 Cada mando gira una posición por **clic**: en su **mitad derecha** para girar a la derecha, en su **mitad izquierda** para girar a la izquierda. La **rueda** del ratón también funciona.
 
 - **Volts/Div** (mando izquierdo): cinco posiciones dibujadas, `0.1 · 0.5 · 1 · 2 · 5` voltios por cuadro, con un **tope** en cada extremo. Cuanto más pequeño es el número, más alta es la traza. La pantalla tiene 5 cuadros por encima del eje y 5 por debajo: a 1 V/div, muestra de −5 V a +5 V.
-- **s/Div** (mando derecho): **sin tope**, gira tanto como se quiera. A la **derecha** la traza **se estira** (menos segundos por cuadro, se ve el detalle); a la **izquierda** **se encoge** (se ve un tramo de tiempo más largo). Una vuelta completa es un factor **10**, es decir ocho posiciones. No hay lista `1-2-5`: los valores intermedios existen (`1.33 s/div`, `562 ms/div`…).
+- **s/Div** (mando derecho): **sin tope**, gira tanto como se quiera. A la **derecha** la traza **se estira** (menos segundos por cuadro, se ve el detalle); a la **izquierda** **se encoge** (se ve un tramo de tiempo más largo). Las posiciones siguen la serie `1 - 2 - 5` de todos los osciloscopios (`1 ms`, `2 ms`, `5 ms`, `10 ms`…): una vuelta completa es un factor **10**, es decir tres posiciones.
 
 El rótulo **bajo la pantalla** recuerda los dos rangos y la tensión de disparo, en la unidad que resulte más clara:
 
@@ -45,12 +48,22 @@ Trig: 0.8 V
 
 ## El disparo
 
-Sin él, una traza que se repite **se desliza sin fin**: cada imagen empieza donde la ha dejado el azar, y una señal cuadrada perfectamente estable parece correr por la pantalla. El disparo lo arregla como se vuelve a calar una película en la misma imagen: el instrumento busca hacia atrás en el tiempo el último lugar donde la señal **cruza una tensión dada en un sentido dado**, y pone **ese punto** en el borde izquierdo de la pantalla. La traza se vuelve a dibujar entonces siempre en el mismo sitio, inmóvil.
+Sin él, una traza que se repite **se desliza sin fin**: cada imagen empieza donde la ha dejado el azar, y una señal cuadrada perfectamente estable parece correr por la pantalla. El disparo lo arregla como se vuelve a calar una película en la misma imagen: el instrumento busca hacia atrás en el tiempo el último lugar donde la señal **cruza una tensión dada en un sentido dado**, y pone **ese punto bajo la flecha inferior** de la pantalla (en el borde izquierdo, al principio). La traza se vuelve a dibujar entonces siempre en el mismo sitio, inmóvil.
 
 - **El cursor** — el pequeño triángulo azul pegado al borde **izquierdo** de la pantalla — da la **tensión**. Durante la simulación **se agarra con el ratón** y se sube o se baja; el rótulo lo sigue (`Trig: …`). Mientras no lo toque, se coloca solo **a media altura de la señal**, lo que sirve para casi todo (cuadrada, senoide, diente de sierra).
 - **El pequeño mando** de abajo a la derecha del dibujo elige el **sentido**: su mitad azul **arriba** = flanco de **subida** (la señal sube al cruzar), **abajo** = flanco de **bajada**. Un clic los intercambia.
+- **La flecha inferior** — el mismo triángulo azul, pegado al borde **inferior** de la pantalla, con la punta hacia arriba — da la **posición** de ese punto. Durante la simulación **se agarra con el ratón** y se desliza a izquierda o derecha. Llevada a la derecha, muestra también **lo que precede** al flanco. A diferencia de un osciloscopio real, nunca sale de la pantalla.
 
 Si la señal nunca cruza esa tensión — una tensión continua estable, o un cursor subido demasiado — no hay nada en lo que calarse: la traza **vuelve a correr** como antes. Es la señal de que el cursor tiene que volver a bajar dentro de la señal.
+
+## Los cursores de medida
+
+Dos casillas, bajo la pantalla junto a **Curseurs** (cursores), sirven para **medir** sobre la traza:
+
+- **T** hace aparecer dos líneas **verticales** punteadas naranjas. La distancia entre ellas se muestra como **tiempo** encima de la flecha doble (`ΔT = 2.5 ms`): la duración de un periodo, de un impulso, de un retardo.
+- **V** hace aparecer dos líneas **horizontales** punteadas violetas. La distancia se muestra como **tensión** junto a la flecha doble (`ΔV = 1 V`): la amplitud de una señal, una caída de tensión.
+
+Al principio, las dos líneas se colocan a cada lado del centro de la pantalla, a un cuadro una de otra. Durante la simulación se **marca** o **desmarca** con un clic, y se **agarra cada línea con el ratón** para ponerla donde se quiera; nunca sale de la pantalla. Las líneas se quedan en su sitio al girar un mando: es la distancia leída la que sigue el nuevo rango, como en un instrumento real.
 
 ## Lo que muestra la pantalla
 

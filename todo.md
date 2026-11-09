@@ -3,6 +3,21 @@
 
 ---
 
+# v2026.11.2.303 — préparation de la publication 2026.11.2
+
+1. ✅ **Numéro** : même mois (novembre) → `2026.11.2`. `package.json` et `package-lock.json` en `2026.11.2`, `buildNumber` 303, CLAUDE.md à jour.
+2. ✅ **CHANGELOG daté du 9 novembre 2026**, deux entrées ajoutées (fiches LM35A / L78SxxCV traduites, réglages d'inspecteur traduits).
+3. ✅ **Interface ES/ZH** : étiquette de résistance grillée (v302), résumé de sélection en simulation (v290) dans `i18n-es.mts` / `i18n-zh.mts`.
+4. ✅ **USAGE EN/ES/ZH** : `Passive` → `Discretes` (lignes 578 et 692, ancien nom accepté), `Ctrl+A` permis en simulation, copie avec les courbes (v290, v297).
+5. ✅ **Fiche oscillo EN/ES/ZH** : `triggerpos`, curseurs T/V, flèche du bas, section « curseurs de mesure », suite 1-2-5 (v287, v288). Le dessin écrit « Curseurs » dans toutes les langues : les fiches citent ce mot tel quel.
+6. ✅ **LM35A** : fiche `help/lm35a/en|es|zh.md` ; bloc `l10n` FR/ES/ZH ajouté (aucun jusque-là, même en français) ; composant 2026.11.2 → 2026.11.3.
+7. ✅ **L78SxxCV** : fiche `help/l78sxxcv/en|es|zh.md` (⏳ de v.230-236) ; bloc `l10n` FR/ES/ZH ajouté ; mention « Béta » retirée de la fiche FR (validé en v238) ; composant 2026.11.0 → 2026.11.1. Paquets + index reconstruits, `verify:kompix` 43/43.
+8. ✅ **Défaut trouvé** : `verify:i18n` ne relisait que les composants natifs. Il construit maintenant aussi ceux de la bibliothèque (`registerCustomPart`) ; paramètres couverts par `l10n.fr.params` acceptés. Six libellés restaient en anglais même en français : « Output voltage (V) », « Heatsink (°C/W, 0 = none) » (L78SxxCV), « Reader mode (jumper) », « Move the tag in or out of the antenna loop », « Tag away », « Tag in the loop » (Grove RFID) ; plus `5 V`, `UART`, `Wiegand` (identiques partout). Traduits FR/ES/ZH. Contre-épreuve : le banc échouait avant l'ajout.
+9. ⏳ Traces 292-294 (`trace(`, `trace-focus.ts`, `TRACE_DOM_SCRIPT`, `__kablixApi`, `traceDom`) toujours dans le code : à Frank de dire si elles partent avant la mise en ligne.
+10. ⬜ **Reste à Frank** : publier (`npm run publier`). Après la mise en ligne : ouvrir `## 2026.11.3 (prochaine publication)` dans le CHANGELOG.
+
+---
+
 # v2026.11.1.302 — étiquette « résistance grillée » restée en anglais
 
 1. ✅ Retour de Frank : l'étiquette d'une résistance grillée s'affichait en anglais. Traduction FR absente de [i18n.mts](src/webview/i18n.mts).

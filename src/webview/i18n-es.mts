@@ -68,6 +68,8 @@ export const ES: Record<string, string> = {
     'Demasiado poca tensión para vencer el rozamiento del motor: el rotor queda bloqueado y el bobinado se calienta. Aliméntelo a su tensión nominal o reduzca las pérdidas en serie con él.',
   'The supply cannot deliver the coil current: raise its maximum current, or share fewer coils on the same source.':
     'La alimentación no suministra la corriente de la bobina: aumente su corriente máxima o ponga menos bobinas en la misma fuente.',
+  'This resistor burned out: it turned more power into heat than its package can shed. Fit a higher wattage one, or raise the resistance.':
+    'Esta resistencia se ha quemado: convertía en calor más potencia de la que su encapsulado puede disipar. Ponga una de mayor potencia, o aumente su valor.',
   'This LED burned out: with no series resistor (or far too small a one) the current goes past what the junction can take.':
     'Este LED se ha quemado: sin resistencia en serie (o con una demasiado pequeña), la corriente supera lo que soporta la unión.',
   'This capacitor broke down: the voltage across it went past its rated working voltage. Pick one rated well above the supply voltage.':
@@ -862,6 +864,24 @@ export const ES: Record<string, string> = {
     'Tensión (V)',
   'Max current supplied (A)':
     'Corriente máx. suministrada (A)',
+  'Output voltage (V)':
+    'Tensión de salida (V)',
+  'Heatsink (°C/W, 0 = none)':
+    'Disipador (°C/W, 0 = ninguno)',
+  'Reader mode (jumper)':
+    'Modo del lector (puente)',
+  'Move the tag in or out of the antenna loop':
+    'Acercar o alejar la tarjeta del bucle de antena',
+  'Tag away':
+    'Tarjeta alejada',
+  'Tag in the loop':
+    'Tarjeta en el bucle',
+  '5 V':
+    '5 V',
+  'UART':
+    'UART',
+  'Wiegand':
+    'Wiegand',
   'Power bank':
     'Batería externa',
   'Voltage':
@@ -1026,6 +1046,8 @@ export const ES: Record<string, string> = {
     '{0} cable(s) seleccionado(s)',
   'Delete these wires':
     'Eliminar estos cables',
+  '{0} item(s) selected — Ctrl+C copies them as a picture, curves included.':
+    '{0} elemento(s) seleccionado(s): Ctrl+C los copia como imagen, curvas incluidas.',
   '{0} label(s) selected':
     '{0} etiqueta(s) seleccionada(s)',
   'Delete these labels':

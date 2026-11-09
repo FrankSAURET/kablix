@@ -25,6 +25,9 @@ If the trace goes down instead of up, the two leads are swapped — that is not 
 | `sdiv` | Width of one square, in seconds — **any number** | `1` |
 | `trigger` | **Trigger** voltage, in volts. **Empty** = set on its own | *(empty)* |
 | `triggeredge` | Which edge triggers: `rising` or `falling` | `rising` |
+| `triggerpos` | **Position** of the trigger point across the screen width: `0` = left edge, `1` = right edge | `0` |
+| `cursort` / `cursorv` | **T** / **V** box of the measurement cursors: `1` = ticked | `0` |
+| `cursortpos` / `cursorvpos` | Place of the two cursor lines, in squares from the centre | `-0.5,0.5` |
 
 Both are set in the panel at any time, or **with the mouse on the knobs during the simulation**.
 
@@ -33,7 +36,7 @@ Both are set in the panel at any time, or **with the mouse on the knobs during t
 Each knob turns one notch per **click**: on its **right half** to turn right, on its **left half** to turn left. The mouse **wheel** works too.
 
 - **Volts/Div** (left knob): five notches drawn, `0.1 · 0.5 · 1 · 2 · 5` volts per square, with a **stop** at both ends. The smaller the number, the taller the trace. The screen is 5 squares above the axis and 5 below: at 1 V/div, it shows from −5 V to +5 V.
-- **s/Div** (right knob): **no stop**, it turns as long as you want. To the **right** the trace **stretches** (fewer seconds per square, you see the detail); to the **left** it **shrinks** (you see a longer stretch of time). A full turn is a factor of **10**, that is eight notches. No `1-2-5` list: the in-between values exist (`1.33 s/div`, `562 ms/div`…).
+- **s/Div** (right knob): **no stop**, it turns as long as you want. To the **right** the trace **stretches** (fewer seconds per square, you see the detail); to the **left** it **shrinks** (you see a longer stretch of time). The notches follow the `1 - 2 - 5` sequence of every oscilloscope (`1 ms`, `2 ms`, `5 ms`, `10 ms`…): a full turn is a factor of **10**, that is three notches.
 
 The caption **under the screen** recalls both ranges and the trigger voltage, in whichever unit speaks:
 
@@ -45,12 +48,22 @@ Trig: 0.8 V
 
 ## Triggering
 
-Without it, a repeating trace **slides endlessly**: every frame starts wherever chance left it, and a perfectly steady square wave looks like it is running across the screen. Triggering fixes that the way you line a film back up on the same frame: the instrument looks back in time for the last place where the signal **crosses a given voltage in a given direction**, and it puts **that point** at the left edge of the screen. The trace is then redrawn always in the same place, standing still.
+Without it, a repeating trace **slides endlessly**: every frame starts wherever chance left it, and a perfectly steady square wave looks like it is running across the screen. Triggering fixes that the way you line a film back up on the same frame: the instrument looks back in time for the last place where the signal **crosses a given voltage in a given direction**, and it puts **that point under the bottom arrow** of the screen (at the left edge, to start with). The trace is then redrawn always in the same place, standing still.
 
 - **The cursor** — the small blue triangle stuck to the **left** edge of the screen — gives the **voltage**. During the simulation you **grab it with the mouse** and move it up or down; the caption follows (`Trig: …`). As long as you do not touch it, it sets itself **halfway up the signal**, which suits just about everything (square wave, sine, sawtooth).
 - **The small knob** at the bottom right of the drawing picks the **direction**: its blue half **up** = **rising** edge (the signal climbs as it crosses), **down** = **falling** edge. One click swaps them.
+- **The bottom arrow** — the same blue triangle, stuck to the **bottom** edge of the screen, pointing up — gives the **position** of that point. During the simulation you **grab it with the mouse** and slide it left or right. Pushed to the right, it also shows **what comes before** the edge. Unlike a real oscilloscope, it never leaves the screen.
 
 If the signal never crosses that voltage — a steady DC voltage, or a cursor pushed too high — there is nothing to line up on: the trace **runs again** as before. That is the sign that the cursor has to come back down into the signal.
+
+## The measurement cursors
+
+Two tick boxes, under the screen next to **Curseurs** (cursors), are used to **measure** on the trace:
+
+- **T** brings up two orange dotted **vertical** lines. The gap between them is shown as a **time** above the double arrow (`ΔT = 2.5 ms`): the length of a period, of a pulse, of a delay.
+- **V** brings up two purple dotted **horizontal** lines. The gap is shown as a **voltage** next to the double arrow (`ΔV = 1 V`): the amplitude of a signal, a voltage drop.
+
+To start with, the two lines sit on either side of the centre of the screen, one square apart. During the simulation you **tick** or **untick** with one click, and you **grab each line with the mouse** to put it wherever you want; it never leaves the screen. The lines stay in place when you turn a knob: it is the gap read out that follows the new range, as on a real instrument.
 
 ## What the screen shows
 

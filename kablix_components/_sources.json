@@ -616,7 +616,7 @@
       "type": "lm35a",
       "label": "Temperature sensor LM35A (TO-92)",
       "description": "Texas Instruments LM35A analog temperature sensor (-55 to +150 °C, ±0.5 °C): the output voltage is 10 mV per °C. It needs at least 4 V on Vs — on a Pico, power it from VSYS, not from 3V3. Between Vs and GND it only reads positive temperatures; for negative ones, add a negative supply -Vs and a resistor from Vout to -Vs (R = -Vs / 50 µA). In simulation a slider sets the temperature; the output is clipped at 0 V unless a negative rail -Vs pulls it down (a meter then reads the negative voltage; the board input still reads 0 V), and it stays at 0 V while Vs is below 4 V.",
-      "version": "2026.11.2",
+      "version": "2026.11.3",
       "author": "Frank Sauret",
       "reference": "https://www.ti.com/product/LM35",
       "kind": "analog-source",
@@ -631,6 +631,29 @@
         "max": 150,
         "step": 0.5,
         "expr": "x * 0.01"
+      },
+      "l10n": {
+        "fr": {
+          "label": "Capteur de température LM35A (TO-92)",
+          "description": "Capteur de température analogique Texas Instruments LM35A (−55 à +150 °C, ±0,5 °C) : la tension de sortie vaut 10 mV par °C. Il lui faut au moins 4 V sur Vs — sur une Pico, l'alimenter par VSYS, pas par 3V3. Entre Vs et GND il ne lit que les températures positives ; pour les négatives, ajouter une alimentation négative −Vs et une résistance de Vout vers −Vs (R = −Vs / 50 µA). En simulation, un curseur règle la température ; la sortie est coupée à 0 V sauf si un rail négatif −Vs la tire vers le bas (un appareil de mesure lit alors la tension négative ; l'entrée de la carte lit toujours 0 V), et elle reste à 0 V tant que Vs est sous 4 V.",
+          "control": {
+            "label": "T°"
+          }
+        },
+        "es": {
+          "label": "Sensor de temperatura LM35A (TO-92)",
+          "description": "Sensor de temperatura analógico Texas Instruments LM35A (−55 a +150 °C, ±0,5 °C): la tensión de salida vale 10 mV por °C. Necesita al menos 4 V en Vs — en una Pico, alimentarlo desde VSYS, no desde 3V3. Entre Vs y GND solo lee temperaturas positivas; para las negativas, añadir una alimentación negativa −Vs y una resistencia de Vout a −Vs (R = −Vs / 50 µA). En simulación, un cursor ajusta la temperatura; la salida se recorta a 0 V salvo si un raíl negativo −Vs la baja (un instrumento de medida lee entonces la tensión negativa; la entrada de la placa sigue leyendo 0 V), y se queda en 0 V mientras Vs esté por debajo de 4 V.",
+          "control": {
+            "label": "T°"
+          }
+        },
+        "zh": {
+          "label": "温度传感器 LM35A（TO-92）",
+          "description": "Texas Instruments LM35A 模拟温度传感器（−55 到 +150 °C，±0.5 °C）：输出电压为每 °C 10 mV。Vs 至少需要 4 V — 在 Pico 上应由 VSYS 供电，而不是 3V3。仅接 Vs 和 GND 时只能读取正温度；要读负温度，需加一个负电源 −Vs，并在 Vout 与 −Vs 之间接一个电阻（R = −Vs / 50 µA）。仿真时用滑块设置温度；输出被限制在 0 V，除非负电源轨 −Vs 把它拉低（此时测量仪器能读到负电压；开发板输入仍读到 0 V）；Vs 低于 4 V 时输出保持 0 V。",
+          "control": {
+            "label": "T°"
+          }
+        }
       }
     },
     {
@@ -638,14 +661,28 @@
       "type": "l78sxxcv",
       "label": "Voltage regulator L78SxxCV (TO-220)",
       "description": "STMicroelectronics L78S positive linear regulator, 2 A, TO-220. Pick the output voltage (5, 6, 8, 8.5, 9, 12, 15, 18 or 24 V) and the maximum current in the inspector. The input must stay at least 2 V above the output (dropout): below that the output follows the input minus 2 V. Past the maximum current the output voltage collapses. It draws about 5 mA of quiescent current even without load, and it heats up: it dissipates (Vin - Vout) x I, and its protection cuts the output when the junction reaches 150 °C. Without heatsink the case-to-air resistance is 50 °C/W; set a heatsink (°C/W) in the inspector to cool it.",
-      "version": "2026.11.0",
+      "version": "2026.11.1",
       "author": "Frank Sauret",
       "reference": "https://www.st.com/en/power-management/l78s.html",
       "kind": "psu",
       "category": "Integrated circuits",
       "pinRoles": { "V+": "OUT", "GND": "GND" },
       "attrs": { "voltage": "5", "maxcurrent": "2", "heatsink": "0" },
-      "regulator": { "in": "IN", "dropout": 2, "voltages": [5, 6, 8, 8.5, 9, 12, 15, 18, 24], "marking": { "group": "txt-L78S", "template": "78{v}" }, "quiescentMilliamps": 5, "thermal": { "rthJA": 50, "rthJC": 3, "tjMax": 125, "shutdown": 150 } }
+      "regulator": { "in": "IN", "dropout": 2, "voltages": [5, 6, 8, 8.5, 9, 12, 15, 18, 24], "marking": { "group": "txt-L78S", "template": "78{v}" }, "quiescentMilliamps": 5, "thermal": { "rthJA": 50, "rthJC": 3, "tjMax": 125, "shutdown": 150 } },
+      "l10n": {
+        "fr": {
+          "label": "Régulateur de tension L78SxxCV (TO-220)",
+          "description": "Régulateur linéaire positif STMicroelectronics L78S, 2 A, TO-220. La tension de sortie (5, 6, 8, 8,5, 9, 12, 15, 18 ou 24 V) et le courant maximal se choisissent dans l'inspecteur. L'entrée doit rester au moins 2 V au-dessus de la sortie (tension de déchet) : en dessous, la sortie suit l'entrée moins 2 V. Au-delà du courant maximal, la tension de sortie s'effondre. Il consomme environ 5 mA de courant de repos même sans charge, et il chauffe : il dissipe (Vin − Vout) × I, et sa protection coupe la sortie quand la jonction atteint 150 °C. Sans dissipateur, la résistance thermique boîtier-air vaut 50 °C/W ; indiquer un dissipateur (°C/W) dans l'inspecteur pour le refroidir."
+        },
+        "es": {
+          "label": "Regulador de tensión L78SxxCV (TO-220)",
+          "description": "Regulador lineal positivo STMicroelectronics L78S, 2 A, TO-220. La tensión de salida (5, 6, 8, 8,5, 9, 12, 15, 18 o 24 V) y la corriente máxima se eligen en el inspector. La entrada debe quedar al menos 2 V por encima de la salida (caída mínima): por debajo, la salida sigue a la entrada menos 2 V. Por encima de la corriente máxima, la tensión de salida se hunde. Consume unos 5 mA de corriente de reposo incluso sin carga, y se calienta: disipa (Vin − Vout) × I, y su protección corta la salida cuando la unión alcanza 150 °C. Sin disipador, la resistencia térmica encapsulado-aire es de 50 °C/W; indique un disipador (°C/W) en el inspector para refrigerarlo."
+        },
+        "zh": {
+          "label": "稳压器 L78SxxCV（TO-220）",
+          "description": "STMicroelectronics L78S 正电压线性稳压器，2 A，TO-220 封装。输出电压（5、6、8、8.5、9、12、15、18 或 24 V）和最大电流在检查器中选择。输入必须至少比输出高 2 V（压差）：低于此值时，输出等于输入减 2 V。超过最大电流时输出电压崩溃。即使空载也消耗约 5 mA 静态电流，并且会发热：功耗为 (Vin − Vout) × I，结温达到 150 °C 时保护电路切断输出。无散热器时，封装到空气的热阻为 50 °C/W；在检查器中设置散热器（°C/W）可为其降温。"
+        }
+      }
     },
     {
       "group": "DSB1820-Etanche",

@@ -575,7 +575,7 @@ Separator `;`, UTF-8 mark and CRLF line endings: the file opens straight away in
 
 **“+ Create a part”** button at the bottom of the palette: a full-screen window opens, with the form on the left and **two previews** on the right (external view and internal view). The **zoom** buttons at the top (−, %, +, ⛶ *fit*) scale both previews.
 
-**1. Name and category.** The name is the label shown in the palette. The category chooses the palette section the part is filed in (Boards, Passive, Displays & LEDs, Controls, Sensors, Actuators, Systems, Instruments, Misc, Integrated circuits); left empty, it goes to **Custom parts**.
+**1. Name and category.** The name is the label shown in the palette. The category chooses the palette section the part is filed in (Boards, Discretes, Displays & LEDs, Controls, Sensors, Actuators, Systems, Instruments, Misc, Integrated circuits); left empty, it goes to **Custom parts**.
 
 **2. Simulation model.** Defines the electrical behavior:
 
@@ -689,7 +689,7 @@ Prompt to generate a part (copy it and fill in the first line):
 | `pins`                    | array  | **Required.** Connection points: `name` (unique), `x`, `y` in pixels **relative to the top-left corner of the drawing**.                                                                 |
 | `pinRoles`                | object | Mapping *model role* → *pin name* (see the model table). When absent, the pins must carry the role name directly.                                                                        |
 | `attrs`                   | object | Initial attributes. For `digital-source`: `{ "state": "0" }`; for `analog-source`: `{ "value": "50" }`.                                                                                  |
-| `category`                | string | Palette section (`Boards`, `Passive`, `Displays & LEDs`, `Controls`, `Sensors`, `Actuators`, `Systems`, `Instruments`, `Misc`, `Integrated circuits`). Absent = “Custom parts”.          |
+| `category`                | string | Palette section (`Boards`, `Discretes`, `Displays & LEDs`, `Controls`, `Sensors`, `Actuators`, `Systems`, `Instruments`, `Misc`, `Integrated circuits`). Absent = “Custom parts”. The former name `Passive` is still accepted.          |
 | `params`                  | array  | Definition parameters: `name` (identifier), `label`, `value` (number). Inspector fields, reusable in `control.expr`.                                                                     |
 | `control`                 | object | Simulation control: `{ "type": "slider", "label", "unit", "min", "max", "step", "expr" }` (voltage in volts, `expr` as a function of `x` and the `params`) **or** `{ "type": "switch", "label" }`. |
 | `innerSvg`                | string | Optional internal view (schematic shown when the part is opened).                                                                                                                        |
@@ -848,7 +848,7 @@ To turn this off: the **`kablix.syncIntelliSense`** setting (on by default).
 | `Esc`                                | Cancel the wire being drawn / deselect                                                |
 | `Ctrl` (while dragging a handle)     | Crosshair + H/V alignment of the corner                                               |
 | `Ctrl` (while dragging a segment)    | Free move of the segment, off the grid                                                |
-| `Ctrl+A`                             | Select all the parts                                                                  |
+| `Ctrl+A`                             | Select all the parts — allowed even during a simulation                               |
 | `Ctrl+C`                             | Copy the selection (parts + wires) — allowed even during a simulation                 |
 | `Ctrl+V`                             | Paste the selection, **including into another Kablix project**                        |
 | `Ctrl+D`                             | Duplicate the selection in place                                                      |
@@ -857,6 +857,10 @@ To turn this off: the **`kablix.syncIntelliSense`** setting (on by default).
 
 ### Copy and paste from one project to another
 
-`Ctrl+C` puts **an SVG image** of the selection in the clipboard: pasted into a document, an email or a drawing program, it stays a vector drawing as before. That same SVG discreetly carries the diagram (parts, positions, settings, wires) in a `<metadata>` tag that viewers ignore.
+`Ctrl+C` puts **an SVG image** of the selection in the clipboard: pasted into a document, an email or a drawing program, it stays a vector drawing as before. Wires go along with the parts they connect (both ends must be selected), and so do the measurement cursors shown on the oscilloscope.
+
+**Copy with the curves**: during a simulation (running or paused), the selection rectangle and `Ctrl+A` remain available. They are only used for copying: the selection frame shows, nothing can be moved or deleted. `Ctrl+C` then copies the picture with the oscilloscope curves as they are on screen.
+
+That same SVG discreetly carries the diagram (parts, positions, settings, wires) in a `<metadata>` tag that viewers ignore.
 
 Result: `Ctrl+V` in **another Kablix project** recreates the parts and their wires, offset by 20 px so they stay visible; a second paste offsets them again. Parts unknown to the receiving project (missing custom parts) are ignored, the rest is pasted. Pasting any other text does nothing, and pasting is refused during a simulation.

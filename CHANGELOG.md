@@ -4,7 +4,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 [Voir en ligne](https://github.com/FrankSAURET/kablix/blob/main/CHANGELOG.md) · [View online](https://github.com/FrankSAURET/kablix/blob/main/CHANGELOG.md)
 
-## 2026.11.2 (prochaine publication)
+## 2026.11.2 (9 novembre 2026)
 
 ### Nouveauté
 
@@ -31,6 +31,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - **Boîtiers TO-92 et TO-220** : la fiche d'aide écrit le nom de chaque patte sous le dessin du composant. Valable pour les transistors, le capteur à effet Hall, le LM35A, le DS18B20 et le régulateur L78SxxCV.
 - **LM35A** : la fiche d'aide montre les câblages de la datasheet (températures positives seules, puis positives et négatives, avec une alimentation double ou unique) et donne un programme complet pour Arduino et pour Pico.
+- **LM35A et L78SxxCV** : fiches d'aide et descriptions disponibles en anglais, espagnol et chinois.
 
 ### Correction
 
@@ -62,6 +63,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 **Traduction**
 
 - L'explication affichée à côté d'une résistance grillée est en français.
+- Les réglages du régulateur L78SxxCV (tension de sortie, radiateur) et du lecteur Grove RFID (mode, badge) sont traduits dans l'inspecteur.
 
 ## 2026.11.1 (4 novembre 2026)
 

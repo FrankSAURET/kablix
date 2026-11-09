@@ -575,7 +575,7 @@ Botón **disquete SVG**: todo el esquema (componentes con sus rotaciones, cables
 
 Botón **«+ Crear un componente»** al pie de la paleta: se abre una ventana a pantalla completa, con el formulario a la izquierda y **dos vistas previas** a la derecha (vista externa y vista interna). Los botones de **zoom** de arriba (−, %, +, ⛶ *ajustar*) escalan ambas vistas previas.
 
-**1. Nombre y categoría.** El nombre es la etiqueta que se muestra en la paleta. La categoría elige la sección de la paleta donde se clasifica el componente (Placas y protoboards, Pasivos, Pantallas y LED, Mandos, Sensores, Actuadores, Sistemas, Instrumentos de medida, Varios, Circuitos integrados); si se deja vacía, va a **Componentes personalizados**.
+**1. Nombre y categoría.** El nombre es la etiqueta que se muestra en la paleta. La categoría elige la sección de la paleta donde se clasifica el componente (Placas y protoboards, Discretos, Pantallas y LED, Mandos, Sensores, Actuadores, Sistemas, Instrumentos de medida, Varios, Circuitos integrados); si se deja vacía, va a **Componentes personalizados**.
 
 **2. Modelo de simulación.** Define el comportamiento eléctrico:
 
@@ -689,7 +689,7 @@ Prompt para generar un componente (cópielo y rellene la primera línea):
 | `pins`                    | array  | **Obligatorio.** Puntos de conexión: `name` (único), `x`, `y` en píxeles **relativos a la esquina superior izquierda del dibujo**.                                                        |
 | `pinRoles`                | object | Correspondencia *papel del modelo* → *nombre de pata* (ver la tabla de modelos). Si falta, las patas deben llevar directamente el nombre del papel.                                        |
 | `attrs`                   | object | Atributos iniciales. Para `digital-source`: `{ "state": "0" }`; para `analog-source`: `{ "value": "50" }`.                                                                                |
-| `category`                | string | Sección de la paleta (`Boards`, `Passive`, `Displays & LEDs`, `Controls`, `Sensors`, `Actuators`, `Systems`, `Instruments`, `Misc`, `Integrated circuits`). Ausente = «Componentes personalizados». |
+| `category`                | string | Sección de la paleta (`Boards`, `Discretes`, `Displays & LEDs`, `Controls`, `Sensors`, `Actuators`, `Systems`, `Instruments`, `Misc`, `Integrated circuits`). Ausente = «Componentes personalizados». El nombre antiguo `Passive` sigue aceptándose. |
 | `params`                  | array  | Parámetros de definición: `name` (identificador), `label`, `value` (número). Campos del inspector, reutilizables en `control.expr`.                                                       |
 | `control`                 | object | Mando de simulación: `{ "type": "slider", "label", "unit", "min", "max", "step", "expr" }` (tensión en voltios, `expr` en función de `x` y de los `params`) **o** `{ "type": "switch", "label" }`. |
 | `innerSvg`                | string | Vista interna opcional (esquema mostrado al abrir el componente).                                                                                                                        |
@@ -848,7 +848,7 @@ Para desactivarlo: el ajuste **`kablix.syncIntelliSense`** (activado por defecto
 | `Esc`                                | Cancelar el cable en curso / deseleccionar                                            |
 | `Ctrl` (al arrastrar un asa)         | Retícula + alineación H/V de la esquina                                               |
 | `Ctrl` (al arrastrar un segmento)    | Desplazamiento libre del segmento, fuera de la cuadrícula                             |
-| `Ctrl+A`                             | Seleccionar todos los componentes                                                     |
+| `Ctrl+A`                             | Seleccionar todos los componentes, permitido incluso durante una simulación           |
 | `Ctrl+C`                             | Copiar la selección (componentes + cables), permitido incluso durante una simulación  |
 | `Ctrl+V`                             | Pegar la selección, **también en otro proyecto Kablix**                               |
 | `Ctrl+D`                             | Duplicar la selección en su sitio                                                     |
@@ -857,6 +857,10 @@ Para desactivarlo: el ajuste **`kablix.syncIntelliSense`** (activado por defecto
 
 ### Copiar y pegar de un proyecto a otro
 
-`Ctrl+C` pone en el portapapeles **una imagen SVG** de la selección: pegada en un documento, un correo o un programa de dibujo, sigue siendo un dibujo vectorial como antes. Ese mismo SVG lleva discretamente el esquema (componentes, posiciones, ajustes, cables) en una etiqueta `<metadata>` que los visores ignoran.
+`Ctrl+C` pone en el portapapeles **una imagen SVG** de la selección: pegada en un documento, un correo o un programa de dibujo, sigue siendo un dibujo vectorial como antes. Los cables se copian con los componentes que unen (los dos extremos deben estar seleccionados), y también los cursores de medida visibles en el osciloscopio.
+
+**Copiar con las curvas**: durante la simulación (en marcha o en pausa), el rectángulo de selección y `Ctrl+A` siguen disponibles. Solo sirven para copiar: el marco de selección se muestra, no se puede mover ni borrar nada. `Ctrl+C` copia entonces la imagen con las curvas del osciloscopio tal como están en pantalla.
+
+Ese mismo SVG lleva discretamente el esquema (componentes, posiciones, ajustes, cables) en una etiqueta `<metadata>` que los visores ignoran.
 
 Resultado: `Ctrl+V` en **otro proyecto Kablix** recrea los componentes y sus cables, desplazados 20 px para que sigan visibles; un segundo pegado los vuelve a desplazar. Los componentes desconocidos para el proyecto receptor (componentes personalizados ausentes) se ignoran, el resto se pega. Pegar cualquier otro texto no hace nada, y el pegado se rechaza durante una simulación.

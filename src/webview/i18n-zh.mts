@@ -68,6 +68,8 @@ export const ZH: Record<string, string> = {
     '电压太低，无法克服电机的摩擦：转子卡住不动，绕组发热。请按额定电压供电，或减小与其串联的损耗。',
   'The supply cannot deliver the coil current: raise its maximum current, or share fewer coils on the same source.':
     '电源无法提供线圈电流：请提高其最大电流，或在同一电源上少接几个线圈。',
+  'This resistor burned out: it turned more power into heat than its package can shed. Fit a higher wattage one, or raise the resistance.':
+    '这个电阻烧坏了：它转化成的热量超过了封装能散发的功率。请换一个功率更大的电阻，或增大阻值。',
   'This LED burned out: with no series resistor (or far too small a one) the current goes past what the junction can take.':
     '这个 LED 烧坏了：没有串联电阻（或电阻太小），电流超过了 PN 结的承受能力。',
   'This capacitor broke down: the voltage across it went past its rated working voltage. Pick one rated well above the supply voltage.':
@@ -862,6 +864,24 @@ export const ZH: Record<string, string> = {
     '电压 (V)',
   'Max current supplied (A)':
     '最大输出电流 (A)',
+  'Output voltage (V)':
+    '输出电压 (V)',
+  'Heatsink (°C/W, 0 = none)':
+    '散热器 (°C/W，0 = 无)',
+  'Reader mode (jumper)':
+    '读卡器模式（跳线）',
+  'Move the tag in or out of the antenna loop':
+    '把标签移入或移出天线线圈',
+  'Tag away':
+    '标签远离',
+  'Tag in the loop':
+    '标签在线圈内',
+  '5 V':
+    '5 V',
+  'UART':
+    'UART',
+  'Wiegand':
+    'Wiegand',
   'Power bank':
     '充电宝',
   'Voltage':
@@ -1026,6 +1046,8 @@ export const ZH: Record<string, string> = {
     '已选择 {0} 根导线',
   'Delete these wires':
     '删除这些导线',
+  '{0} item(s) selected — Ctrl+C copies them as a picture, curves included.':
+    '已选择 {0} 个对象——Ctrl+C 会把它们复制为图像，包括曲线。',
   '{0} label(s) selected':
     '已选择 {0} 个标签',
   'Delete these labels':

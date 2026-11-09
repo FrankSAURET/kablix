@@ -4,8 +4,6 @@
 
 Un régulateur linéaire positif de STMicroelectronics, en boîtier TO-220. Il transforme une tension d'entrée plus haute en une **tension de sortie fixe** (le « xx » du nom), jusqu'à **2 A**.
 
-> **Béta** — composant en cours de validation.
-
 Composant de bibliothèque : il s'installe par le gestionnaire de composants, il n'est pas dans la palette d'origine.
 
 ## Broches

@@ -29,7 +29,20 @@ await esbuild.build({
   entryPoints: [join(root, 'src/webview/diagram/catalog.mts')],
   outfile: out, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent',
 });
-const { CATALOG, PALETTE_CATALOG } = await import(pathToFileURL(out).href);
+const { CATALOG, PALETTE_CATALOG, registerCustomPart } = await import(pathToFileURL(out).href);
+
+// Composants de la bibliothèque publique : leurs propriétés d'inspecteur
+// (régulateur, paramètres…) sont fabriquées par `registerCustomPart`, hors du
+// CATALOG natif. Le libellé « Heatsink (°C/W, 0 = none) » du L78SxxCV est resté
+// en anglais jusqu'en v2026.11.2.303 faute d'être relu ici. Construits à part,
+// ils ne gonflent pas les comptes du catalogue natif.
+const biblioSources = JSON.parse(readFileSync(join(root, 'kablix_components/_sources.json'), 'utf8'));
+const BIBLIO = [];
+for (const comp of biblioSources.components ?? biblioSources) {
+  try { BIBLIO.push(registerCustomPart({ ...comp, svg: comp.svg ?? '<svg xmlns="http://www.w3.org/2000/svg"/>' })); }
+  catch { /* composant sans définition exploitable : rien à relire */ }
+}
+ok(`bibliothèque : ${BIBLIO.length} composants construits pour relire leurs propriétés`, BIBLIO.length > 5, BIBLIO.length);
 
 // Clés du dictionnaire, relues dans la source : `FR` n'est pas exporté (et n'a
 // pas à l'être — c'est `t()` qui est l'interface).
@@ -54,9 +67,15 @@ const props = new Set();
 const options = new Set();
 const groupes = new Set();
 const notes = new Set();
-for (const def of CATALOG) {
+// Paramètres d'un composant de bibliothèque : traduits par le bloc `l10n.fr.params`
+// du paquet (kompixI18n.ts), pas par i18n.mts.
+const parBloc = new Map();
+for (const comp of biblioSources.components ?? biblioSources) {
+  for (const [nom, lib] of Object.entries(comp.l10n?.fr?.params ?? {})) if (lib) parBloc.set(`${comp.type}/prm_${nom}`, lib);
+}
+for (const def of [...CATALOG, ...BIBLIO]) {
   for (const p of def.props ?? []) {
-    if (missing(p.label)) props.add(`${def.type}/${p.attr}: ${p.label}`);
+    if (missing(p.label) && !parBloc.has(`${def.type}/${p.attr}`)) props.add(`${def.type}/${p.attr}: ${p.label}`);
     // Titre de section repliable : affiché tel quel en tête du groupe.
     if (missing(p.group)) groupes.add(`${def.type}: ${p.group}`);
     // Note de section : la phrase affichée sous le titre, en gris.
