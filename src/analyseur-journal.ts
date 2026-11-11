@@ -496,6 +496,9 @@ function temps(t: number): string {
 
 /** Échappe un champ CSV : guillemets doublés, champ cité s'il contient un séparateur. */
 function csv(texte: string): string {
-  if (!/[",\n]/.test(texte)) return texte;
-  return `"${texte.replace(/"/g, '""')}"`;
+  // Même garde que la nomenclature : un champ qu'un tableur lirait comme une
+  // formule reçoit une apostrophe ; un retour chariot seul fait aussi citer.
+  const sur = /^[=@\t\r]/.test(texte) || /^[+-](?![\d.,\s]|$)/.test(texte) ? `'${texte}` : texte;
+  if (!/[",\n\r]/.test(sur)) return sur;
+  return `"${sur.replace(/"/g, '""')}"`;
 }

@@ -581,7 +581,7 @@ const sonde = (id, voie, accroche, etiquette = '') => ({
   check('chargement : l\'atelier ne pousse pas ses voies sur un schéma à moitié monté',
     /if \(!loadingProject\) pousserVoiesLogiques\(\);/.test(atelier));
   check('chargement : mais il les pousse une fois le schéma complet',
-    (atelier.match(/loadingProject = false;\s*(?:\/\/[^\n]*\n\s*)*pousserVoiesLogiques\(\);/g) ?? []).length >= 2);
+    (atelier.match(/loadingProject = false;\s*(?:\}\s*)?(?:\/\/[^\n]*\n\s*)*pousserVoiesLogiques\(\);/g) ?? []).length >= 2);
 
   // L'ONGLET AU SECOND PLAN NE REÇOIT AUCUNE IMAGE (v2026.9.4.98). Frank, 18/09 :
   // « je ne vois toujours rien dans l'analyseur, que le programme tourne, soit

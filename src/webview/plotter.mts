@@ -674,9 +674,11 @@ export class Plotter {
         else hi = mid - 1;
       }
       const v = s.pts[lo]!.v;
-      const esc = s.name.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+      // Nom ET valeur (l'unité vient du programme) : rien d'interprété en HTML.
+      const echappe = (x: string): string => x.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+      const esc = echappe(s.name);
       rows.push(
-        `<div><span class="plotter__dot" style="background:${this.colorOf(s)}"></span>${esc} : ${this.fmtValeur(v, s.unit, 3)}</div>`
+        `<div><span class="plotter__dot" style="background:${this.colorOf(s)}"></span>${esc} : ${echappe(this.fmtValeur(v, s.unit, 3))}</div>`
       );
     }
     if (rows.length <= 1) {

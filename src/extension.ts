@@ -19,7 +19,6 @@ import { memoriserModeExtension } from './version';
 import { redetecterArduinoCli } from './arduinoCliPistes';
 import { AnalyseurJournal } from './analyseur-journal';
 import { AnalyseurPanel } from './analyseur-panel';
-import { demarrerTraceFocus } from './trace-focus';
 
 const l10n = vscode.l10n;
 
@@ -29,7 +28,6 @@ const l10n = vscode.l10n;
 const STARTUP_GRACE_MS = 3000;
 
 export function activate(context: vscode.ExtensionContext): void {
-  demarrerTraceFocus(context); // TRACE TEMPORAIRE v2026.11.1.292
   // Numéro de build interne visible seulement hors production (voir version.ts).
   memoriserModeExtension(context.extensionMode);
 
@@ -293,9 +291,10 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       // Le fichier doit exister sur le disque : un onglet jamais enregistré n'a
       // rien à envoyer, et ses modules importés ne sont pas résolvables.
-      if (vscode.window.activeTextEditor?.document.isDirty) {
-        await vscode.window.activeTextEditor.document.save();
-      }
+      // C'est le document ENVOYÉ qu'on enregistre — pas l'éditeur actif, qui
+      // peut être un autre fichier (commande lancée depuis l'explorateur).
+      const ouvert = vscode.workspace.textDocuments.find((d) => d.uri.scheme === 'file' && d.uri.fsPath === target);
+      if (ouvert?.isDirty) await ouvert.save();
       await picoUploader.upload(target);
     }),
     // Même bouton, mais grisé : aucune carte n'est branchée. Il ne fait que le

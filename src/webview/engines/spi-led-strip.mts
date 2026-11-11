@@ -50,7 +50,9 @@ export class SpiLedStripDevice implements SpiDevice {
       this.idx = 0; // trame de début
       return;
     }
-    if (head === 0xff && blue === 0xff && green === 0xff && red === 0xff) return; // trame de fin
+    // Pas de test « trame de fin = 0xFFFFFFFF » : c'est aussi une LED blanche à
+    // pleine luminosité, qui était sautée (et décalait toutes les suivantes). La
+    // trame de fin tombe après la dernière LED : la garde ci-dessous l'écarte.
     if (this.idx >= this.colors.length) return;
     const k = (head & 0x1f) / 31 / 255;
     this.colors[this.idx++] = { r: red * k, g: green * k, b: blue * k };

@@ -3,6 +3,31 @@
 
 ---
 
+# v2026.11.2.305 — audit complet : corrections
+
+1. ✅ **Trace temporaire retirée** (demande de Frank, 11/11) : script de la webview, appels dans `extension.ts`, `panel.ts`, `projix-editor.ts`, `sim.mts`. ℹ️ `src/trace-focus.ts` reste sur disque, orphelin : pas de suppression sans ordre.
+2. ✅ **Analyseur : capture gardée au recâblage** — `bindInputs(nouvelleMesure)` ne vide `logicCapture` et n'envoie `analyseurDepart` qu'au lancement (`startRun` → `rebind(true)`), plus à chaque `onChange`.
+3. ✅ **Arrêt de simulation protégé** — `retirerEntrees()` (try/catch par retrait) : un retrait d'écouteur qui lève ne laisse plus le moteur vivant.
+4. ✅ **Chargements protégés** — `loadProject` et `importWokwi` : `loadingProject` remis à faux en `finally` ; `importWokwi` coupe la simulation en cours.
+5. ✅ **Historique groupé** — `editor.batch(fn)` : suppression d'un lot (Suppr), propriété posée sur plusieurs composants, choix d'un transistor, réglages de l'oscilloscope = UNE entrée d'annulation et UN `onChange`. Oscilloscope : seuls les attributs qui changent sont écrits.
+6. ✅ **Historique > 100 entrées** — `savedHistoryIndex` suit le `shift()` : le projet ne se déclare plus « enregistré » à tort.
+7. ✅ **Dupliquer** — ne recolle plus un vieux presse-papier quand la sélection n'est pas copiable ; `paste`/`duplicateSelection` refusés en simulation.
+8. ✅ **Pose depuis la palette** — `pointercancel` écouté : la palette ne reste plus bloquée après un geste annulé.
+9. ✅ **Type de composant inconnu au chargement** — pièce et fils écartés, le reste du schéma s'ouvre (avant : exception, schéma à moitié chargé).
+10. ✅ **GBF** — `formaterFreq` : « 100 Hz » ne devient plus « 1 Hz » (zéros retirés seulement après la virgule) ; attribut absent = valeur par défaut, pas 0 ; `pointercancel`.
+11. ✅ **Pico, mise au point** — la liste d'adresses I²C (`_KX_I2C_ADDRS`) est posée aussi dans le script instrumenté : `scan()` ne fige plus après un point d'arrêt.
+12. ✅ **Fil de simulation** — une exception du moteur dans le Worker l'arrête et déclenche le repli sur le fil principal (`onFailure`) ; `receive` ignoré après fermeture.
+13. ✅ **Ruban APA102** — une LED blanche à pleine luminosité n'est plus prise pour la trame de fin. ℹ️ Revers : un ruban dessiné plus long que piloté montre une LED blanche en trop.
+14. ✅ **Analyseur, I²C** — `repriseAvant` recale sur le dernier START/STOP avant la fenêtre : le décodage ne disparaît plus en zoomant au milieu d'une trame.
+15. ✅ **Envoi Pico** — `runTool` : délai de garde de 30 s, message clair. Chaîne FR ajoutée.
+16. ✅ **Créateur de composant** — les pattes choisies par rôle survivent au redessin (même modèle).
+17. ✅ **`.kompix` du dossier de travail** — pas d'import en mode restreint (`isTrusted`), `manifest.type` validé (il devient un nom de fichier).
+18. ✅ **Mineurs** : infobulle du traceur (valeur échappée) ; bouton-poussoir perso (écouteurs posés une fois, `pointercancel`) ; oscilloscope (`pointercancel`, « -0 ») ; formules `-2^2 = -4` ; `codeFileRef` (séparateur exigé) ; envoi Pico enregistre le document envoyé, pas l'éditeur actif ; dossier temporaire de compilation supprimé ; CSV (nomenclature, journal) : formules neutralisées, `\r` cité ; LCD I²C : écritures CGRAM hors écran.
+19. ⏳ **Non corrigé, à trancher par Frank** : annulation qui déclare le projet propre (`settling`/`restoring`, constat seulement probable, correction risquée pour le « refaire ») ; SVG interne des composants perso en `innerHTML` (la CSP bloque déjà l'exécution) ; serveur réseau sur `0.0.0.0` (voulu ?) ; `numAttr` refuse 0 (12 appelants, divisions) ; `busy` de l'envoi Pico posé tard ; `.kompix` du dossier classé `local` sans question (choix de conception).
+20. ⏳ ES/ZH : « The upload tool did not answer in time and was stopped. »
+
+---
+
 # v2026.11.2.304 — 2026.11.2 en ligne
 
 1. ✅ Publication confirmée par Frank le 9 novembre 2026. CHANGELOG : `## 2026.11.3 (prochaine publication)` ouverte. CLAUDE.md : état des versions à jour.

@@ -6,6 +6,43 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ## 2026.11.3 (prochaine publication)
 
+### Correction
+
+**Éditeur**
+
+- Supprimer plusieurs éléments, ou changer une propriété sur plusieurs composants, s'annule en un seul Ctrl+Z.
+- Dupliquer ne recolle plus une ancienne copie quand la sélection ne se copie pas.
+- La palette ne reste plus bloquée après une pose interrompue.
+- Un schéma contenant un composant inconnu s'ouvre quand même, sans ce composant.
+- Après une très longue séance, le projet n'apparaît plus « enregistré » à tort.
+- Créateur de composant : les pattes choisies pour chaque rôle ne se perdent plus.
+- Formules : `-2^2` vaut bien `-4`.
+
+**Simulation**
+
+- Générateur de fonctions : « 100 Hz » ne s'affiche plus « 1 Hz ».
+- Ruban APA102 : une LED blanche à pleine luminosité s'allume bien.
+- Écran LCD I²C : créer un caractère personnalisé ne décale plus le texte.
+- Pico : `scan()` I²C ne fige plus la simulation après un point d'arrêt.
+- Une erreur interne du moteur relance la simulation au lieu de la figer.
+- Importer un projet Wokwi arrête la simulation en cours.
+
+**Analyseur logique**
+
+- Modifier le câblage pendant la simulation n'efface plus la capture.
+- I²C : le décodage reste affiché en zoomant au milieu d'une trame.
+
+**Pico réelle**
+
+- L'envoi ne reste plus bloqué quand la carte ne répond pas.
+- Le fichier envoyé est bien celui qui est enregistré avant l'envoi.
+
+**Divers**
+
+- Export CSV (nomenclature, journal de l'analyseur) : une cellule n'est plus lue comme une formule par le tableur.
+- Les dossiers temporaires de compilation sont supprimés.
+- Un `.kompix` déposé dans un dossier non approuvé n'entre plus seul dans la bibliothèque.
+
 ## 2026.11.2 (9 novembre 2026)
 
 ### Nouveauté

@@ -854,8 +854,18 @@ export class PartCreator {
    */
   private renderRoles(modal: HTMLElement): void {
     const container = modal.querySelector('#cr-roles') as HTMLDivElement;
+    const choixModele = modal.querySelector('#cr-kind') as HTMLSelectElement;
+    // Les pattes déjà choisies survivent à un redessin (patte ajoutée, renommée…)
+    // tant que le modèle n'a pas changé ; un autre modèle repart de son préréglage.
+    const choisis = new Map<string, string>();
+    if (container.dataset.modele === choixModele.value) {
+      for (const s of container.querySelectorAll<HTMLSelectElement>('select[data-role]')) {
+        if (s.dataset.role && s.value) choisis.set(s.dataset.role, s.value);
+      }
+    }
+    container.dataset.modele = choixModele.value;
     container.replaceChildren();
-    const { kind, preset } = this.selectedModel(modal.querySelector('#cr-kind') as HTMLSelectElement);
+    const { kind, preset } = this.selectedModel(choixModele);
     const roles = CUSTOM_KINDS.find((k) => k.kind === kind)?.roles ?? [];
     const row = (label: string, title: string, control: HTMLElement): void => {
       const wrap = document.createElement('div');
@@ -871,7 +881,11 @@ export class PartCreator {
       const select = document.createElement('select');
       select.className = 'inspector__control';
       select.dataset.role = role;
-      const wanted = preset?.pinRoles?.[role] ?? this.existing?.pinRoles?.[role];
+      const garde = choisis.get(role);
+      const wanted =
+        (garde !== undefined && this.pins.some((p) => p.name === garde) ? garde : undefined) ??
+        preset?.pinRoles?.[role] ??
+        this.existing?.pinRoles?.[role];
       for (const pin of this.pins) {
         const o = document.createElement('option');
         o.value = pin.name;

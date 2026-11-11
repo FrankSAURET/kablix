@@ -143,7 +143,7 @@ check(
 );
 check(
   'rebind ouvre et referme la fenêtre (finally)',
-  /function rebind\(\)[^]*?beginModelFrame\(editor\.diagram\)[^]*?bindInputs\(\)[^]*?finally[^]*?endModelFrame\(\)/.test(sim)
+  /function rebind\([^)]*\)[^]*?beginModelFrame\(editor\.diagram\)[^]*?bindInputs\([^)]*\)[^]*?finally[^]*?endModelFrame\(\)/.test(sim)
 );
 
 console.log(failures === 0 ? '\nTout est bon.' : `\n${failures} échec(s).`);

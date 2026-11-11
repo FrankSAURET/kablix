@@ -102,20 +102,32 @@ export class Hd44780 {
     this.writeByte(value, rs);
   }
 
+  /** Vrai entre un « Set CGRAM address » et le retour à l'affichage. */
+  private cgram = false;
+
   private command(v: number): void {
     if (v === 0x01) {
       // Clear display.
       this.text = Array.from({ length: this.rows }, () => ' '.repeat(this.cols));
       this.addr = 0;
+      this.cgram = false;
     } else if (v === 0x02 || v === 0x03) {
       this.addr = 0; // Return home.
+      this.cgram = false;
     } else if (v & 0x80) {
       this.addr = v & 0x7f; // Set DDRAM address.
+      this.cgram = false;
+    } else if (v & 0x40) {
+      // Set CGRAM address : les octets suivants DESSINENT un caractère perso, ils
+      // ne s'écrivent pas à l'écran (ils y semaient des espaces et décalaient
+      // le curseur). Fin du mode au prochain « Set DDRAM » / effacement.
+      this.cgram = true;
     }
     // Function set / display control / entry mode : sans effet sur le rendu texte.
   }
 
   private putChar(code: number): void {
+    if (this.cgram) return;
     const rc = this.rowCol(this.addr);
     if (rc) {
       const [row, col] = rc;

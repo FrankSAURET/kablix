@@ -237,9 +237,7 @@ declare global {
   }
 }
 initLocale(window.KABLIX_LANG);
-// TRACE TEMPORAIRE v2026.11.1.293 : l'API est déjà prise par le script de trace
-// du HTML (webview-html.ts) ; une seconde prise lèverait une exception.
-const vscode = ((window as unknown as { __kablixApi?: VsCodeApi }).__kablixApi ?? acquireVsCodeApi());
+const vscode = acquireVsCodeApi();
 // Atelier sauvegardé d'un précédent affichage (déplacement d'onglet) ; restauré
 // une fois les composants personnalisés chargés, puis oublié.
 let restoredState = vscode.getState() as PersistedState | undefined;
@@ -3480,9 +3478,20 @@ function minHoldPress(
 }
 
 // --- Liaison des entrées (boutons, potentiomètres) ---------------------------
-function bindInputs(): void {
-  for (const remove of inputRemovers) remove();
+/** Retire les écouteurs posés par `bindInputs` ; un retrait qui lève n'arrête pas les suivants. */
+function retirerEntrees(): void {
+  for (const remove of inputRemovers) {
+    try {
+      remove();
+    } catch (err) {
+      console.error('Kablix : retrait d\'écouteur', err);
+    }
+  }
   inputRemovers = [];
+}
+
+function bindInputs(nouvelleMesure = false): void {
+  retirerEntrees();
   if (!engine) return;
 
   // Broches à mesurer en largeur d'impulsion : servo (angle réel) + buzzer
@@ -3526,9 +3535,11 @@ function bindInputs(): void {
   // Analyseur logique : même chaîne de fronts datés, un plafond de journal plus
   // profond (une trame DMX fait déjà 10 000 fronts à elle seule). La capture
   // précédente est effacée : un nouveau lancement est une nouvelle mesure.
-  logicCapture = [];
+  // Un simple recâblage EN COURS de simulation (réglage de l'oscilloscope, mode
+  // du multimètre, fil déplacé) garde la mesure : seul le lancement l'efface.
+  if (nouvelleMesure) logicCapture = [];
   pousserVoiesLogiques();
-  vscode.postMessage({ type: 'analyseurDepart' });
+  if (nouvelleMesure) vscode.postMessage({ type: 'analyseurDepart' });
 
   // Capteurs ultrason : distance ET température de l'air choisies EN SIMULATION
   // par les deux curseurs du composant (distance bornée par distancemin/distancemax
@@ -4256,17 +4267,24 @@ function bindInputs(): void {
         }
         | undefined;
       if (!d) return;
-      editor.updatePartAttr(part.id, 'voltsdiv', String(d.voltsdiv ?? 1));
-      editor.updatePartAttr(part.id, 'sdiv', String(d.sdiv ?? 1));
-      // Déclenchement : le sens, et la tension du curseur (vide = posée toute seule).
-      editor.updatePartAttr(part.id, 'trigger', d.trigger ?? '');
-      editor.updatePartAttr(part.id, 'triggeredge', d.triggeredge ?? 'rising');
-      editor.updatePartAttr(part.id, 'triggerpos', String(d.triggerpos ?? 0));
-      // Curseurs de mesure : cases cochées et place des lignes.
-      if (d.cursort !== undefined) editor.updatePartAttr(part.id, 'cursort', d.cursort);
-      if (d.cursorv !== undefined) editor.updatePartAttr(part.id, 'cursorv', d.cursorv);
-      if (d.cursortpos !== undefined) editor.updatePartAttr(part.id, 'cursortpos', d.cursortpos);
-      if (d.cursorvpos !== undefined) editor.updatePartAttr(part.id, 'cursorvpos', d.cursorvpos);
+      // Un seul passage : neuf écritures = neuf recâblages de la simulation sinon.
+      // Seuls les attributs qui changent sont écrits.
+      const pose = (attr: string, value: string): void => {
+        if ((part.attrs?.[attr] ?? undefined) !== value) editor.updatePartAttr(part.id, attr, value);
+      };
+      editor.batch(() => {
+        pose('voltsdiv', String(d.voltsdiv ?? 1));
+        pose('sdiv', String(d.sdiv ?? 1));
+        // Déclenchement : le sens, et la tension du curseur (vide = posée toute seule).
+        pose('trigger', d.trigger ?? '');
+        pose('triggeredge', d.triggeredge ?? 'rising');
+        pose('triggerpos', String(d.triggerpos ?? 0));
+        // Curseurs de mesure : cases cochées et place des lignes.
+        if (d.cursort !== undefined) pose('cursort', d.cursort);
+        if (d.cursorv !== undefined) pose('cursorv', d.cursorv);
+        if (d.cursortpos !== undefined) pose('cursortpos', d.cursortpos);
+        if (d.cursorvpos !== undefined) pose('cursorvpos', d.cursorvpos);
+      });
     };
     el.addEventListener('scope-scale', onScale);
     inputRemovers.push(() => el.removeEventListener('scope-scale', onScale));
@@ -4336,13 +4354,13 @@ function reportPhotoFault(partId: string, type: string, fault: string): void {
   }
 }
 
-function rebind(): void {
+function rebind(nouvelleMesure = false): void {
   // Même raison que refreshVisuals : bindInputs enchaîne une vingtaine de
   // `*Bindings(diagram)`, chacun rebâtissant la netlist. Un seul calcul suffit.
   beginModelFrame(editor.diagram);
   try {
     resolveBridges(); // les liaisons vues par bindInputs dépendent des ponts fermés
-    bindInputs();
+    bindInputs(nouvelleMesure);
   } finally {
     endModelFrame();
   }
@@ -5263,8 +5281,9 @@ function startRun(): void {
   // compris ceux de la bibliothèque. Une exception y laissait la simulation
   // MORTE et MUETTE — barre d'état figée sur « Arrêté », aucun message. On
   // préfère démarrer quand même, en disant tout haut ce qui a manqué.
+  // `true` = lancement : nouvelle mesure pour l'analyseur.
   try {
-    rebind();
+    rebind(true);
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
     console.error('bindInputs', err);
@@ -5737,8 +5756,7 @@ function stopRun(): void {
   lintNotes.clear();
   effacerMessagesDefaut();
   buzzerAudio.stopAll(); // coupe les sons de buzzer
-  for (const remove of inputRemovers) remove();
-  inputRemovers = [];
+  retirerEntrees();
   engine?.dispose();
   engine = null;
   clearCapSamplers(); // plus de moteur : les échantillonneurs RC n'ont plus de sens
@@ -6789,9 +6807,14 @@ window.addEventListener('message', (event: MessageEvent) => {
     case 'importWokwi': {
       // Projet Wokwi reçu de l'hôte : conversion puis chargement.
       const { parts, wires, skipped } = fromWokwiDiagram(msg.json);
+      // Comme `loadProject` : pas de nouveau schéma sur un moteur qui tourne pour l'ancien.
+      if (engine) stopRun();
       loadingProject = true;
-      editor.loadDiagram({ parts, wires });
-      loadingProject = false;
+      try {
+        editor.loadDiagram({ parts, wires });
+      } finally {
+        loadingProject = false;
+      }
       pousserVoiesLogiques(); // schéma complet : voir `loadProject`
       setDirty(true); // un import Wokwi n'est pas encore un .projix enregistré
       // Adopte la carte du premier MCU reconnu dans le schéma importé.
@@ -6817,12 +6840,16 @@ window.addEventListener('message', (event: MessageEvent) => {
       restoredState = undefined;
       // Composants perso, schéma puis carte.
       loadingProject = true;
-      if (Array.isArray(msg.customParts)) {
-        editor.loadCustomParts(msg.customParts as CustomPartData[]);
-      }
       const loadedDiagram = msg.diagram as Parameters<typeof editor.loadDiagram>[0];
-      editor.loadDiagram(loadedDiagram);
-      loadingProject = false;
+      try {
+        if (Array.isArray(msg.customParts)) {
+          editor.loadCustomParts(msg.customParts as CustomPartData[]);
+        }
+        editor.loadDiagram(loadedDiagram);
+      } finally {
+        // Un chargement qui lève ne doit pas laisser l'atelier muet pour de bon.
+        loadingProject = false;
+      }
       // Le schéma est ENFIN complet (composants ET fils) : c'est le seul moment
       // où les sondes reliées par un fil se résolvent. `onChange` s'est tu
       // pendant tout le montage, donc on pousse ici, une fois.

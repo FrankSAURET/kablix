@@ -616,6 +616,9 @@ export class Editor {
    *  aller-retour (pose puis annulation, ou suppression puis annulation) qui
    *  ramène au même état efface bien le point ●. */
   private savedHistoryIndex = 0;
+  /** Regroupement en cours (cf. `batch`) : profondeur et notify en attente. */
+  private batchDepth = 0;
+  private batchPending = false;
   /** Vrai pendant une restauration (annuler/refaire) : ne pas réenregistrer l'historique. */
   private restoring = false;
   /** Vrai pendant la fenêtre de settle qui suit un chargement (re-snap différé des
@@ -877,7 +880,12 @@ export class Editor {
     if (this.historyIndex >= 0 && this.history[this.historyIndex] === state) return;
     this.history.splice(this.historyIndex + 1); // efface le « refaire » devenu caduc
     this.history.push(state);
-    if (this.history.length > 100) this.history.shift();
+    if (this.history.length > 100) {
+      this.history.shift();
+      // La référence « enregistré » suit le décalage ; -1 = état enregistré
+      // sorti de la pile (le projet reste donc modifié).
+      this.savedHistoryIndex -= 1;
+    }
     this.historyIndex = this.history.length - 1;
   }
 
@@ -2116,6 +2124,7 @@ export class Editor {
     const end = (ev: PointerEvent): void => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
       this.clearBreadboardHighlights();
       // Clic sec (jamais déplacé) : pose au centre de la vue. Sinon : sous le curseur.
       at = dragged
@@ -2142,6 +2151,9 @@ export class Editor {
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', end);
+    // Geste annulé par le système : la pose se termine quand même, sinon
+    // `placingFromPalette` restait armé et la palette ne posait plus rien.
+    window.addEventListener('pointercancel', end);
   }
 
   /**
@@ -2606,7 +2618,15 @@ export class Editor {
     // fichier, fusion à la main — reçoivent un repère neuf, les fils suivant
     // par la table de correspondance.
     const idMap = new Map<string, string>();
+    // Type inconnu (composant perso absent, fichier d'une version plus récente) :
+    // la pièce et ses fils sont écartés, le reste du schéma s'ouvre.
+    const ecartes = new Set<string>();
     for (const p of data.parts ?? []) {
+      if (!knownPartType(p.type)) {
+        ecartes.add(p.id);
+        console.warn(`Kablix : composant de type inconnu ignoré (${p.type})`);
+        continue;
+      }
       const free = !p.id || this.diagram.parts.some((q) => q.id === p.id);
       const np: Part = { ...p, id: free ? this.freeRef(p.type) : p.id, attrs: migratePartAttrs(p) };
       idMap.set(p.id, np.id);
@@ -2619,6 +2639,7 @@ export class Editor {
       // mènent plus nulle part. On les écarte à l'ouverture plutôt que de les
       // garder invisibles dans le fichier — un fil qu'on ne voit pas mais qui
       // pèse dans la netlist est pire qu'un fil absent.
+      if (ecartes.has(w.a.partId) || ecartes.has(w.b.partId)) continue;
       if ([w.a, w.b].some((e) => this.isPinless(idMap.get(e.partId) ?? e.partId))) continue;
       const nw: Wire = {
         ...w,
@@ -3921,7 +3942,10 @@ export class Editor {
       e.preventDefault();
       if (this.selectedParts.size === 0 && this.selectedTexts.size > 0) {
         // Lot d'étiquettes seules (une ou plusieurs).
-        for (const id of [...this.selectedTexts]) this.removeText(id);
+        const textes = [...this.selectedTexts];
+        this.batch(() => {
+          for (const id of textes) this.removeText(id);
+        });
         this.selectedTexts.clear();
         this.select(null);
       } else if (this.selectedParts.size > 0) {
@@ -3934,13 +3958,19 @@ export class Editor {
         const textes = [...this.selectedTexts];
         this.selectedWires.clear();
         this.selectedTexts.clear();
-        for (const id of textes) this.removeText(id);
-        for (const id of wires) this.removeWire(id);
-        for (const id of ids) this.removePart(id);
+        // Un seul Ctrl+Z ramène tout le lot.
+        this.batch(() => {
+          for (const id of textes) this.removeText(id);
+          for (const id of wires) this.removeWire(id);
+          for (const id of ids) this.removePart(id);
+        });
         this.select(null);
       } else if (this.selectedWires.size > 0) {
         // Lot de câbles (Ctrl+clic) : suppression groupée.
-        for (const id of [...this.selectedWires]) this.removeWire(id);
+        const lot = [...this.selectedWires];
+        this.batch(() => {
+          for (const id of lot) this.removeWire(id);
+        });
         this.selectedWires.clear();
         this.renderInspector();
       } else if (this.selection?.kind === 'wire') {
@@ -6453,6 +6483,7 @@ export class Editor {
 
   /** Colle le presse-papier interne (composants décalés, fils internes conservés). */
   paste(): void {
+    if (this.locked) return;
     if (!this.clipboard || this.clipboard.parts.length === 0) return;
     this.insertPayload(this.clipboard);
   }
@@ -6524,7 +6555,13 @@ export class Editor {
 
   /** Duplique la sélection sur place (copie + colle). */
   duplicateSelection(): void {
+    if (this.locked) return;
+    // Rien de copiable (étiquette seule, sélection vide) : ne pas recoller un
+    // vieux presse-papier à la place.
+    if (this.selection?.kind === 'text') return;
+    const avant = this.clipboard;
     this.copySelection();
+    if (this.clipboard === avant) return;
     this.paste();
   }
 
@@ -7355,9 +7392,11 @@ export class Editor {
     // clic réel par verify:ascenseur).
     installerListeCrantee(list);
     const choose = (choice: string): void => {
-      for (const [attr, value] of Object.entries(transistorAttrs(choice, this.transistorFilter))) {
-        this.updatePartAttr(partId, attr, value);
-      }
+      this.batch(() => {
+        for (const [attr, value] of Object.entries(transistorAttrs(choice, this.transistorFilter))) {
+          this.updatePartAttr(partId, attr, value);
+        }
+      });
       this.pickingTransistor = null;
       this.renderInspector(); // retour à l'affichage normal des propriétés
     };
@@ -7676,7 +7715,9 @@ export class Editor {
     const ids = Array.isArray(partId) ? partId : [partId];
     const first = Array.isArray(part) ? part[0] : part;
     const setAttr = (attr: string, value: string): void => {
-      for (const id of ids) this.updatePartAttr(id, attr, value);
+      this.batch(() => {
+        for (const id of ids) this.updatePartAttr(id, attr, value);
+      });
     };
     // Propriété groupée : tout part dans le corps de sa section repliable.
     const host = this.propHost(first.type, prop.group, prop.groupNote);
@@ -7944,7 +7985,29 @@ export class Editor {
     return this.canvasPoint(dr.left + dr.width / 2, dr.top + dr.height / 2);
   }
 
+  /**
+   * Regroupe plusieurs modifications en UNE entrée d'historique et UN seul
+   * `onChange` : sans ça, supprimer un lot ou changer trois attributs d'un coup
+   * demandait autant de Ctrl+Z que d'éléments touchés.
+   */
+  batch(fn: () => void): void {
+    this.batchDepth += 1;
+    try {
+      fn();
+    } finally {
+      this.batchDepth -= 1;
+      if (this.batchDepth === 0 && this.batchPending) {
+        this.batchPending = false;
+        this.notify();
+      }
+    }
+  }
+
   private notify(): void {
+    if (this.batchDepth > 0) {
+      this.batchPending = true;
+      return;
+    }
     this.recordHistory();
     // Pendant le settle post-chargement, un notify ne traduit AUCUNE édition
     // utilisateur (re-snap différé, mise à l'échelle des dessins) : on cale la

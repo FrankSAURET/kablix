@@ -238,7 +238,7 @@ console.log('Mise en garde « série muette sur Pico » :');
 	// en silence — le lancement continue et l'erreur se dit.
 	const lancement = simSrc.slice(simSrc.indexOf('function startRun'), simSrc.indexOf('function stopRun'));
 	check('le câblage des entrées est protégé au lancement',
-		/try \{\s*rebind\(\);\s*\} catch/.test(lancement) && /engine\.start\(\);/.test(lancement));
+		/try \{\s*rebind\((?:true)?\);\s*\} catch/.test(lancement) && /engine\.start\(\);/.test(lancement));
 	check('un câblage en échec est dit à l’élève (console + barre d’état)',
 		/appendSerial\(`\s*── \$\{t\('Wiring error'\)\}/.test(lancement) &&
 		/signalerMessage\(t\('Error: \{0\}', detail\)\)/.test(lancement));

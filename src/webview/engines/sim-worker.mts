@@ -452,6 +452,14 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
     // qui ne viendra plus : elle repasse en mode dégradé (moteur sur son fil).
     stopPublishing();
     stopScreens();
+    // Le moteur fautif ne doit plus tourner derrière le repli.
+    try {
+      engine?.dispose();
+    } catch {
+      /* déjà en miettes */
+    }
+    engine = null;
+    bus = null;
     send({ t: 'error', message: err instanceof Error ? err.message : String(err) });
   }
 };

@@ -639,6 +639,9 @@ export class KompixLibrary {
     const wsPath = uri.fsPath;
     // Vérifie que ce fichier n'est pas DÉJÀ dans la bibliothèque
     if (wsPath.startsWith(this.libraryFolder)) return;
+    // Dossier non approuvé (mode restreint de VS Code) : rien n'entre tout seul
+    // dans la bibliothèque — un .kompix peut porter un script de comportement.
+    if (!vscode.workspace.isTrusted) return;
 
     try {
       const data = readFileSync(wsPath);
@@ -648,6 +651,13 @@ export class KompixLibrary {
       if (!manifestFile) return;
       const manifestText = await manifestFile.async('string');
       const manifest: KompixManifest = JSON.parse(manifestText);
+
+      // Le type devient un NOM DE FICHIER : lettres, chiffres, tiret, souligné —
+      // rien qui puisse sortir du dossier de la bibliothèque (`../`, `\`).
+      if (typeof manifest.type !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(manifest.type)) {
+        console.warn('Kompix ignoré, type invalide :', wsPath);
+        return;
+      }
 
       // Copie dans la bibliothèque, dédoublonné par type+version
       const targetPath = join(this.libraryFolder, `${manifest.type}.kompix`);

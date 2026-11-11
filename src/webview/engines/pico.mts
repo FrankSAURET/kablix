@@ -834,10 +834,13 @@ export class PicoEngine implements SimEngine {
     // adresses réelles : `bus.scan()` les renvoie sans sonder le matériel (le
     // sondage d'adresses absentes fige l'émulation I²C de rp2040js). Injecté dans
     // le script AVANT sa transmission au REPL (paste). Sans esclave → liste vide.
-    if (this.script && this.script.includes('_KX_I2C_ADDRS = None')) {
-      const addrs = devices.map((d) => '0x' + d.address.toString(16));
-      this.script = this.script.replace('_KX_I2C_ADDRS = None', `_KX_I2C_ADDRS = [${addrs.join(', ')}]`);
-    }
+    // La version instrumentée (mise au point) reçoit la même liste : sinon un
+    // point d'arrêt rebasculait sur un script dont `scan()` sonde le matériel.
+    const addrs = devices.map((d) => '0x' + d.address.toString(16));
+    const poser = (src: string): string =>
+      src.replace('_KX_I2C_ADDRS = None', `_KX_I2C_ADDRS = [${addrs.join(', ')}]`);
+    if (this.script) this.script = poser(this.script);
+    if (this.debugSource !== null) this.debugSource = poser(this.debugSource);
     // Chaque échange est aussi rejoué en fronts sur les broches SDA/SCL sondées
     // (cf. i2c-fronts.mts), AVANT le `complete*` : un NAK d'adresse enchaîne
     // le STOP dans la foulée, il doit suivre l'octet sur la ligne.

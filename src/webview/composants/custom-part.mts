@@ -169,6 +169,9 @@ export class CustomPartElement extends HTMLElement {
     shadow.append(style, this.wrapper);
   }
 
+  private poussoir = false;
+  private poussoirBranche = false;
+
   /** Définition du composant : injecte le SVG et calcule les broches. */
   set definition(def: PartDef) {
     if (!def.custom) return;
@@ -187,13 +190,20 @@ export class CustomPartElement extends HTMLElement {
       this.controlValue = (min + this.sliderMax()) / 2;
     }
     this.applyMove();
-    if (def.kind === 'pushbutton') {
+    // Écouteurs posés UNE fois : `definition` est réaffectée à chaque retouche du
+    // composant, et chaque passage en empilait trois de plus (N appuis par clic).
+    this.poussoir = def.kind === 'pushbutton';
+    if (this.poussoir && !this.poussoirBranche) {
+      this.poussoirBranche = true;
       this.wrapper.addEventListener('pointerdown', () => {
-        this.dispatchEvent(new Event('button-press'));
+        if (this.poussoir) this.dispatchEvent(new Event('button-press'));
       });
-      const release = () => this.dispatchEvent(new Event('button-release'));
+      const release = (): void => {
+        if (this.poussoir) this.dispatchEvent(new Event('button-release'));
+      };
       this.wrapper.addEventListener('pointerup', release);
       this.wrapper.addEventListener('pointerleave', release);
+      this.wrapper.addEventListener('pointercancel', release);
     }
   }
 

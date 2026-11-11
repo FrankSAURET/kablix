@@ -214,6 +214,7 @@
   "No Pico board detected. Plug one in over USB and try again.": "Aucune carte Pico détectée. Branchez-en une en USB et réessayez.",
   "Which Pico board?": "Quelle carte Pico ?",
   "An upload is already running.": "Un envoi est déjà en cours.",
+  "The upload tool did not answer in time and was stopped.": "L'outil d'envoi n'a pas répondu à temps : il a été arrêté.",
   "Cannot read {0}: {1}": "Lecture impossible de {0} : {1}",
   "program (required)": "programme (obligatoire)",
   "imported module": "module importé",

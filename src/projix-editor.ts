@@ -10,7 +10,6 @@ import {
 } from './layout';
 import { unpackProject } from './projix';
 import { PROJIX_VIEW_TYPE } from './openproject';
-import { trace } from './trace-focus';
 
 const l10n = vscode.l10n;
 
@@ -233,13 +232,10 @@ export class ProjixEditorProvider implements vscode.CustomEditorProvider<ProjixD
       const devientVisible = panel.visible && !visible;
       actif = panel.active;
       visible = panel.visible;
-      trace(`projix : actif ${panel.active}, visible ${panel.visible}, col ${panel.viewColumn}, ouvert ${ouvert}`);
       if (devientActif && ouvert) void session.revealCodeOnActivate(devientVisible);
     });
     const layout = () => {
-      trace('disposition : début');
       void applyDefaultLayout(this.context)
-        .then(() => trace('disposition : grille posée'))
         .then(async () => {
           // Disposition déjà posée dans la session : applyDefaultLayout n'a rien
           // fait. Un .projix ouvert depuis la colonne du CODE (zone active au
@@ -248,20 +244,16 @@ export class ProjixEditorProvider implements vscode.CustomEditorProvider<ProjixD
           // ramène de son côté (le tri replace aussi le verrou sur la zone Kablix).
           if (panel.viewColumn === codeColumn(this.context)) {
             await sortTabsIntoColumns(this.context);
-            trace(`disposition : atelier ramené, col ${panel.viewColumn}`);
           }
         })
         .then(() => lockSimulatorGroup())
         .then(async () => {
-          trace('disposition : groupe verrouillé');
           const groupsBefore = editorGroupCount();
           await session.revealPendingCodeFile();
-          trace('disposition : code montré');
           await settleLayoutAfterCode(this.context, groupsBefore);
         })
         .finally(() => {
           ouvert = true;
-          trace('disposition : fin');
         });
     };
     if (panel.active) {

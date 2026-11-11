@@ -66,13 +66,13 @@ export function compileExpr(source: string, varNames: string[]): Node {
 
   // term := power (('*'|'/'|'%') power)*
   const parseTerm = (): Node => {
-    let left = parsePower();
+    let left = parseUnary();
     for (;;) {
       skipWs();
       const op = peek();
       if (op !== '*' && op !== '/' && op !== '%') return left;
       pos++;
-      const right = parsePower();
+      const right = parseUnary();
       const l = left;
       left =
         op === '*' ? (v) => l(v) * right(v)
@@ -81,13 +81,15 @@ export function compileExpr(source: string, varNames: string[]): Node {
     }
   };
 
-  // power := unary ('^' power)?  — associative à droite (2^3^2 = 512)
+  // power := primary ('^' unary)?  — associative à droite (2^3^2 = 512).
+  // La puissance lie plus fort que le signe : -2^2 = -4, comme en maths (et
+  // 2^-1 reste lisible : l'exposant est un unaire).
   const parsePower = (): Node => {
-    const base = parseUnary();
+    const base = parsePrimary();
     skipWs();
     if (peek() !== '^') return base;
     pos++;
-    const exp = parsePower();
+    const exp = parseUnary();
     return (v) => Math.pow(base(v), exp(v));
   };
 
@@ -102,7 +104,7 @@ export function compileExpr(source: string, varNames: string[]): Node {
       pos++;
       return parseUnary();
     }
-    return parsePrimary();
+    return parsePower();
   };
 
   const parsePrimary = (): Node => {

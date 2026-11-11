@@ -41,7 +41,6 @@ import {
 } from './firmware';
 import { showPartHelp } from './partHelp';
 import { codeColumn, moveEditorToColumn, textTabColumn } from './layout';
-import { trace } from './trace-focus';
 import { defaultAppsDirPath, detectSvgEditor, svgEditorLaunch } from './svgEditorDetect';
 import { syncArduinoIdeBoard } from './arduinoIde';
 import { syncIntelliSense, remettreAuPoint } from './intellisense';
@@ -1311,7 +1310,8 @@ ${err instanceof Error ? err.message : String(err)}`
     const p = this.codeFileUri.fsPath;
     for (const folder of vscode.workspace.workspaceFolders ?? []) {
       const base = folder.uri.fsPath;
-      if (p.startsWith(base)) {
+      // Séparateur exigé : `C:\proj` ne doit pas « contenir » `C:\proj-bis\x.py`.
+      if (p === base || p.startsWith(base + '\\') || p.startsWith(base + '/')) {
         return p.slice(base.length).replace(/^[\\/]+/, '').replace(/\\/g, '/');
       }
     }
@@ -1405,11 +1405,9 @@ ${err instanceof Error ? err.message : String(err)}`
   ): Promise<vscode.TextEditor | undefined> {
     const target = codeColumn(this.context);
     const existing = textTabColumn(uri, target);
-    trace(`revealSource : cible col ${target}, onglet existant col ${existing}, kablix col ${this.panel.viewColumn}, préserver focus ${preserveFocus}`);
     if (existing !== undefined && existing !== target) {
       await vscode.window.showTextDocument(uri, { viewColumn: existing, preview: false });
       await moveEditorToColumn(uri, target);
-      trace('revealSource : onglet déplacé');
       if (preserveFocus) this.panel.reveal(undefined, false); // focus rendu au simulateur
     }
     return vscode.window.showTextDocument(uri, {
@@ -1467,7 +1465,6 @@ ${err instanceof Error ? err.message : String(err)}`
    */
   public async revealCodeOnActivate(devientVisible: boolean): Promise<void> {
     const uri = this.codeFileUri;
-    trace(`revealCodeOnActivate : devient visible ${devientVisible}, en cours ${this.revealingCode}, en attente ${!!this.pendingCodeReveal}`, false);
     if (!uri || this.revealingCode || this.pendingCodeReveal) return;
     if (/\.(hex|uf2|elf|bin)$/i.test(uri.fsPath)) return;
     if (this.gone.has('code')) return; // supprimé du disque : rien à rouvrir
@@ -2136,12 +2133,6 @@ ${err instanceof Error ? err.message : String(err)}`
     // Toute interaction de la webview marque cette session comme « active » :
     // les commandes globales (Enregistrer, Wokwi…) la ciblent.
     SimulatorPanel.lastActive = this;
-    if (msg?.type === 'traceDom') {
-      trace(`page : ${msg.text}`, false); // TRACE TEMPORAIRE v2026.11.1.293
-      return;
-    }
-    // TRACE TEMPORAIRE v2026.11.1.294 : les 40 premiers messages reçus de la page.
-    if (this.traceRecus++ < 40) trace(`page → hôte : ${String(msg?.type)}`, false);
     switch (msg?.type) {
       case 'ready':
         // La webview écoute enfin : tout ce qui a été émis pendant son chargement
@@ -3267,15 +3258,7 @@ ${err instanceof Error ? err.message : String(err)}`
    * seule une réouverture réparait. La file supprime la course : rien ne part
    * avant que la webview écoute pour de bon.
    */
-  /** TRACE TEMPORAIRE v2026.11.1.294 : compteurs des messages journalisés. */
-  private traceRecus = 0;
-  private traceEnvoyes = 0;
-
   private post(message: unknown): void {
-    // TRACE TEMPORAIRE v2026.11.1.294 : les 40 premiers messages envoyés.
-    if (this.traceEnvoyes++ < 40) {
-      trace(`hôte → page : ${String((message as { type?: unknown })?.type)}${this.webviewReady ? '' : ' (en file)'}`, false);
-    }
     if (!this.webviewReady) {
       this.postQueue.push(message);
       // Filet : si « ready » n'arrive jamais (bundle en erreur), on finit par
@@ -3326,7 +3309,6 @@ ${err instanceof Error ? err.message : String(err)}`
       this.readyTimer = undefined;
     }
     this.webviewReady = true;
-    trace(`file vidée : ${this.postQueue.length} message(s)`, false); // TRACE TEMPORAIRE v2026.11.1.294
     const attente = this.postQueue.splice(0);
     for (const m of attente) void this.panel.webview.postMessage(m);
   }

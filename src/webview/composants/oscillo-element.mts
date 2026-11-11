@@ -156,6 +156,7 @@ function fmt(x: number): string {
   const a = Math.abs(x);
   let s = x.toFixed(a >= 100 ? 0 : a >= 10 ? 1 : 2);
   if (s.includes('.')) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  if (s === '-0') s = '0'; // un arrondi négatif ne s'affiche pas « -0 »
   return s.replace('.', ',');
 }
 
@@ -600,10 +601,12 @@ export class OscilloElement extends HTMLElement {
     const lacher = (): void => {
       window.removeEventListener('pointermove', suivre);
       window.removeEventListener('pointerup', lacher);
+      window.removeEventListener('pointercancel', lacher);
       this.announce();
     };
     window.addEventListener('pointermove', suivre);
     window.addEventListener('pointerup', lacher);
+    window.addEventListener('pointercancel', lacher);
     suivre(e);
   }
 
@@ -639,10 +642,12 @@ export class OscilloElement extends HTMLElement {
     const lacher = (): void => {
       window.removeEventListener('pointermove', suivre);
       window.removeEventListener('pointerup', lacher);
+      window.removeEventListener('pointercancel', lacher);
       this.announce();
     };
     window.addEventListener('pointermove', suivre);
     window.addEventListener('pointerup', lacher);
+    window.addEventListener('pointercancel', lacher);
     suivre(e);
   }
 
@@ -665,10 +670,12 @@ export class OscilloElement extends HTMLElement {
     const lacher = (): void => {
       window.removeEventListener('pointermove', suivre);
       window.removeEventListener('pointerup', lacher);
+      window.removeEventListener('pointercancel', lacher);
       this.announce();
     };
     window.addEventListener('pointermove', suivre);
     window.addEventListener('pointerup', lacher);
+    window.addEventListener('pointercancel', lacher);
     suivre(e);
   }
 

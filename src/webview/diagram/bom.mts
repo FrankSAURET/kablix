@@ -220,7 +220,11 @@ export function bomRows(parts: readonly Part[]): BomRow[] {
 
 /** Échappe une cellule : guillemets doublés dès qu'elle contient ; " ou un saut. */
 function cell(value: string): string {
-  return /[;"\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  // Cellule qu'un tableur prendrait pour une FORMULE (=, @, ou +/- suivi d'autre
+  // chose qu'un nombre) : apostrophe devant, elle reste du texte. « -12 V » et
+  // « +5 V » passent tels quels.
+  const sur = /^[=@\t\r]/.test(value) || /^[+-](?![\d.,\s]|$)/.test(value) ? `'${value}` : value;
+  return /[;"\n\r]/.test(sur) ? `"${sur.replace(/"/g, '""')}"` : sur;
 }
 
 /**

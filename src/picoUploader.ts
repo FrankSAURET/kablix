@@ -185,6 +185,8 @@ export interface BootselDrive {
 
 /** Délai laissé à la carte pour réapparaître en lecteur après `machine.bootloader()`. */
 const BOOTSEL_WAIT_MS = 15000;
+/** Délai de garde des commandes courtes de l'outil (arrêt, passage en BOOTSEL). */
+const TOOL_TIMEOUT_MS = 30000;
 
 /**
  * Lecteurs BOOTSEL montés. Le bootloader du RP2040 (« RPI-RP2 ») comme celui
@@ -817,11 +819,16 @@ export class PicoUploader {
       const child = execFile(
         exe,
         [this.scriptPath, ...args],
-        { maxBuffer: 4 * 1024 * 1024 },
+        // Délai de garde : un port série muet (carte débranchée en plein envoi)
+        // laissait l'outil pendu, et l'envoi « occupé » jusqu'au redémarrage.
+        { maxBuffer: 4 * 1024 * 1024, timeout: TOOL_TIMEOUT_MS, killSignal: 'SIGKILL' },
         (err, stdout, stderr) => {
           if (stdout) out.append(stdout);
           if (stderr) out.append(stderr);
           if (!err) return resolve();
+          if (err.killed) {
+            return reject(new Error(vscode.l10n.t('The upload tool did not answer in time and was stopped.')));
+          }
           // ENOENT : Python absent du système, message explicite plutôt qu'un
           // code de sortie sans explication.
           if ((err as NodeJS.ErrnoException).code === 'ENOENT') {

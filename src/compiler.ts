@@ -1713,8 +1713,28 @@ async function compileFresh(
   extensionPath: string,
   toolPaths: ToolPaths
 ): Promise<CompileResult> {
-  const searchDir = toolPaths.searchDir;
+  // Dossier de travail jeté à la sortie, réussite ou échec : chaque compilation
+  // laissait le sien dans le dossier temporaire du système, pour toujours.
   const tmp = mkdtempSync(join(tmpdir(), 'kablix-'));
+  try {
+    return await compileDans(tmp, board, filePath, extensionPath, toolPaths);
+  } finally {
+    try {
+      rmSync(tmp, { recursive: true, force: true });
+    } catch {
+      /* fichier encore tenu par un outil : tant pis, le système fera le ménage */
+    }
+  }
+}
+
+async function compileDans(
+  tmp: string,
+  board: Board,
+  filePath: string,
+  extensionPath: string,
+  toolPaths: ToolPaths
+): Promise<CompileResult> {
+  const searchDir = toolPaths.searchDir;
   const log: string[] = [];
 
   if (isAvrBoard(board)) {

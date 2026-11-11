@@ -156,7 +156,9 @@ function fractionDepuisFreq(hz: number): number {
 export function formaterFreq(hz: number): string {
   const [valeur, unite] = hz >= 1_000_000 ? [hz / 1_000_000, 'MHz'] : hz >= 1000 ? [hz / 1000, 'kHz'] : [hz, 'Hz'];
   const texte = valeur >= 100 ? valeur.toFixed(0) : valeur >= 10 ? valeur.toFixed(1) : valeur.toFixed(2);
-  return `${texte.replace(/[.,]?0+$/, '').replace('.', ',')} ${unite}`;
+  // Zéros de fin retirés seulement APRÈS la virgule : « 100 » doit rester « 100 ».
+  const net = texte.includes('.') ? texte.replace(/\.?0+$/, '') : texte;
+  return `${net.replace('.', ',')} ${unite}`;
 }
 
 export class GbfElement extends HTMLElement {
@@ -204,7 +206,10 @@ export class GbfElement extends HTMLElement {
 
   private lireAttributs(): void {
     const nombre = (nom: string, defaut: number, min: number, max: number): number => {
-      const v = Number(this.getAttribute(nom));
+      const brut = this.getAttribute(nom);
+      // Attribut absent ou vide : la valeur par défaut, pas 0.
+      if (brut === null || brut.trim() === '') return defaut;
+      const v = Number(brut);
       return Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : defaut;
     };
     this.freq = nombre('frequency', 1000, FREQ_MIN, FREQ_MAX);
@@ -301,6 +306,7 @@ export class GbfElement extends HTMLElement {
     this.tournerDepuisEvent(e, knob);
     window.addEventListener('pointermove', this.onPointerMove);
     window.addEventListener('pointerup', this.onPointerUp);
+    window.addEventListener('pointercancel', this.onPointerUp);
   };
 
   private onSliderDown = (e: Event): void => {
@@ -311,6 +317,7 @@ export class GbfElement extends HTMLElement {
     this.glisserDepuisEvent(e as PointerEvent);
     window.addEventListener('pointermove', this.onSliderMove);
     window.addEventListener('pointerup', this.onPointerUp);
+    window.addEventListener('pointercancel', this.onPointerUp);
   };
 
   private onPointerMove = (e: PointerEvent): void => {
@@ -326,6 +333,7 @@ export class GbfElement extends HTMLElement {
     window.removeEventListener('pointermove', this.onPointerMove);
     window.removeEventListener('pointermove', this.onSliderMove);
     window.removeEventListener('pointerup', this.onPointerUp);
+    window.removeEventListener('pointercancel', this.onPointerUp);
   };
 
   /** Coordonnées de l'événement dans le repère du dessin (px du viewBox). */

@@ -1704,6 +1704,7 @@ export function avanceNecessaireMs(p: Protocole): number {
  * confond avec rien : c'est un point de départ sûr.
  */
 export function repriseAvant(r: ReglageDecodage, voies: VoieCapture[], t: number): number | null | undefined {
+  if (r.protocole === 'i2c') return repriseI2c(r, voies, t);
   if (r.protocole !== 'onewire') return undefined;
   const v = voie(voies, r.donnees);
   if (!v) return null;
@@ -1720,6 +1721,25 @@ export function repriseAvant(r: ReglageDecodage, voies: VoieCapture[], t: number
     const g = f[j]!;
     if (g.niveau === 1) montant = g.t;
     else if (montant !== null && (montant - g.t) / usMs >= OW.reset) return g.t;
+  }
+  return null;
+}
+
+/**
+ * I²C : le dernier START ou STOP avant `t` (front de SDA pendant que SCL est
+ * haute). Sans ce recalage, une vue qui s'ouvrait au milieu d'une trame ne
+ * décodait rien jusqu'au START suivant : l'adresse et les premiers octets
+ * disparaissaient en zoomant ou en faisant glisser la courbe.
+ */
+function repriseI2c(r: ReglageDecodage, voies: VoieCapture[], t: number): number | null {
+  const scl = voie(voies, r.horloge);
+  const sda = voie(voies, r.donnees);
+  if (!scl || !sda) return null;
+  for (let j = indiceApres(sda.fronts, t) - 1; j >= 0; j--) {
+    const fs = sda.fronts[j]!;
+    const avant = frontAvant(scl.fronts, fs.t, Number.NEGATIVE_INFINITY, null);
+    const niveauScl = avant ? avant.niveau : scl.niveauInitial;
+    if (niveauScl === 1) return fs.t;
   }
   return null;
 }

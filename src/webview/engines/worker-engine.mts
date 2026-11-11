@@ -340,6 +340,10 @@ export class WorkerEngine implements SimEngine {
         return;
       case 'error':
         console.error('[kablix] moteur worker :', msg.message);
+        // Le moteur est mort dans son fil : même repli que pour un fil interrompu,
+        // sinon la simulation restait figée sans rien dire. Jamais après la
+        // fermeture : une erreur tardive relancerait une simulation arrêtée.
+        if (!this.disposed) this.onFailure?.();
         return;
       default:
         return;
