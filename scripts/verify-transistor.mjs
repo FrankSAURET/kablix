@@ -923,6 +923,23 @@ export { meterReadings, commandedBridges, setActiveBridges, transistorStates } f
 		ok: proche(vMosPetit, 5 * 0.5 / (0.5 + 100 + 1), 0.01) && vMosPetit < vMos,
 		detail: `${vMosPetit} V contre ${vMos} V`,
 	});
+	// Zéro est une valeur, pas une case vide : un canal idéal (Rds(on) = 0) ne
+	// chute rien. Avant, « 0 » retombait en silence sur la valeur par défaut.
+	const vMosZero = lire(banc({ ...MOS, rdson: '0', vgsth: '2.1' }, '100', true), true);
+	const vMosVide = lire(banc({ ...MOS, rdson: '', vgsth: '2.1' }, '100', true), true);
+	rows.push({
+		name: 'MOSFET : Rds(on) = 0 est respecté (canal idéal, 0 V à ses bornes)',
+		ok: Number.isFinite(vMosZero) && proche(vMosZero, 0, 0.005), detail: `${vMosZero} V`,
+	});
+	rows.push({
+		name: 'MOSFET : Rds(on) laissé vide retombe sur la valeur par défaut (pas 0)',
+		ok: Number.isFinite(vMosVide) && vMosVide > 0.005, detail: `${vMosVide} V`,
+	});
+	const vSeuilZero = lire(banc({ ...MOS, rdson: '2.5', vgsth: '0' }, '100', true), true);
+	rows.push({
+		name: 'MOSFET : Vgs(th) = 0 est respecté (canal ouvert, lecture finie)',
+		ok: Number.isFinite(vSeuilZero) && proche(vSeuilZero, 5 * 2.5 / (2.5 + 100 + 1), 0.01), detail: `${vSeuilZero} V`,
+	});
 	// L'inverse du bipolaire : ici la charge CHANGE la lecture, puisque c'est une
 	// résistance traversée par le courant de la maille.
 	const vMosCharge = lire(banc({ ...MOS, rdson: '2.5', vgsth: '2.1' }, '10', true), true);

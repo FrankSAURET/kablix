@@ -3,7 +3,7 @@
   "displayName": "Kablix",
   "private": true,
   "version": "2026.11.2",
-  "buildNumber": 305,
+  "buildNumber": 306,
   "description": "%kablix.description%",
   "publisher": "electropol-fr",
   "author": {
@@ -334,6 +334,11 @@
           "type": "boolean",
           "default": true,
           "description": "%kablix.config.picowNetworkBridge%"
+        },
+        "kablix.picowServerOnLan": {
+          "type": "boolean",
+          "default": false,
+          "description": "%kablix.config.picowServerOnLan%"
         },
         "kablix.selectionColor": {
           "type": "string",

@@ -45,7 +45,7 @@ import { defaultAppsDirPath, detectSvgEditor, svgEditorLaunch } from './svgEdito
 import { syncArduinoIdeBoard } from './arduinoIde';
 import { syncIntelliSense, remettreAuPoint } from './intellisense';
 import { versionPublique } from './version';
-import { PicoNetServer, lanAddress, enHexa, depuisHexa } from './netserver';
+import { PicoNetServer, enHexa, depuisHexa } from './netserver';
 
 const ARTIFACT_EXTS = ['.hex', '.uf2', '.elf', '.bin'];
 
@@ -2538,9 +2538,12 @@ ${err instanceof Error ? err.message : String(err)}`
     try {
       switch (req.op) {
         case 'listen': {
-          const { ip, port } = await srv.listen(req.port ?? 80);
-          this.announceNetServer(ip, port);
-          reply({ ip, port });
+          const ouvert = vscode.workspace
+            .getConfiguration('kablix')
+            .get<boolean>('picowServerOnLan', false);
+          const { ip, port, lan } = await srv.listen(req.port ?? 80, ouvert);
+          this.announceNetServer(ip, port, lan);
+          reply({ ip, port, lan });
           return;
         }
         case 'accept': {
@@ -2568,7 +2571,7 @@ ${err instanceof Error ? err.message : String(err)}`
           reply({});
           return;
         case 'apinfo':
-          reply({ ip: lanAddress(), port: srv.port });
+          reply({ ip: srv.address, port: srv.port });
           return;
         default:
           reply({ error: `unsupported op: ${String(req.op)}` });
@@ -2584,15 +2587,20 @@ ${err instanceof Error ? err.message : String(err)}`
    * faite pour être ouverte depuis un autre appareil — sans l'adresse exacte,
    * elle est introuvable.
    */
-  private announceNetServer(ip: string, port: number): void {
+  private announceNetServer(ip: string, port: number, lan: boolean): void {
     const url = `http://${ip}:${port}/`;
     if (this.netServerAnnounced === url) return;
     this.netServerAnnounced = url;
     vscode.window.showInformationMessage(
-      l10n.t(
-        'Kablix: the simulated Pico W is serving on {0} — open it from a phone on the same network.',
-        url
-      )
+      lan
+        ? l10n.t(
+            'Kablix: the simulated Pico W is serving on {0} — open it from a phone on the same network.',
+            url
+          )
+        : l10n.t(
+            'Kablix: the simulated Pico W is serving on {0} — open it in a browser on this computer. To reach it from a phone, enable the setting "kablix.picowServerOnLan".',
+            url
+          )
     );
   }
 

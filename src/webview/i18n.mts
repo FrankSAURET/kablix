@@ -914,6 +914,10 @@ const FR: Record<string, string> = {
     'La broche {0} est câblée sur ce composant mais le code ne l\'utilise jamais',
   'This component is wired to a pin that the code never uses, so it will do nothing. Use the pin in the code, or move the wire.':
     'Ce composant est câblé sur une broche que le code n\'emploie jamais : il ne fera rien. Utilisez la broche dans le code, ou déplacez le fil.',
+  'Line {0}: the code drives {1} LEDs but the strip has {2}':
+    'Ligne {0} : le code pilote {1} LED mais le ruban en compte {2}',
+  'The code drives fewer LEDs than the strip has. The LED right after the last one driven receives the end frame (0xFF bytes) and lights up white. Set the same number of LEDs in the code and on the strip, or end the frame with 0x00 bytes.':
+    'Le code pilote moins de LED que le ruban n\'en compte. La LED qui suit la dernière pilotée reçoit la trame de fin (octets 0xFF) et s\'allume en blanc. Réglez le même nombre de LED dans le code et sur le ruban, ou terminez la trame par des octets 0x00.',
   'Line {0}: the program is stuck waiting for pin {1}':
     'Ligne {0} : le programme reste bloqué à attendre la broche {1}',
   'This loop does nothing but wait for the pin to change: while it lasts, the program can do nothing else. Use an interrupt (attachInterrupt / pin.irq) so the program stays free.':

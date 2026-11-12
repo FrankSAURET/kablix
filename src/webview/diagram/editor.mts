@@ -8303,22 +8303,32 @@ export class Editor {
     e.stopPropagation();
     this.select({ kind: 'text', id: note.id });
     const release = this.capturePointer(e);
+    let moved = false;
     const move = (ev: PointerEvent): void => {
       if (!note.link) return;
       const p = this.canvasPoint(ev.clientX, ev.clientY);
       // Pas d'accrochage à la grille : l'extrémité se pose au pixel.
       note.link.x = Math.max(0, Math.min(SHEET_W, p.x));
       note.link.y = Math.max(0, Math.min(SHEET_H, p.y));
+      moved = true;
       this.redrawTextLinks();
     };
     const up = (): void => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      window.removeEventListener('blur', up);
       release();
-      this.notify();
+      // Rien n'a bougé (clic sec, connecteur retiré pendant le geste) : pas
+      // d'entrée d'historique vide.
+      if (moved && note.link) this.notify();
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
+    // Geste annulé par le système (ou fenêtre quittée) : aucun `pointerup` ne
+    // vient, et l'extrémité restait collée au curseur.
+    window.addEventListener('pointercancel', up);
+    window.addEventListener('blur', up);
   }
 
   /**
@@ -8558,10 +8568,22 @@ export class Editor {
       }
     };
 
-    const up = (): void => {
+    const detacher = (): void => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', annule);
+      window.removeEventListener('blur', annule);
       release();
+    };
+    // Geste annulé par le système (ou fenêtre quittée) : aucun `pointerup` ne
+    // vient, et l'étiquette restait collée au curseur. Elle se pose où elle
+    // est ; ce n'est PAS un clic, donc ni réduction du lot ni saisie ouverte.
+    const annule = (): void => {
+      detacher();
+      if (moved) this.notify();
+    };
+    const up = (): void => {
+      detacher();
       if (moved) {
         this.notify();
       } else if (inMulti) {
@@ -8576,6 +8598,8 @@ export class Editor {
 
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', annule);
+    window.addEventListener('blur', annule);
   }
 
   /** Étiquettes du lot courant avec leur position d'origine (déplacement groupé).

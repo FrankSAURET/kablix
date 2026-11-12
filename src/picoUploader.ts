@@ -309,10 +309,11 @@ export class PicoUploader {
    * Relit la liste des cartes et publie l'état dans le contexte VS Code, qui
    * décide laquelle des deux icônes (active/inactive) s'affiche dans l'onglet.
    */
-  private async refresh(): Promise<void> {
+  private async refresh(force = false): Promise<void> {
     // Pendant un téléversement le port est occupé : le relire ferait clignoter
-    // le bouton, et sur Windows la requête WMI est lente.
-    if (this.busy) return;
+    // le bouton, et sur Windows la requête WMI est lente. `force` : relecture
+    // voulue pendant qu'une opération tient le verrou (choix de la carte).
+    if (this.busy && !force) return;
     const before = this.isConnected();
     try {
       this.ports = await detectPicoPorts();
@@ -331,10 +332,31 @@ export class PicoUploader {
 
   private firstRefresh = true;
 
+  /**
+   * Une seule opération à la fois sur la carte. Le verrou est pris AVANT la
+   * première attente (fenêtre de choix, détection) : posé après, un second clic
+   * pendant le choix du port lançait deux envois sur le même port.
+   */
+  private async exclusive(fn: () => Promise<void>): Promise<void> {
+    if (this.busy) {
+      void vscode.window.showInformationMessage(
+        vscode.l10n.t('An upload is already running.')
+      );
+      return;
+    }
+    this.busy = true;
+    try {
+      await fn();
+    } finally {
+      this.busy = false;
+      void this.refresh();
+    }
+  }
+
   /** Carte à utiliser : rien à demander s'il n'y en a qu'une. */
   private async pickPort(): Promise<string | undefined> {
     if (this.ports.length === 0) {
-      await this.refresh();
+      await this.refresh(true);
       if (this.ports.length === 0) {
         void vscode.window.showWarningMessage(
           vscode.l10n.t('No Pico board detected. Plug one in over USB and try again.')
@@ -360,13 +382,11 @@ export class PicoUploader {
    * modules importés l'accompagnent ; une fenêtre de décochage n'apparaît que
    * s'il y a plus d'un fichier.
    */
-  async upload(scriptPath: string): Promise<void> {
-    if (this.busy) {
-      void vscode.window.showInformationMessage(
-        vscode.l10n.t('An upload is already running.')
-      );
-      return;
-    }
+  upload(scriptPath: string): Promise<void> {
+    return this.exclusive(() => this.uploadLocked(scriptPath));
+  }
+
+  private async uploadLocked(scriptPath: string): Promise<void> {
     let items: UploadItem[];
     try {
       items = planUpload(scriptPath);
@@ -412,7 +432,6 @@ export class PicoUploader {
 
     const out = this.channel();
     out.clear();
-    this.busy = true;
     let microPico = false;
     try {
       await vscode.window.withProgress(
@@ -450,9 +469,6 @@ export class PicoUploader {
       // Rien ne tourne de neuf sur la carte : MicroPico peut reprendre le port.
       if (microPico || this.microPicoHeld) reconnectMicroPico(out);
       this.microPicoHeld = false;
-    } finally {
-      this.busy = false;
-      void this.refresh();
     }
   }
 
@@ -560,30 +576,22 @@ export class PicoUploader {
    * elle reste au REPL `>>>`, sans redémarrer. `main.py` n'est pas effacé et
    * repartira au prochain branchement.
    */
-  async stop(): Promise<void> {
-    if (this.busy) {
-      void vscode.window.showInformationMessage(
-        vscode.l10n.t('An upload is already running.')
-      );
-      return;
-    }
+  stop(): Promise<void> {
+    return this.exclusive(() => this.stopLocked());
+  }
+
+  private async stopLocked(): Promise<void> {
     // Le terminal Pico tient le port : le Ctrl-C passe par lui, puis le relais
     // rend le port et le terminal se ferme. MicroPico, s'il le tenait avant
     // l'envoi, le reprend : plus rien à interrompre.
     if (this.console.isRunning()) {
-      this.busy = true;
-      try {
-        await this.console.stopAndClose();
-        if (this.microPicoHeld) reconnectMicroPico(this.channel());
-        this.microPicoHeld = false;
-        void vscode.window.setStatusBarMessage(
-          vscode.l10n.t('Program stopped on the Pico ({0}).', this.lastPort ?? '?'),
-          4000
-        );
-      } finally {
-        this.busy = false;
-        void this.refresh();
-      }
+      await this.console.stopAndClose();
+      if (this.microPicoHeld) reconnectMicroPico(this.channel());
+      this.microPicoHeld = false;
+      void vscode.window.setStatusBarMessage(
+        vscode.l10n.t('Program stopped on the Pico ({0}).', this.lastPort ?? '?'),
+        4000
+      );
       return;
     }
     const port = await this.pickPort();
@@ -593,7 +601,6 @@ export class PicoUploader {
     const out = this.channel();
     out.clear();
     out.appendLine(`> ${port} — Ctrl-C`);
-    this.busy = true;
     let microPico = false;
     try {
       microPico = await releaseMicroPico();
@@ -611,8 +618,6 @@ export class PicoUploader {
     } finally {
       // Carte au REPL, plus rien à interrompre : MicroPico peut reprendre le port.
       if (microPico) reconnectMicroPico(out);
-      this.busy = false;
-      void this.refresh();
     }
   }
 
@@ -626,17 +631,19 @@ export class PicoUploader {
    * La puce du lecteur est comparée à celle du firmware : un firmware RP2040
    * ne part jamais sur une Pico 2, et inversement.
    */
-  async flashFirmware(
+  flashFirmware(
     uf2Path: string,
     boardLabel: string,
     chip: 'RP2040' | 'RP2350'
   ): Promise<void> {
-    if (this.busy) {
-      void vscode.window.showInformationMessage(
-        vscode.l10n.t('An upload is already running.')
-      );
-      return;
-    }
+    return this.exclusive(() => this.flashLocked(uf2Path, boardLabel, chip));
+  }
+
+  private async flashLocked(
+    uf2Path: string,
+    boardLabel: string,
+    chip: 'RP2040' | 'RP2350'
+  ): Promise<void> {
     const file = basename(uf2Path);
     const install = vscode.l10n.t('Install');
     const retry = vscode.l10n.t('Retry');
@@ -658,7 +665,7 @@ export class PicoUploader {
         return;
       }
 
-      await this.refresh();
+      await this.refresh(true);
       if (this.ports.length > 0) {
         const port = await this.pickPort();
         if (!port) return;
@@ -701,7 +708,6 @@ export class PicoUploader {
     const out = this.channel();
     out.clear();
     out.appendLine(`> ${port} — BOOTSEL`);
-    this.busy = true;
     let drive: BootselDrive | undefined;
     try {
       drive = await vscode.window.withProgress(
@@ -732,8 +738,6 @@ export class PicoUploader {
       if (this.microPicoHeld) reconnectMicroPico(out);
       this.microPicoHeld = false;
       return;
-    } finally {
-      this.busy = false;
     }
     if (!drive) {
       void vscode.window.showErrorMessage(
@@ -770,7 +774,6 @@ export class PicoUploader {
     const out = this.channel();
     if (!fromSerial) out.clear();
     out.appendLine(`> ${drive.path} — ${basename(uf2Path)}`);
-    this.busy = true;
     try {
       await vscode.window.withProgress(
         {
@@ -804,9 +807,6 @@ export class PicoUploader {
       void vscode.window.showErrorMessage(
         vscode.l10n.t('Firmware installation failed: {0}', message)
       );
-    } finally {
-      this.busy = false;
-      void this.refresh();
     }
   }
 

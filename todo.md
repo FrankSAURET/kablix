@@ -3,6 +3,22 @@
 
 ---
 
+# v2026.11.2.306 — restes de l'audit, tranchés par Frank
+
+1. ✅ **Serveur du Pico W simulé : local par défaut** — `PicoNetServer.listen(port, lan)` écoute sur `127.0.0.1` ; le réglage `kablix.picowServerOnLan` (faux par défaut) rouvre `0.0.0.0`. `ifconfig()[0]` et l'annonce donnent l'adresse où la page répond vraiment. ℹ️ Pas de fausse `192.168.4.1` : elle ne répondrait à rien. Fiches `picow`/`pico2w` FR à jour.
+2. ✅ **`numAttr` accepte 0 là où il a un sens** — paramètre `zeroOk` ; vrai pour `rdson`, `vcesat`, `vgsth`. Partout ailleurs 0 retombe encore sur le défaut (diviseurs). `verify:transistor` : Rds(on) = 0, vide, Vgs(th) = 0.
+3. ✅ **Envoi Pico : verrou pris dès l'entrée** — `exclusive(fn)` pose `busy` avant toute attente (`upload`, `stop`, `flashFirmware`) ; un second envoi dit « An upload is already running. ». `refresh(force)` pour la détection sous verrou.
+4. ✅ **`buildI2cDevices()` dans le `try` de `startRun`** — un périphérique de bus mal décrit n'emporte plus le lancement ; `verify:rfid` accordé.
+5. ✅ **Étiquettes de texte** — `onTextPointerDown` et `onTextLinkPointerDown` : `pointercancel` et `blur` lâchent le geste (sans clic : ni saisie ouverte, ni lot réduit) ; plus d'entrée d'historique vide sur un clic sec du connecteur.
+6. ✅ **Linter : ruban APA102 plus long que piloté** — règle `strip-length` : un seul ruban APA102 câblé, une seule boucle `for` à borne résolue autour de `0xE0`, borne < LED dessinées → avertissement sur le ruban (la LED suivante reçoit la trame de fin et s'allume en blanc). Dans le doute, silence. `verify:linter` A8 (11 contrôles).
+7. ✅ **Tests à vraie souris de `pointercancel`** — `verify:souris` : appui au doigt puis `touchCancel` (CDP) sur la palette et sur une étiquette ; contre-épreuve faite pour les deux (échec sans l'écoute). 68 contrôles.
+8. ✅ **`src/trace-focus.ts` déplacé** dans `A Examiner/src/` (demande de Frank).
+9. ℹ️ **`.kompix` du dossier de travail classé `local`** : laissé tel quel (choix de conception, confirmé).
+10. ⏳ **Reste de l'audit, non tranché** : annulation qui déclare le projet propre (`settling`/`restoring`) ; SVG interne des composants perso en `innerHTML`.
+11. ⏳ ES/ZH : chaînes du linter `strip-length` (2), message du serveur local, « An upload is already running. », `kablix.config.picowServerOnLan` ; `docs/en` (et ES/ZH) des fiches `picow`/`pico2w`.
+
+---
+
 # v2026.11.2.305 — audit complet : corrections
 
 1. ✅ **Trace temporaire retirée** (demande de Frank, 11/11) : script de la webview, appels dans `extension.ts`, `panel.ts`, `projix-editor.ts`, `sim.mts`. ℹ️ `src/trace-focus.ts` reste sur disque, orphelin : pas de suppression sans ordre.

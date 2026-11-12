@@ -3053,9 +3053,17 @@ function partAttr(part: Part, name: string, dflt: string): string {
   return part.attrs?.[name] ?? partDef(part.type).attrs?.[name] ?? dflt;
 }
 
-function numAttr(part: Part, name: string, dflt: number): number {
-  const v = Number(part.attrs?.[name] ?? part.attrs?.[`prm_${name}`] ?? partDef(part.type).attrs?.[name]);
-  return Number.isFinite(v) && v > 0 ? v : dflt;
+/**
+ * Attribut numérique. Une valeur absente, illisible ou négative rend `dflt`.
+ * Zéro aussi, sauf `zeroOk` : il sert de diviseur chez la plupart des appelants
+ * (tension, courant, gain), mais c'est une vraie valeur pour un composant idéal
+ * (Rds(on), Vce(sat), Vgs(th) nuls) — saisie, elle était remplacée en silence.
+ */
+function numAttr(part: Part, name: string, dflt: number, zeroOk = false): number {
+  const brut = part.attrs?.[name] ?? part.attrs?.[`prm_${name}`] ?? partDef(part.type).attrs?.[name];
+  if (brut === undefined || brut === null || String(brut).trim() === '') return dflt;
+  const v = Number(brut);
+  return Number.isFinite(v) && (v > 0 || (zeroOk && v === 0)) ? v : dflt;
 }
 
 /**
@@ -3157,8 +3165,8 @@ export function transistorStates(
       ? 0
       : darlington && (part.attrs?.vcesat ?? '') === ''
         ? vcesatDefaut
-        : numAttr(part, 'vcesat', vcesatDefaut);
-    const ohms = mos ? Math.max(0, numAttr(part, 'rdson', RDSON_DEFAULT)) : 0;
+        : numAttr(part, 'vcesat', vcesatDefaut, true);
+    const ohms = mos ? numAttr(part, 'rdson', RDSON_DEFAULT, true) : 0;
     const level = (pin: string): Level =>
       netLevel(diagram, nets, nets.netOf({ partId: part.id, pin }), readPin);
     // Broche de carte qui attaque la commande : directement sur la base/grille,
@@ -3189,7 +3197,7 @@ export function transistorStates(
     //    tranche. C'est le cas neuf, celui qui était faux.
     if (mos) {
       const gate = mosGateVolts(diagram, g, part, pins, npn, vcc, readPin, psuVolts);
-      const seuil = numAttr(part, 'vgsth', VGSTH_DEFAULT);
+      const seuil = numAttr(part, 'vgsth', VGSTH_DEFAULT, true);
       // Un canal N s'ouvre sur un Vgs POSITIF, un canal P sur un Vgs négatif :
       // `mosGateVolts` rend déjà la valeur dans le sens qui ouvre, donc un
       // résultat négatif veut dire « commande à l'envers », pas « ça ouvre ».

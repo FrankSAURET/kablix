@@ -4,7 +4,9 @@
 // de point d'accès, et aucun téléphone ne peut rejoindre un réseau qui n'existe
 // pas. Le module `socket` du script est donc un shim (cf. `shared/pynet.ts`)
 // qui délègue ici : c'est VS Code qui ouvre la vraie prise, sur le réseau de la
-// machine. Le téléphone rejoint le Wi-Fi du PC et ouvre l'adresse annoncée —
+// machine (127.0.0.1 par défaut ; tout le réseau local si le réglage
+// `kablix.picowServerOnLan` le demande). Le téléphone rejoint alors le Wi-Fi du
+// PC et ouvre l'adresse annoncée —
 // le script, lui, voit exactement ce qu'il verrait sur la vraie carte : une
 // connexion acceptée, des octets de requête, des octets de réponse à écrire.
 //
@@ -77,6 +79,13 @@ export class PicoNetServer {
   private pending: number[] = [];
   private accepters: AcceptWaiter[] = [];
   private boundPort = 0;
+  /** Prise ouverte au réseau local (réglage `kablix.picowServerOnLan`) ou à la machine seule. */
+  private lan = false;
+
+  /** Adresse à ouvrir pour joindre le serveur : celle du réseau local, ou la machine elle-même. */
+  get address(): string {
+    return this.lan ? lanAddress() : '127.0.0.1';
+  }
 
   /** Port réellement ouvert (0 si le serveur est arrêté). */
   get port(): number {
@@ -89,20 +98,26 @@ export class PicoNetServer {
    * par http.sys sous Windows) : on se rabat alors sur 8080 puis sur un port
    * libre, et on annonce celui qu'on a obtenu — mentir laisserait le
    * téléphone frapper à une porte fermée.
+   *
+   * `lan` faux (défaut) : la prise n'écoute que sur 127.0.0.1 — seule cette
+   * machine l'atteint. Vrai : elle écoute sur toutes les cartes réseau, pour
+   * un téléphone du même réseau. Écouter partout sans le demander exposait la
+   * page du script à tout un wifi public.
    */
-  async listen(port: number): Promise<{ ip: string; port: number }> {
+  async listen(port: number, lan = false): Promise<{ ip: string; port: number; lan: boolean }> {
     const voulu = Number.isInteger(port) && port > 0 && port < 65536 ? port : 80;
     if (this.server) {
       // Le script a relancé son serveur : on garde la prise en place plutôt que
       // de rouvrir un port (et d'en changer sous le nez du téléphone).
-      return { ip: lanAddress(), port: this.boundPort };
+      return { ip: this.address, port: this.boundPort, lan: this.lan };
     }
+    this.lan = lan;
     const candidats = voulu === 80 ? [80, 8080, 0] : [voulu, 0];
     let derniere: unknown;
     for (const p of candidats) {
       try {
         this.boundPort = await this.open(p);
-        return { ip: lanAddress(), port: this.boundPort };
+        return { ip: this.address, port: this.boundPort, lan };
       } catch (err) {
         derniere = err;
       }
@@ -119,7 +134,7 @@ export class PicoNetServer {
         reject(err);
       };
       server.once('error', onError);
-      server.listen(port, '0.0.0.0', () => {
+      server.listen(port, this.lan ? '0.0.0.0' : '127.0.0.1', () => {
         server.off('error', onError);
         // Une erreur plus tard (réseau coupé) ne doit pas abattre l'extension.
         server.on('error', () => undefined);

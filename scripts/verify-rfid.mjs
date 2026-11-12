@@ -238,7 +238,12 @@ console.log('Mise en garde « série muette sur Pico » :');
 	// en silence — le lancement continue et l'erreur se dit.
 	const lancement = simSrc.slice(simSrc.indexOf('function startRun'), simSrc.indexOf('function stopRun'));
 	check('le câblage des entrées est protégé au lancement',
-		/try \{\s*rebind\((?:true)?\);\s*\} catch/.test(lancement) && /engine\.start\(\);/.test(lancement));
+		/try \{\s*(?:buildI2cDevices\(\);\s*)?rebind\((?:true)?\);\s*\} catch/.test(lancement) && /engine\.start\(\);/.test(lancement));
+	// Les périphériques de bus naissent du même schéma : hors du filet, un
+	// composant I²C mal décrit emportait encore tout le lancement.
+	check('la création des périphériques de bus est dans le même filet',
+		/try \{\s*buildI2cDevices\(\);\s*rebind\(/.test(lancement) &&
+		(lancement.match(/buildI2cDevices\(\)/g) || []).length === 1);
 	check('un câblage en échec est dit à l’élève (console + barre d’état)',
 		/appendSerial\(`\s*── \$\{t\('Wiring error'\)\}/.test(lancement) &&
 		/signalerMessage\(t\('Error: \{0\}', detail\)\)/.test(lancement));

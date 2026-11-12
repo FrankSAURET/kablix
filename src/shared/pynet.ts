@@ -137,8 +137,9 @@ export const NET_PREAMBLE: string =
     '            return None',
     "        _ip = '192.168.1.50'",
     '        if self._ap:',
-    // La vraie adresse de la machine, pas le 192.168.4.1 d'un point d'accès
-    // Pico : c'est celle-là que le téléphone doit viser.
+    // L'adresse où la prise répond vraiment (127.0.0.1, ou celle de la machine
+    // si le réglage picowServerOnLan l'ouvre au réseau) — pas le 192.168.4.1
+    // d'un point d'accès Pico, auquel rien ne répondrait.
     "            _r = _kxn_call({'op': 'apinfo'})",
     "            _ip = _r.get('ip') or _ip",
     "        return (_ip, '255.255.255.0', _ip, '8.8.8.8')",
@@ -231,9 +232,12 @@ export const NET_PREAMBLE: string =
     '        self._listening = True',
     // Le port demandé n'est pas toujours celui obtenu (80 est souvent pris) :
     // on annonce l'adresse RÉELLE, sinon le téléphone frappe à une porte close.
-    "        print('[Kablix] serveur du Pico W : http://%s:%d/ (a ouvrir depuis"
-      + " le telephone, sur le meme reseau)' % (_r.get('ip', '?'),"
-      + " _r.get('port', self._port)))",
+    // Par défaut la prise n'écoute que sur la machine (réglage picowServerOnLan).
+    "        print('[Kablix] serveur du Pico W : http://%s:%d/ (%s)' % (_r.get('ip', '?'),"
+      + " _r.get('port', self._port),"
+      + " 'a ouvrir depuis le telephone, sur le meme reseau' if _r.get('lan')"
+      + " else 'a ouvrir dans le navigateur de ce PC ; pour un telephone,"
+      + " activer le reglage kablix.picowServerOnLan'))",
     '    def accept(self):',
     "        _r = _kxn_call({'op': 'accept'})",
     "        if _r.get('error'):",

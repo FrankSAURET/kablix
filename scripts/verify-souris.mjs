@@ -235,6 +235,36 @@ try {
 		`${JSON.stringify(avant)} → ${JSON.stringify(apres)}`);
 	ok('et un glisser n ouvre pas la saisie', s.edit !== 'true', s.edit);
 
+	// --- 4b. Un appui ANNULÉ (pointercancel) lâche l'étiquette ------------------
+	// Une souris ne sait pas annuler un appui ; un doigt, si. Sans `pointerup`,
+	// l'étiquette gardait ses écoutes et suivait le curseur au mouvement suivant.
+	const coin = () => ev(`(() => { const b = document.querySelector('.text-note').getBoundingClientRect();
+		return JSON.stringify({ x: Math.round(b.left), y: Math.round(b.top) }); })()`);
+	p = await centre();
+	await ev(`(() => { window.__pc = { down: 0, cancel: 0 };
+		window.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') window.__pc.down++; }, true);
+		window.addEventListener('pointercancel', () => { window.__pc.cancel++; }, true); })()`);
+	const avantAnnule = JSON.parse(await coin());
+	await cdp('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+	await cdp('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: p.x, y: p.y, id: 1 }] });
+	await attendre(80);
+	await cdp('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+	await attendre(80);
+	await cdp('Emulation.setTouchEmulationEnabled', { enabled: false });
+	const pc = JSON.parse(await ev('JSON.stringify(window.__pc)'));
+	ok('le banc produit bien un appui au doigt puis un pointercancel sur l étiquette', pc.down >= 1 && pc.cancel >= 1, JSON.stringify(pc));
+	// Souris relâchée qui passe : rien ne doit suivre.
+	for (const d of [15, 40, 80]) {
+		await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x + d, y: p.y + d, button: 'none', buttons: 0 });
+	}
+	await attendre(180);
+	const apresAnnule = JSON.parse(await coin());
+	s = JSON.parse(await etat());
+	ok('après un appui annulé, l étiquette ne suit plus le curseur',
+		apresAnnule.x === avantAnnule.x && apresAnnule.y === avantAnnule.y,
+		`${JSON.stringify(avantAnnule)} → ${JSON.stringify(apresAnnule)}`);
+	ok('et l appui annulé n ouvre pas la saisie', s.edit !== 'true', s.edit);
+
 	// --- 5. Le RECTANGLE de sélection attrape plusieurs étiquettes -------------
 	// On repart d'une feuille nette : trois étiquettes posées par programme à des
 	// places connues, deux dans la boîte à venir, une hors d'atteinte.
@@ -606,6 +636,51 @@ try {
 		const apresC = JSON.parse(await poses());
 		ok('le geste normal (appui, glissé, relâché) pose toujours UN composant',
 			apresC.length === 1 && apresC[0].startsWith('resistor@'), apresC.join(' | '));
+
+		// (d) Geste ANNULÉ par le système (`pointercancel`) : pas de relâché. Sans
+		// écoute de l'annulation, `placingFromPalette` restait armé et la palette
+		// ne posait plus RIEN jusqu'au rechargement. La souris de CDP ne sait pas
+		// annuler un appui ; un doigt, si : `touchStart` puis `touchCancel`
+		// produisent un vrai `pointerdown` suivi d'un vrai `pointercancel`.
+		await ev('window.editor.clear()');
+		await attendre(200);
+		const mesurer = async () => JSON.parse(await ev(`(() => {
+			const b = [...document.querySelectorAll('.palette__item')].find((el) => (el.title || '') === 'Resistor');
+			if (!b) return JSON.stringify(null);
+			b.scrollIntoView({ block: 'center' });
+			const r = b.getBoundingClientRect();
+			return JSON.stringify({ x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) });
+		})()`)) ?? boutonPalette;
+		const btnD = await mesurer();
+		await attendre(200);
+		await ev(`(() => {
+			window.__annules = 0;
+			window.__appuis = 0;
+			window.addEventListener('pointercancel', () => { window.__annules++; }, true);
+			window.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') window.__appuis++; }, true);
+		})()`);
+		await cdp('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+		await cdp('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: btnD.x, y: btnD.y, id: 1 }] });
+		await attendre(150);
+		await cdp('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+		await attendre(300);
+		await cdp('Emulation.setTouchEmulationEnabled', { enabled: false });
+		const vus = JSON.parse(await ev('JSON.stringify([window.__appuis, window.__annules])'));
+		ok('le banc produit bien un appui au doigt puis un pointercancel',
+			vus[0] >= 1 && vus[1] >= 1, `appuis ${vus[0]}, annulations ${vus[1]}`);
+		const apresAnnule = JSON.parse(await poses());
+		ok('l appui annulé a bien lancé une pose (un composant né)',
+			apresAnnule.length === 1 && apresAnnule[0].startsWith('resistor@'), apresAnnule.join(' | '));
+		// La palette doit encore répondre : un clic sec pose un second composant.
+		const btnD2 = await mesurer();
+		await attendre(150);
+		await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: btnD2.x, y: btnD2.y, button: 'none', buttons: 0 });
+		await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: btnD2.x, y: btnD2.y, button: 'left', buttons: 1, clickCount: 1 });
+		await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: btnD2.x, y: btnD2.y, button: 'left', buttons: 0, clickCount: 1 });
+		await attendre(450);
+		const apresD = JSON.parse(await poses());
+		ok('après une pose annulée (pointercancel), la palette pose encore',
+			apresD.length === 2 && apresD.every((s) => s.startsWith('resistor@')), apresD.join(' | '));
 	}
 	// --- 11. Le CURSEUR de simulation : double-clic = saisie au clavier -------
 	//

@@ -39,6 +39,7 @@
   "kablix.config.showLoadBinaryButton": "Afficher le bouton « Charger binaire » dans la barre du simulateur (charge un .hex/.uf2 déjà compilé du workspace, sans recompiler). Masqué par défaut.",
   "kablix.config.showResetPartsButton": "Afficher le bouton « Réinitialiser les composants » (⟲) dans la barre du canvas : il remet chaque composant au repos (interrupteurs relâchés, curseurs au repos) sans toucher au câblage. Masqué par défaut.",
   "kablix.config.showClearDiagramButton": "Afficher le bouton « Effacer le schéma » (gomme) dans la barre du canvas : il retire d'un coup tous les composants et tous les fils (Ctrl+Z annule). Masqué par défaut.",
+  "kablix.config.picowServerOnLan": "Pico W : ouvre au réseau local le serveur web du script simulé, pour qu'un téléphone du même réseau puisse l'atteindre. Désactivé (défaut) : seule cette machine peut ouvrir la page (http://127.0.0.1). À laisser désactivé sur un réseau public.",
   "kablix.config.picowNetworkBridge": "Pico W : permet aux scripts MicroPython de faire de VRAIES requêtes HTTP (network/urequests) relayées par l'hôte (la puce Wi-Fi n'est pas émulée). L'hôte exécute le vrai fetch et renvoie la réponse au script. Activé par défaut ; désactivez pour bloquer toute requête sortante des scripts simulés.",
   "kablix.editor.projix": "Simulateur Kablix",
   "kablix.config.selectionColor": "Couleur de sélection (composants, câbles, coudes). Couleur hexadécimale #rrggbb. Vive par défaut pour rester visible sur tous les thèmes.",

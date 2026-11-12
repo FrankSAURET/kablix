@@ -6,6 +6,18 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ## 2026.11.3 (prochaine publication)
 
+### Nouveauté
+
+**Vérification du montage**
+
+- Ruban APA102 : un avertissement signale un programme qui pilote moins de LED que le ruban n'en a (la suivante s'allume en blanc).
+
+### Modification
+
+**Pico W simulée**
+
+- La page servie par le script ne s'ouvre plus que sur cet ordinateur. Le réglage `kablix.picowServerOnLan` l'ouvre au réseau local, pour un téléphone.
+
 ### Correction
 
 **Éditeur**
@@ -17,6 +29,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - Après une très longue séance, le projet n'apparaît plus « enregistré » à tort.
 - Créateur de composant : les pattes choisies pour chaque rôle ne se perdent plus.
 - Formules : `-2^2` vaut bien `-4`.
+- Une étiquette de texte ne reste plus collée au curseur après un geste interrompu.
 
 **Simulation**
 
@@ -26,6 +39,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - Pico : `scan()` I²C ne fige plus la simulation après un point d'arrêt.
 - Une erreur interne du moteur relance la simulation au lieu de la figer.
 - Importer un projet Wokwi arrête la simulation en cours.
+- Transistor : une valeur à 0 (Rds(on), Vce(sat), Vgs(th)) est respectée au lieu d'être remplacée par la valeur par défaut.
+- Un composant I²C ou SPI défectueux n'empêche plus la simulation de démarrer.
 
 **Analyseur logique**
 
@@ -36,6 +51,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - L'envoi ne reste plus bloqué quand la carte ne répond pas.
 - Le fichier envoyé est bien celui qui est enregistré avant l'envoi.
+- Deux envois lancés coup sur coup ne se marchent plus dessus.
 
 **Divers**
 

@@ -107,6 +107,32 @@ egal(regles('', 'cpp', schema('uno')), [], 'source vide : rien');
 
 egal(regles('from machine import Pin\nl = Pin(14, Pin.OUT)', 'py', schema('pico', {}, [{ id: 'SD', type: 'sonde-logique', x: 0, y: 0, attrs: { accroche: 'B/GP14' } }])), [], 'pince de sonde posée sur la broche (sans fil) : rien');
 
+// ------------------------------------------------------------- A8. ruban APA102 plus long que piloté
+{
+  const ruban = (carte, leds, protocol = 'apa102', nb = 1) => {
+    const parts = [{ id: 'B', type: carte, x: 0, y: 0 }];
+    const wires = [];
+    for (let k = 0; k < nb; k++) {
+      parts.push({ id: `R${k}`, type: 'led-strip', x: 0, y: 0, attrs: { protocol, leds: String(leds) } });
+      wires.push({ id: `w${k}`, a: { partId: 'B', pin: carte === 'uno' ? '11' : 'GP19' }, b: { partId: `R${k}`, pin: 'DI' } });
+    }
+    return { parts, wires };
+  };
+  const longueur = (src, lang, d) => lint(src, lang, d).filter((f) => f.rule === 'strip-length').map((f) => `${f.partId}:${f.args.join('/')}`);
+  const ino = readFileSync(join(ROOT, 'testkablix/Arduino/led-strip-apa102-uno/led-strip-apa102-uno.ino'), 'utf8');
+  const py = readFileSync(join(ROOT, 'testkablix/led-strip-apa102-pico.py'), 'utf8');
+  egal(longueur(ino, 'cpp', ruban('uno', 60)), ['R0:10/30/60'], 'ruban : 30 LED pilotées, 60 dessinées (Arduino)');
+  egal(longueur(py, 'py', ruban('pico', 60)), ['R0:11/30/60'], 'ruban : 30 LED pilotées, 60 dessinées (Pico)');
+  egal(longueur(ino, 'cpp', ruban('uno', 30)), [], 'ruban : même nombre, rien');
+  egal(longueur(py, 'py', ruban('pico', 20)), [], 'ruban : plus court que piloté, rien');
+  egal(longueur(ino, 'cpp', ruban('uno', 60, 'ws2801')), [], 'ruban : WS2801, pas de trame de fin, rien');
+  egal(longueur(py, 'py', ruban('pico', 60, 'apa102', 2)), [], 'ruban : deux rubans = doute, rien');
+  egal(longueur(py, 'py', { parts: ruban('pico', 60).parts, wires: [] }), [], 'ruban : non câblé, rien');
+  egal(longueur(py.replace('N = 30', 'N = 30\nN = 12'), 'py', ruban('pico', 60)), [], 'ruban : nombre réaffecté = doute, rien');
+  egal(longueur(py.replace('for i in range(N):\n        on', 'for i in range(len(t)):\n        on'), 'py', ruban('pico', 60)), [], 'ruban : borne calculée = doute, rien');
+  egal(longueur(ino.replace(/for \(int i = 0; i < N; i\+\+\) \{(\s*SPI\.transfer\(0xE0)/, 'for (int r = 0; r < 4; r++) for (int i = 0; i < N; i++) {$1'), 'cpp', ruban('uno', 200)), [], 'ruban : boucles imbriquées (matrice) = doute, rien');
+  egal(longueur('from machine import SPI\ns = SPI(0)\ns.write(bytes((0, 0, 0, 0, 0xE0 | 5, 1, 2, 3)))', 'py', ruban('pico', 60)), [], 'ruban : trame sans boucle = doute, rien');
+}
 
 // ------------------------------------------------------------- A7. pièges à l'exécution (n°4)
 const boucles = (src, lang, d) => piegesExecution(src, lang, d).boucles.map((b) => `${b.pin}:${b.niveau ? 'H' : 'L'}:${b.line}`);

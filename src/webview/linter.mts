@@ -15,11 +15,11 @@ import type { Diagram } from './diagram/model.mjs';
 export type LintLang = 'cpp' | 'py';
 
 /** Identifiant stable d'un contrôle (sert aux bancs et au regroupement). */
-export type LintRule = 'pwm' | 'no-pinmode' | 'read-unwired' | 'write-unwired' | 'wired-unused';
+export type LintRule = 'pwm' | 'no-pinmode' | 'read-unwired' | 'write-unwired' | 'wired-unused' | 'strip-length';
 
 export interface LintFinding {
   rule: LintRule;
-  /** Broche de la carte concernée (nom du schéma : '3', 'A0', 'GP5'). */
+  /** Broche de la carte concernée (nom du schéma : '3', 'A0', 'GP5') ; vide pour `strip-length`. */
   pin: string;
   /** Ligne du source (1-based), 0 si le contrôle porte sur le schéma seul. */
   line: number;
@@ -576,7 +576,120 @@ export function lint(source: string, lang: LintLang, diagram: Diagram): LintFind
       }
     }
   }
+
+  // 5. Ruban APA102 dessiné plus long que piloté. La trame de fin (0xFFFFFFFF)
+  //    a exactement la forme d'une LED blanche à pleine luminosité : la LED qui
+  //    suit la dernière pilotée la reçoit et s'allume en blanc, en simulation
+  //    comme sur un vrai ruban. Sûr seulement avec UN ruban APA102 câblé et UNE
+  //    boucle d'envoi à borne connue.
+  const rubans = diagram.parts.filter((p) => p.type === 'led-strip' && p.attrs?.protocol === 'apa102');
+  if (rubans.length === 1) {
+    const ruban = rubans[0];
+    const cable = diagram.wires.some((w) => w.a.partId === ruban.id || w.b.partId === ruban.id);
+    const dessinees = Math.max(1, Math.floor(Number(ruban.attrs?.leds)) || 10);
+    const src = nettoyer(source, lang);
+    const b = cable ? boucleApa102(src, lang, constantes(src, lang, board)) : null;
+    if (b && b.n > 0 && b.n < dessinees) {
+      poser({
+        rule: 'strip-length',
+        pin: '',
+        line: b.line,
+        partId: ruban.id,
+        message: 'Line {0}: the code drives {1} LEDs but the strip has {2}',
+        args: [String(b.line), String(b.n), String(dessinees)],
+        note: 'The code drives fewer LEDs than the strip has. The LED right after the last one driven receives the end frame (0xFF bytes) and lights up white. Set the same number of LEDs in the code and on the strip, or end the frame with 0x00 bytes.',
+      });
+    }
+  }
   return out;
+}
+
+/** Marque d'une trame de LED APA102 écrite à la main : l'octet de tête `0xE0 | luminosité`. */
+const MARQUE_APA102 = /\b0[xX][eE]0\b/g;
+
+/**
+ * La boucle qui envoie les LED d'un ruban APA102 (`for i < N` ou `range(N)`
+ * dont le corps porte `0xE0`) et sa borne. Null au moindre doute : aucune
+ * marque, plusieurs boucles autour d'elle (matrice, deux rubans), borne
+ * calculée, boucle `while` à condition.
+ */
+function boucleApa102(src: string, lang: LintLang, cst: Map<string, number>): { n: number; line: number } | null {
+  const marques = [...src.matchAll(MARQUE_APA102)].map((m) => m.index);
+  if (marques.length === 0) return null;
+  const autour = (debut: number, fin: number): boolean => marques.some((i) => i >= debut && i < fin);
+  const borne = (tok: string): number | null => (/^\d+$/.test(tok) ? Number(tok) : cst.get(tok) ?? null);
+  const trouvees: Array<{ n: number | null; line: number }> = [];
+
+  if (lang === 'cpp') {
+    // Fin de l'instruction contrôlée qui suit la parenthèse fermante `apres`.
+    const fermante = (ouvrante: number): number => {
+      let depth = 0;
+      for (let i = ouvrante; i < src.length; i++) {
+        if (src[i] === '(') depth++;
+        else if (src[i] === ')' && --depth === 0) return i;
+      }
+      return -1;
+    };
+    const finCorps = (apres: number): number => {
+      let i = apres;
+      while (i < src.length && /\s/.test(src[i])) i++;
+      // Corps sans accolades qui est lui-même une boucle ou un test : `for (…) for (…) {…}`.
+      const imbrique = /^(?:for|while|if|switch)\s*\(/.exec(src.slice(i, i + 16));
+      if (imbrique) {
+        const f = fermante(i + imbrique[0].length - 1);
+        return f < 0 ? src.length : finCorps(f + 1);
+      }
+      if (src[i] !== '{') {
+        const pv = src.indexOf(';', i);
+        return pv < 0 ? src.length : pv + 1;
+      }
+      let depth = 0;
+      for (; i < src.length; i++) {
+        if (src[i] === '{') depth++;
+        else if (src[i] === '}' && --depth === 0) return i + 1;
+      }
+      return src.length;
+    };
+    for (const m of src.matchAll(/\b(for|while)\s*\(/g)) {
+      const ouvrante = m.index + m[0].length - 1;
+      const f = fermante(ouvrante);
+      if (f < 0) return null;
+      if (!autour(f, finCorps(f + 1))) continue;
+      const tete = src.slice(ouvrante + 1, f);
+      if (m[1] === 'while') {
+        if (/^\s*(?:1|true)\s*$/.test(tete)) continue; // boucle sans fin : ne compte pas les LED
+        return null;
+      }
+      const h = /^\s*(?:(?:unsigned\s+)?(?:int|byte|uint8_t|uint16_t|size_t|long)\s+)?([A-Za-z_]\w*)\s*=\s*0\s*;\s*\1\s*<\s*([A-Za-z_]\w*|\d+)\s*;\s*(?:\1\s*\+\+|\+\+\s*\1|\1\s*\+=\s*1)\s*$/.exec(tete);
+      trouvees.push({ n: h ? borne(h[2]) : null, line: ligneDe(src, m.index) });
+    }
+  } else {
+    const lignes = src.split('\n');
+    let pos = 0;
+    const debuts = lignes.map((l) => {
+      const d = pos;
+      pos += l.length + 1;
+      return d;
+    });
+    const retrait = (l: string): number => /^[ \t]*/.exec(l)![0].length;
+    for (let k = 0; k < lignes.length; k++) {
+      const m = /^[ \t]*(for|while)\b(.*):(.*)$/.exec(lignes[k]);
+      if (!m) continue;
+      // Corps : la fin de la ligne d'en-tête, puis les lignes plus en retrait.
+      let fin = k + 1;
+      while (fin < lignes.length && (lignes[fin].trim() === '' || retrait(lignes[fin]) > retrait(lignes[k]))) fin++;
+      const finIdx = fin < lignes.length ? debuts[fin] : src.length;
+      if (!autour(debuts[k], finIdx)) continue;
+      if (m[1] === 'while') {
+        if (/^\s*(?:True|1)\s*$/.test(m[2])) continue;
+        return null;
+      }
+      const h = /^\s+[A-Za-z_]\w*\s+in\s+range\(\s*([A-Za-z_]\w*|\d+)\s*\)\s*$/.exec(m[2]);
+      trouvees.push({ n: h ? borne(h[1]) : null, line: k + 1 });
+    }
+  }
+  if (trouvees.length !== 1 || trouvees[0].n === null) return null;
+  return { n: trouvees[0].n, line: trouvees[0].line };
 }
 
 // --------------------------------------------------------------------------

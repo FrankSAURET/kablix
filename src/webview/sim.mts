@@ -5276,13 +5276,14 @@ function startRun(): void {
   clearCapSamplers(); // (le moteur est neuf : on repart sans échantillonneur)
   analogWaves.clear(); // et sans forme d'onde héritée du run précédent
   clearRelayFaults(); // défauts de câblage des relais re-signalés au 1er enclenchement
-  buildI2cDevices();
   // Filet : le câblage des entrées touche à tous les composants du schéma, y
   // compris ceux de la bibliothèque. Une exception y laissait la simulation
   // MORTE et MUETTE — barre d'état figée sur « Arrêté », aucun message. On
   // préfère démarrer quand même, en disant tout haut ce qui a manqué.
+  // Les périphériques de bus (I²C, SPI) naissent du même schéma : même filet.
   // `true` = lancement : nouvelle mesure pour l'analyseur.
   try {
+    buildI2cDevices();
     rebind(true);
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
@@ -5386,7 +5387,7 @@ function runLinter(): void {
   }
   // La broche en cause est sur la carte, même quand le cadre entoure le composant câblé.
   const carteLint = editor.diagram.parts.find((p) => partDef(p.type).kind === 'mcu');
-  if (carteLint) for (const c of constats) editor.setFaultyPin(carteLint.id, c.pin, true);
+  if (carteLint) for (const c of constats) if (c.pin) editor.setFaultyPin(carteLint.id, c.pin, true);
   appendSerial(`\n── ${t('Code check')} ──\n${constats.map((c) => `⚠ ${t(c.message, ...c.args)}`).join('\n')}\n`);
   for (const c of constats) signalerMessage(t(c.message, ...c.args));
 }
