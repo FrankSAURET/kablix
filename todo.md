@@ -3,6 +3,13 @@
 
 ---
 
+# v2026.11.2.307 — bancs : port CDP en double
+
+1. ✅ **`verify:analyseur-i2c-pose` sur le port 9439** — il partageait le 9427 avec `verify:debugvars-e2e`, joué en parallèle dans `verify:all` : si l'un traînait, l'autre parlait à la mauvaise page. Les autres doublons (9413, 9417) ne concernent que des scripts `_diag-*`, hors série.
+2. ℹ️ Lot 306 : `verify:all` coupé par la mise en veille du PC (trois bancs figés, arrêtés à la main) ; tous les bancs rejoués un par un, verts, sauf `verify:i18n` (ES/ZH, attendu).
+
+---
+
 # v2026.11.2.306 — restes de l'audit, tranchés par Frank
 
 1. ✅ **Serveur du Pico W simulé : local par défaut** — `PicoNetServer.listen(port, lan)` écoute sur `127.0.0.1` ; le réglage `kablix.picowServerOnLan` (faux par défaut) rouvre `0.0.0.0`. `ifconfig()[0]` et l'annonce donnent l'adresse où la page répond vraiment. ℹ️ Pas de fausse `192.168.4.1` : elle ne répondrait à rien. Fiches `picow`/`pico2w` FR à jour.

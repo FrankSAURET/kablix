@@ -30,7 +30,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const tmp = mkdtempSync(join(tmpdir(), 'kablix-i2c-pose-'));
-const PORT = 9427;
+const PORT = 9439; // port CDP propre à ce banc (9427 = verify-debugvars-e2e, joué en parallèle)
 const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
 const ancien = process.argv.includes('--ancien') ? ['analyseur'] : [];
 
