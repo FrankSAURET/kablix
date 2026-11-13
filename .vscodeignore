@@ -63,6 +63,10 @@ Archives/**
 A Examiner/**
 kablix_components/**
 kompix_editor/**
+# « Bugs/ » : journaux et projets d'élèves remontés par Frank (sensibles, hors git
+# aussi). Le .gitignore ne compte pas pour vsce : sans cette ligne, le bilan et
+# les projets d'élèves partaient dans le paquet (constaté en v2026.11.2.308).
+Bugs/**
 svg/**
 svg retouche/**
 **/*.edit.svg
