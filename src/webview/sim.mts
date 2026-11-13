@@ -6842,11 +6842,13 @@ window.addEventListener('message', (event: MessageEvent) => {
       // Composants perso, schéma puis carte.
       loadingProject = true;
       const loadedDiagram = msg.diagram as Parameters<typeof editor.loadDiagram>[0];
+      // Composants inconnus du poste, écartés du schéma avec leurs fils.
+      let typesInconnus: string[] = [];
       try {
         if (Array.isArray(msg.customParts)) {
           editor.loadCustomParts(msg.customParts as CustomPartData[]);
         }
-        editor.loadDiagram(loadedDiagram);
+        typesInconnus = editor.loadDiagram(loadedDiagram);
       } finally {
         // Un chargement qui lève ne doit pas laisser l'atelier muet pour de bon.
         loadingProject = false;
@@ -6869,6 +6871,14 @@ window.addEventListener('message', (event: MessageEvent) => {
       // Sinon (ancien projet), on recentre/ajuste comme le bouton « recentrer ».
       // Différé d'une frame : les corps n'ont leur taille réelle qu'après rendu.
       if (!loadedDiagram?.camera) requestAnimationFrame(() => editor.fitView());
+      if (typesInconnus.length > 0) {
+        // Schéma ouvert amputé : statut dans l'atelier ET avertissement VS Code
+        // (avec le chemin vers le gestionnaire), sinon l'élève voit juste un
+        // montage auquel il manque des pièces et des fils, sans savoir pourquoi.
+        setStatus(t('Project loaded ({0} unknown component(s) ignored: {1})', typesInconnus.length, typesInconnus.join(', ')));
+        vscode.postMessage({ type: 'unknownParts', types: typesInconnus });
+        break;
+      }
       // Statut neutre après chargement (clé déjà traduite dans i18n).
       setStatus(t('Ready'));
       break;

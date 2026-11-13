@@ -331,6 +331,8 @@ export class KompixLibrary {
   private onComponentsChanged: ((parts: CustomPartData[]) => void) | undefined;
   /** Promesse du premier scan (voir start / whenReady). */
   private started: Promise<void> | undefined;
+  /** Scan en cours (ou dernier terminé) : les scans s'enchaînent, jamais entrelacés. */
+  private scanEnCours: Promise<void> = Promise.resolve();
 
   constructor(private context: vscode.ExtensionContext) {
     this.libraryFolder = this.resolveLibraryFolder();
@@ -411,14 +413,32 @@ export class KompixLibrary {
    * la palette restait alors sans les composants pourtant installés.
    */
   whenReady(): Promise<void> {
-    return this.started ?? Promise.resolve();
+    // Premier scan, PUIS celui qui tourne peut-être encore (watcher, installation) :
+    // qui attend la bibliothèque veut sa liste complète, pas celle d'un scan à moitié fait.
+    return (this.started ?? Promise.resolve()).then(() => this.scanEnCours);
   }
 
   /**
    * Scanne le dossier de bibliothèque, lit tous les .kompix, en extrait les métadonnées.
+   * Les demandes se suivent (watcher + installation dans la même seconde) : chacune
+   * attend la précédente, sinon deux scans entrelacés se marchaient dessus.
    */
-  private async scanLibrary(): Promise<void> {
-    this.components.clear();
+  private scanLibrary(): Promise<void> {
+    const suivant = this.scanEnCours.then(
+      () => this.scanLibraryNow(),
+      () => this.scanLibraryNow()
+    );
+    this.scanEnCours = suivant;
+    return suivant;
+  }
+
+  private async scanLibraryNow(): Promise<void> {
+    // La liste publiée (`getComponents`) n'est REMPLACÉE qu'une fois le scan fini :
+    // vidée d'abord puis remplie fichier par fichier, elle était vide ou partielle
+    // pendant quelques centaines de ms — un .projix enregistré à ce moment-là
+    // partait sans ses composants de bibliothèque (Chauffage.projix, 09/11/2026,
+    // `customParts: []` alors qu'il porte un lm35a) et se rouvrait amputé ailleurs.
+    const components = new Map<string, CustomPartData>();
     this.manifestMeta.clear();
     this.sources.clear();
     this.helpLangs.clear();
@@ -430,13 +450,14 @@ export class KompixLibrary {
           const path = join(this.libraryFolder, file);
           const data = await this.unpackKompix(path);
           if (data) {
-            this.components.set(data.type, data);
+            components.set(data.type, data);
           }
         }
       }
     } catch (err) {
       console.error('Erreur scan bibliothèque kompix:', err);
     }
+    this.components = components;
     this.notifyWebview();
   }
 

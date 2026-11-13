@@ -2582,12 +2582,17 @@ export class Editor {
    * ré-aiguillés) pour éviter toute collision avec d'éventuels composants déjà
    * créés pendant la session.
    */
+  /**
+   * Charge un schéma enregistré.
+   * @returns les types de composants INCONNUS du poste, écartés avec leurs fils
+   *   (vide si tout s'est ouvert) — à l'appelant de le dire à l'utilisateur.
+   */
   loadDiagram(data: {
     parts?: Part[];
     wires?: Wire[];
     texts?: TextNote[];
     camera?: { zoom?: number; panX?: number; panY?: number } | null;
-  }): void {
+  }): string[] {
     this.clear();
     // Réalignement doux après rendu : les schémas enregistrés AVANT le re-snap
     // de rotation (v2026.7.105) peuvent porter des composants tournés dont les
@@ -2621,9 +2626,11 @@ export class Editor {
     // Type inconnu (composant perso absent, fichier d'une version plus récente) :
     // la pièce et ses fils sont écartés, le reste du schéma s'ouvre.
     const ecartes = new Set<string>();
+    const typesInconnus: string[] = [];
     for (const p of data.parts ?? []) {
       if (!knownPartType(p.type)) {
         ecartes.add(p.id);
+        if (!typesInconnus.includes(p.type)) typesInconnus.push(p.type);
         console.warn(`Kablix : composant de type inconnu ignoré (${p.type})`);
         continue;
       }
@@ -2679,6 +2686,7 @@ export class Editor {
     // Caméra enregistrée : restaurée telle quelle (l'appelant ne fera pas fitView).
     this.setCamera(data.camera);
     this.notify();
+    return typesInconnus;
   }
 
   /** Ajoute un fil par programme (schéma de démarrage). */

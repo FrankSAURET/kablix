@@ -103,6 +103,46 @@ function reconnectMicroPico(out: vscode.OutputChannel): void {
 /** Seuil au-delà duquel `micropico.disconnect` a réellement fermé un port (il attend 1,5 s). */
 const MICROPICO_DISCONNECT_MS = 1000;
 
+/** Sous-ensemble de l'API publique de l'extension Python de VS Code (`ms-python.python`). */
+interface PythonExtensionApi {
+  environments?: {
+    getActiveEnvironmentPath(resource?: vscode.Uri): { id: string; path: string } | undefined;
+    resolveEnvironment(
+      env: { id: string; path: string } | string
+    ): Promise<{ executable?: { uri?: vscode.Uri } } | undefined>;
+  };
+}
+
+/**
+ * Interpréteur Python qui lance `pico-upload.py` : celui que l'extension Python
+ * de VS Code a SÉLECTIONNÉ pour ce fichier, et seulement à défaut le `python`
+ * du PATH système.
+ *
+ * L'hôte d'extension n'hérite pas de l'environnement activé du terminal : sur
+ * un poste à deux Python (3.8 dans le PATH, 3.10 choisi dans VS Code), le
+ * terminal disait « pyserial installé » et « Python 3.10 », mais l'envoi
+ * partait avec le 3.8, sans pyserial, et signalait pyserial absent (journaux
+ * élève, 10/11/2026). Le chemin retenu est écrit dans le canal de sortie.
+ */
+async function pythonExe(resource?: vscode.Uri): Promise<string> {
+  const systeme = process.platform === 'win32' ? 'python' : 'python3';
+  try {
+    const ext = vscode.extensions?.getExtension<PythonExtensionApi>('ms-python.python');
+    if (!ext) return systeme;
+    const api = ext.isActive ? ext.exports : await ext.activate();
+    const envs = api?.environments;
+    if (!envs) return systeme;
+    const actif = envs.getActiveEnvironmentPath(resource);
+    if (!actif) return systeme;
+    const resolu = await envs.resolveEnvironment(actif);
+    const exe = resolu?.executable?.uri?.fsPath ?? actif.path;
+    // `path` peut désigner le DOSSIER d'un environnement : on ne lance qu'un fichier.
+    return exe && existsSync(exe) && statSync(exe).isFile() ? exe : systeme;
+  } catch {
+    return systeme;
+  }
+}
+
 /** Exécute une commande et rend sa sortie standard (chaîne vide en cas d'échec). */
 function run(cmd: string, args: string[]): Promise<string> {
   return new Promise((resolve) => {
@@ -499,7 +539,7 @@ export class PicoUploader {
    * perdu) puis relaie sa sortie. La promesse se résout sur la ligne `DONE:` ;
    * le processus, toujours vivant, passe alors au terminal Pico.
    */
-  private send(
+  private async send(
     port: string,
     items: UploadItem[],
     out: vscode.OutputChannel
@@ -509,7 +549,10 @@ export class PicoUploader {
       remote: it.remotePath,
     }));
     out.appendLine(`> ${port} — ${items.length} fichier(s)`);
-    const exe = process.platform === 'win32' ? 'python' : 'python3';
+    // Interpréteur choisi dans VS Code pour le programme envoyé (sinon le PATH).
+    const principal = items.find((it) => it.isMain) ?? items[0];
+    const exe = await pythonExe(principal ? vscode.Uri.file(principal.localPath) : undefined);
+    out.appendLine(`> Python : ${exe}`);
     const child = spawn(
       exe,
       ['-u', this.scriptPath, '--port', port, '--files', JSON.stringify(payload), '--monitor'],
@@ -811,11 +854,12 @@ export class PicoUploader {
   }
 
   /** Lance `scripts/pico-upload.py` ; rejette avec sa dernière ligne `ERROR:`. */
-  private runTool(args: string[], out: vscode.OutputChannel): Promise<void> {
+  private async runTool(args: string[], out: vscode.OutputChannel): Promise<void> {
+    // Interpréteur choisi dans VS Code (espace de travail), sinon `python` /
+    // `python3` : le nom que porte l'interpréteur 3.x sur chaque système.
+    const exe = await pythonExe();
+    out.appendLine(`> Python : ${exe}`);
     return new Promise((resolve, reject) => {
-      // `python` sur Windows, `python3` ailleurs : c'est le nom que porte
-      // l'interpréteur 3.x sur chaque système.
-      const exe = process.platform === 'win32' ? 'python' : 'python3';
       const child = execFile(
         exe,
         [this.scriptPath, ...args],

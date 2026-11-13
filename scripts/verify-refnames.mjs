@@ -235,6 +235,33 @@ async function run() {
 		d.diagram.wires.every((w) => ids.includes(w.a.partId) && ids.includes(w.b.partId)),
 		JSON.stringify(d.diagram.wires.map((w) => [w.a.partId, w.b.partId])));
 
+	// --- Composant inconnu du poste (bibliothèque non installée) ---------------
+	// Chauffage.projix (build 303) : un lm35a absent du poste faisait avorter le
+	// chargement, plus aucun fil. Le composant et ses fils sont écartés, le reste
+	// s'ouvre, et loadDiagram rend les types manquants pour que la page les signale.
+	const f = makeEditor('F');
+	const inconnus = f.loadDiagram({
+		parts: [
+			{ id: 'R1', type: 'resistor', x: 100, y: 100 },
+			{ id: 'L1', type: 'led', x: 200, y: 100 },
+			{ id: 'Capt1', type: 'composant-du-futur', x: 300, y: 100 },
+		],
+		wires: [
+			{ id: 'w1', a: { partId: 'R1', pin: '1' }, b: { partId: 'L1', pin: 'A' } },
+			{ id: 'w2', a: { partId: 'Capt1', pin: 'OUT' }, b: { partId: 'L1', pin: 'C' } },
+			{ id: 'w3', a: { partId: 'R1', pin: '2' }, b: { partId: 'Capt1', pin: 'GND' } },
+		],
+	});
+	await wait(80);
+	ok('inconnu : loadDiagram rend le type manquant',
+		Array.isArray(inconnus) && inconnus.join(',') === 'composant-du-futur', JSON.stringify(inconnus));
+	ok('inconnu : les composants connus restent, l’inconnu est écarté',
+		f.diagram.parts.map((p) => p.id).join(',') === 'R1,L1', f.diagram.parts.map((p) => p.id).join(','));
+	ok('inconnu : ses deux fils sont écartés, le fil R1–L1 reste',
+		f.diagram.wires.length === 1
+			&& ['R1', 'L1'].includes(f.diagram.wires[0].a.partId) && ['R1', 'L1'].includes(f.diagram.wires[0].b.partId),
+		JSON.stringify(f.diagram.wires.map((w) => [w.a.partId, w.b.partId])));
+
 	// --- Langue anglaise : la pose donne PB1, pas BP1 -------------------------
 	initLocale('en');
 	const e = makeEditor('E');
@@ -268,7 +295,7 @@ const zone = (s) =>
 writeFileSync(
   join(CACHE, 'p.html'),
   `<!doctype html><meta charset=utf8><style>${css}</style><body style="margin:0">` +
-  ['A', 'B', 'C', 'D', 'E'].map(zone).join('') +
+  ['A', 'B', 'C', 'D', 'E', 'F'].map(zone).join('') +
   `<script>${bundle.outputFiles[0].text}</script></body>`
 );
 const chrome = [process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium', 'C:/Program Files/Google/Chrome/Application/chrome.exe',

@@ -22,3 +22,6 @@ Promotion/
 
 # Kompix Editor : dépôt séparé (FrankSAURET/kompix-editor), jamais dans le dépôt Kablix
 kompix_editor/
+
+#Sans intérêt ou sensibles
+Bugs/

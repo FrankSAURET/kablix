@@ -42,7 +42,12 @@ import time
 try:
     import serial
 except ImportError:
-    print("ERROR: pyserial is missing. Install it with: pip install pyserial")
+    # Quel Python manque de pyserial ? Un poste en a souvent deux (celui du PATH
+    # et celui choisi dans VS Code) : « pip list » montrait pyserial installe dans
+    # l'un pendant que l'autre lancait ce script. Chemin en ASCII, voir en-tete.
+    exe = sys.executable.encode("ascii", "backslashreplace").decode("ascii")
+    print("ERROR: pyserial is missing for " + exe
+          + ". Install it with: \"" + exe + "\" -m pip install pyserial")
     sys.exit(2)
 
 

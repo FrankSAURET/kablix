@@ -227,6 +227,8 @@
   "Program stopped on the Pico ({0}).": "Programme arrêté sur la Pico ({0}).",
   "Cannot stop the program: {0}": "Arrêt impossible : {0}",
   "Python 3 was not found. Install it, then run: pip install pyserial": "Python 3 est introuvable. Installez-le, puis lancez : pip install pyserial",
+  "Open the component manager": "Ouvrir le gestionnaire de composants",
+  "Kablix: component(s) unknown on this computer were left out of the diagram with their wires: {0}. Install them from the component manager, then reopen the project.": "Kablix : composant(s) inconnu(s) sur ce poste, écarté(s) du schéma avec leurs fils : {0}. Installez-les depuis le gestionnaire de composants, puis rouvrez le projet.",
   "Component \"{0}\" runs custom code from a remote source.": "Le composant « {0} » exécute du code venu d’une source distante.",
   "Trust this component": "Faire confiance à ce composant",
   "Run without code": "Exécuter sans le code",

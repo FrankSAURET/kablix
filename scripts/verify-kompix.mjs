@@ -1132,6 +1132,23 @@ test('les paquets publiés emportent bien leur traduction française', async () 
   if (!spot.l10n.fr.params?.address) throw new Error('l’adresse DMX du projecteur n’est pas traduite');
 });
 
+test('un nouveau scan ne vide jamais la liste publiée (projet enregistré pendant le scan)', async () => {
+  // Repro Chauffage.projix (09/11/2026) : enregistré pendant que la bibliothèque
+  // se relisait (composant tout juste installé → watcher + installation), il est
+  // parti avec `customParts: []` et s'est rouvert sans son lm35a ni ses fils sur
+  // le poste de l'élève. La liste doit rester complète PENDANT le scan, et
+  // `whenReady` doit couvrir le scan en cours, pas seulement le premier.
+  const avant = lib.getComponents().length;
+  if (avant === 0) throw new Error('banc sans composant installé : rien à prouver');
+  let fini = false;
+  const scan = lib.scanLibrary().then(() => { fini = true; });
+  eq(lib.getComponents().length, avant, 'composants visibles PENDANT le scan');
+  await lib.whenReady();
+  if (!fini) throw new Error('whenReady a rendu la main avant la fin du scan en cours');
+  eq(lib.getComponents().length, avant, 'composants visibles APRÈS le scan');
+  await scan;
+});
+
 await runTests();
 
 rmSync(WORK_DIR, { recursive: true, force: true });

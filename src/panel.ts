@@ -2096,6 +2096,7 @@ ${err instanceof Error ? err.message : String(err)}`
 
   private onMessage(msg: {
     type?: string;
+    types?: unknown[];
     board?: Board;
     svg?: string;
     csv?: string;
@@ -2452,7 +2453,30 @@ ${err instanceof Error ? err.message : String(err)}`
         // Ouvre le gestionnaire de composants pour télécharger depuis les dépôts.
         void vscode.commands.executeCommand('kablix.openComponentManager');
         break;
+      case 'unknownParts':
+        // Projet ouvert avec des composants inconnus du poste (bibliothèque non
+        // installée, fichier sans leur définition) : la page les a écartés avec
+        // leurs fils, sans quoi tout le schéma restait vide (build 303). L'élève
+        // doit le SAVOIR — un avertissement en console ne prévient personne.
+        void this.signalerComposantsInconnus(
+          Array.isArray(msg.types) ? msg.types.filter((t): t is string => typeof t === 'string') : []
+        );
+        break;
     }
+  }
+
+  /** Avertit qu'un projet s'est ouvert sans certains composants, et mène au gestionnaire. */
+  private async signalerComposantsInconnus(types: string[]): Promise<void> {
+    if (types.length === 0) return;
+    const ouvrir = l10n.t('Open the component manager');
+    const choix = await vscode.window.showWarningMessage(
+      l10n.t(
+        'Kablix: component(s) unknown on this computer were left out of the diagram with their wires: {0}. Install them from the component manager, then reopen the project.',
+        types.join(', ')
+      ),
+      ouvrir
+    );
+    if (choix === ouvrir) void vscode.commands.executeCommand('kablix.openComponentManager');
   }
 
   // --- Pont réseau Pico W (option « pont réseau réel via l'hôte ») ------------
@@ -2757,6 +2781,10 @@ ${err instanceof Error ? err.message : String(err)}`
     // était enregistrée AILLEURS (dessin sans dimensions des projets d'avant
     // v2026.8.89, métadonnées perdues). Repli sur lui quand la bibliothèque
     // n'est pas là (tests, hôte réduit).
+    // Bibliothèque en cours de (re)lecture (démarrage, composant tout juste
+    // installé) : on attend la liste complète, un projet enregistré sur une
+    // liste vide se rouvrait sans ses composants ni leurs fils sur un autre poste.
+    await SimulatorPanel.library?.whenReady?.();
     const customParts = this.customPartsForProjix(diagram);
     const diagramPayload = { ...(diagram as object), customParts };
     const manifest: ProjixManifest = {

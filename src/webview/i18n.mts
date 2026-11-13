@@ -22,6 +22,8 @@ const FR: Record<string, string> = {
   'Wokwi project loaded': 'Projet Wokwi chargé',
   'Wokwi project loaded ({0} unsupported part(s) ignored)':
     'Projet Wokwi chargé ({0} composant(s) non pris en charge ignoré(s))',
+  'Project loaded ({0} unknown component(s) ignored: {1})':
+    'Projet chargé ({0} composant(s) inconnu(s) ignoré(s) : {1})',
   'Paused': 'En pause',
   'Pause': 'Pause',
   'Pause - resume the simulation': 'Mettre en pause / reprendre la simulation',

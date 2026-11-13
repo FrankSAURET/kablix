@@ -25,7 +25,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - Supprimer plusieurs éléments, ou changer une propriété sur plusieurs composants, s'annule en un seul Ctrl+Z.
 - Dupliquer ne recolle plus une ancienne copie quand la sélection ne se copie pas.
 - La palette ne reste plus bloquée après une pose interrompue.
-- Un schéma contenant un composant inconnu s'ouvre quand même, sans ce composant.
+- Un schéma contenant un composant inconnu s'ouvre quand même, sans ce composant ni ses fils ; un message le signale et mène au gestionnaire de composants.
+- Un projet enregistré juste après l'installation d'un composant de bibliothèque l'embarque bien : il se rouvre entier sur un autre poste.
 - Après une très longue séance, le projet n'apparaît plus « enregistré » à tort.
 - Créateur de composant : les pattes choisies pour chaque rôle ne se perdent plus.
 - Formules : `-2^2` vaut bien `-4`.
@@ -52,6 +53,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - L'envoi ne reste plus bloqué quand la carte ne répond pas.
 - Le fichier envoyé est bien celui qui est enregistré avant l'envoi.
 - Deux envois lancés coup sur coup ne se marchent plus dessus.
+- L'envoi utilise le Python choisi dans VS Code, et non plus le premier « python » trouvé sur l'ordinateur.
+- Si pyserial manque, le message nomme le Python concerné et la commande exacte à lancer.
 
 **Divers**
 
