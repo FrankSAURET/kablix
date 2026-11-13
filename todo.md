@@ -1,5 +1,4 @@
 # À faire
-1. ⬜ **Signaler un problème : essai depuis VS Code** — recharger la fenêtre, « Kablix : Signaler un problème », envoyer, vérifier le mail et sa pièce jointe.
 ## ne pas faire pour l'instant
 1. transformer kompix editor en créateur de projet info meca (typiquement robotique) en 3D. 
     - des composants existent (carte elec, moteur, servo, roue...)
@@ -13,7 +12,7 @@
 1. ✅ **Script déployé par Frank**, URL `/exec` dans `URL_RAPPORT` (la `/dev` d'abord collée est réservée au propriétaire connecté : page de connexion Google pour tout autre).
 2. ✅ **Script durci** ([Code.gs](outils/signaler-probleme/Code.gs)) — l'URL est publique (dans le `.vsix`) : pièce jointe refusée si ce n'est pas un zip contenant `rapport.txt`, ou s'il contient un exécutable ou une archive (`.exe`, `.bat`, `.js`, `.ps1`, `.zip`…). Version du sujet réduite aux chiffres et points. Le destinataire reste le seul propriétaire du script : personne ne peut écrire à un tiers par lui.
 3. ✅ Essai réel au POST : GET → « Kablix : prêt » ; zip bidon → `pas un rapport Kablix` ; mini-rapport → `ok`.
-4. ℹ️ Réception du mail non vérifiée de mon côté (accès Gmail en panne) : à regarder par Frank.
+4. ✅ Essai complet par Frank depuis VS Code (fenêtre, envoi, mail et pièce jointe) : tout fonctionne.
 
 ---
 
