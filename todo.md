@@ -1,5 +1,4 @@
 # À faire
-1. (Partie Kablix faite en v310, reste l'extension sœur) Bug de servo.h non trouvé. Tu as corrigé ce probleme. Lors de l'installation initiale de arduino-cli,  pourqoi les librairie arduino par défaut ne sont elle pas installé ? Une fois ce pb corrigé, tu ajoutes les mêmes sécurité sur mon extension "Arduino VsCode IDE" : l'installation de librairie manquante par un bouton et l'installation complete de l'environnement arduino (arduino cli et librairies) si'il manque. Tu le fais en  lansçant un claude sur le dossier de l'extension via vscode de façon que j'ai l'historique au bon endroit. tu ajoutes cette façon de fonctionner au consignes générales pout tous mes projets.
 
 ## ne pas faire pour l'instant
 
@@ -8,6 +7,8 @@
 # v2026.11.2.311 — environnement Arduino : extension sœur fraîchement installée
 
 1. ✅ **Question de Frank** : sans extension sœur, le bouton « Installer l'environnement Arduino » l'installe d'abord, puis lance `arduino.setupEnvironment`. Risque vu : juste après `installExtension`, la commande peut ne pas être encore enregistrée (« commande introuvable »). `proposerEnvironnement` attend désormais qu'elle apparaisse (`getCommands`, 30 s au plus) ; sinon message « rechargez la fenêtre, puis compilez à nouveau ». FR traduit. `verify:arduinolibs` : 35 contrôles. ℹ️ Non essayé sur un VS Code sans l'extension sœur.
+2. ✅ **Extension sœur Arduino VsCode IDE** (session Claude lancée dans son dossier, historique rangé là-bas) : `Arduino_BuiltIn` posé au parcours d'installation initial (et proposé si seul ce lot manque), bouton « Installer la bibliothèque » après `X.h: No such file or directory`, banc 45 contrôles. Enregistrement `b8a1f99` sur son `main`, build `2026.10.0.42`. ⏳ Son `.vsix` n'a pas pu s'installer (extension active, fichier verrouillé) : à installer à la main.
+3. ✅ **Règle globale** « Travail sur un AUTRE projet » ajoutée dans `~/.claude/rules/workflow.md`.
 
 ---
 
