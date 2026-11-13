@@ -30,11 +30,25 @@ function doPost(e) {
     var octets = Utilities.base64Decode(corps.zip);
     if (octets.length > MAX_ZIP) return repondre({ ok: false, erreur: 'rapport trop gros' });
 
-    var version = String(corps.version || '?').slice(0, 30);
+    var version = String(corps.version || '?').replace(/[^0-9.]/g, '').slice(0, 20) || '?';
     var reference = String(corps.reference || '').replace(/[^0-9a-f]/gi, '').slice(0, 16);
     var resume = String(corps.resume || '').replace(/[\r\n]+/g, ' ').slice(0, 80);
     var nom = 'rapport-kablix-' + version + '-' + (reference || 'sans-ref') + '.zip';
     var pj = Utilities.newBlob(octets, 'application/zip', nom);
+
+    // Pièce jointe acceptée seulement si c'est un VRAI rapport Kablix : un zip
+    // qui contient rapport.txt, et rien d'exécutable. Un inconnu qui posterait
+    // n'importe quoi à l'URL ne fait pas passer un fichier piégé dans la boîte.
+    var contenu;
+    try {
+      contenu = Utilities.unzip(pj);
+    } catch (errZip) {
+      return repondre({ ok: false, erreur: 'pas un rapport Kablix' });
+    }
+    var noms = contenu.map(function (b) { return b.getName(); });
+    if (noms.indexOf('rapport.txt') < 0) return repondre({ ok: false, erreur: 'pas un rapport Kablix' });
+    var interdit = /\.(exe|dll|bat|cmd|com|scr|ps1|vbs|js|jse|wsf|msi|lnk|hta|jar|zip|7z|rar)$/i;
+    if (noms.some(function (n) { return interdit.test(n); })) return repondre({ ok: false, erreur: 'contenu refusé' });
 
     MailApp.sendEmail({
       to: Session.getEffectiveUser().getEmail(),

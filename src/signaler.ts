@@ -25,7 +25,7 @@ const l10n = vscode.l10n;
  * exécuté en tant que Frank, accessible à tous). Vide = service pas encore
  * branché : la fenêtre propose alors d'enregistrer le rapport.
  */
-export const URL_RAPPORT = '';
+export const URL_RAPPORT = 'https://script.google.com/macros/s/AKfycbyAbnar7IJxjrnezrSWeTrb6yi_7a7hQl7txiLi2wd82RVMe6HLy48SpDVutrYpeHwu/exec';
 
 /** Taille au-delà de laquelle le script refuse (pièce jointe Gmail : 25 Mo). */
 const MAX_RAPPORT = 18 * 1024 * 1024;
