@@ -180,6 +180,18 @@ check(rouvert.some((p) => p.type === 'spot'), 'réouverture : les autres composa
 const horsLib = await rouvreAvec({ gravee: [dmxAncien], installee: [spot], poses: ['dmx-grove'] });
 check(horsLib.find((p) => p.type === 'dmx-grove')?.version === '2026.8.1',
   'réouverture : composant non installé, la copie gravée sert (projet venu d’ailleurs)');
+// Chauffage.projix (build 308) : projet gravé SANS ses composants (`customParts: []`),
+// LM35 installé sur le poste. La liste de la bibliothèque n'arrive qu'après le
+// schéma : l'ouverture doit envoyer elle-même le composant installé qu'il pose,
+// sinon il est écarté et déclaré « inconnu » alors qu'il est là.
+const sansGravure = await rouvreAvec({ gravee: [], installee: [dmxAJour, spot], poses: ['dmx-grove'] });
+check(sansGravure.some((p) => p.type === 'dmx-grove'),
+  'réouverture : un composant installé mais non gravé part avec le schéma (Chauffage.projix)',
+  `envoyés : ${sansGravure.map((p) => p.type).join(', ') || 'aucun'}`);
+check(!sansGravure.some((p) => p.type === 'spot'),
+  'réouverture : seuls les composants posés partent avec le schéma, pas toute la bibliothèque');
+check(sansGravure.every((p) => p.behaviorScript === undefined),
+  'réouverture : le script du composant installé ne voyage pas avec le schéma');
 
 // ------------------------------------------------- D. quel programme un « enregistrer sous » exécute
 // Second volet du même « enregistrer sous » (Frank, v2026.8.91) : le manifeste

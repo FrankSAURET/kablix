@@ -1,5 +1,15 @@
 # À faire
+1. Bug de servo.h non trouvé. Tu as corrigé ce probleme. Lors de l'installation initiale de arduino-cli,  pourqoi les librairie arduino par défaut ne sont elle pas installé ? Une fois ce pb corrigé, tu ajoutes les mêmes sécurité sur mon extension "Arduino VsCode IDE" : l'installation de librairie manquante par un bouton et l'installation complete de l'environnement arduino (arduino cli et librairies) si'il manque. Tu le fais en  lansçant un claude sur le dossier de l'extension via vscode de façon que j'ai l'historique au bon endroit. tu ajoutes cette façon de fonctionner au consignes générales pout tous mes projets.
+
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.2.309 — composant installé déclaré absent à l'ouverture
+
+1. ✅ **Cause** (build 308, `Chauffage.projix`) : projet gravé avec `customParts: []`, LM35 installé sur le poste. `openProjectFromBytes` n'envoyait avec `loadProject` que les composants GRAVÉS (remplacés par leur version installée) ; la liste de la bibliothèque (`customParts`) n'arrive qu'après. `loadDiagram` voyait donc un type inconnu, l'écartait avec ses fils et affichait le message « composant absent » — alors qu'il était installé.
+2. ✅ **Correction** (`panel.ts`) : `installesDabord(embarques, diagram)` ajoute aussi les composants installés POSÉS dans le schéma et non gravés (sans leur script de comportement). Même chose à la restauration d'un schéma après fermeture (`installesDabord([], state.diagram)`).
+3. ✅ **Banc** `verify:projixparts` (37 contrôles) : projet sans gravure + composant installé posé → envoyé avec le schéma ; un installé non posé ne part pas ; pas de script. Contre-épreuve : échoue sur l'ancien code (« envoyés : aucun »).
 
 ---
 

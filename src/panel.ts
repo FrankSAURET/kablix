@@ -3005,7 +3005,7 @@ ${err instanceof Error ? err.message : String(err)}`
       type: 'loadProject',
       diagram: project.diagram,
       board: project.manifest.board,
-      customParts: customParts && (await this.installesDabord(customParts)),
+      customParts: await this.installesDabord(customParts ?? [], project.diagram),
     });
     // Restaure le fichier de code à exécuter/déboguer mémorisé dans le projet
     // (résolu en priorité à côté du .projix ; l'ancien fichier est oublié).
@@ -3029,20 +3029,34 @@ ${err instanceof Error ? err.message : String(err)}`
    * sonde. La copie embarquée ne sert qu'à rouvrir le projet là où le
    * composant n'est PAS installé.
    *
+   * S'y AJOUTENT les composants installés que le schéma pose sans les embarquer
+   * (`customParts: []`, cas de Chauffage.projix) : la liste complète de la
+   * bibliothèque (`sendCustomParts`) n'arrive qu'APRÈS le schéma, qui écartait
+   * alors un LM35 pourtant installé en le disant « inconnu » (build 308).
+   *
    * Le script de comportement est retiré, comme dans `sendCustomParts` : il
    * voyage à part, après approbation.
    */
-  private async installesDabord(embarques: unknown[]): Promise<unknown[]> {
+  private async installesDabord(embarques: unknown[], diagram?: unknown): Promise<unknown[]> {
     await SimulatorPanel.library?.whenReady?.();
     const installes = SimulatorPanel.library?.getComponents?.() as any[] | undefined;
     if (!installes?.length) return embarques;
-    const parType = new Map(installes.map((p) => [p?.type, p]));
-    return embarques.map((p: any) => {
-      const installe = parType.get(p?.type);
-      if (!installe) return p;
-      const { behaviorScript: _drop, ...rest } = installe;
+    const sansScript = (p: any) => {
+      const { behaviorScript: _drop, ...rest } = p;
       return rest;
+    };
+    const parType = new Map(installes.map((p) => [p?.type, p]));
+    const resultat = embarques.map((p: any) => {
+      const installe = parType.get(p?.type);
+      return installe ? sansScript(installe) : p;
     });
+    const dejaLa = new Set(embarques.map((p: any) => p?.type));
+    const poses = SimulatorPanel.partTypesOf(diagram);
+    for (const type of poses ?? []) {
+      const installe = parType.get(type);
+      if (installe && !dejaLa.has(type)) resultat.push(sansScript(installe));
+    }
+    return resultat;
   }
 
   /** Version PUBLIQUE de l'extension enregistrée dans le .projix (jamais le
@@ -3370,7 +3384,15 @@ ${err instanceof Error ? err.message : String(err)}`
     if (state.codeFileUri) this.setCodeFile(state.codeFileUri); // restaure le chip de code
     // Recharge le schéma tel qu'il était à la fermeture (markDirty : il reste
     // « non enregistré » tant qu'aucun enregistrement réel n'a eu lieu).
-    this.post({ type: 'loadProject', diagram: state.diagram, board: state.board, markDirty: true });
+    // Avec les composants installés qu'il pose : sans eux, un composant de
+    // bibliothèque serait écarté du schéma rouvert (la liste arrive après).
+    this.post({
+      type: 'loadProject',
+      diagram: state.diagram,
+      board: state.board,
+      markDirty: true,
+      customParts: await this.installesDabord([], state.diagram),
+    });
 
     const save = l10n.t('Save');
     const discard = l10n.t('Continue without saving');

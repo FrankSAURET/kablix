@@ -26,6 +26,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - Dupliquer ne recolle plus une ancienne copie quand la sélection ne se copie pas.
 - La palette ne reste plus bloquée après une pose interrompue.
 - Un schéma contenant un composant inconnu s'ouvre quand même, sans ce composant ni ses fils ; un message le signale et mène au gestionnaire de composants.
+- Un composant de bibliothèque installé n'est plus déclaré absent à l'ouverture d'un projet qui ne l'embarque pas.
 - Un projet enregistré juste après l'installation d'un composant de bibliothèque l'embarque bien : il se rouvre entier sur un autre poste.
 - Après une très longue séance, le projet n'apparaît plus « enregistré » à tort.
 - Créateur de composant : les pattes choisies pour chaque rôle ne se perdent plus.
