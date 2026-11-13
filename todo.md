@@ -5,6 +5,12 @@
 
 ---
 
+# v2026.11.2.311 — environnement Arduino : extension sœur fraîchement installée
+
+1. ✅ **Question de Frank** : sans extension sœur, le bouton « Installer l'environnement Arduino » l'installe d'abord, puis lance `arduino.setupEnvironment`. Risque vu : juste après `installExtension`, la commande peut ne pas être encore enregistrée (« commande introuvable »). `proposerEnvironnement` attend désormais qu'elle apparaisse (`getCommands`, 30 s au plus) ; sinon message « rechargez la fenêtre, puis compilez à nouveau ». FR traduit. `verify:arduinolibs` : 35 contrôles. ℹ️ Non essayé sur un VS Code sans l'extension sœur.
+
+---
+
 # v2026.11.2.310 — bibliothèques de base Arduino et environnement absent
 
 1. ✅ **Pourquoi Servo.h manque après l'installation initiale** : Servo, Stepper, LiquidCrystal, Ethernet, SD, Keyboard, Mouse, TFT, Firmata ne sont PAS dans le cœur `arduino:avr`. Arduino IDE 2 les pose au premier lancement via la méta-bibliothèque `Arduino_BuiltIn` (elle les tire en dépendances). arduino-cli ne le fait jamais, et le parcours d'installation de l'extension sœur (`setupEnvironment` : CLI, index, cœur, index des bibliothèques) ne le faisait pas non plus. Constaté sur le poste de Frank : `lib deps Arduino_BuiltIn` → Servo, Stepper, LiquidCrystal… absents.

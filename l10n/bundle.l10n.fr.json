@@ -341,5 +341,6 @@
   "Install the Arduino environment": "Installer l’environnement Arduino",
   "Kablix: arduino-cli is not installed on this computer: a .ino sketch cannot be compiled.": "Kablix : arduino-cli n’est pas installé sur cet ordinateur : impossible de compiler un croquis .ino.",
   "Kablix: installing the Arduino VS Code IDE extension…": "Kablix : installation de l’extension Arduino VS Code IDE…",
-  "Kablix: the Arduino environment could not be installed.": "Kablix : l’installation de l’environnement Arduino a échoué."
+  "Kablix: the Arduino environment could not be installed.": "Kablix : l’installation de l’environnement Arduino a échoué.",
+  "Kablix: the Arduino VS Code IDE extension is installed. Reload the window, then compile again to install the Arduino environment.": "Kablix : l’extension Arduino VS Code IDE est installée. Rechargez la fenêtre, puis compilez à nouveau pour installer l’environnement Arduino."
 }

@@ -1056,8 +1056,22 @@ export class SimulatorPanel {
       if (!vscode.extensions.getExtension(EXT_ARDUINO_IDE)) {
         await vscode.window.withProgress(
           { location: vscode.ProgressLocation.Notification, title: l10n.t('Kablix: installing the Arduino VS Code IDE extension…') },
-          () => vscode.commands.executeCommand('workbench.extensions.installExtension', EXT_ARDUINO_IDE)
+          async () => {
+            await vscode.commands.executeCommand('workbench.extensions.installExtension', EXT_ARDUINO_IDE);
+            // Extension fraîchement installée : ses commandes ne sont pas toujours
+            // enregistrées tout de suite. On attend la nôtre (30 s au plus).
+            for (let i = 0; i < 60; i++) {
+              if ((await vscode.commands.getCommands(true)).includes('arduino.setupEnvironment')) return;
+              await new Promise((r) => setTimeout(r, 500));
+            }
+          }
         );
+        if (!(await vscode.commands.getCommands(true)).includes('arduino.setupEnvironment')) {
+          vscode.window.showWarningMessage(
+            l10n.t('Kablix: the Arduino VS Code IDE extension is installed. Reload the window, then compile again to install the Arduino environment.')
+          );
+          return;
+        }
       }
       await vscode.commands.executeCommand('arduino.setupEnvironment');
     } catch (err) {

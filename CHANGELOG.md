@@ -14,7 +14,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Compilation Arduino**
 
-- arduino-cli absent : un bouton installe tout l'environnement Arduino (via l'extension Arduino VS Code IDE), puis relance la compilation.
+- arduino-cli absent : un bouton installe tout l'environnement Arduino (via l'extension Arduino VS Code IDE, installée au passage si besoin), puis relance la compilation.
 
 ### Modification
 

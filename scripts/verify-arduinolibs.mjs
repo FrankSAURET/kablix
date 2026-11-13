@@ -125,6 +125,7 @@ check(/fourniParLaBase\(enTete\)[\s\S]{0,200}BIBLIOTHEQUES_DE_BASE/.test(panel),
 check(/err instanceof CliIntrouvable[\s\S]{0,80}proposerEnvironnement\(/.test(panel), 'CLI absent → bouton « Installer l’environnement Arduino »');
 check(/executeCommand\('arduino\.setupEnvironment'\)/.test(panel), 'environnement installé par l’extension sœur');
 check(/installExtension', EXT_ARDUINO_IDE/.test(panel), 'extension sœur installée d’abord si absente');
+check(/getCommands\(true\)\)\.includes\('arduino\.setupEnvironment'\)/.test(panel), 'attend que la commande de l’extension fraîchement installée existe');
 const compilerSrc = readFileSync(join(ROOT, 'src/compiler.ts'), 'utf8');
 check(/throw new CliIntrouvable\(\s*"arduino-cli est introuvable/.test(compilerSrc), 'compiler.ts : CLI absent = erreur typée');
 const fr = JSON.parse(readFileSync(join(ROOT, 'l10n/bundle.l10n.fr.json'), 'utf8'));
