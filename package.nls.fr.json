@@ -20,6 +20,7 @@
   "kablix.cmd.associateProjix": "Kablix : Associer les fichiers .projix à Kablix",
   "kablix.cmd.fixIntelliSense": "Kablix : réparer l’analyse du code pour cette carte",
   "kablix.cmd.recommendedExtensions": "Kablix : Extensions conseillées",
+  "kablix.cmd.reportProblem": "Kablix : Signaler un problème",
   "kablix.cmd.chooseSvgEditor": "Kablix : Choisir l'éditeur SVG…",
   "kablix.cmd.openComponentsFolder": "Kablix : Ouvrir la bibliothèque de composants",
   "kablix.cmd.openComponentManager": "Kablix : Télécharger des composants",

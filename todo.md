@@ -1,6 +1,23 @@
 # À faire
-
+1. ⬜ **Signaler un problème : brancher l'envoi** — Frank déploie `outils/signaler-probleme/Code.gs` (mode d'emploi dans le README du dossier) et donne l'URL ; elle va dans `URL_RAPPORT` (`src/signaler.ts`). Puis essai d'un envoi réel.
 ## ne pas faire pour l'instant
+1. transformer kompix editor en créateur de projet info meca (typiquement robotique) en 3D. 
+    - des composants existent (carte elec, moteur, servo, roue...)
+    - Construction de modèles découpé laser, imprimé en  3D et assemblage
+    - import de modeles assemblés (solidworks et autres)
+    - une dénomination standard des éléments permet de leur attribuer un rôle de simulation
+---
+
+# v2026.11.2.312 — Signaler un problème
+
+1. ✅ **Commande « Kablix : Signaler un problème »** (`kablix.reportProblem`, [signaler.ts](src/signaler.ts)) — fenêtre : description, case « joindre le projet et le programme » (cochée, noms affichés), avertissement de ce qui part, boutons « Envoyer » et « Enregistrer une copie… » (zip identique sur le disque). Joint : journaux VS Code de la session courante et de la précédente non vide (`.log`, 1 Mo par fichier en gardant la fin, 12 Mo au total), `.projix` enregistré (anonymisé dedans : schéma, manifeste, code, noms de fichiers), programme lié avec ses modifications non enregistrées.
+2. ✅ **Envoi : mail avec pièce jointe via Google Apps Script** — `mailto:` ne joint rien, un SMTP dans le `.vsix` exposerait ses identifiants, Web3Forms gratuit refuse les pièces jointes. Le script ([outils/signaler-probleme/Code.gs](outils/signaler-probleme/Code.gs)) reçoit le zip et l'envoie par `MailApp` au compte qui l'a déployé : aucune adresse dans l'extension ; 18 Mo et 30 rapports/heure au plus. `URL_RAPPORT` vide tant que le script n'est pas déployé : la fenêtre propose alors « Enregistrer le rapport… ». Même repli si l'envoi échoue.
+3. ✅ **Anonymisation** ([anonymiser.ts](src/anonymiser.ts), [rapport.ts](src/rapport.ts), modules sans `vscode`) — identifiants du poste (compte, `USERNAME`, dossier personnel, machine, `LOGONSERVER`, domaine, `machineId`/`sessionId`, nom et mail git, dossiers du projet et du programme), formes brute et `%20` ; identifiant collé en CamelCase ou chiffres avalé en entier (`FrankSAURET`, `x4466`), mot en minuscules épargné. Motifs : dossier sous `Users`/`home`, sous-dossiers de Documents/Bureau/Téléchargements…, OneDrive d'organisation, comptes des forges (`github.com/<compte>`), « Logged in as », organisation Microsoft (tenant), mails, MAC, IPv4 (boucle locale gardée, versions épargnées), IPv6. Marqueurs neutres (`<utilisateur>`, `<machine>`, `<dossier>`…) — jamais « élève » ni « prof » (consigne de Frank, mémorisée). Noms de fichiers du zip sans `<>`.
+4. ✅ **Suivi d'un jour** ([suivi.ts](src/suivi.ts)) — après un envoi réussi, 24 h de journal « Kablix — suivi » (LogOutputChannel, écrit par VS Code dans les journaux de session, donc joint au rapport suivant) : chaque commande Kablix, durée, erreur. Toutes les commandes de `extension.ts` passent par `commande()`. Hors délai, rien n'est créé.
+5. ✅ **Banc `verify:signaler`** (21 contrôles) — faux dossier de journaux à 5 sessions (dont 2 vides), faux `.projix`, relecture du zip : aucun identifiant, aucun faux positif (versions, heures, `std::vector`), temps linéaire sur 1 Mo (une première regex des mails était quadratique : banc figé, corrigé). Essai sur les vrais journaux du poste : 88 fichiers, 1,7 Mo → zip 0,17 Mo en 263 ms ; deux défauts trouvés et corrigés (compte GitHub collé, tenant Microsoft), puis 0 résidu.
+6. ✅ Doc FR : section « Signaler un problème » dans `docs/fr/USAGE.md`. FR : 20 chaînes (`bundle.l10n.fr.json`), titre de commande (`package.nls.fr.json`). CHANGELOG.
+7. ℹ️ Non essayé : la fenêtre dans VS Code et l'envoi réel (URL absente). Contre-épreuve sans objet (fonction neuve).
+8. ⏳ ES/ZH : chaînes de la fenêtre, `kablix.cmd.reportProblem` ; `docs/en/USAGE.md`.
 
 ---
 

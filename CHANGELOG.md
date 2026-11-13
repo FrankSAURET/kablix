@@ -16,6 +16,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - arduino-cli absent : un bouton installe tout l'environnement Arduino (via l'extension Arduino VS Code IDE, installée au passage si besoin), puis relance la compilation.
 
+**Assistance**
+
+- Nouvelle commande « Kablix : Signaler un problème » : une description, et les journaux partent anonymisés avec, au choix, le projet et le programme.
+
 ### Modification
 
 **Compilation Arduino**

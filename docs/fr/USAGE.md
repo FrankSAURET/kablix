@@ -41,10 +41,11 @@
 10. [Enregistrer / ouvrir un projet (.projix)](#enregistrer--ouvrir-un-projet-projix)
 11. [Interopérabilité Wokwi (diagram.json)](#interopérabilité-wokwi-diagramjson)
 12. [Mises à jour des bibliothèques](#mises-à-jour-des-bibliothèques)
-13. [Extensions conseillées](#extensions-conseillées)
+13. [Signaler un problème](#signaler-un-problème)
+14. [Extensions conseillées](#extensions-conseillées)
     1. [La carte choisie dans Kablix devient celle du projet Arduino](#la-carte-choisie-dans-kablix-devient-celle-du-projet-arduino)
     2. [Plus rien de souligné en rouge dans le code](#plus-rien-de-souligné-en-rouge-dans-le-code)
-14. [Raccourcis clavier](#raccourcis-clavier)
+15. [Raccourcis clavier](#raccourcis-clavier)
     1. [Copier-coller d'un projet à l'autre](#copier-coller-dun-projet-à-lautre)
 
 ---
@@ -790,6 +791,16 @@ Kablix embarque trois bibliothèques de simulation (`avr8js`, `rp2040js`, `@wokw
 - **La notification propose trois réponses** : **Installer** (ouvre la page npm ; dans le dépôt de l'extension, lance directement le `npm install`), **Plus tard** (elle revient à l'ouverture suivante) et **Pas cette version** (celle-ci n'est plus jamais proposée ; une version encore plus récente le sera). La vérification manuelle, elle, répond toujours — même sur une version refusée.
 
 > **Avertissement** : mettre à jour ces bibliothèques peut **casser l'extension** (changements d'API). En cas de problème, ouvrez une demande sur le dépôt GitHub : [github.com/FrankSAURET/kablix/issues](https://github.com/FrankSAURET/kablix/issues). Une vérification réseau absente ou échouée reste silencieuse et n'affecte pas le fonctionnement hors-ligne.
+
+## Signaler un problème
+
+Palette de commandes (`Ctrl+Shift+P`) → **« Kablix : Signaler un problème »**. Une fenêtre s'ouvre : décrire ce que vous faisiez, ce que vous attendiez et ce qui s'est passé, puis **Envoyer**.
+
+Ce qui part : la description, les journaux de VS Code de la session en cours et de la précédente et, si la case est cochée (par défaut), le projet `.projix` enregistré et le programme lié. Décochez la case pour ne pas les joindre.
+
+Tout est **anonymisé avant l'envoi** : noms d'utilisateur et d'ordinateur, noms de dossiers dans les chemins, comptes en ligne, adresses mail, IP et MAC sont remplacés par des marqueurs neutres (`<utilisateur>`, `<machine>`, `<dossier>`…). Le texte de la description et du programme part tel quel : n'y écrivez pas votre nom. **Enregistrer une copie…** produit le même zip sur le disque, pour voir exactement ce qui serait envoyé.
+
+Après un envoi, Kablix tient pendant **24 heures** un journal « Kablix — suivi » de ses propres commandes (nom, durée, erreur). Il reste sur l'ordinateur et ne part qu'avec un autre rapport. Si l'envoi échoue (pas de réseau), **Enregistrer le rapport…** permet de l'envoyer autrement.
 
 ## Extensions conseillées
 

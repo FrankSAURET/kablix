@@ -452,6 +452,11 @@ export class SimulatorPanel {
     return this.documentUri;
   }
 
+  /** Fichier de programme lié au projet (rapport « Signaler un problème »). */
+  public getCodeFileUri(): vscode.Uri | undefined {
+    return this.codeFileUri;
+  }
+
   /** Le projet a-t-il des modifications non enregistrées ? (backup hot-exit) */
   public isProjectDirty(): boolean {
     return this.projectDirty;

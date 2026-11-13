@@ -19,6 +19,8 @@ import { memoriserModeExtension } from './version';
 import { redetecterArduinoCli } from './arduinoCliPistes';
 import { AnalyseurJournal } from './analyseur-journal';
 import { AnalyseurPanel } from './analyseur-panel';
+import { commande, initialiserSuivi } from './suivi';
+import { SignalerPanel } from './signaler';
 
 const l10n = vscode.l10n;
 
@@ -30,6 +32,8 @@ const STARTUP_GRACE_MS = 3000;
 export function activate(context: vscode.ExtensionContext): void {
   // Numéro de build interne visible seulement hors production (voir version.ts).
   memoriserModeExtension(context.extensionMode);
+  // Suivi d'un jour après un rapport « Signaler un problème » (suivi.ts).
+  initialiserSuivi(context);
 
   // Journaux de mesure laissés par une session qui s'est arrêtée brutalement :
   // sans ce balayage, le dossier temporaire grossirait sans fin.
@@ -144,20 +148,20 @@ export function activate(context: vscode.ExtensionContext): void {
   registerProjixEditor(context);
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('kablix.openSimulator', () => {
+    commande('kablix.openSimulator', () => {
       void openNewProjix(context);
     }),
-    vscode.commands.registerCommand('kablix.compileAndRun', () => {
+    commande('kablix.compileAndRun', () => {
       void SimulatorPanel.active()?.compileActiveFile();
     }),
-    vscode.commands.registerCommand('kablix.loadWorkspaceArtifact', () => {
+    commande('kablix.loadWorkspaceArtifact', () => {
       void SimulatorPanel.active()?.loadWorkspaceArtifact();
     }),
-    vscode.commands.registerCommand('kablix.saveProject', () => {
+    commande('kablix.saveProject', () => {
       // Enregistrement natif de l'onglet .projix actif (Ctrl+S).
       void vscode.commands.executeCommand('workbench.action.files.save');
     }),
-    vscode.commands.registerCommand('kablix.saveProjectSmart', () => {
+    commande('kablix.saveProjectSmart', () => {
       // Ctrl+S sur un onglet .projix : MÊME chemin que le bouton « Enregistrer »
       // de l'atelier (saveSmart) — un projet untitled avec un fichier de code
       // associé propose le nom du code, tout le reste retombe sur le Ctrl+S natif.
@@ -174,27 +178,27 @@ export function activate(context: vscode.ExtensionContext): void {
         void vscode.commands.executeCommand('workbench.action.files.save');
       }
     }),
-    vscode.commands.registerCommand('kablix.openProject', () => {
+    commande('kablix.openProject', () => {
       void openProjixViaDialog(context);
     }),
-    vscode.commands.registerCommand('kablix.exportWokwiDiagram', () => {
+    commande('kablix.exportWokwiDiagram', () => {
       SimulatorPanel.active()?.requestWokwiExport();
     }),
-    vscode.commands.registerCommand('kablix.exportPartsCsv', () => {
+    commande('kablix.exportPartsCsv', () => {
       SimulatorPanel.active()?.requestPartsCsv();
     }),
-    vscode.commands.registerCommand('kablix.importWokwiDiagram', () => {
+    commande('kablix.importWokwiDiagram', () => {
       void SimulatorPanel.active()?.importWokwiDiagram();
     }),
-    vscode.commands.registerCommand('kablix.checkLibraryUpdates', () => {
+    commande('kablix.checkLibraryUpdates', () => {
       // Vérification manuelle : affiche aussi la notification « à jour », et
       // ignore les versions refusées (l'utilisateur redemande explicitement).
       void promptLibraryUpdates(context, false);
     }),
-    vscode.commands.registerCommand('kablix.upgradePicoFirmware', () => {
+    commande('kablix.upgradePicoFirmware', () => {
       void upgradeFirmware(context);
     }),
-    vscode.commands.registerCommand('kablix.flashPicoFirmware', async () => {
+    commande('kablix.flashPicoFirmware', async () => {
       // Même firmware que la simulation, choisi d'après la carte du dessin.
       try {
         const fw = await firmwareForRealBoard(context, SimulatorPanel.active()?.board);
@@ -204,43 +208,43 @@ export function activate(context: vscode.ExtensionContext): void {
         void vscode.window.showErrorMessage(err instanceof Error ? err.message : String(err));
       }
     }),
-    vscode.commands.registerCommand('kablix.openHelp', () => {
+    commande('kablix.openHelp', () => {
       void GuidePanel.show(context.extensionUri);
     }),
-    vscode.commands.registerCommand('kablix.saveDefaultLayout', () => {
+    commande('kablix.saveDefaultLayout', () => {
       void saveDefaultLayout(context);
     }),
-    vscode.commands.registerCommand('kablix.openSettings', () => {
+    commande('kablix.openSettings', () => {
       // Réglages de Kablix dans l'éditeur graphique de VS Code : le filtre
       // « @ext:<publisher>.<name> » n'affiche que nos paramètres.
       void vscode.commands.executeCommand('workbench.action.openSettings', '@ext:electropol-fr.kablix');
     }),
-    vscode.commands.registerCommand('kablix.rearrangeLayout', () => {
+    commande('kablix.rearrangeLayout', () => {
       // Icône « réarranger » : rétablit la disposition Kablix mémorisée (côté +
       // ratio). Force = action explicite, même si déjà posée cette session.
       void applyDefaultLayout(context, true);
     }),
-    vscode.commands.registerCommand('kablix.associateProjix', () => {
+    commande('kablix.associateProjix', () => {
       void associateProjix(context);
     }),
     // Éditeur SVG des retouches du créateur de composants : demandé à la
     // première retouche, changeable ensuite par cette commande.
-    vscode.commands.registerCommand('kablix.chooseSvgEditor', () => {
+    commande('kablix.chooseSvgEditor', () => {
       void chooseSvgEditor();
     }),
-    vscode.commands.registerCommand('kablix.openComponentsFolder', () => {
+    commande('kablix.openComponentsFolder', () => {
       const folder = vscode.Uri.file(kompixLibrary.getLibraryPath?.() ?? context.globalStorageUri.fsPath);
       // revealFileInOS et pas openExternal : openExternal sur une URI « file: »
       // passe par le navigateur et n'ouvre pas l'explorateur de fichiers.
       void vscode.commands.executeCommand('revealFileInOS', folder);
     }),
-    vscode.commands.registerCommand('kablix.openComponentManager', () => {
+    commande('kablix.openComponentManager', () => {
       void ComponentManagerPanel.show(kompixLibrary);
     }),
     // Analyse de code : le travail se fait tout seul au choix de la carte, mais
     // il est silencieux. Cette commande le refait à la demande ET dit ce qui
     // s'est passé — c'est le seul endroit où l'utilisateur voit ce qui manque.
-    vscode.commands.registerCommand('kablix.fixIntelliSense', () => {
+    commande('kablix.fixIntelliSense', () => {
       const panel = SimulatorPanel.active();
       if (!panel) {
         void vscode.window.showInformationMessage(
@@ -252,19 +256,19 @@ export function activate(context: vscode.ExtensionContext): void {
         void vscode.window.showInformationMessage(compteRendu);
       });
     }),
-    vscode.commands.registerCommand('kablix.recommendedExtensions', () => {
+    commande('kablix.recommendedExtensions', () => {
       void promptRecommendedExtensions(context, true);
     }),
     // Redétection à la demande : le CLI peut être installé après le démarrage
     // de l'éditeur, ou déplacé par une mise à jour de l'extension Arduino
     // VS Code IDE (depuis sa v2026.9.3, il vit dans son stockage global).
-    vscode.commands.registerCommand('kablix.redetectArduinoCli', () => {
+    commande('kablix.redetectArduinoCli', () => {
       void redetecterArduinoCli(context);
     }),
     // Navigation d'une fiche d'aide à l'autre (liens `[texte](alim.md)` d'une
     // fiche). Commande interne : pas déclarée dans contributes.commands, donc
     // absente de la palette ; seule la webview d'aide l'appelle (command URI).
-    vscode.commands.registerCommand(SHOW_PART_HELP, (type: unknown) => {
+    commande(SHOW_PART_HELP, (type: unknown) => {
       if (typeof type === 'string' && /^[a-z0-9-]+$/i.test(type)) {
         // La bibliothèque est passée : un lien peut mener à la fiche d'un
         // composant .kompix aussi bien qu'à celle d'un composant intégré.
@@ -273,7 +277,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     // Navigation d'un guide à l'autre (liens entre USAGE.md et les guides
     // annexes). Commande interne, comme SHOW_PART_HELP.
-    vscode.commands.registerCommand(SHOW_GUIDE, (name: unknown) => {
+    commande(SHOW_GUIDE, (name: unknown) => {
       if (typeof name === 'string' && /^[a-z0-9_-]+$/i.test(name)) {
         void GuidePanel.show(context.extensionUri, name);
       }
@@ -282,7 +286,7 @@ export function activate(context: vscode.ExtensionContext): void {
     // Pico branchée. Le fichier ouvert y devient `main.py` (c'est ce que
     // MicroPython exécute au démarrage) et seuls les modules qu'il importe
     // l'accompagnent — pas tous les .py du dossier.
-    vscode.commands.registerCommand('kablix.uploadToPico', async (fileUri?: vscode.Uri) => {
+    commande('kablix.uploadToPico', async (fileUri?: vscode.Uri) => {
       // Le clic sur le bouton ne passe pas d'URI : c'est le fichier de l'onglet.
       const target = fileUri?.fsPath ?? vscode.window.activeTextEditor?.document.uri.fsPath;
       if (!target || !/\.py$/i.test(target)) {
@@ -299,7 +303,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     // Même bouton, mais grisé : aucune carte n'est branchée. Il ne fait que le
     // dire — sans lui, le clic sur l'icône éteinte ne donnerait aucun signe.
-    vscode.commands.registerCommand('kablix.uploadToPicoOffline', () => {
+    commande('kablix.uploadToPicoOffline', () => {
       void vscode.window.showWarningMessage(
         l10n.t(
           'No Pico board detected. Plug one in over USB — the button lights up on its own.'
@@ -307,14 +311,16 @@ export function activate(context: vscode.ExtensionContext): void {
       );
     }),
     // Bouton ■ : arrête le programme qui tourne sur la carte (Ctrl-C).
-    vscode.commands.registerCommand('kablix.stopPico', () => picoUploader.stop()),
-    vscode.commands.registerCommand('kablix.stopPicoOffline', () => {
+    commande('kablix.stopPico', () => picoUploader.stop()),
+    commande('kablix.stopPicoOffline', () => {
       void vscode.window.showWarningMessage(
         l10n.t(
           'No Pico board detected. Plug one in over USB — the button lights up on its own.'
         )
       );
     }),
+    // Rapport de problème : description + journaux anonymisés (+ projet).
+    commande('kablix.reportProblem', () => SignalerPanel.show(context)),
     // Boutons de la carte réservés aux programmes MicroPython (.micropico du projet).
     watchMicroPythonFiles()
   );
