@@ -10,16 +10,19 @@ import {
   loadPythonProgram,
   loadMicropythonRepl,
   CompileFailed,
+  CliIntrouvable,
   chercherArduinoCli,
   type Board,
   type CompileResult,
   type ToolPaths,
 } from './compiler';
-import { pistesArduinoIde } from './arduinoCliPistes';
+import { EXT_ARDUINO_IDE, pistesArduinoIde } from './arduinoCliPistes';
 import {
+  BIBLIOTHEQUES_DE_BASE,
   candidatEvident,
   chercherBibliotheques,
   enTeteManquant,
+  fourniParLaBase,
   installerBibliotheque,
   type Candidat,
 } from './arduinoLibs';
@@ -1028,7 +1031,44 @@ export class SimulatorPanel {
         return;
       }
     }
+    if (err instanceof CliIntrouvable) {
+      void this.proposerEnvironnement(message);
+      return;
+    }
     vscode.window.showErrorMessage(`Kablix : ${message}`);
+  }
+
+  /**
+   * Sketch .ino et arduino-cli absent : bouton « Installer l'environnement
+   * Arduino ». Kablix n'installe rien lui-même : il délègue à l'extension sœur
+   * (commande `arduino.setupEnvironment` : CLI, cœur arduino:avr, bibliothèques
+   * de base), en l'installant d'abord si besoin, puis recompile.
+   */
+  private async proposerEnvironnement(message: string): Promise<void> {
+    const bouton = l10n.t('Install the Arduino environment');
+    const choix = await vscode.window.showErrorMessage(
+      l10n.t('Kablix: arduino-cli is not installed on this computer: a .ino sketch cannot be compiled.'),
+      { detail: message },
+      bouton
+    );
+    if (choix !== bouton) return;
+    try {
+      if (!vscode.extensions.getExtension(EXT_ARDUINO_IDE)) {
+        await vscode.window.withProgress(
+          { location: vscode.ProgressLocation.Notification, title: l10n.t('Kablix: installing the Arduino VS Code IDE extension…') },
+          () => vscode.commands.executeCommand('workbench.extensions.installExtension', EXT_ARDUINO_IDE)
+        );
+      }
+      await vscode.commands.executeCommand('arduino.setupEnvironment');
+    } catch (err) {
+      vscode.window.showErrorMessage(
+        l10n.t('Kablix: the Arduino environment could not be installed.') +
+          `
+${err instanceof Error ? err.message : String(err)}`
+      );
+      return;
+    }
+    if (chercherArduinoCli(this.toolPaths()).chemin) await this.compileActiveFile(false);
   }
 
   /**
@@ -1049,6 +1089,12 @@ export class SimulatorPanel {
     const cheminCli = chercherArduinoCli(this.toolPaths()).chemin;
     if (!cheminCli) {
       vscode.window.showErrorMessage(l10n.t('Kablix: arduino-cli not found, cannot install the library.'));
+      return;
+    }
+    // Servo.h, Stepper.h, LiquidCrystal.h… : tout le lot de base d'un coup,
+    // comme Arduino IDE 2 au premier lancement (voir BIBLIOTHEQUES_DE_BASE).
+    if (fourniParLaBase(enTete)) {
+      await this.installerPuisRecompiler(cheminCli, BIBLIOTHEQUES_DE_BASE, `${BIBLIOTHEQUES_DE_BASE} (Servo, Stepper, LiquidCrystal…)`);
       return;
     }
     let candidats: Candidat[];
@@ -1088,21 +1134,25 @@ ${err instanceof Error ? err.message : String(err)}`
       if (!pick) return;
       retenu = pick.c;
     }
-    const nom = retenu.nom;
+    await this.installerPuisRecompiler(cheminCli, retenu.nom, retenu.nom);
+  }
+
+  /** `lib install <nom>` avec barre de progression, puis recompilation. */
+  private async installerPuisRecompiler(cheminCli: string, nom: string, libelle: string): Promise<void> {
     try {
       await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Notification, title: l10n.t('Kablix: installing the {0} library…', nom) },
+        { location: vscode.ProgressLocation.Notification, title: l10n.t('Kablix: installing the {0} library…', libelle) },
         () => installerBibliotheque(cheminCli, nom)
       );
     } catch (err) {
       vscode.window.showErrorMessage(
-        l10n.t('Kablix: installation of the {0} library failed.', nom) +
+        l10n.t('Kablix: installation of the {0} library failed.', libelle) +
           `
 ${err instanceof Error ? err.message : String(err)}`
       );
       return;
     }
-    vscode.window.showInformationMessage(l10n.t('Kablix: {0} library installed, compiling again.', nom));
+    vscode.window.showInformationMessage(l10n.t('Kablix: {0} library installed, compiling again.', libelle));
     await this.compileActiveFile(false);
   }
 

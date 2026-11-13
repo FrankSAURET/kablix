@@ -337,5 +337,9 @@
   "Which library provides {0}?": "Quelle bibliothèque fournit {0} ?",
   "Kablix: installing the {0} library…": "Kablix : installation de la bibliothèque {0}…",
   "Kablix: installation of the {0} library failed.": "Kablix : l’installation de la bibliothèque {0} a échoué.",
-  "Kablix: {0} library installed, compiling again.": "Kablix : bibliothèque {0} installée, nouvelle compilation."
+  "Kablix: {0} library installed, compiling again.": "Kablix : bibliothèque {0} installée, nouvelle compilation.",
+  "Install the Arduino environment": "Installer l’environnement Arduino",
+  "Kablix: arduino-cli is not installed on this computer: a .ino sketch cannot be compiled.": "Kablix : arduino-cli n’est pas installé sur cet ordinateur : impossible de compiler un croquis .ino.",
+  "Kablix: installing the Arduino VS Code IDE extension…": "Kablix : installation de l’extension Arduino VS Code IDE…",
+  "Kablix: the Arduino environment could not be installed.": "Kablix : l’installation de l’environnement Arduino a échoué."
 }

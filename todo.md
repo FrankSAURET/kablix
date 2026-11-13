@@ -1,7 +1,16 @@
 # À faire
-1. Bug de servo.h non trouvé. Tu as corrigé ce probleme. Lors de l'installation initiale de arduino-cli,  pourqoi les librairie arduino par défaut ne sont elle pas installé ? Une fois ce pb corrigé, tu ajoutes les mêmes sécurité sur mon extension "Arduino VsCode IDE" : l'installation de librairie manquante par un bouton et l'installation complete de l'environnement arduino (arduino cli et librairies) si'il manque. Tu le fais en  lansçant un claude sur le dossier de l'extension via vscode de façon que j'ai l'historique au bon endroit. tu ajoutes cette façon de fonctionner au consignes générales pout tous mes projets.
+1. (Partie Kablix faite en v310, reste l'extension sœur) Bug de servo.h non trouvé. Tu as corrigé ce probleme. Lors de l'installation initiale de arduino-cli,  pourqoi les librairie arduino par défaut ne sont elle pas installé ? Une fois ce pb corrigé, tu ajoutes les mêmes sécurité sur mon extension "Arduino VsCode IDE" : l'installation de librairie manquante par un bouton et l'installation complete de l'environnement arduino (arduino cli et librairies) si'il manque. Tu le fais en  lansçant un claude sur le dossier de l'extension via vscode de façon que j'ai l'historique au bon endroit. tu ajoutes cette façon de fonctionner au consignes générales pout tous mes projets.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.2.310 — bibliothèques de base Arduino et environnement absent
+
+1. ✅ **Pourquoi Servo.h manque après l'installation initiale** : Servo, Stepper, LiquidCrystal, Ethernet, SD, Keyboard, Mouse, TFT, Firmata ne sont PAS dans le cœur `arduino:avr`. Arduino IDE 2 les pose au premier lancement via la méta-bibliothèque `Arduino_BuiltIn` (elle les tire en dépendances). arduino-cli ne le fait jamais, et le parcours d'installation de l'extension sœur (`setupEnvironment` : CLI, index, cœur, index des bibliothèques) ne le faisait pas non plus. Constaté sur le poste de Frank : `lib deps Arduino_BuiltIn` → Servo, Stepper, LiquidCrystal… absents.
+2. ✅ **Kablix : en-tête de base → tout le lot** — `fourniParLaBase(enTete)` ([arduinoLibs.ts](src/arduinoLibs.ts)) : le bouton « Installer la bibliothèque » pose `Arduino_BuiltIn` (les 9 bibliothèques) au lieu de la seule Servo. `installerBibliotheque` met l'index à jour et réessaie une fois si `lib install` échoue (poste neuf). Vérifié en réel dans un carnet temporaire (`ARDUINO_DIRECTORIES_USER`) : les 9 dossiers posés.
+3. ✅ **Kablix : arduino-cli absent → « Installer l'environnement Arduino »** — erreur typée `CliIntrouvable` ([compiler.ts](src/compiler.ts)) ; `proposerEnvironnement` ([panel.ts](src/panel.ts)) installe l'extension sœur si besoin, lance `arduino.setupEnvironment`, puis recompile si le CLI est trouvé.
+4. ✅ Banc `verify:arduinolibs` : 34 contrôles (lot de base, câblage, traduction). `verify:compiler`, `verify:arduinocli` verts. FR : 4 chaînes dans `bundle.l10n.fr.json`. ⏳ ES/ZH avant publication.
 
 ---
 

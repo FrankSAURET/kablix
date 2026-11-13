@@ -450,6 +450,18 @@ export class CompileFailed extends Error {
 }
 
 /**
+ * Sketch .ino sans arduino-cli sur le poste. Erreur typée : le panneau propose
+ * alors d'installer tout l'environnement Arduino (CLI, cœur, bibliothèques de
+ * base) via l'extension sœur, au lieu d'un message que l'élève ne sait pas suivre.
+ */
+export class CliIntrouvable extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'CliIntrouvable';
+  }
+}
+
+/**
  * Lance un outil externe SANS bloquer l'hôte de l'extension. C'était un
  * `execFileSync` : pendant les 3 à 6 secondes d'un `arduino-cli compile`, VS Code
  * entier était figé — la barre de progression elle-même ne tournait pas, d'où
@@ -1826,7 +1838,7 @@ async function compileDans(
 
     if (ext === '.ino') {
       if (arduinoCli) return withArduinoCli(arduinoCli);
-      throw new Error(
+      throw new CliIntrouvable(
         "arduino-cli est introuvable pour compiler un sketch .ino. Installez « arduino-cli » " +
           "ou indiquez son chemin complet dans le réglage « kablix.arduinoCliPath ». " +
           "Après installation, lancez « Kablix : redétecter arduino-cli » (pas besoin de redémarrer).\n" +

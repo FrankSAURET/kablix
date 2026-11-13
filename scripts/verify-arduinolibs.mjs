@@ -85,6 +85,16 @@ check(
   'LiquidCrystal_I2C.h → « LiquidCrystal I2C »'
 );
 
+// Bibliothèques de base (Arduino IDE 2 les pose au premier lancement, arduino-cli
+// jamais) : un de leurs en-têtes installe tout le lot Arduino_BuiltIn.
+check(libs.BIBLIOTHEQUES_DE_BASE === 'Arduino_BuiltIn', 'lot de base : Arduino_BuiltIn');
+for (const h of ['Servo.h', 'servo.h', 'Stepper.h', 'LiquidCrystal.h', 'SD.h']) {
+  check(libs.fourniParLaBase(h), `${h} fourni par le lot de base`);
+}
+for (const h of ['LiquidCrystal_I2C.h', 'Adafruit_NeoPixel.h', 'ESP32Servo.h', 'DHT.h']) {
+  check(!libs.fourniParLaBase(h), `${h} hors du lot de base`);
+}
+
 console.log('\nC. Vraie recherche dans l’index Arduino :');
 const cli = chercherArduinoCli({}).chemin;
 if (!cli) {
@@ -111,8 +121,15 @@ check(/enTeteManquant\(err\.log\)/.test(panel), 'reportError repère l’en-têt
 check(/proposerBibliotheque\(/.test(panel), 'bouton « Installer la bibliothèque » proposé');
 check(/installerBibliotheque\(cheminCli/.test(panel), 'installation avec le même arduino-cli');
 check(/compileActiveFile\(false\)/.test(panel.slice(panel.indexOf('proposerBibliotheque('))), 'recompilation après installation');
+check(/fourniParLaBase\(enTete\)[\s\S]{0,200}BIBLIOTHEQUES_DE_BASE/.test(panel), 'en-tête de base → tout le lot Arduino_BuiltIn');
+check(/err instanceof CliIntrouvable[\s\S]{0,80}proposerEnvironnement\(/.test(panel), 'CLI absent → bouton « Installer l’environnement Arduino »');
+check(/executeCommand\('arduino\.setupEnvironment'\)/.test(panel), 'environnement installé par l’extension sœur');
+check(/installExtension', EXT_ARDUINO_IDE/.test(panel), 'extension sœur installée d’abord si absente');
+const compilerSrc = readFileSync(join(ROOT, 'src/compiler.ts'), 'utf8');
+check(/throw new CliIntrouvable\(\s*"arduino-cli est introuvable/.test(compilerSrc), 'compiler.ts : CLI absent = erreur typée');
 const fr = JSON.parse(readFileSync(join(ROOT, 'l10n/bundle.l10n.fr.json'), 'utf8'));
 check(fr['Install the library'] === 'Installer la bibliothèque', 'bouton traduit en français');
+check(fr['Install the Arduino environment'] === 'Installer l’environnement Arduino', 'bouton environnement traduit en français');
 
 console.log(`\n${ok} contrôles verts, ${fails.length} rouge(s).`);
 console.log(fails.length ? 'RESULTAT: ECHEC' : 'RESULTAT: OK');

@@ -12,7 +12,16 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - Ruban APA102 : un avertissement signale un programme qui pilote moins de LED que le ruban n'en a (la suivante s'allume en blanc).
 
+**Compilation Arduino**
+
+- arduino-cli absent : un bouton installe tout l'environnement Arduino (via l'extension Arduino VS Code IDE), puis relance la compilation.
+
 ### Modification
+
+**Compilation Arduino**
+
+- Servo.h, Stepper.h, LiquidCrystal.h manquants : le bouton installe d'un coup toutes les bibliothèques de base d'Arduino, comme Arduino IDE au premier lancement.
+
 
 **Pico W simulée**
 

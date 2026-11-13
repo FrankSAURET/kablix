@@ -44,6 +44,26 @@ export const BIBLIOTHEQUE_DE: Readonly<Record<string, string>> = {
   'u8x8lib.h': 'U8g2',
 };
 
+/**
+ * Bibliothèques « de base » d'Arduino (Servo, Stepper, LiquidCrystal…). Arduino
+ * IDE 2 les installe au premier lancement en posant la méta-bibliothèque
+ * `Arduino_BuiltIn`, qui les tire toutes en dépendances. arduino-cli, lui, ne
+ * l'a jamais fait : un poste équipé par le seul CLI (installation initiale de
+ * l'extension sœur, élève sans Arduino IDE) n'a donc pas Servo.h — constaté le
+ * 13/11/2026 sur le poste de Frank lui-même. Pour un de ces en-têtes, on pose
+ * tout le lot d'un coup : le Stepper.h de la séance suivante est déjà là.
+ */
+export const BIBLIOTHEQUES_DE_BASE = 'Arduino_BuiltIn';
+const EN_TETES_DE_BASE = new Set([
+  'servo.h', 'stepper.h', 'liquidcrystal.h', 'ethernet.h', 'keyboard.h',
+  'mouse.h', 'tft.h', 'sd.h', 'firmata.h',
+]);
+
+/** Vrai si l'en-tête est fourni par le lot `Arduino_BuiltIn`. */
+export function fourniParLaBase(enTete: string): boolean {
+  return EN_TETES_DE_BASE.has(enTete.toLowerCase());
+}
+
 /** Bibliothèque telle que la décrit `arduino-cli lib search --format json`. */
 export interface BibliothequeIndex {
   name: string;
@@ -147,7 +167,16 @@ export async function chercherBibliotheques(cheminCli: string, enTete: string): 
   return classerCandidats(enTete, index);
 }
 
-/** Installe une bibliothèque (et ses dépendances) dans le carnet de croquis. */
+/**
+ * Installe une bibliothèque (et ses dépendances) dans le carnet de croquis.
+ * Index jamais téléchargé (poste neuf) : `lib install` ne trouve rien, on le
+ * met à jour puis on réessaie une fois.
+ */
 export async function installerBibliotheque(cheminCli: string, nom: string): Promise<void> {
-  await cli(cheminCli, ['lib', 'install', nom]);
+  try {
+    await cli(cheminCli, ['lib', 'install', nom]);
+  } catch {
+    await cli(cheminCli, ['lib', 'update-index']);
+    await cli(cheminCli, ['lib', 'install', nom]);
+  }
 }
