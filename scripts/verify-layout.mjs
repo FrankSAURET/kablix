@@ -719,7 +719,7 @@ ok('tri : appelé à CHAQUE pose de disposition, ouverture comprise',
   /^\s*await sortTabsIntoColumns\(context\);/m.test(layoutSrc)
   && !/if \(force\) await sortTabsIntoColumns/.test(layoutSrc));
 ok('tri : « réarranger » (kablix.rearrangeLayout) force bien la disposition',
-  /registerCommand\('kablix\.rearrangeLayout'[\s\S]{0,300}?applyDefaultLayout\(context, true\)/
+  /(?:registerCommand|commande)\('kablix\.rearrangeLayout'[\s\S]{0,300}?applyDefaultLayout\(context, true\)/
     .test(readFileSync(join(ROOT, 'src', 'extension.ts'), 'utf8')));
 // L'ouverture automatique reste IDEMPOTENTE : une fois la disposition posée
 // dans la session, on n'y retouche plus (sinon les onglets sauteraient à chaque

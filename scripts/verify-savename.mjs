@@ -42,7 +42,7 @@ check(!!kb, 'package.json : Ctrl+S lié à kablix.saveProjectSmart');
 check(kb?.key === 'ctrl+s' && kb?.mac === 'cmd+s', 'raccourci Ctrl+S / Cmd+S');
 check(/activeCustomEditorId == 'kablix\.projix'/.test(kb?.when ?? ''), 'when : limité à l’onglet .projix');
 check(!/resourceScheme/.test(kb?.when ?? ''), 'when : PLUS de condition resourceScheme (elle bloquait le raccourci)');
-check(/registerCommand\('kablix\.saveProjectSmart'/.test(ext), 'extension.ts : commande enregistrée');
+check(/(?:registerCommand|commande)\('kablix\.saveProjectSmart'/.test(ext), 'extension.ts : commande enregistrée');
 check(/panel\.saveSmart\(false\)/.test(ext), 'extension.ts : Ctrl+S appelle saveSmart — le chemin du bouton Enregistrer');
 check(/case 'nativeSave':[\s\S]{0,400}?this\.saveSmart\(false\)/.test(panelSrc), 'panel.ts : le bouton Enregistrer appelle le MÊME saveSmart');
 

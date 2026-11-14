@@ -200,7 +200,7 @@ const cmd = pkg.contributes.commands.find((c) => c.command === 'kablix.redetectA
 check(!!cmd, 'package.json : commande kablix.redetectArduinoCli');
 check(!!nlsEn['kablix.cmd.redetectArduinoCli'], 'titre EN de la commande');
 check(
-  /registerCommand\('kablix\.redetectArduinoCli'/.test(extSrc),
+  /(?:registerCommand|commande)\('kablix\.redetectArduinoCli'/.test(extSrc),
   'extension.ts enregistre la commande'
 );
 check(

@@ -1,6 +1,6 @@
 {
  "commentaire": "Cascade de décodage de rp2040js AVANT transformation. Produit par _gen-decode-rp2040.mjs, lu par verify-decode.mjs. Ne pas éditer à la main.",
- "version": "1.4.1",
+ "version": "1.4.2",
  "prefixeLarge": "opcode >>> 11 === 0b11110",
  "opLarge": 76,
  "opIllegal": 77,
@@ -10,7 +10,7 @@
    "nom": "ADCS",
    "cond": "opcode >> 6 === 0b0100000101",
    "large": false,
-   "sha": "a12342d82d9a7745"
+   "sha": "37995e5e306a5dc0"
   },
   {
    "nom": "ADD (register = SP plus immediate)",
@@ -70,7 +70,7 @@
    "nom": "ASRS (register)",
    "cond": "opcode >> 6 === 0b0100000100",
    "large": false,
-   "sha": "7e84c13aa9473215"
+   "sha": "a3e993123c7adcdf"
   },
   {
    "nom": "B (with cond)",
@@ -250,7 +250,7 @@
    "nom": "LSLS (register)",
    "cond": "opcode >> 6 === 0b0100000010",
    "large": false,
-   "sha": "515c83e089d69606"
+   "sha": "a664eb16e26dfebe"
   },
   {
    "nom": "LSRS (immediate)",
@@ -262,7 +262,7 @@
    "nom": "LSRS (register)",
    "cond": "opcode >> 6 === 0b0100000011",
    "large": false,
-   "sha": "4fcd4128beeebf8e"
+   "sha": "276cfd6cf72a5ff9"
   },
   {
    "nom": "MOV",
@@ -340,7 +340,7 @@
    "nom": "ROR",
    "cond": "opcode >> 6 === 0b0100000111",
    "large": false,
-   "sha": "99669e770143df69"
+   "sha": "631b36f5f73a994c"
   },
   {
    "nom": "NEGS / RSBS",
@@ -358,7 +358,7 @@
    "nom": "SBCS (Encoding T1)",
    "cond": "opcode >> 6 === 0b0100000110",
    "large": false,
-   "sha": "e63bb477e4810d9f"
+   "sha": "a5a34234bdf02077"
   },
   {
    "nom": "SEV",

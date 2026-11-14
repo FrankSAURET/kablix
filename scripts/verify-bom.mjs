@@ -207,7 +207,7 @@ ok('menu hamburger : l’entrée « liste des composants » est là',
 ok('menu hamburger : un séparateur suit la liste des composants',
   /data-cmd="kablix\.exportPartsCsv">[^\n]*\n\s*<li class="more-menu__sep" role="separator"><\/li>/.test(html));
 ok('extension : la commande kablix.exportPartsCsv est enregistrée',
-  /registerCommand\('kablix\.exportPartsCsv'[\s\S]{0,120}requestPartsCsv\(\)/.test(ext));
+  /(?:registerCommand|commande)\('kablix\.exportPartsCsv'[\s\S]{0,120}requestPartsCsv\(\)/.test(ext));
 ok('package.json : la commande est déclarée (palette de commandes)',
   pkg.contributes.commands.some((c) => c.command === 'kablix.exportPartsCsv' &&
     c.title === '%kablix.cmd.exportPartsCsv%'));

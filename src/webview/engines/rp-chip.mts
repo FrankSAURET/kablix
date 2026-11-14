@@ -1,10 +1,13 @@
 // Fabrique de puce pour le moteur Pico : RP2040 (Pico, Pico W) ou RP2350
 // (Pico 2, Pico 2 W). Deux bibliothèques cohabitent, et c'est voulu :
-//   - RP2040 : `rp2040js` 1.4.1 depuis npm, patché (cf. patches/) — +30 % de
+//   - RP2040 : `rp2040js` 1.4.2 depuis npm, patché (cf. patches/) — +30 % de
 //     débit, PIO avancé à la main, alarmes en FIFO. Rien à y toucher.
 //     1.4.1 (18/10/2026) : bornes des zones mémoire (flash, SRAM, DPRAM) — un
 //     accès 32/16 bits sur les derniers octets d'une zone levait une RangeError —
 //     et écriture 16 bits à cheval sur deux mots. Notre raccourci SRAM suit.
+//     1.4.2 (14/11/2026) : drapeaux C/V justes pour ADCS, SBCS (retenue comptée
+//     à part, plus ajoutée à l'opérande) et décalages par 0 (ASRS/LSLS/LSRS/RORS
+//     registre gardent C). Reportées ligne à ligne sur notre cœur.
 //   - RP2350 : `rp2350js` (fork c1570), non publié sur npm, donc VENDORISÉ dans
 //     vendor/rp2350js/ (cf. son ORIGINE.md). Mesuré à 60-70 % du régime du
 //     RP2040 ci-dessus, ce qui reste utilisable.

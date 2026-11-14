@@ -279,7 +279,7 @@ const cmd = pkg.contributes.commands.find((c) => c.command === 'kablix.fixIntell
 check(!!cmd && cmd.category === 'Kablix', 'package.json : commande kablix.fixIntelliSense dans la palette');
 check(!!nlsEn['kablix.cmd.fixIntelliSense'], 'titre EN de la commande');
 const extSrc = readFileSync(join(ROOT, 'src/extension.ts'), 'utf8');
-check(extSrc.includes("registerCommand('kablix.fixIntelliSense'"), 'extension.ts : la commande est enregistrée');
+check(/(?:registerCommand|commande)\('kablix\.fixIntelliSense'/.test(extSrc), 'extension.ts : la commande est enregistrée');
 check(/public fixIntelliSense\(\): Promise<string>/.test(panelSrc), 'panel.ts : le panneau sait la faire pour SA carte');
 
 world({ folders: [] });

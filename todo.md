@@ -7,6 +7,15 @@
     - une dénomination standard des éléments permet de leur attribuer un rôle de simulation
 ---
 
+# v2026.11.3.315 — 2026.11.3 en ligne, rp2040js 1.4.2
+
+1. ✅ **2026.11.3 publiée** (confirmé par Frank, 14/11/2026) : CHANGELOG ouvert sur `## 2026.11.4 (prochaine publication)`, CLAUDE.md à jour.
+2. ✅ **rp2040js 1.4.1 → 1.4.2** (sortie le 14/11/2026) — seul `cortex-m0-core.js` change : drapeaux C/V de ADCS et SBCS (retenue passée en argument au lieu d'être ajoutée à l'opérande, faux quand l'opérande valait 0xFFFFFFFF), C conservé sur décalage par 0 (ASRS, LSLS, LSRS, RORS registre) et LSLS registre au-delà de 32. Nos retouches gardées : les 10 changements d'amont reportés ligne à ligne sur le cœur corrigé (script validé : 1.4.1 vierge + report = 1.4.2 au bit près), le générateur relancé sur le vierge pour la référence du banc (`_decode-reference.json`) ; fusion et sortie du générateur ne diffèrent que par la lecture d'opcode directe en flash. Nouveau `patches/rp2040js+1.4.2.patch`, réappliqué au bit près après réinstallation propre. Ancien correctif déplacé dans `A Examiner/patches/rp2040js+1.4.1.patch` (à trancher par Frank). Procédure de montée notée en tête de `_gen-decode-rp2040.mjs`.
+3. ✅ Bancs : `verify:decode` (6, équivalence exhaustive), `micropython`, `firmware`, `realtime`, `simspeed`, `veille-pico`, `pico-freq`, `pico-console`, `neopixel`, `spi`, `i2c` verts. `verify:all` : 176 bancs, 170 verts au premier passage.
+4. ✅ **5 bancs rouges depuis v312** (`savename`, `layout`, `bom`, `arduinocli`, `intellisense`) — sans lien avec rp2040js : ils cherchaient `registerCommand('kablix.x'` dans `extension.ts`, où les commandes passent désormais par `commande('kablix.x', …)` (suivi d'un jour). Motif élargi aux deux formes ; les 5 verts. `analyseur-sans-declenchement` : `SecurityError` sur `sessionStorage` sous la charge, vert rejoué seul.
+
+---
+
 # v2026.11.3.314 — préparation de la publication 2026.11.3
 
 1. ✅ **Numéro** : même mois (novembre) → `2026.11.3`. `package.json` et `package-lock.json` en `2026.11.3`, `buildNumber` 314, CLAUDE.md à jour.
@@ -16,7 +25,7 @@
 5. ✅ **Interface ES/ZH** (`i18n-es.mts`, `i18n-zh.mts`) : « Project loaded (… unknown component(s) ignored …) » (v308), avertissement du ruban APA102 (2 chaînes). `verify:i18n` : 0 échec.
 6. ✅ **Docs EN/ES/ZH** : section « Signaler un problème » dans `USAGE.md` (sommaire renuméroté) ; fiches `picow`/`pico2w` : page locale par défaut, réglage `kablix.picowServerOnLan`, pare-feu. `verify:docs` 29/29.
 7. ℹ️ Traces 292-294 : déjà retirées du code (aucune occurrence de `trace-focus`, `TRACE_DOM_SCRIPT`, `traceDom`).
-8. ⬜ **Reste à Frank** : publier (`npm run publier`). Après la mise en ligne : ouvrir `## 2026.11.4 (prochaine publication)` dans le CHANGELOG.
+8. ✅ **Publiée par Frank** le 14/11/2026 ; `## 2026.11.4 (prochaine publication)` ouvert (v315).
 
 ---
 

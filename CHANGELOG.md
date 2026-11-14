@@ -4,6 +4,14 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 [Voir en ligne](https://github.com/FrankSAURET/kablix/blob/main/CHANGELOG.md) · [View online](https://github.com/FrankSAURET/kablix/blob/main/CHANGELOG.md)
 
+## 2026.11.4 (prochaine publication)
+
+### Correction
+
+**Simulation Pico**
+
+- Calculs avec retenue (nombres de 64 bits) et décalages de zéro bit : résultat juste dans tous les cas limites (émulateur du processeur RP2040 mis à jour).
+
 ## 2026.11.3 (14 novembre 2026)
 
 ### Nouveauté

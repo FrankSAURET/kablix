@@ -12,6 +12,13 @@
 //     node scripts/verify-decode.mjs      (équivalence exhaustive)
 //     npx patch-package rp2040js
 //
+// ATTENTION : le correctif rp2040js contient AUSSI des retouches à la main
+// (cortex-m0-core.js : lecture d'opcode directe en flash ; pio, uart, horloge,
+// rp2040.js). Le générateur ne les refait pas. Montée 1.4.1 → 1.4.2 (14/11/2026) :
+// sauver les fichiers corrigés, installer avec --ignore-scripts, lancer ce
+// générateur sur le vierge (il écrit la référence du banc), reporter le diff
+// d'amont sur le cœur corrigé sauvé, remettre les fichiers, puis patch-package.
+//
 // CE QUE ÇA PRODUIT. Les conditions de la cascade ne portent que sur les BITS de
 // l'opcode — jamais sur l'état du cœur. Elles sont donc calculables une fois pour
 // toutes : une table `Uint8Array(65536)` donne directement le numéro
