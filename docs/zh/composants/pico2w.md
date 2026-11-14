@@ -54,7 +54,7 @@ r.close()
 
 ### 接入点和 Web 服务器
 
-经典的做法 — 开发板声明自己是 **接入点**，手机连上它，通过网页控制 LED — 可以使用，但有一点不同：持有 TCP 套接字的是 **你的电脑**，而不是开发板。不会创建任何 Wi-Fi 网络：手机留在 **与电脑相同的网络** 中，打开启动时公布的地址。
+经典的做法 — 开发板声明自己是 **接入点**，手机连上它，通过网页控制 LED — 可以使用，但有一点不同：持有 TCP 套接字的是 **你的电脑**，而不是开发板。不会创建任何 Wi-Fi 网络。默认情况下，页面只能 **在本机** 打开（`http://127.0.0.1:…`，即启动时公布的地址）。如需用手机控制，请启用设置 **`kablix.picowServerOnLan`**：手机留在 **与电脑相同的网络** 中，打开公布的地址。
 
 ```python
 import network, socket
@@ -65,7 +65,7 @@ led = Pin(15, Pin.OUT)
 ap = network.WLAN(network.AP_IF)
 ap.config(essid="Kablix-Pico", password="kablix2026")
 ap.active(True)
-print("Address:", ap.ifconfig()[0])           # 电脑的真实地址
+print("Address:", ap.ifconfig()[0])           # 页面实际响应的地址
 
 address = socket.getaddrinfo("0.0.0.0", 80)[0][-1]
 server = socket.socket()
@@ -83,10 +83,10 @@ while True:
     client.close()
 ```
 
-- `network.WLAN(network.AP_IF)` 只是一个 **门面**：`config(essid=…, password=…)` 会被接受并记住，`active(True)` 成功，但不会广播任何接入点。不过 `ifconfig()[0]` 返回的是你电脑的 **真实 IPv4 地址** — 手机上要打开的就是这个地址。
+- `network.WLAN(network.AP_IF)` 只是一个 **门面**：`config(essid=…, password=…)` 会被接受并记住，`active(True)` 成功，但不会广播任何接入点。不过 `ifconfig()[0]` 返回的是页面实际响应的地址：默认为 `127.0.0.1`，启用 `kablix.picowServerOnLan` 后为你电脑的 **真实 IPv4 地址** — 手机上要打开的就是这个地址。
 - **服务器** `socket` 是真实转发的：`getaddrinfo`、`bind`、`listen`、`accept`、`recv`/`read`/`readline`、`send`/`sendall`/`write`、`makefile`、`close`。字节原样往返 — 说 HTTP 的是你的程序，与真实开发板完全一样。
 - **请求的端口不一定能得到**：大多数电脑上 80 端口是保留的。这时 Kablix 会改用 8080，再不行就用任意空闲端口，并在控制台打印打开的地址：`[Kablix] Pico W server: http://…`。要访问的就是 **这个** 地址，而不是程序中的端口。
-- 第一次运行时，**防火墙** 会请求许可：请允许专用网络访问，否则手机会敲一扇空门。
+- 启用 `kablix.picowServerOnLan` 后，第一次运行时 **防火墙** 会请求许可：请允许专用网络访问，否则手机会敲一扇空门。在公共网络上请保持关闭：网络中的任何设备都能访问该页面。
 - 仿真停止时套接字关闭；**`kablix.picowNetworkBridge`** 设置也会切断它（脚本会收到 `OSError`）。
 - 现成的测试电路：`testkablix/wifi-picow.projix`（及其孪生版本 `testkablix/wifi-pico2w.projix`）。
 

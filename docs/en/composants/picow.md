@@ -50,7 +50,7 @@ What is true, and what is not:
 
 ### Access point and web server
 
-The classic setup — the board declares itself an **access point**, a phone connects to it and drives the LED from a web page — works, with one difference: it is **your machine** that holds the TCP socket, not the board. No Wi-Fi network is created: the phone stays on the **same network as the PC** and opens the address announced at startup.
+The classic setup — the board declares itself an **access point**, a phone connects to it and drives the LED from a web page — works, with one difference: it is **your machine** that holds the TCP socket, not the board. No Wi-Fi network is created. By default the page only opens **on this machine** (`http://127.0.0.1:…`, the address announced at startup). To drive it from a phone, turn on the **`kablix.picowServerOnLan`** setting: the phone stays on the **same network as the PC** and opens the announced address.
 
 ```python
 import network, socket
@@ -61,7 +61,7 @@ led = Pin(15, Pin.OUT)
 ap = network.WLAN(network.AP_IF)
 ap.config(essid="Kablix-Pico", password="kablix2026")
 ap.active(True)
-print("Address:", ap.ifconfig()[0])           # the REAL address of the machine
+print("Address:", ap.ifconfig()[0])           # the address where the page answers
 
 address = socket.getaddrinfo("0.0.0.0", 80)[0][-1]
 server = socket.socket()
@@ -79,10 +79,10 @@ while True:
     client.close()
 ```
 
-- `network.WLAN(network.AP_IF)` is a **façade**: `config(essid=…, password=…)` is accepted and remembered, `active(True)` succeeds, but no access point is broadcast. `ifconfig()[0]`, however, returns the **real IPv4 address** of your machine — that is the one to open from the phone.
+- `network.WLAN(network.AP_IF)` is a **façade**: `config(essid=…, password=…)` is accepted and remembered, `active(True)` succeeds, but no access point is broadcast. `ifconfig()[0]`, however, returns the address where the page really answers: `127.0.0.1` by default, the **real IPv4 address** of your machine when `kablix.picowServerOnLan` is on — that is the one to open from the phone.
 - The **server** `socket` is relayed for real: `getaddrinfo`, `bind`, `listen`, `accept`, `recv`/`read`/`readline`, `send`/`sendall`/`write`, `makefile`, `close`. The bytes go back and forth as they are — it is your program that speaks HTTP, exactly as on the real board.
 - **The requested port is not always granted**: port 80 is reserved on most machines. Kablix then falls back to 8080, then to any free port, and prints the open address in the console: `[Kablix] Pico W server: http://…`. That is **the** address to aim at, not the port in the program.
-- On the first run, the **firewall** asks for permission: grant it for the private network, otherwise the phone knocks on an empty door.
+- With `kablix.picowServerOnLan` on, the **firewall** asks for permission on the first run: grant it for the private network, otherwise the phone knocks on an empty door. Leave it off on a public network: any device on the network would reach the page.
 - The socket closes when the simulation stops; the **`kablix.picowNetworkBridge`** setting cuts it off too (the script then gets an `OSError`).
 - Ready-made test bench: `testkablix/wifi-picow.projix` (and its twin `testkablix/wifi-pico2w.projix`).
 

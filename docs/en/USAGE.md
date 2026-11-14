@@ -41,10 +41,11 @@
 10. [Saving / opening a project (.projix)](#saving--opening-a-project-projix)
 11. [Wokwi interoperability (diagram.json)](#wokwi-interoperability-diagramjson)
 12. [Library updates](#library-updates)
-13. [Recommended extensions](#recommended-extensions)
+13. [Report a problem](#report-a-problem)
+14. [Recommended extensions](#recommended-extensions)
     1. [The board chosen in Kablix becomes the one of the Arduino project](#the-board-chosen-in-kablix-becomes-the-one-of-the-arduino-project)
     2. [Nothing underlined in red in your code any more](#nothing-underlined-in-red-in-your-code-any-more)
-14. [Keyboard shortcuts](#keyboard-shortcuts)
+15. [Keyboard shortcuts](#keyboard-shortcuts)
     1. [Copy and paste from one project to another](#copy-and-paste-from-one-project-to-another)
 
 ---
@@ -789,6 +790,16 @@ Kablix embeds three simulation libraries (`avr8js`, `rp2040js`, `@wokwi/elements
 - **The notification offers three answers**: **Install** (opens the npm page; inside the extension repository, it runs `npm install` directly), **Later** (it comes back at the next start) and **Not this version** (that one is never offered again; an even newer one will be). The manual check always answers — even on a refused version.
 
 > **Warning**: updating those libraries may **break the extension** (API changes). If anything goes wrong, open an issue on the GitHub repository: [github.com/FrankSAURET/kablix/issues](https://github.com/FrankSAURET/kablix/issues). A missing or failed network check stays silent and does not affect offline operation.
+
+## Report a problem
+
+Command palette (`Ctrl+Shift+P`) → **"Kablix: Report a problem"**. A window opens: describe what you were doing, what you expected and what happened, then **Send**.
+
+What is sent: the description, the VS Code logs of the current session and of the previous one and, if the box is ticked (default), the saved `.projix` project and the linked program. Untick the box to leave them out.
+
+Everything is **anonymized before sending**: user and computer names, folder names in paths, online accounts, mail, IP and MAC addresses are replaced by neutral markers (`<utilisateur>`, `<machine>`, `<dossier>`…). The text of the description and of the program is sent as is: do not write your name in it. **Save a copy…** writes the same zip to disk, to see exactly what would be sent.
+
+After sending, Kablix keeps a "Kablix — suivi" log of its own commands (name, duration, error) for **24 hours**. It stays on the computer and is only sent with another report. If sending fails (no network), **Save the report…** lets you send it another way.
 
 ## Recommended extensions
 

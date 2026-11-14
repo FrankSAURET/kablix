@@ -7,6 +7,19 @@
     - une dénomination standard des éléments permet de leur attribuer un rôle de simulation
 ---
 
+# v2026.11.3.314 — préparation de la publication 2026.11.3
+
+1. ✅ **Numéro** : même mois (novembre) → `2026.11.3`. `package.json` et `package-lock.json` en `2026.11.3`, `buildNumber` 314, CLAUDE.md à jour.
+2. ✅ **CHANGELOG daté du 14 novembre 2026** (ligne vide en trop retirée).
+3. ✅ **Extension ES/ZH** (`bundle.l10n.es.json`, `bundle.l10n.zh-cn.json`) : 28 chaînes — fenêtre « Signaler un problème » (v312), environnement Arduino (v310, v311), outil d'envoi Pico arrêté (v305), composants inconnus et gestionnaire (v308), serveur Pico W local (v306).
+4. ✅ **Manifeste ES/ZH** : `kablix.cmd.reportProblem`, `kablix.config.picowServerOnLan`.
+5. ✅ **Interface ES/ZH** (`i18n-es.mts`, `i18n-zh.mts`) : « Project loaded (… unknown component(s) ignored …) » (v308), avertissement du ruban APA102 (2 chaînes). `verify:i18n` : 0 échec.
+6. ✅ **Docs EN/ES/ZH** : section « Signaler un problème » dans `USAGE.md` (sommaire renuméroté) ; fiches `picow`/`pico2w` : page locale par défaut, réglage `kablix.picowServerOnLan`, pare-feu. `verify:docs` 29/29.
+7. ℹ️ Traces 292-294 : déjà retirées du code (aucune occurrence de `trace-focus`, `TRACE_DOM_SCRIPT`, `traceDom`).
+8. ⬜ **Reste à Frank** : publier (`npm run publier`). Après la mise en ligne : ouvrir `## 2026.11.4 (prochaine publication)` dans le CHANGELOG.
+
+---
+
 # v2026.11.2.313 — Signaler un problème : envoi branché
 
 1. ✅ **Script déployé par Frank**, URL `/exec` dans `URL_RAPPORT` (la `/dev` d'abord collée est réservée au propriétaire connecté : page de connexion Google pour tout autre).

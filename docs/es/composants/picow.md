@@ -50,7 +50,7 @@ Lo que es verdad y lo que no:
 
 ### Punto de acceso y servidor web
 
-El montaje clásico — la placa se declara **punto de acceso**, un teléfono se conecta a ella y controla el LED desde una página web — funciona, con una diferencia: es **su equipo** el que tiene el socket TCP, no la placa. No se crea ninguna red Wi-Fi: el teléfono se queda en la **misma red que el PC** y abre la dirección anunciada al arrancar.
+El montaje clásico — la placa se declara **punto de acceso**, un teléfono se conecta a ella y controla el LED desde una página web — funciona, con una diferencia: es **su equipo** el que tiene el socket TCP, no la placa. No se crea ninguna red Wi-Fi. Por defecto la página solo se abre **en este equipo** (`http://127.0.0.1:…`, la dirección anunciada al arrancar). Para controlarla desde un teléfono, active el ajuste **`kablix.picowServerOnLan`**: el teléfono se queda en la **misma red que el PC** y abre la dirección anunciada.
 
 ```python
 import network, socket
@@ -61,7 +61,7 @@ led = Pin(15, Pin.OUT)
 ap = network.WLAN(network.AP_IF)
 ap.config(essid="Kablix-Pico", password="kablix2026")
 ap.active(True)
-print("Address:", ap.ifconfig()[0])           # la dirección REAL del equipo
+print("Address:", ap.ifconfig()[0])           # la dirección donde responde la página
 
 address = socket.getaddrinfo("0.0.0.0", 80)[0][-1]
 server = socket.socket()
@@ -79,10 +79,10 @@ while True:
     client.close()
 ```
 
-- `network.WLAN(network.AP_IF)` es una **fachada**: `config(essid=…, password=…)` se acepta y se recuerda, `active(True)` tiene éxito, pero no se emite ningún punto de acceso. `ifconfig()[0]`, en cambio, devuelve la **dirección IPv4 real** de su equipo — es la que hay que abrir desde el teléfono.
+- `network.WLAN(network.AP_IF)` es una **fachada**: `config(essid=…, password=…)` se acepta y se recuerda, `active(True)` tiene éxito, pero no se emite ningún punto de acceso. `ifconfig()[0]`, en cambio, devuelve la dirección donde la página responde realmente: `127.0.0.1` por defecto, la **dirección IPv4 real** de su equipo cuando `kablix.picowServerOnLan` está activado — es la que hay que abrir desde el teléfono.
 - El `socket` **servidor** se retransmite de verdad: `getaddrinfo`, `bind`, `listen`, `accept`, `recv`/`read`/`readline`, `send`/`sendall`/`write`, `makefile`, `close`. Los bytes van y vienen tal cual — es su programa el que habla HTTP, exactamente como en la placa real.
 - **El puerto pedido no siempre se concede**: el puerto 80 está reservado en la mayoría de los equipos. Kablix pasa entonces al 8080 y luego a cualquier puerto libre, y escribe la dirección abierta en la consola: `[Kablix] Pico W server: http://…`. Esa es **la** dirección a la que hay que apuntar, no el puerto del programa.
-- En la primera ejecución, el **cortafuegos** pide permiso: concédalo para la red privada, o el teléfono llamará a una puerta vacía.
+- Con `kablix.picowServerOnLan` activado, el **cortafuegos** pide permiso en la primera ejecución: concédalo para la red privada, o el teléfono llamará a una puerta vacía. Déjelo desactivado en una red pública: cualquier aparato de la red llegaría a la página.
 - El socket se cierra al detener la simulación; el ajuste **`kablix.picowNetworkBridge`** también lo corta (el script recibe entonces un `OSError`).
 - Banco de pruebas listo para usar: `testkablix/wifi-picow.projix` (y su gemelo `testkablix/wifi-pico2w.projix`).
 

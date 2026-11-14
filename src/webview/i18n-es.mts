@@ -26,6 +26,8 @@ export const ES: Record<string, string> = {
     'Proyecto Wokwi cargado',
   'Wokwi project loaded ({0} unsupported part(s) ignored)':
     'Proyecto Wokwi cargado ({0} componente(s) no compatible(s) ignorado(s))',
+  'Project loaded ({0} unknown component(s) ignored: {1})':
+    'Proyecto cargado ({0} componente(s) desconocido(s) ignorado(s): {1})',
   'Paused':
     'En pausa',
   'Pause':
@@ -1379,6 +1381,10 @@ export const ES: Record<string, string> = {
     'El pin {0} está conectado a este componente pero el código nunca lo usa',
   'This component is wired to a pin that the code never uses, so it will do nothing. Use the pin in the code, or move the wire.':
     'Este componente está conectado a un pin que el código nunca usa, así que no hará nada. Use el pin en el código o cambie el cable de sitio.',
+  'Line {0}: the code drives {1} LEDs but the strip has {2}':
+    'Línea {0}: el código controla {1} LED pero la tira tiene {2}',
+  'The code drives fewer LEDs than the strip has. The LED right after the last one driven receives the end frame (0xFF bytes) and lights up white. Set the same number of LEDs in the code and on the strip, or end the frame with 0x00 bytes.':
+    'El código controla menos LED de los que tiene la tira. El LED que sigue al último controlado recibe la trama de fin (bytes 0xFF) y se enciende en blanco. Ponga el mismo número de LED en el código y en la tira, o termine la trama con bytes 0x00.',
   'Line {0}: the program is stuck waiting for pin {1}':
     'Línea {0}: el programa se queda bloqueado esperando al pin {1}',
   'This loop does nothing but wait for the pin to change: while it lasts, the program can do nothing else. Use an interrupt (attachInterrupt / pin.irq) so the program stays free.':

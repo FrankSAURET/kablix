@@ -26,6 +26,8 @@ export const ZH: Record<string, string> = {
     '已加载 Wokwi 项目',
   'Wokwi project loaded ({0} unsupported part(s) ignored)':
     '已加载 Wokwi 项目（忽略了 {0} 个不支持的元件）',
+  'Project loaded ({0} unknown component(s) ignored: {1})':
+    '已加载项目（忽略了 {0} 个未知元件：{1}）',
   'Paused':
     '已暂停',
   'Pause':
@@ -1379,6 +1381,10 @@ export const ZH: Record<string, string> = {
     '引脚 {0} 已接到此元件，但代码从未使用它',
   'This component is wired to a pin that the code never uses, so it will do nothing. Use the pin in the code, or move the wire.':
     '此元件接在代码从未使用的引脚上，因此不会有任何动作。请在代码中使用该引脚，或移动导线。',
+  'Line {0}: the code drives {1} LEDs but the strip has {2}':
+    '第 {0} 行：代码驱动 {1} 个 LED，但灯带有 {2} 个',
+  'The code drives fewer LEDs than the strip has. The LED right after the last one driven receives the end frame (0xFF bytes) and lights up white. Set the same number of LEDs in the code and on the strip, or end the frame with 0x00 bytes.':
+    '代码驱动的 LED 少于灯带上的数量。紧跟在最后一个被驱动 LED 之后的那个 LED 会收到结束帧（0xFF 字节）并亮起白光。请在代码和灯带上设置相同的 LED 数量，或用 0x00 字节结束数据帧。',
   'Line {0}: the program is stuck waiting for pin {1}':
     '第 {0} 行：程序卡在等待引脚 {1}',
   'This loop does nothing but wait for the pin to change: while it lasts, the program can do nothing else. Use an interrupt (attachInterrupt / pin.irq) so the program stays free.':
