@@ -6,6 +6,12 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ## 2026.11.4 (prochaine publication)
 
+### Nouveauté
+
+**Documentation**
+
+- Kablix dans le navigateur avec GitHub Codespaces : guide et modèle prêt à copier (Kablix et la compilation Arduino installés d'office).
+
 ### Correction
 
 **Simulation Pico**

@@ -1,0 +1,18 @@
+// Modèle Kablix pour GitHub Codespaces : copier le dossier .devcontainer à la racine
+// du dépôt de projets (sketchs, .projix). À la création du codespace : Kablix installé,
+// arduino-cli et le cœur arduino:avr (Uno, Mega) prêts à compiler.
+{
+	"name": "Kablix",
+	"image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+	"customizations": {
+		"vscode": {
+			"extensions": ["electropol-fr.kablix"]
+		}
+	},
+	// /usr/local/bin : déjà dans le PATH, Kablix y trouve arduino-cli sans réglage.
+	"postCreateCommand": "curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sudo BINDIR=/usr/local/bin sh && arduino-cli core update-index && arduino-cli core install arduino:avr",
+	// 2 cœurs suffisent : la simulation tourne dans le navigateur, pas sur le serveur.
+	"hostRequirements": {
+		"cpus": 2
+	}
+}

@@ -7,6 +7,16 @@
     - une dénomination standard des éléments permet de leur attribuer un rôle de simulation
 ---
 
+# v2026.11.3.316 — GitHub Codespaces
+
+1. ✅ **Modèle** [devcontainer.json](docs/exemples/codespaces/.devcontainer/devcontainer.json) : image Ubuntu, `electropol-fr.kablix`, arduino-cli dans `/usr/local/bin` (déjà dans le PATH, trouvé par `whichSync`) + cœur `arduino:avr`. Hors `.vsix` (`docs/exemples/**`).
+2. ✅ **Guide FR** [Codespaces.md](docs/fr/Codespaces.md) : mise en place, limites (USB, serveur Pico W local, vscode.dev), coût.
+3. ⏳ Guide EN/ES/ZH : avant publication.
+4. ⏳ Modèle non essayé dans un vrai codespace (pas de Docker ici) : à valider par Frank.
+5. ℹ️ **Chiffrage vscode.dev** (pas commencé) : socle web ≈ 7 j — point d'entrée `browser` (2 j), `node:fs/path/crypto` → `workspace.fs`/`Uri`/Web Crypto (2 j), USB Pico, Inkscape, IDE Arduino, `netserver` et zip désactivés (1 j), `.kompix` par `fetch` (0,5 j), bancs (1,5 j). MicroPython complet, Arduino par `.hex` importé. Compilation Arduino : serveur arduino-cli +4 j + hébergement, ou avr-gcc WASM +3-4 semaines.
+
+---
+
 # v2026.11.3.315 — 2026.11.3 en ligne, rp2040js 1.4.2
 
 1. ✅ **2026.11.3 publiée** (confirmé par Frank, 14/11/2026) : CHANGELOG ouvert sur `## 2026.11.4 (prochaine publication)`, CLAUDE.md à jour.
