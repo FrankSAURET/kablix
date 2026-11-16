@@ -7,6 +7,15 @@
     - une dénomination standard des éléments permet de leur attribuer un rôle de simulation
 ---
 
+# v2026.11.4.318 — préparation de la publication 2026.11.4
+
+1. ✅ **Numéro** : même mois (novembre) → `2026.11.4`. `package.json` et `package-lock.json` en `2026.11.4`, `buildNumber` 318, CLAUDE.md à jour.
+2. ✅ **CHANGELOG daté du 16 novembre 2026** (Codespaces, projet réenregistré sans composant installé, rp2040js 1.4.2).
+3. ✅ **Guide Codespaces EN/ES/ZH** (`docs/en|es|zh/Codespaces.md`, ⏳ de v316). Aucune autre chaîne nouvelle depuis la 2026.11.3.
+4. ⏳ Publication par Frank, puis ouvrir `## 2026.11.5 (prochaine publication)`.
+
+---
+
 # v2026.11.3.317 — projet élève « chauffage » sans fils (rapport 054e0897)
 
 1. ✅ **Cause du fichier sans fils** : le `.projix` reçu (16/11, 2026.11.3) contient `M1, Alim1, U1, T1, Capt1` et `wires: []` ; la version du 09/11 (`Bugs/Chauffage.projix`) avait en plus R1, APRÈS Capt1, et 8 fils. Signature exacte du défaut du build 303 (= publique 2026.11.2) : `loadDiagram` poussait la pièce PUIS la rendait ; `lm35a` inconnu du poste → exception au rendu de Capt1 → ni R1 ni fil chargés, et l'enregistrement suivant a figé ce schéma tronqué. Dégât antérieur au 16/11, corrigé en 308 ; l'enregistrement du 16/11 n'a fait que recopier le fichier abîmé. Rejoué dans le vrai éditeur (`scripts/_diag-chauffage-fils.mjs`) : le 09/11 s'ouvre complet en 2026.11.3 (6 pièces, 8/8 fils). Fils perdus pour ce fichier : rendre à l'élève la version du 09/11.
@@ -19,7 +28,7 @@
 
 1. ✅ **Modèle** [devcontainer.json](docs/exemples/codespaces/.devcontainer/devcontainer.json) : image Ubuntu, `electropol-fr.kablix`, arduino-cli dans `/usr/local/bin` (déjà dans le PATH, trouvé par `whichSync`) + cœur `arduino:avr`. Hors `.vsix` (`docs/exemples/**`).
 2. ✅ **Guide FR** [Codespaces.md](docs/fr/Codespaces.md) : mise en place, limites (USB, serveur Pico W local, vscode.dev), coût.
-3. ⏳ Guide EN/ES/ZH : avant publication.
+3. ✅ Guide EN/ES/ZH : fait en v318.
 4. ⏳ Modèle non essayé dans un vrai codespace (pas de Docker ici) : à valider par Frank.
 5. ℹ️ **Chiffrage vscode.dev** (pas commencé) : socle web ≈ 7 j — point d'entrée `browser` (2 j), `node:fs/path/crypto` → `workspace.fs`/`Uri`/Web Crypto (2 j), USB Pico, Inkscape, IDE Arduino, `netserver` et zip désactivés (1 j), `.kompix` par `fetch` (0,5 j), bancs (1,5 j). MicroPython complet, Arduino par `.hex` importé. Compilation Arduino : serveur arduino-cli +4 j + hébergement, ou avr-gcc WASM +3-4 semaines.
 
