@@ -193,6 +193,48 @@ check(!sansGravure.some((p) => p.type === 'spot'),
 check(sansGravure.every((p) => p.behaviorScript === undefined),
   'réouverture : le script du composant installé ne voyage pas avec le schéma');
 
+// ------------------------------------------------- B''. réenregistrer sur un poste qui n'a PAS le composant
+// Projet « chauffage » (16/11/2026) : ouvert sur un poste où le LM35 n'est pas
+// installé, l'atelier l'affichait grâce à sa copie gravée — mais l'enregistrement
+// ne regardait que la bibliothèque et gravait `customParts: []`. Rouvert sur un
+// autre poste sans LM35, le capteur et ses fils disparaissaient.
+const reenregistre = async ({ gravee, installee, poses }) => {
+  const posees = poses.map((type, i) => ({ id: `p${i}`, type, x: 0, y: 0, attrs: {} }));
+  SimulatorPanel.library = { whenReady: async () => {}, getComponents: () => gravee };
+  const g = Object.create(SimulatorPanel.prototype);
+  Object.assign(g, {
+    context: { globalState: { get: (_k, d) => d, update: async () => {} } },
+    currentBoard: 'pico', codeFileRef: () => undefined, codeFileUri: undefined, effectiveDebugVars: () => ({}),
+  });
+  const origine = await g.buildProjixBytes({ parts: posees, wires: [] }, 'pico');
+  // Second poste : ouverture du fichier, puis enregistrement tel quel.
+  SimulatorPanel.library = { whenReady: async () => {}, getComponents: () => installee };
+  const o = Object.create(SimulatorPanel.prototype);
+  Object.assign(o, {
+    context: { globalState: { get: (_k, d) => d, update: async () => {} } },
+    currentBoard: 'pico', codeFileRef: () => undefined, codeFileUri: undefined, effectiveDebugVars: () => ({}),
+    rememberLastProject() {}, postProjectName() {}, setCurrentBoard() {}, setDebugVars() {},
+    postDebugVars() {}, chargerAnalyseur() {}, restoreCodeFile: async () => {}, post: () => {},
+  });
+  await o.openProjectFromBytes(origine, { fsPath: 'W:/projet/chauffage.projix' });
+  const bytes = await o.buildProjixBytes({ parts: posees, wires: [] }, 'pico');
+  SimulatorPanel.library = undefined;
+  const zip = await JSZip.loadAsync(bytes);
+  return JSON.parse(await zip.file('diagram.json').async('string')).customParts ?? [];
+};
+const regrave = await reenregistre({ gravee: [dmxAncien, spot], installee: [], poses: ['dmx-grove'] });
+check(regrave.some((p) => p.type === 'dmx-grove'),
+  'réenregistrement : un composant posé, absent de la bibliothèque du poste, garde sa copie gravée (chauffage)',
+  `gravés : ${regrave.map((p) => p.type).join(', ') || 'aucun'}`);
+check(!regrave.some((p) => p.type === 'spot'),
+  'réenregistrement : une copie gravée mais plus posée ne repart pas');
+const regraveInstalle = await reenregistre({ gravee: [dmxAncien], installee: [dmxAJour], poses: ['dmx-grove'] });
+check(regraveInstalle.length === 1 && regraveInstalle[0].version === '2026.9.1',
+  'réenregistrement : composant installé sur le poste, sa version installée prime sur la copie gravée',
+  JSON.stringify(regraveInstalle.map((p) => [p.type, p.version])));
+check(regraveInstalle.every((p) => p.behaviorScript === undefined),
+  'réenregistrement : aucun script de comportement gravé');
+
 // ------------------------------------------------- D. quel programme un « enregistrer sous » exécute
 // Second volet du même « enregistrer sous » (Frank, v2026.8.91) : le manifeste
 // garde la référence du programme de l'ancien projet. Le fichier relatif n'existe

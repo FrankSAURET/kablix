@@ -495,6 +495,12 @@ export class SimulatorPanel {
   /** Chemin complet du .projix courant (ouvert ou enregistré) : cible du bouton
    *  Enregistrer, qui écrit directement sans boîte de dialogue. */
   private projectUri: vscode.Uri | undefined;
+  /** Composants de bibliothèque GRAVÉS dans le .projix ouvert, par type. Seule
+   *  définition d'un composant posé mais absent de la bibliothèque du poste :
+   *  sans elle, réenregistrer le projet effaçait la définition (`customParts: []`)
+   *  et le fichier se rouvrait ailleurs amputé du composant et de ses fils
+   *  (projet « chauffage », 16/11/2026). */
+  private embarquesDuProjet = new Map<string, unknown>();
   /** Modifications du schéma non encore enregistrées (signalées par la webview) :
    *  ● dans le titre de l'onglet tant que c'est vrai, garde-fou avant d'ouvrir un
    *  autre projet. */
@@ -2819,7 +2825,14 @@ ${err instanceof Error ? err.message : String(err)}`
     // inattendue) ne filtre rien : mieux vaut un projet trop gros qu'un projet
     // amputé des composants dont il a besoin pour se rouvrir ailleurs.
     const poses = SimulatorPanel.partTypesOf(diagram);
-    return (parts as any[])
+    // Composant posé que la bibliothèque n'a pas, mais que le projet ouvert
+    // embarquait : sa copie gravée repart avec le projet (l'atelier l'affiche
+    // grâce à elle). La version installée, quand elle existe, prime toujours.
+    const presents = new Set((parts as any[]).map((p) => p?.type));
+    const repris = [...(this.embarquesDuProjet ?? [])]
+      .filter(([type]) => !presents.has(type) && (poses === null || poses.has(type)))
+      .map(([, p]) => p);
+    return [...(parts as any[]), ...repris]
       .filter((p) => poses === null || poses.has(p?.type))
       .map((p) => {
         if (!p?.behaviorScript && !p?.hasHelp) return p;
@@ -3053,6 +3066,11 @@ ${err instanceof Error ? err.message : String(err)}`
     // Recharge le schéma et la carte dans la webview (et les composants perso).
     const diagram = project.diagram as { customParts?: unknown[] } | undefined;
     const customParts = Array.isArray(diagram?.customParts) ? diagram.customParts : undefined;
+    this.embarquesDuProjet = new Map(
+      (customParts ?? [])
+        .filter((p: any) => typeof p?.type === 'string')
+        .map((p: any) => [p.type as string, p])
+    );
     // Un projet qui embarque des composants perso les rend au repli global. Un
     // projet qui n'en a AUCUN (`customParts: []`, le cas ordinaire) ne doit rien
     // écraser : ce repli sert quand la bibliothèque n'a pas fini de se lire, et

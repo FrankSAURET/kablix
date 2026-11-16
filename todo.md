@@ -7,6 +7,14 @@
     - une dénomination standard des éléments permet de leur attribuer un rôle de simulation
 ---
 
+# v2026.11.3.317 — projet élève « chauffage » sans fils (rapport 054e0897)
+
+1. ✅ **Cause du fichier sans fils** : le `.projix` reçu (16/11, 2026.11.3) contient `M1, Alim1, U1, T1, Capt1` et `wires: []` ; la version du 09/11 (`Bugs/Chauffage.projix`) avait en plus R1, APRÈS Capt1, et 8 fils. Signature exacte du défaut du build 303 (= publique 2026.11.2) : `loadDiagram` poussait la pièce PUIS la rendait ; `lm35a` inconnu du poste → exception au rendu de Capt1 → ni R1 ni fil chargés, et l'enregistrement suivant a figé ce schéma tronqué. Dégât antérieur au 16/11, corrigé en 308 ; l'enregistrement du 16/11 n'a fait que recopier le fichier abîmé. Rejoué dans le vrai éditeur (`scripts/_diag-chauffage-fils.mjs`) : le 09/11 s'ouvre complet en 2026.11.3 (6 pièces, 8/8 fils). Fils perdus pour ce fichier : rendre à l'élève la version du 09/11.
+2. ✅ **Ce qui amorçait la chaîne : `customParts: []` au réenregistrement** — `customPartsForProjix` ne gravait QUE la bibliothèque du poste. Projet ouvert sur un poste sans LM35 : l'atelier l'affiche grâce à la copie gravée, l'enregistrement l'efface. Le panneau garde désormais les composants gravés du projet ouvert (`embarquesDuProjet`) et les regrave pour les types posés absents de la bibliothèque ; la version installée prime toujours.
+3. ✅ **Banc** `verify:projixparts` (41) : réenregistrement sans le composant installé → copie gravée conservée ; plus posé → pas regravé ; installé → version installée ; aucun script. Contre-épreuve : l'ancien code échoue (« gravés : aucun »).
+
+---
+
 # v2026.11.3.316 — GitHub Codespaces
 
 1. ✅ **Modèle** [devcontainer.json](docs/exemples/codespaces/.devcontainer/devcontainer.json) : image Ubuntu, `electropol-fr.kablix`, arduino-cli dans `/usr/local/bin` (déjà dans le PATH, trouvé par `whichSync`) + cœur `arduino:avr`. Hors `.vsix` (`docs/exemples/**`).

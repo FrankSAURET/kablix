@@ -14,6 +14,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ### Correction
 
+**Projets**
+
+- Un projet réenregistré sur un poste où l'un de ses composants de bibliothèque n'est pas installé garde ce composant : il ne disparaît plus, avec ses fils, à l'ouverture suivante sur un autre poste.
+
 **Simulation Pico**
 
 - Calculs avec retenue (nombres de 64 bits) et décalages de zéro bit : résultat juste dans tous les cas limites (émulateur du processeur RP2040 mis à jour).
