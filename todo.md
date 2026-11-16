@@ -7,12 +7,18 @@
     - une dénomination standard des éléments permet de leur attribuer un rôle de simulation
 ---
 
+# v2026.11.4.319 — 2026.11.4 en ligne
+
+1. ✅ CHANGELOG ouvert sur `## 2026.11.5 (prochaine publication)`, CLAUDE.md à jour.
+
+---
+
 # v2026.11.4.318 — préparation de la publication 2026.11.4
 
 1. ✅ **Numéro** : même mois (novembre) → `2026.11.4`. `package.json` et `package-lock.json` en `2026.11.4`, `buildNumber` 318, CLAUDE.md à jour.
 2. ✅ **CHANGELOG daté du 16 novembre 2026** (Codespaces, projet réenregistré sans composant installé, rp2040js 1.4.2).
 3. ✅ **Guide Codespaces EN/ES/ZH** (`docs/en|es|zh/Codespaces.md`, ⏳ de v316). Aucune autre chaîne nouvelle depuis la 2026.11.3.
-4. ⏳ Publication par Frank, puis ouvrir `## 2026.11.5 (prochaine publication)`.
+4. ✅ **Publiée par Frank** le 16/11/2026 ; `## 2026.11.5 (prochaine publication)` ouvert (v319).
 
 ---
 
