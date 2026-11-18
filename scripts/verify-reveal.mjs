@@ -273,7 +273,19 @@ ok(
 );
 ok(
   'extension.ts : une session vivante est toujours révélée telle quelle',
-  /const active = SimulatorPanel\.active\(\);[\s\S]{0,400}?active\.reveal\(\)/.test(handler)
+  /const active = SimulatorPanel\.active\(\);[\s\S]{0,400}?active\??\.reveal\(\)/.test(handler)
+);
+// reveal() sur un onglet disparu : faux au lieu de « Webview is disposed », et
+// l'icône retombe alors sur l'ouverture d'un atelier (build 320).
+ok(
+  'extension.ts : une session dont l’onglet a disparu retombe sur l’ouverture',
+  /if \(active\?\.reveal\(\)\)[\s\S]{0,200}?return;[\s\S]{0,600}?openOrRevealProjix\(/.test(handler)
+);
+ok(
+  'panel.ts : reveal() rend faux au lieu de lever sur un onglet fermé',
+  /public reveal\(\): boolean \{[\s\S]{0,120}?try \{[\s\S]{0,80}?return true;[\s\S]{0,40}?catch/.test(
+    readFileSync(join(ROOT, 'src', 'panel.ts'), 'utf8')
+  )
 );
 
 // 10. Le type d'éditeur a UNE seule source : un littéral en double se
@@ -308,7 +320,7 @@ ok(
 );
 ok(
   'extension.ts : le volet déjà visible à l’activation ouvre l’atelier (1er clic sur l’icône)',
-  /homeView\.visible[\s\S]{0,80}?openWorkshop\(\)/.test(extSrc)
+  /if \(homeView\.visible\) openWorkshop\(/.test(extSrc)
 );
 // Le garde-fou anti-parasite ne peut plus se caler sur `activate()` : en activation
 // paresseuse, il tomberait sur le clic au lieu de la restauration de session.

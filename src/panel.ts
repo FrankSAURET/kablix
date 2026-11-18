@@ -377,9 +377,15 @@ export class SimulatorPanel {
     return SimulatorPanel.lastActive ?? SimulatorPanel.current;
   }
 
-  /** Révèle l'onglet de cette session (sans le déplacer). */
-  public reveal(): void {
-    this.panel.reveal(undefined, false);
+  /** Révèle l'onglet de cette session (sans le déplacer). Faux si l'onglet
+   *  n'existe plus (« Webview is disposed ») : à l'appelant d'en ouvrir un. */
+  public reveal(): boolean {
+    try {
+      this.panel.reveal(undefined, false);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /** Ferme l'onglet de cette session (utilisé pour remplacer un onglet

@@ -19,7 +19,7 @@ import { memoriserModeExtension } from './version';
 import { redetecterArduinoCli } from './arduinoCliPistes';
 import { AnalyseurJournal } from './analyseur-journal';
 import { AnalyseurPanel } from './analyseur-panel';
-import { commande, initialiserSuivi } from './suivi';
+import { commande, initialiserSuivi, trace } from './suivi';
 import { SignalerPanel } from './signaler';
 
 const l10n = vscode.l10n;
@@ -97,9 +97,32 @@ export function activate(context: vscode.ExtensionContext): void {
   // Anti-doublon : le cas « déjà visible à l'activation » (ci-dessous) et
   // l'événement de visibilité peuvent tomber ensemble sur un même clic.
   let lastOpen = 0;
-  const openWorkshop = (): void => {
-    if (!startupSettled || Date.now() - lastOpen < 500) return;
+  // Trace TOUJOURS active du chemin « clic sur l'icône » (suivi.ts, trace()) :
+  // des élèves voient l'icône les renvoyer à l'Explorateur juste après une mise
+  // à jour, sans qu'on sache le provoquer. Quelques lignes par clic.
+  const pkg = context.extension.packageJSON as { version?: string; buildNumber?: number };
+  trace(
+    `icône : activation ${pkg.version}.${pkg.buildNumber}, fenêtre ouverte depuis ${Math.round(sinceWindowStart)} ms` +
+      `, volet ${homeView.visible ? 'visible' : 'masqué'}, grâce ${startupSettled ? 'finie' : 'en cours'}`
+  );
+  const openWorkshop = (origine: string): void => {
+    if (!startupSettled) {
+      trace(`icône : ${origine} ignoré (grâce de démarrage)`);
+      return;
+    }
+    if (Date.now() - lastOpen < 500) {
+      trace(`icône : ${origine} ignoré (doublon < 500 ms)`);
+      return;
+    }
     lastOpen = Date.now();
+    const relayout = (delai: number): void => {
+      setTimeout(() => {
+        applyDefaultLayout(context, true).then(
+          () => trace('icône : disposition posée'),
+          (err) => trace('icône : disposition en échec', err)
+        );
+      }, delai);
+    };
     // Icône Kablix : révèle l'atelier .projix actif s'il y en a un, sinon en
     // ouvre un nouveau (document untitled). On NE rebascule PAS sur
     // l'Explorateur (ça volait le focus au .projix → applyDefaultLayout, qui
@@ -107,22 +130,25 @@ export function activate(context: vscode.ExtensionContext): void {
     // et rouvrait la sidebar que le layout veut fermer). On se contente de
     // fermer la sidebar Kablix : le layout du .projix (explorateur fermé +
     // grille 1/3-2/3) fait le reste. reveal() ferme aussi la sidebar.
+    // reveal() rend le groupe du .projix actif → applyDefaultLayout peut
+    // reposer la grille sur le BON groupe. `force` : un clic sur l'icône est
+    // une action explicite, on rétablit la disposition Kablix même si elle a
+    // déjà été posée cette session (ex. explorateur rouvert entre-temps).
+    // Onglet disparu entre-temps (reveal() faux) : on retombe sur l'ouverture.
     const active = SimulatorPanel.active();
-    if (active) {
-      // reveal() rend le groupe du .projix actif → applyDefaultLayout peut
-      // reposer la grille sur le BON groupe. `force` : un clic sur l'icône est
-      // une action explicite, on rétablit la disposition Kablix même si elle a
-      // déjà été posée cette session (ex. explorateur rouvert entre-temps).
-      active.reveal();
-      setTimeout(() => void applyDefaultLayout(context, true), 80);
-    } else {
-      // Atelier existant révélé, ou nouveau projet à défaut. On force en plus le
-      // layout (clic icône = action explicite) au cas où la disposition aurait
-      // déjà été consommée cette session.
-      void openOrRevealProjix(context).then(() =>
-        setTimeout(() => void applyDefaultLayout(context, true), 120)
-      );
+    if (active?.reveal()) {
+      trace(`icône : ${origine} → atelier actif révélé`);
+      relayout(80);
+      return;
     }
+    // Atelier existant révélé, ou nouveau projet à défaut. On force en plus le
+    // layout (clic icône = action explicite) au cas où la disposition aurait
+    // déjà été consommée cette session.
+    trace(`icône : ${origine} → ouverture d'un atelier${active ? ' (session active perdue)' : ''}`);
+    openOrRevealProjix(context).then(
+      () => relayout(120),
+      (err) => trace('icône : ouverture en échec', err)
+    );
   };
   context.subscriptions.push(
     homeView,
@@ -131,7 +157,8 @@ export function activate(context: vscode.ExtensionContext): void {
       picoUploader.dispose();
     }),
     homeView.onDidChangeVisibility((e) => {
-      if (e.visible) openWorkshop();
+      trace(`icône : volet ${e.visible ? 'visible' : 'masqué'}`);
+      if (e.visible) openWorkshop('clic');
     })
   );
   // Activation paresseuse : c'est le clic sur l'icône qui allume l'extension, et
@@ -140,7 +167,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // ce rattrapage, le premier clic n'ouvrirait rien. Le tick laisse VS Code
   // renseigner `homeView.visible`, tout juste créée.
   setTimeout(() => {
-    if (homeView.visible) openWorkshop();
+    if (homeView.visible) openWorkshop('clic d’activation');
   }, 50);
 
   // Éditeur personnalisé des projets .projix : l'onglet EST le document, d'où le

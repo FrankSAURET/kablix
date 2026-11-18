@@ -6,6 +6,18 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ## 2026.11.5 (prochaine publication)
 
+### Modification
+
+**Signaler un problème**
+
+- Le rapport retrace désormais chaque clic sur l'icône Kablix, pour comprendre les cas où elle ramène à l'Explorateur.
+
+### Correction
+
+**Atelier**
+
+- Un atelier fermé pendant sa mise en place ne provoque plus d'erreur, et l'icône Kablix ouvre un atelier neuf si le précédent a disparu.
+
 ## 2026.11.4 (16 novembre 2026)
 
 ### Nouveauté

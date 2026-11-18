@@ -40,6 +40,20 @@ export async function allumerSuivi(): Promise<void> {
 /** Écrit une ligne si le suivi est actif ; sinon ne fait rien. */
 export function note(message: string, erreur?: unknown): void {
   if (!suiviActif()) return;
+  ecrire(message, erreur);
+}
+
+/**
+ * Écrit une ligne MÊME hors suivi. Réservé aux événements rares et précieux
+ * qu'on ne sait pas provoquer à la demande (clic sur l'icône Kablix renvoyé à
+ * l'Explorateur juste après une mise à jour) : le rapport suivant les emporte
+ * sans qu'il ait fallu en envoyer un premier pour allumer le suivi.
+ */
+export function trace(message: string, erreur?: unknown): void {
+  ecrire(message, erreur);
+}
+
+function ecrire(message: string, erreur?: unknown): void {
   canal ??= vscode.window.createOutputChannel('Kablix — suivi', { log: true });
   if (erreur === undefined) canal.info(message);
   else canal.error(`${message} : ${erreur instanceof Error ? erreur.stack ?? erreur.message : String(erreur)}`);

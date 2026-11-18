@@ -234,9 +234,17 @@ export class ProjixEditorProvider implements vscode.CustomEditorProvider<ProjixD
       visible = panel.visible;
       if (devientActif && ouvert) void session.revealCodeOnActivate(devientVisible);
     });
+    // Onglet fermé PENDANT la disposition (elle attend VS Code plusieurs fois) :
+    // lire `panel.viewColumn` lèverait « Webview is disposed ». Les étapes
+    // restantes n'ont alors plus d'objet.
+    let ferme = false;
+    panel.onDidDispose(() => {
+      ferme = true;
+    });
     const layout = () => {
       void applyDefaultLayout(this.context)
         .then(async () => {
+          if (ferme) return;
           // Disposition déjà posée dans la session : applyDefaultLayout n'a rien
           // fait. Un .projix ouvert depuis la colonne du CODE (zone active au
           // clic dans l'explorateur) y resterait : le verrou tomberait sur la
@@ -246,8 +254,9 @@ export class ProjixEditorProvider implements vscode.CustomEditorProvider<ProjixD
             await sortTabsIntoColumns(this.context);
           }
         })
-        .then(() => lockSimulatorGroup())
+        .then(() => (ferme ? undefined : lockSimulatorGroup()))
         .then(async () => {
+          if (ferme) return;
           const groupsBefore = editorGroupCount();
           await session.revealPendingCodeFile();
           await settleLayoutAfterCode(this.context, groupsBefore);

@@ -7,6 +7,18 @@
     - une dénomination standard des éléments permet de leur attribuer un rôle de simulation
 ---
 
+# v2026.11.4.320 — icône Kablix renvoyée à l'Explorateur après mise à jour (rapport 08c2ca50)
+
+1. ℹ️ **Rapport** : 2026.11.2 → mise à jour 2026.11.4 en cours de session (14:41) → au redémarrage, l'icône ramène toujours à l'Explorateur ; désinstaller/réinstaller répare. Kablix n'appelle jamais l'Explorateur et une seule erreur dans les journaux : le renvoi se fait côté VS Code, avant que la vue Kablix devienne visible. Cause non trouvée.
+2. ℹ️ **Pas reproduit** dans un VS Code jetable (`V:\Temp Perso\Repro`, 1.146.0) : 2026.11.2 de la place de marché, mise à jour automatique en cours de session, redémarrage, clic réel (CDP) ; clic pendant la grâce (activation `onView` comme l'élève) ; vues et conteneurs de `package.json` identiques entre 2026.11.2 et 2026.11.4.
+3. ✅ **Trace toujours active du clic sur l'icône** (`trace()` dans `suivi.ts`, canal « Kablix — suivi », hors délai de 24 h) : activation (version, âge de la fenêtre, volet visible, grâce), chaque visible/masqué du volet, clic ignoré (grâce, doublon), atelier révélé ou ouvert, disposition posée ou en échec. Vérifié en vrai : le fichier tombe dans `exthost/electropol-fr.kablix/`, joint par « Signaler un problème ».
+4. ✅ **« Webview is disposed »** ([projix-editor.ts](src/projix-editor.ts)) : onglet fermé pendant la disposition → étapes restantes sautées au lieu de lire `panel.viewColumn`.
+5. ✅ **`reveal()` sûr** ([panel.ts](src/panel.ts)) : rend faux sur un onglet disparu ; l'icône retombe alors sur l'ouverture d'un atelier. `active()` était déjà propre (`onDispose` efface la référence).
+6. ✅ Banc `verify:reveal` (31) : motifs mis à jour + 2 contrôles (repli sur l'ouverture, `reveal()` booléen).
+7. ⏳ **Attendre le prochain rapport** de l'élève sur ce défaut (sans réinstaller avant d'envoyer) : la trace dira si le volet Kablix devient visible ou non. Seules la session en cours et la précédente partent dans le rapport.
+
+---
+
 # v2026.11.4.319 — 2026.11.4 en ligne
 
 1. ✅ CHANGELOG ouvert sur `## 2026.11.5 (prochaine publication)`, CLAUDE.md à jour.
