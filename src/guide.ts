@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { randomBytes } from 'node:crypto';
 import { renderMarkdown, markdownTitle, markdownOutline, type OutlineEntry } from './markdown';
 import { MATH_CSS } from './math';
+import { SVG_THEME_CSS } from './markdown';
+import { lireSvg } from './partHelp';
 import { SHOW_PART_HELP, docLangs, type DocLang } from './partHelp';
 
 // Aide GÉNÉRALE de Kablix (bouton ❔ / commande « Kablix : Aide »).
@@ -100,6 +102,7 @@ export class GuidePanel {
         resolveAsset: (rel) => assets.get(rel) ?? rel,
         resolveDocLink: (rel) => docHref(rel),
         resolveMedia: (rel) => media.get(rel) ?? [assets.get(rel) ?? rel],
+        inlineSvg: (rel) => lireSvg(vscode.Uri.joinPath(base, rel)),
       })
     );
     const outline = markdownOutline(texte);
@@ -534,6 +537,7 @@ function pageHtml(
     ul, ol { padding-left: 1.4rem; }
     li { margin: 0.2rem 0; }
 ${MATH_CSS}
+${SVG_THEME_CSS}
   </style>
 </head>
 <body>

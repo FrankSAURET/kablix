@@ -8,6 +8,15 @@
     - une dénomination standard des éléments permet de leur attribuer un rôle de simulation
 ---
 
+# v2026.11.4.322 — dessins SVG de l'aide aux couleurs du thème
+
+1. ✅ **SVG intégré à la page** au lieu d'un `<img>` (qui ne voit pas les variables du thème) : option `inlineSvg` de `renderMarkdown`, fournie par [partHelp.ts](src/partHelp.ts) (`lireSvg`) et [guide.ts](src/guide.ts) ; fiche embarquée (.kompix) restée en `<img>`. `prepareInlineSvg` ([markdown.ts](src/markdown.ts)) : prologue, `namedview`, métadonnées, scripts et `on*` retirés, `viewBox` posé s'il manque, ids préfixés (`svgN-`) avec `url(#…)` et `href`.
+2. ✅ **`SVG_THEME_CSS`** : noir et gris foncés (fill/stroke, pointes de flèche) → `--vscode-foreground`, blanc → fond de l'éditeur, rouge `#A51D2D` éclairci en sombre et contraste élevé ; `white-space: pre` sur les textes → la légende « Obscurité … Éclairage élevé » retrouve ses espaces. Dessin FR de Frank non modifié. Vérifié en capture Chrome, sombre (FR) et clair (ZH).
+3. ✅ **Courbes traduites** `docs/en|es|zh/images/CourbeLED.svg` (copies du dessin FR, libellés et séparateurs décimaux traduits) ; fiches EN/ES/ZH repointées dessus. Règle le ⏳ 7 de v321.
+4. ✅ `verify:docs` +3 (SVG intégré propre, repli `<img>`, styles dans les deux webviews) ; `verify:guide-nav`, `verify:kompixhelp` verts.
+
+---
+
 # v2026.11.4.321 — LDR : modèle à éclairement de référence, formules dans l'aide
 
 1. ✅ **Cohérence de la fiche FR** : l'équation écrite `(L0/L)^-γ` faisait CROÎTRE R avec la lumière ; les chiffres de la fiche (100 kΩ à 10 lx, 4373 Ω à 500 lx) suivent `(L0/L)^γ`. Exposant corrigé (deux endroits), plus cellule parasite `, ` du tableau, « photo résistance », texte alternatif de la courbe, double espace.
@@ -16,7 +25,7 @@
 4. ✅ **Formules dans l'aide** : le lecteur maison ([markdown.ts](src/markdown.ts)) ignorait `$…$` / `$$…$$` ; nouveau [math.ts](src/math.ts) (fractions, indices, exposants, grec, `\times`, `\left( \right)`, `\large`/`\Large`), styles `MATH_CSS` dans les deux webviews d'aide (classes, pas de `style=` : CSP). Deux espaces en fin de ligne = `<br />` (paragraphes et citations).
 5. ✅ **Traductions** (demandées par Frank pour ce lot) : fiches `docs/en|es|zh/composants/ldr.md`, libellés L0/RL0 dans `i18n.mts` (FR), `i18n-es.mts`, `i18n-zh.mts`.
 6. ✅ Bancs : `verify:divider` (+4 contrôles LDR : 4373 Ω, décroissance, ancien projet, conversion), `verify:docs` (+6 : formule en bloc, en ligne dans un tableau, rien de brut, « 5 $ » intact, retour forcé, styles). `verify:i18n`, `verify:kompixhelp`, `verify:guide-nav`, `verify:proprietes`, `verify:diagram` verts.
-7. ⏳ **Courbe `docs/fr/images/CourbeLED.svg`** : les fiches EN/ES/ZH pointent vers la version française (libellés FR) ; copies traduites non créées (écriture refusée). Dans Chrome, la légende « Obscurité … Éclairage élevé » perd ses espaces (`xml:space` ignoré) : les trois mots se tassent à gauche. Texte gris foncé `#3D3D3D` peu lisible en thème sombre. À voir avec Frank.
+7. ✅ (réglé en v322) **Courbe `docs/fr/images/CourbeLED.svg`** : les fiches EN/ES/ZH pointent vers la version française (libellés FR) ; copies traduites non créées (écriture refusée). Dans Chrome, la légende « Obscurité … Éclairage élevé » perd ses espaces (`xml:space` ignoré) : les trois mots se tassent à gauche. Texte gris foncé `#3D3D3D` peu lisible en thème sombre. À voir avec Frank.
 8. ℹ️ Tests `testkablix` LDR gardent `r1lx` dans `_spec.mjs` : ils passent par la conversion (non régénérés, emplacements préservés).
 
 ---

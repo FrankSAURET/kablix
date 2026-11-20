@@ -11,6 +11,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 **Aide**
 
 - Les fiches d'aide affichent les formules mathématiques (fractions, indices, exposants, lettres grecques).
+- Les dessins SVG de l'aide suivent le thème de VS Code (textes et traits lisibles en thème sombre comme en clair).
 
 ### Modification
 

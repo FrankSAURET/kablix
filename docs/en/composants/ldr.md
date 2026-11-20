@@ -13,7 +13,7 @@ Where:
 > L: illuminance of the LDR in lux,  
 > $\gamma$: sensitivity coefficient (positive), no unit.  
 
-![R(L) curve of an LDR](../../fr/images/CourbeLED.svg)
+![R(L) curve of an LDR](../images/CourbeLED.svg)
 
 Not to be confused with the [light sensor module](photoresistor.md), which is a full board (VCC/GND, analog and digital outputs).
 

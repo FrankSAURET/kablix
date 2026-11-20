@@ -399,6 +399,19 @@ ok('rendu : une image .mp4 sort quand même en <video>, pas en <img>',
   ok('rendu : aucune commande TeX ni $ de formule laissés bruts', !/\\frac|\\left|\$\$|\$R_/.test(html), html);
   ok('rendu : « 5 $ et 10 $ » n\'est pas une formule', /5 \$ et 10 \$/.test(html), html);
   ok('rendu : deux espaces en fin de ligne = retour forcé', /<blockquote>a<br \/>b<\/blockquote>/.test(html), html);
+  // Dessin SVG intégré (suit le thème) : viewBox posé, ids préfixés avec leurs
+  // références, prologue et script retirés ; sans inlineSvg → <img> ordinaire.
+  const svg = '<?xml version="1.0"?><svg width="200" height="100" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g"/></defs><rect fill="url(#g)" onload="x()"/><script>x()</script><text fill="#3D3D3D">A</text></svg>';
+  const avec = renderMarkdown('![Courbe](../images/c.svg)', { ...opt, inlineSvg: () => svg });
+  ok('rendu : SVG local intégré (thème) — viewBox, ids préfixés, rien d’exécutable',
+    /<figure><span class="svg-theme" role="img" aria-label="Courbe"><svg viewBox="0 0 200 100"/.test(avec)
+    && /id="svg\d+-g"/.test(avec) && /url\(#svg\d+-g\)/.test(avec)
+    && !/<\?xml|<script|onload|width="200"/.test(avec), avec);
+  ok('rendu : sans lecteur de SVG, l’image reste un <img>',
+    /<img src="\.\.\/images\/c\.svg"/.test(renderMarkdown('![C](../images/c.svg)', opt)));
+  ok('webviews : styles du thème des dessins dans l’aide (guides et fiches)',
+    /\$\{SVG_THEME_CSS\}/.test(readFileSync(join(root, 'src', 'guide.ts'), 'utf8'))
+    && /\$\{SVG_THEME_CSS\}/.test(readFileSync(join(root, 'src', 'partHelp.ts'), 'utf8')));
   ok('webviews : styles des formules dans l’aide (guides et fiches)',
     /\$\{MATH_CSS\}/.test(readFileSync(join(root, 'src', 'guide.ts'), 'utf8'))
     && /\$\{MATH_CSS\}/.test(readFileSync(join(root, 'src', 'partHelp.ts'), 'utf8')));

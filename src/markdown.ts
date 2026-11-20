@@ -33,7 +33,69 @@ export interface MarkdownOptions {
    * en v2026.7.190), le `data:` de repli prend le relais tout seul.
    */
   resolveMedia?: (relPath: string) => string[];
+  /**
+   * Texte d'une image `.svg` locale, pour l'intégrer DANS la page au lieu d'un
+   * `<img>` : un SVG en `<img>` ne voit pas les variables du thème VS Code,
+   * intégré il les suit (cf. SVG_THEME_CSS). `undefined` → `<img>` ordinaire.
+   */
+  inlineSvg?: (relPath: string) => string | undefined;
 }
+
+/**
+ * Prépare un SVG (dessin Inkscape) pour l'intégrer dans la page : prologue,
+ * métadonnées et tout script retirés ; `viewBox` posé s'il manque (sinon le
+ * dessin ne se met pas à l'échelle) ; ids préfixés pour que deux dessins de la
+ * même page ne se volent pas leurs dégradés ou marqueurs.
+ */
+export function prepareInlineSvg(src: string, prefix: string): string | undefined {
+  let s = src
+    .replace(/<\?xml[\s\S]*?\?>/g, '')
+    .replace(/<!DOCTYPE[\s\S]*?>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<sodipodi:namedview[\s\S]*?(\/>|<\/sodipodi:namedview>)/g, '')
+    .replace(/<metadata[\s\S]*?<\/metadata>/g, '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*')/gi, '')
+    .trim();
+  const root = s.match(/<svg\b[^>]*>/);
+  if (!root) return undefined;
+  let tag = root[0];
+  if (!/\sviewBox=/.test(tag)) {
+    const w = parseFloat(tag.match(/\swidth="([\d.]+)/)?.[1] ?? '');
+    const h = parseFloat(tag.match(/\sheight="([\d.]+)/)?.[1] ?? '');
+    if (w > 0 && h > 0) tag = tag.replace(/^<svg/, `<svg viewBox="0 0 ${w} ${h}"`);
+  }
+  tag = tag.replace(/\s(width|height)="[^"]*"/g, '');
+  s = s.replace(root[0], tag);
+  // Ids préfixés, et toutes leurs références : url(#x), href="#x", xlink:href="#x".
+  s = s
+    .replace(/\sid="([^"]+)"/g, ` id="${prefix}$1"`)
+    .replace(/url\(#([^)]+)\)/g, `url(#${prefix}$1)`)
+    .replace(/(href)="#([^"]+)"/g, `$1="#${prefix}$2"`);
+  return s;
+}
+
+/**
+ * Couleurs d'un dessin intégré calées sur le thème : le noir et les gris foncés
+ * (texte, axes, traits) prennent la couleur du texte de VS Code, le blanc celle
+ * du fond ; le rouge sombre est éclairci en thème sombre. Les règles CSS
+ * l'emportent sur les attributs de présentation d'Inkscape (`fill="#000000"`).
+ */
+export const SVG_THEME_CSS = `
+    .svg-theme { display: block; text-align: center; }
+    .svg-theme svg { max-width: 100%; height: auto; }
+    .svg-theme [fill="#000000" i], .svg-theme [fill="#000" i], .svg-theme [fill="#3d3d3d" i],
+    .svg-theme [fill="#1a1a1a" i], .svg-theme [fill="#333333" i], .svg-theme marker path:not([fill]) {
+      fill: var(--vscode-foreground);
+    }
+    .svg-theme [stroke="#000000" i], .svg-theme [stroke="#000" i], .svg-theme [stroke="#3d3d3d" i] {
+      stroke: var(--vscode-foreground);
+    }
+    .svg-theme [fill="#ffffff" i], .svg-theme [fill="#fff" i] { fill: var(--vscode-editor-background); }
+    body.vscode-dark .svg-theme [fill="#a51d2d" i], body.vscode-high-contrast:not(.vscode-high-contrast-light) .svg-theme [fill="#a51d2d" i] { fill: #f07178; }
+    body.vscode-dark .svg-theme [stroke="#a51d2d" i], body.vscode-high-contrast:not(.vscode-high-contrast-light) .svg-theme [stroke="#a51d2d" i] { stroke: #f07178; }
+    .svg-theme text { white-space: pre; }
+`;
 
 /** Échappe le texte destiné au HTML (le Markdown des fiches n'a pas de HTML brut). */
 function esc(s: string): string {
@@ -108,6 +170,9 @@ function slugMaker(): (text: string) => string {
   };
 }
 
+/** Numéro des dessins intégrés : préfixe d'ids unique dans la page. */
+let svgCompteur = 0;
+
 /** Rendu des marques EN LIGNE : code, images, liens, gras, italique. */
 function inline(src: string, opt: MarkdownOptions): string {
   // Le code en ligne et les <img> bruts sont mis de côté AVANT tout le reste :
@@ -166,6 +231,13 @@ function inline(src: string, opt: MarkdownOptions): string {
     if (VIDEO.test(target)) {
       return `<video title="${alt}" autoplay loop muted playsinline controls preload="auto">`
         + `${videoSources(target, opt)}</video>`;
+    }
+    // Dessin SVG local : intégré pour suivre le thème. Mis de côté (keep) : ni
+    // gras ni italique ne doivent fouiller dans son balisage.
+    if (/\.svg$/i.test(target) && opt.inlineSvg) {
+      const texte = opt.inlineSvg(target);
+      const svg = texte === undefined ? undefined : prepareInlineSvg(texte, `svg${++svgCompteur}-`);
+      if (svg) return keep(`<span class="svg-theme" role="img" aria-label="${alt}">${svg}</span>`);
     }
     return `<img src="${src2}" alt="${alt}" />`;
   });

@@ -1,7 +1,20 @@
 import * as vscode from 'vscode';
 import { randomBytes } from 'node:crypto';
-import { renderMarkdown, markdownTitle } from './markdown';
+import { readFileSync } from 'node:fs';
+import { renderMarkdown, markdownTitle, SVG_THEME_CSS } from './markdown';
 import { MATH_CSS } from './math';
+
+/**
+ * Texte d'un dessin SVG de la doc, à intégrer dans la page pour qu'il suive le
+ * thème. Fichier illisible → `undefined` : l'image retombe sur un `<img>`.
+ */
+export function lireSvg(uri: vscode.Uri): string | undefined {
+  try {
+    return readFileSync(uri.fsPath, 'utf8');
+  } catch {
+    return undefined;
+  }
+}
 
 // Aide LOCALE d'un composant (bouton « ? » de l'inspecteur), rendue dans une
 // webview Kablix plutôt que dans l'aperçu Markdown de VS Code.
@@ -146,6 +159,8 @@ export class PartHelpPanel {
       resolveAsset: (rel) =>
         sheet.assets?.get(rel.replace(/^\.\//, '')) ??
         (sheet.assets ? '' : webview.asWebviewUri(vscode.Uri.joinPath(docsDir, rel)).toString()),
+      // Fiche embarquée (.kompix) : ses images sont des data: URI, restées en <img>.
+      inlineSvg: (rel) => (sheet.assets ? undefined : lireSvg(vscode.Uri.joinPath(docsDir, rel))),
       // Lien vers une autre fiche : on rouvre le panneau sur ce composant.
       resolveDocLink: (rel) => {
         const m = rel.match(/([^/\\]+)\.md$/i);
@@ -263,6 +278,7 @@ function pageHtml(webview: vscode.Webview, lang: string, title: string, body: st
     ul, ol { padding-left: 1.4rem; }
     li { margin: 0.2rem 0; }
 ${MATH_CSS}
+${SVG_THEME_CSS}
   </style>
 </head>
 <body>

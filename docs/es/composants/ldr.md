@@ -13,7 +13,7 @@ Donde:
 > L: iluminancia de la LDR en lux,  
 > $\gamma$: coeficiente de sensibilidad (positivo), sin unidad.  
 
-![Curva R(L) de una LDR](../../fr/images/CourbeLED.svg)
+![Curva R(L) de una LDR](../images/CourbeLED.svg)
 
 No confundir con el [módulo sensor de luz](photoresistor.md), que es una placa completa (VCC/GND, salidas analógica y digital).
 

@@ -13,7 +13,7 @@ $$\Large R = R_{L_0} \times \left(\frac{L_0}{L}\right)^{\gamma}$$
 > L：LDR 的照度，单位 lux，  
 > $\gamma$：灵敏度系数（正数），无单位。  
 
-![LDR 的 R(L) 曲线](../../fr/images/CourbeLED.svg)
+![LDR 的 R(L) 曲线](../images/CourbeLED.svg)
 
 不要与 [光线传感器模块](photoresistor.md) 混淆，后者是一块完整的电路板（VCC/GND、模拟和数字输出）。
 
