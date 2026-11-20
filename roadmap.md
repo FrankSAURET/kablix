@@ -150,10 +150,20 @@ Total : **XL**, de l'ordre de 2 à 4 M jetons. Premier démonstrateur complet (b
 
 ### Décisions attendues de Frank
 
-1. **Où vit le système monté** : dans le `.projix` (un projet = schéma + programme + 3D, recommandé) ou dans un fichier à part ouvert par Kompix Editor ?
-2. **Cinématique seule** (recommandé) ou moteur physique dès le départ ?
-3. **three.js dans Kablix** pour la vue de simulation (recommandé), ou vue 3D seulement dans Kompix Editor reliée à Kablix ?
-4. **Convention de nommage** : valider ou corriger l'esquisse `rôle:repère`.
-5. **Import STEP** par OpenCascade WASM téléchargé à la demande (recommandé), ou par FreeCAD installé sur le poste (plus léger, mais FreeCAD obligatoire) ?
-6. **Ordre** : commencer par D0 (piste 7, petite, utile seule) puis D4–D5, ou attaquer directement D1–D2 ?
-7. **Kompix Editor** : garde son nom et reste un outil à part, ou devient le module 3D de Kablix à terme ?
+1. **Où vit le système monté** : dans le `.projix` (un projet = schéma + programme + 3D, recommandé) ou dans un fichier à part ouvert par Kompix Editor ? 
+
+   **dans le .projix**
+2. **Cinématique seule** (recommandé) ou moteur physique dès le départ ?  
+**Cinématique seule au départ**
+3. **three.js dans Kablix** pour la vue de simulation (recommandé), ou vue 3D seulement dans Kompix Editor reliée à Kablix ?  
+**three.js dans Kablix**
+4. **Convention de nommage** : valider ou corriger l'esquisse `rôle:repère`.  
+**rôle:repère**
+5. **Import STEP** par OpenCascade WASM téléchargé à la demande (recommandé), ou par FreeCAD installé sur le poste (plus léger, mais FreeCAD obligatoire) ?  
+**par OpenCascade WASM téléchargé à la demande**
+6. **Ordre** : commencer par D0 (piste 7, petite, utile seule) puis D4–D5, ou attaquer directement D1–D2 ?  
+D0 , D1 et D2
+7. **Kompix Editor** : garde son nom et reste un outil à part, ou devient le module 3D de Kablix à terme ?  
+**garde son nom et reste un outil à part. un composant créé doit pouvoir être utilisé dans kablix sans kompix editor. Kompix editor devra aussi pouvoir créer des composants 3d seulement élec dans méca.**  
+
+**Les modifications dans kablix seront faites dans une branche (mecatronique)**

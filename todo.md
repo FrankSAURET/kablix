@@ -5,9 +5,23 @@
     - import de modeles assemblés (solidworks, freecad ...)
     - une dénomination standard des éléments permet de leur attribuer un rôle de simulation
     - Une fois le systeme monté, il doit être simulable dans kablix
-    - ⬜ **Frank : trancher les 7 décisions** de la piste 11 ([roadmap.md](roadmap.md#11-créateur-de-projets-mécatroniques-3d)) — cadrage et lots D0–D8 faits en v323. Rien n'est lancé avant.
+    - ✅ Décisions de Frank (20/11, [roadmap.md](roadmap.md#11-créateur-de-projets-mécatroniques-3d)) : système monté dans le `.projix` ; cinématique seule au départ ; three.js dans Kablix ; nommage `rôle:repère` ; STEP par OpenCascade WASM téléchargé à la demande ; Kompix Editor reste un outil à part (un composant créé s'utilise dans Kablix sans lui ; il doit aussi créer des composants 3D purement mécaniques). **Tout ce qui touche Kablix se fait sur la branche `mecatronique`** (dossier de travail `C:\- VS Code\Extensions\Kablix-mecatronique`), jamais sur `main`.
+    - ⬜ **D0** — piste 7 (servo + aimant + Hall : lien de montage, suivi de l'angle simulé, champ binaire), en 2D dans Kablix, branche `mecatronique`.
+    - ⬜ **D1** — document système (composants posés, poses, liaisons) rangé dans le `.projix`, lié aux repères du schéma. Partie Kablix ici, partie Kompix Editor par consigne à son dossier.
+    - ⬜ **D2** — liaisons durables et solveur cinématique en arbre (pivot, glissière, encastrement, engrenage, roue sur sol) dans `kompix-core` : par consigne au dossier `kompix_editor/`.
+    - ℹ️ Lots enchaînés la nuit par le lanceur `C:\Users\Frank\.claude\nuit\nuit.mjs` (v324).
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.4.324 — décisions de la piste 11, lanceur de nuit
+
+1. ✅ **Décisions de Frank** reportées dans la liste « à faire » (lots D0, D1, D2) ; roadmap complétée par Frank enregistrée telle quelle.
+2. ✅ **Branche `mecatronique`** créée depuis `main`, dossier de travail séparé `C:\- VS Code\Extensions\Kablix-mecatronique` (git worktree) : le travail de nuit ne change jamais la branche du dossier de Frank.
+3. ✅ **Lanceur de nuit** `C:\Users\Frank\.claude\nuit\` (hors dépôt) : `nuit.mjs`, `config.json`, `inactivite.ps1`, `installer.ps1`, `test-reveil.ps1`, `LISEZMOI.md`. Tâche « Claude nuit » chaque heure de 20 h à 8 h avec réveil du PC ; plafond hebdomadaire par nuit 10/20/35/50/60/80/100 % (nuit 1 = mardi soir après la remise à zéro de 11 h) ; PC utilisé dans les 10 dernières minutes → nouvel essai une heure après ; un lot par appel `claude -p` (Opus, sous-agents Sonnet/Haiku pour le mécanique) ; consignes vers un autre projet déposées dans `a-lancer/` et exécutées dans leur dossier ; veille prolongée à la fin.
+4. ⏳ **Lecture du quota** par le point d'accès de `/usage` avec le jeton de connexion (accord de Frank) : bloquée par le contrôle de sécurité dans la session Claude, à essayer par Frank (`node C:\Users\Frank\.claude\nuit\nuit.mjs --essai`).
+5. ⏳ **Réveil depuis la veille prolongée** : à tester par Frank (`test-reveil.ps1`), dépend du BIOS.
 
 ---
 
