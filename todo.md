@@ -1,12 +1,22 @@
 # À faire
-1. ⏳ rapport 8f891187 (Kablix caché par l'Explorateur) : envoyé depuis la 2026.11.4 publique (build 318), sans la trace de v320 → inexploitable. Attendre un rapport envoyé depuis la 2026.11.5 (voir v320, item 8).
-## ne pas faire pour l'instant
 1. transformer kompix editor en créateur de projet info meca (typiquement robotique) en 3D. 
     - des composants existants (carte et composants electronique, moteur, servo, roue, engrenage, aimants...)
     - Construction de modèles découpé laser, imprimé en  3D et assemblage
     - import de modeles assemblés (solidworks, freecad ...)
     - une dénomination standard des éléments permet de leur attribuer un rôle de simulation
-    - Une fois le systeme monté, 
+    - Une fois le systeme monté, il doit être simulable dans kablix
+    - ⬜ **Frank : trancher les 7 décisions** de la piste 11 ([roadmap.md](roadmap.md#11-créateur-de-projets-mécatroniques-3d)) — cadrage et lots D0–D8 faits en v323. Rien n'est lancé avant.
+
+## ne pas faire pour l'instant
+
+---
+
+# v2026.11.4.323 — cadrage du créateur de projets mécatroniques 3D
+
+1. ✅ **Piste 11 dans [roadmap.md](roadmap.md)** : appui existant (Kompix Editor B1–B4, C1–C4 ; servo, moteur DC, Hall, HC-SR04 dans Kablix ; piste 7 comme premier lien mécanique), sept manques, neuf lots D0–D8 chiffrés (total XL, 2 à 4 M jetons), pièges (cinématique seule, boucles fermées, poids d'OpenCascade WASM, three.js dans Kablix, règle « rien dans Kablix » de Kompix Editor, deux dépôts), sept décisions attendues de Frank avec recommandation.
+2. ℹ️ Aucun code touché, ni dans Kablix ni dans `kompix_editor/`. CHANGELOG inchangé (rien ne change pour l'utilisateur).
+3. ℹ️ `testkablix/.vscode/arduino.yaml` modifié avant la session (croquis 78xx → 7seg) : laissé tel quel, hors enregistrement.
+
 ---
 
 # v2026.11.4.322 — dessins SVG de l'aide aux couleurs du thème

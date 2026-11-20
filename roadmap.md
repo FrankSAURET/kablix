@@ -20,6 +20,7 @@ L'ordre des numéros est celui **choisi par Frank**, pas un classement par inté
 | 8   | [Schéma verrouillé (TP à trous)](#8-schéma-verrouillé--le-tp-à-trous)         | ★★★★★   | **S** | **Le moins cher de la liste**  |
 | 9   | [Notation automatique](#9-notation-automatique-par-assertions)                | ★★★★☆   | **L** | À faire, plus tard             |
 | 10  | [Vue des périphériques internes](#10-vue-des-périphériques-internes-timer-adc) | ★★★★☆   | **L** | À faire, plus tard             |
+| 11  | [Créateur de projets mécatroniques 3D](#11-créateur-de-projets-mécatroniques-3d) | ★★★★★   | **XL** | Cadré ci-dessous, décisions attendues |
 
 ---
 
@@ -90,3 +91,69 @@ Pédagogiquement, c'est la plus belle idée de la liste : montrer la rampe du co
 **Pourquoi c'est cher malgré ça** : il faut une vue animée **par périphérique et** **par famille de puce**. Un timer AVR et un PWM RP2040 n'ont rien en commun — c'est deux fois le travail, et le RP2040 est moins bien exposé par l'émulateur.
 
 **Recommandation** : commencer par **le seul Timer1 de l'Uno**, la vue la plus demandée, et juger sur pièce avant d'étendre.
+
+---
+
+## 11. Créateur de projets mécatroniques 3D
+
+**La demande de Frank** (todo, 20/11/2026) : transformer Kompix Editor en créateur de projets info-méca, typiquement de la robotique, en 3D. Des composants existants (cartes, composants électroniques, moteur, servo, roue, engrenage, aimants…) ; des pièces fabriquées (découpe laser, impression 3D) et leur assemblage ; l'import d'assemblages faits ailleurs (SolidWorks, FreeCAD…) ; une dénomination standard des éléments qui leur donne un rôle de simulation ; le système monté doit être simulable dans Kablix.
+
+Kompix Editor fabrique aujourd'hui **un composant**. La demande en fait l'outil qui monte **un système** : plusieurs composants, des pièces fabriquées, des liaisons entre eux, et un lien vers le schéma électrique et le programme de Kablix. Changement d'échelle, pas une fonction de plus.
+
+### Appui
+
+Côté Kompix Editor (dépôt séparé, `kompix_editor/`) :
+
+- Visionneuse three.js, poses (déplacer, tourner, miroir, grille), emboîtement par **axes nommés** (famille d'axes, zéros confondus), contraintes ponctuelles (coaxial, plaqué, distance), collisions par prismes convexes : lots B1 à B3.
+- Pièces **extrudées** (contour + épaisseur) et pièces **maillées** importées (`.glb`, `.stl`), format `model3d.json` v2 : lot B4, [format-v2.md](kompix_editor/docs/format-v2.md).
+- Modèles de simulation **nommés** (`sim.model`), propriétés typées, forme calculée par script : lots C1 à C4. Le principe « le paquet désigne un modèle, le moteur le fournit » est exactement celui qu'il faut pour les rôles de simulation.
+
+Côté Kablix :
+
+- Servo (angle simulé), moteur DC, capteur à effet Hall, HC-SR04 déjà au catalogue, avec leurs moteurs de simulation.
+- La piste 7 (associer des composants) pose le premier **lien mécanique** : transmettre une position d'une pièce à une autre. La piste 11 en est la généralisation ; la piste 7 en est donc le premier pas naturel.
+
+### Ce qui manque
+
+1. **Un document « système »** : la liste des composants et pièces posés, leurs poses, les liaisons. Aujourd'hui `model3d.json` décrit l'intérieur d'un composant, pas un montage de plusieurs composants.
+2. **Des liaisons cinématiques durables** : pivot, glissière, encastrement, engrenage (rapport de dents), roue sur sol. Aujourd'hui les contraintes sont des gestes ponctuels, sans solveur (todo Kompix Editor, item 10).
+3. **Une bibliothèque mécanique** : roue, engrenage, aimant, châssis, palier, entretoise… en `.kompix` 3D, avec leurs axes nommés.
+4. **La fabrication** : sortir les pièces vers la découpeuse (contour SVG/DXF d'une pièce extrudée) et vers l'imprimante (STL pour Bambu Studio). Importer une pièce OpenSCAD (`.scad` → STL par l'outil `openscad` en ligne de commande, s'il est installé).
+5. **L'import STEP** : SolidWorks et FreeCAD exportent tous deux en STEP, avec l'arbre d'assemblage et les noms des pièces. Lecture par OpenCascade compilé en WASM (lot B6, resté ⏳). FreeCAD `.FCStd` direct : pas utile, STEP suffit.
+6. **La convention de nommage** : le nom d'une pièce (dans l'éditeur ou dans l'arbre STEP) lui donne un rôle. Esquisse : `rôle:repère`, le repère étant celui du composant dans le schéma Kablix — `servo:S1`, `moteur:M2`, `roue:M2` (roue entraînée par M2), `aimant:A1`, `hall:U3`, `sol`. Une pièce sans préfixe connu reste inerte (décor, structure).
+7. **La simulation dans Kablix** : une vue 3D qui tourne pendant la simulation. Le moteur électrique fournit angles et vitesses (servo, moteur DC), le solveur cinématique pose les pièces, les capteurs lisent la scène (Hall : distance à l'aimant ; HC-SR04 : lancer de rayon jusqu'au premier obstacle ; fin de course : contact). iso3d ne sait ni tourner les pièces ni afficher un maillage (todo Kompix Editor, items 9 et 11) : il faut three.js dans la webview de Kablix.
+
+### Lots proposés
+
+| Lot | Contenu                                                                                                            | Coût   | Où              |
+| --- | ------------------------------------------------------------------------------------------------------------------ | ------ | --------------- |
+| D0  | Piste 7 telle que chiffrée (servo + aimant + Hall, lien de montage, champ binaire), en 2D dans Kablix             | **S+** | Kablix          |
+| D1  | Document système : composants posés, poses, liaisons ; lié au `.projix` (repères du schéma)                      | **M**  | les deux        |
+| D2  | Liaisons durables et solveur cinématique en arbre (pivot, glissière, encastrement, engrenage, roue sur sol)      | **M**  | kompix-core     |
+| D3  | Bibliothèque mécanique de départ (roue, engrenage, aimant, châssis 2 roues, palier) + servo et moteur DC en 3D    | **M**  | Kompix Editor   |
+| D4  | Fabrication : export SVG/DXF des pièces extrudées, export STL, import `.scad`                                    | **S**  | Kompix Editor   |
+| D5  | Convention de nommage : lecture, contrôle, rôle affiché dans l'inspecteur                                        | **S**  | kompix-core     |
+| D6  | Vue 3D de simulation dans Kablix (three.js) pilotée par les moteurs : servo, moteur DC, solveur de D2            | **L**  | Kablix          |
+| D7  | Capteurs dans la scène : Hall, HC-SR04 (rayon), fin de course (contact)                                          | **M**  | Kablix          |
+| D8  | Import STEP (OpenCascade WASM), arbre d'assemblage et noms → convention D5                                       | **L**  | Kompix Editor   |
+
+Total : **XL**, de l'ordre de 2 à 4 M jetons. Premier démonstrateur complet (bras servo + aimant + Hall, puis robot deux roues + HC-SR04) à la fin de D6–D7. D4 et D5 sont livrables seuls et utiles tout de suite.
+
+### Pièges
+
+- **Pas de moteur physique.** Cinématique seulement : positions et angles imposés, ni masse, ni frottement, ni chute. Un robot qui roule avance de `rayon × angle` de ses roues (cinématique différentielle), il ne glisse pas. Un moteur physique (Rapier en WASM) se discutera après, s'il manque vraiment.
+- **Boucles fermées** (parallélogramme, bielle-manivelle) : un solveur en arbre ne les résout pas. Les refuser clairement en D2, les traiter plus tard.
+- **OpenCascade WASM pèse 10 à 30 Mo** : à télécharger à la demande, jamais dans le `.vsix`.
+- **three.js dans Kablix** : environ 600 Ko de plus dans la webview. Kompix Editor l'embarque déjà.
+- **Règle de Kompix Editor** : rien ne se touche dans Kablix tant que Frank ne l'a pas demandé et que Kompix Editor n'est pas validé. Cinq validations l'attendent encore (todo Kompix Editor : items 1 à 4 et 24). Les lots marqués « Kablix » ou « les deux » attendent son feu vert explicite.
+- **Deux dépôts** : les lots Kompix Editor se font par une session lancée dans `kompix_editor/`, pas depuis Kablix.
+
+### Décisions attendues de Frank
+
+1. **Où vit le système monté** : dans le `.projix` (un projet = schéma + programme + 3D, recommandé) ou dans un fichier à part ouvert par Kompix Editor ?
+2. **Cinématique seule** (recommandé) ou moteur physique dès le départ ?
+3. **three.js dans Kablix** pour la vue de simulation (recommandé), ou vue 3D seulement dans Kompix Editor reliée à Kablix ?
+4. **Convention de nommage** : valider ou corriger l'esquisse `rôle:repère`.
+5. **Import STEP** par OpenCascade WASM téléchargé à la demande (recommandé), ou par FreeCAD installé sur le poste (plus léger, mais FreeCAD obligatoire) ?
+6. **Ordre** : commencer par D0 (piste 7, petite, utile seule) puis D4–D5, ou attaquer directement D1–D2 ?
+7. **Kompix Editor** : garde son nom et reste un outil à part, ou devient le module 3D de Kablix à terme ?
