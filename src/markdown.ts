@@ -19,6 +19,8 @@
 // démos : MP4/H.264 — l'Electron de VS Code n'a pas de démuxeur Matroska, donc
 // aucun `.webm` n'y joue (v2026.7.193), même si `canPlayType` prétend le contraire.
 
+import { texToHtml } from './math';
+
 export interface MarkdownOptions {
   /** Chemin relatif d'une image → URI affichable par la webview. */
   resolveAsset: (relPath: string) => string;
@@ -121,6 +123,12 @@ function inline(src: string, opt: MarkdownOptions): string {
 
   let out = src.replace(/`([^`]+)`/g, (_m, code: string) => keep(`<code>${esc(code)}</code>`));
 
+  // Formules `$…$` (après le code : un `$` d'exemple de code reste du code).
+  // Règle de Pandoc : pas d'espace juste après le `$` ouvrant ni juste avant le
+  // fermant, pas de chiffre derrière — « 5 $ et 10 $ » n'est pas une formule.
+  out = out.replace(/\$\$([^$]+)\$\$/g, (_m, tex: string) => keep(texToHtml(tex)));
+  out = out.replace(/\$(?![\s$])([^$\n]*?[^\s$\\])\$(?!\d)/g, (_m, tex: string) => keep(texToHtml(tex)));
+
   // `<img src="…" width="30" />` brut : les guides s'en servent pour caler une
   // icône DANS une phrase (le Markdown ne sait pas dimensionner une image).
   // `<video src="…">` / `<source src="…">` : les démos animées. Elles sont
@@ -177,7 +185,21 @@ function inline(src: string, opt: MarkdownOptions): string {
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
 
-  return out.replace(/\u0001(\d+)\u0001/g, (_m, i: string) => codes[Number(i)]);
+  return out
+    .replace(/\u0001(\d+)\u0001/g, (_m, i: string) => codes[Number(i)])
+    .replace(/\u0002/g, '<br />');
+}
+
+/**
+ * Recolle les lignes d'un paragraphe ou d'une citation. Une ligne terminée par
+ * deux espaces (ou plus) force un retour à la ligne, comme en Markdown standard :
+ * elle laisse une sentinelle que `inline` change en `<br />`.
+ */
+function recolle(lignes: string[]): string {
+  return lignes
+    .map((l, n) => (n < lignes.length - 1 && / {2,}$/.test(l) ? `${l.trim()}\u0002` : `${l.trim()} `))
+    .join('')
+    .trim();
 }
 
 /** Une ligne de tableau `| a | b |` → cellules (bords vides retirés). */
@@ -213,7 +235,7 @@ export function renderMarkdown(src: string, opt: MarkdownOptions): string {
   // standard. Les fiches écrivent un paragraphe par ligne (règle depuis
   // v2026.9.4.125), mais une fiche tierce peut encore couper ses phrases.
   const paragraph = (buf: string[]): void => {
-    if (buf.length) html.push(`<p>${inline(buf.join(' '), opt)}</p>`);
+    if (buf.length) html.push(`<p>${inline(recolle(buf), opt)}</p>`);
     buf.length = 0;
   };
 
@@ -232,6 +254,15 @@ export function renderMarkdown(src: string, opt: MarkdownOptions): string {
 
     // Ligne vide
     if (!line.trim()) { i++; continue; }
+
+    // Formule en bloc `$$ … $$`, sur une ligne ou sur plusieurs.
+    if (/^\s*\$\$/.test(line)) {
+      const tex: string[] = [line.replace(/^\s*\$\$/, '')];
+      while (!/\$\$\s*$/.test(tex[tex.length - 1]) && i + 1 < lines.length) tex.push(lines[++i]);
+      i++;
+      html.push(texToHtml(tex.join(' ').replace(/\$\$\s*$/, ''), true));
+      continue;
+    }
 
     // Séparateur horizontal (--- seul, à ne pas confondre avec un tableau)
     if (/^\s*(-{3,}|\*{3,})\s*$/.test(line)) { html.push('<hr />'); i++; continue; }
@@ -267,7 +298,7 @@ export function renderMarkdown(src: string, opt: MarkdownOptions): string {
     if (/^\s*>/.test(line)) {
       const quote: string[] = [];
       while (i < lines.length && /^\s*>/.test(lines[i])) quote.push(lines[i++].replace(/^\s*>\s?/, ''));
-      html.push(`<blockquote>${inline(quote.join(' '), opt)}</blockquote>`);
+      html.push(`<blockquote>${inline(recolle(quote), opt)}</blockquote>`);
       continue;
     }
 
@@ -291,12 +322,12 @@ export function renderMarkdown(src: string, opt: MarkdownOptions): string {
 
     // Paragraphe : une image seule reste hors <p> (bloc à part entière).
     const buf: string[] = [];
-    while (i < lines.length && lines[i].trim() && !/^\s*(#{1,6}\s|>|```|[-*+]\s|\d+\.\s)/.test(lines[i])
+    while (i < lines.length && lines[i].trim() && !/^\s*(#{1,6}\s|>|```|[-*+]\s|\d+\.\s|\$\$)/.test(lines[i])
       && !/^\s*(-{3,}|\*{3,})\s*$/.test(lines[i])
       && !(lines[i].includes('|') && i + 1 < lines.length && isTableSep(lines[i + 1]))) {
-      buf.push(lines[i++].trim());
+      buf.push(lines[i++].replace(/^\s+/, '')); // fin de ligne gardée : deux espaces = retour forcé
     }
-    const joined = buf.join(' ');
+    const joined = buf.map((l) => l.trim()).join(' ');
     // Une image ou une démo animée seule sur sa ligne : bloc à part entière.
     const alone = /^!\[[^\]]*\]\([^)]*\)$/.test(joined) || /^<video\b[^>]*>(<source\b[^>]*>)*<\/video>$/i.test(joined);
     if (alone) html.push(`<figure>${inline(joined, opt)}</figure>`);

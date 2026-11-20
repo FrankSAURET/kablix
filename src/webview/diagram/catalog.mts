@@ -912,9 +912,12 @@ export const CATALOG: readonly PartDef[] = [
   // résistif suit le pont diviseur réel (adcDividerLevels).
   {
     type: 'ldr', label: 'LDR (photoresistor)', tag: 'kablix-ldr', kind: 'resistor',
-    simControl: true, attrs: { lux: '500', r1lx: '50000', gamma: '0.7' },
+    // R = RL0 · (L0/lux)^γ ; un ancien projet n'a que `r1lx` (référence 1 lx),
+    // repris tel quel par variableResistorOhms.
+    simControl: true, attrs: { lux: '500', l0: '10', rl0: '100000', gamma: '0.8' },
     props: [
-      { attr: 'r1lx', label: 'Resistance at 1 lx (Ω)', kind: 'number', min: 1, max: 10_000_000, step: 1, suffixes: true },
+      { attr: 'l0', label: 'Reference illuminance L0 (lx)', kind: 'number', min: 0.01, max: 100_000, step: 0.01 },
+      { attr: 'rl0', label: 'Resistance at L0, RL0 (Ω)', kind: 'number', min: 1, max: 10_000_000, step: 1, suffixes: true },
       { attr: 'gamma', label: 'Sensitivity coefficient (γ)', kind: 'number', min: 0.1, max: 2, step: 0.01 },
     ],
   },
@@ -1947,7 +1950,7 @@ export function pca9685AddressText(attrs: Record<string, string> | undefined): s
 
 /**
  * Attributs d'un composant chargé depuis un schéma, remis à jour quand le
- * réglage a changé de forme. Aujourd'hui : le PCA9685 et le robot araignée,
+ * réglage a changé de forme. Aujourd'hui : la LDR (`r1lx` → `l0`/`rl0`), le PCA9685 et le robot araignée,
  * dont l'adresse était choisie dans une liste (`address`) et se règle maintenant
  * par les six pads AD0..AD5 — les schémas d'avant n'ont pas les `ad*`, on les
  * DÉDUIT de l'adresse enregistrée (0x7F → tous cochés) pour que le montage garde
@@ -1960,6 +1963,13 @@ export function migratePartAttrs(part: { type: string; attrs?: Record<string, st
     def = partDef(part.type);
   } catch {
     return attrs; // type inconnu (composant perso non encore enregistré)
+  }
+  // LDR d'avant v2026.11.4.321 : `r1lx` (résistance à 1 lx) devient RL0 avec
+  // L0 = 1 lx — même courbe, et l'inspecteur montre les vraies valeurs.
+  if (part.type === 'ldr') {
+    if (!attrs || attrs.r1lx === undefined || attrs.rl0 !== undefined) return attrs;
+    const { r1lx, ...reste } = attrs;
+    return { ...reste, l0: '1', rl0: r1lx, gamma: attrs.gamma ?? '0.7' };
   }
   if (!hasPca9685Pads(def)) return attrs;
   if (attrs && [0, 1, 2, 3, 4, 5].some((b) => `ad${b}` in attrs)) return attrs; // déjà au nouveau format

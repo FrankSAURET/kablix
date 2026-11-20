@@ -836,8 +836,10 @@ export const ES: Record<string, string> = {
     'Termistor NTC',
   'PTC thermistor':
     'Termistor PTC',
-  'Resistance at 1 lx (Ω)':
-    'Resistencia a 1 lx (Ω)',
+  'Reference illuminance L0 (lx)':
+    'Iluminancia de referencia L0 (lx)',
+  'Resistance at L0, RL0 (Ω)':
+    'Resistencia a L0, RL0 (Ω)',
   'Sensitivity coefficient (γ)':
     'Coeficiente de sensibilidad (γ)',
   'Resistance at 25 °C (Ω)':

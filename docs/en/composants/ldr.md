@@ -2,7 +2,20 @@
 
 ![LDR (photoresistor)](../../img/composants/ldr.webp)
 
-**Bare** photoresistor, two leads: its resistance drops as light increases. Not to be confused with the [light sensor module](photoresistor.md), which is a full board (VCC/GND, analog and digital outputs).
+A photoresistor (LDR) is a resistive component whose value decreases as its illuminance increases. This variation is not linear and follows this law:
+
+$$\Large R = R_{L_0} \times \left(\frac{L_0}{L}\right)^{\gamma}$$
+
+Where:
+> R: resistance of the LDR in Ω,  
+> $R_{L_0}$: resistance measured at the reference illuminance, in Ω,  
+> $L_0$: reference illuminance (1, 10, 100 lux…),  
+> L: illuminance of the LDR in lux,  
+> $\gamma$: sensitivity coefficient (positive), no unit.  
+
+![R(L) curve of an LDR](../../fr/images/CourbeLED.svg)
+
+Not to be confused with the [light sensor module](photoresistor.md), which is a full board (VCC/GND, analog and digital outputs).
 
 ## Pins
 
@@ -15,26 +28,26 @@
 
 | Property | Role | Default |
 |-----------|------|--------|
-| `r1lx` | Resistance at 1 lux (Ω) | 50,000 |
-| `gamma` | Sensitivity coefficient (γ) | 0.7 |
-| `lux` | Illuminance at rest (lux) | 500 |
+| $L_0$ | Reference illuminance (lx) | 10 |
+| $R_{L_0}$ | Resistance measured at the reference illuminance (Ω) | 100 k |
+| $\gamma$ | Sensitivity coefficient | 0.8 |
+| lux | Illuminance at rest (lx) | 500 |
 
 ## In simulation
 
 An **illuminance slider** appears on the part while simulating: it sets the incoming light, from darkness to full sun. Resistance follows the real LDR characteristic:
 
-```
-R = r1lx x lux^(-gamma)
-```
+$$\large R = R_{L_0} \times \left(\frac{L_0}{L}\right)^{\gamma}$$
 
-With the defaults: 50 kΩ at 1 lx, ~650 Ω at 500 lx (well-lit room). Resistance is capped at 10 MΩ in the dark.
+With the defaults: 100 kΩ at 10 lx, 4373 Ω at 500 lx (well-lit room). Resistance is capped at 10 MΩ in the dark.
 
 ## Usage
 
 - Wire the LDR as a **voltage divider** with a fixed resistor (10 kΩ typical), the midpoint going to an analog input.
+- 🚨 **Caution**: whether the divider resistor or the LDR goes to ground reverses the direction in which the voltage varies.
 - The voltage read by the ADC follows the actual divider of your circuit: no need for a ready-made module to get a credible reading.
-- Non-polarized part: the two leads are equivalent.
+- Non-polarized part.
 
 ---
 
-*Kablix component — photometric model `R = r1lx x lux^(-gamma)`.*
+*Kablix component - Frank SAURET*

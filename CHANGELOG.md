@@ -6,7 +6,17 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 ## 2026.11.5 (prochaine publication)
 
+### Nouveauté
+
+**Aide**
+
+- Les fiches d'aide affichent les formules mathématiques (fractions, indices, exposants, lettres grecques).
+
 ### Modification
+
+**Composants**
+
+- LDR : nouveau modèle à éclairement de référence. Propriétés L0 (10 lx par défaut) et RL0 (résistance à L0, 100 kΩ), γ à 0,8. Les anciens projets gardent exactement leur courbe. Fiche d'aide réécrite, avec sa courbe.
 
 **Signaler un problème**
 

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { randomBytes } from 'node:crypto';
 import { renderMarkdown, markdownTitle, markdownOutline, type OutlineEntry } from './markdown';
+import { MATH_CSS } from './math';
 import { SHOW_PART_HELP, docLangs, type DocLang } from './partHelp';
 
 // Aide GÉNÉRALE de Kablix (bouton ❔ / commande « Kablix : Aide »).
@@ -532,6 +533,7 @@ function pageHtml(
     hr { border: none; border-top: 1px solid var(--vscode-panel-border, rgba(128,128,128,.3)); margin: 1.8rem 0; }
     ul, ol { padding-left: 1.4rem; }
     li { margin: 0.2rem 0; }
+${MATH_CSS}
   </style>
 </head>
 <body>

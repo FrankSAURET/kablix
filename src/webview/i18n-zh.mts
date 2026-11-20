@@ -836,8 +836,10 @@ export const ZH: Record<string, string> = {
     'NTC 热敏电阻',
   'PTC thermistor':
     'PTC 热敏电阻',
-  'Resistance at 1 lx (Ω)':
-    '1 lx 时的电阻 (Ω)',
+  'Reference illuminance L0 (lx)':
+    '参考照度 L0 (lx)',
+  'Resistance at L0, RL0 (Ω)':
+    'L0 时的电阻 RL0 (Ω)',
   'Sensitivity coefficient (γ)':
     '灵敏度系数 (γ)',
   'Resistance at 25 °C (Ω)':

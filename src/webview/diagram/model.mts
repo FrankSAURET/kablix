@@ -1018,7 +1018,7 @@ export const PHOTO_DEVICE_TYPES: ReadonlySet<string> = new Set(['phototransistor
 /**
  * Caractéristique R(x) d'une résistance variable nue (paramètres de
  * l'inspecteur dans `attrs`) :
- *  - ldr : x = éclairement (lx), R = R1lx · x^(−γ) — obscurité totale ≈ 10 MΩ ;
+ *  - ldr : x = éclairement (lx), R = RL0 · (L0/x)^γ — obscurité totale ≈ 10 MΩ ;
  *  - ntc : x = température (°C), R = R25 · e^(B·(1/T − 1/T25)) (T en kelvins) ;
  *  - ptc : x = température (°C), R = R25 · (1 + tc/100 · (T − 25)) (type KTY) ;
  *  - phototransistor et photodiode : x = éclairement énergétique (mW/cm²),
@@ -1036,7 +1036,12 @@ export function variableResistorOhms(
   };
   if (type === 'ldr') {
     if (!(x > 0)) return 1e7;
-    const r = num('r1lx', 50_000) * Math.pow(x, -num('gamma', 0.7));
+    // Ancien projet (avant v2026.11.4.321) : seul `r1lx` est enregistré, sa
+    // référence est 1 lx et son γ par défaut 0,7 — son calcul est conservé.
+    const ancien = attrs?.rl0 === undefined && attrs?.r1lx !== undefined;
+    const rl0 = ancien ? num('r1lx', 50_000) : num('rl0', 100_000);
+    const l0 = ancien ? 1 : num('l0', 10);
+    const r = rl0 * Math.pow(l0 / x, num('gamma', ancien ? 0.7 : 0.8));
     return Math.min(1e7, Math.max(1, r));
   }
   if (type === 'phototransistor' || type === 'photodiode') {

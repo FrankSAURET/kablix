@@ -29,6 +29,7 @@ const buildTo = async (entry, outfile) => {
   return import(pathToFileURL(join(tmp, outfile)).href);
 };
 const { variableResistorOhms, adcDividerLevels, photoDeviceBindings } = await buildTo('src/webview/diagram/model.mts', 'model.mjs');
+const { migratePartAttrs } = await buildTo('src/webview/diagram/catalog.mts', 'catalog.mjs');
 const { internalWiringSvg } = await buildTo('src/webview/diagram/internal-wiring.mts', 'wiring.mjs');
 
 let failures = 0;
@@ -39,10 +40,17 @@ const check = (label, ok) => {
 const near = (a, b, eps = 1e-6) => a !== null && Math.abs(a - b) < eps * Math.max(1, Math.abs(b));
 
 // --- Caractéristiques R(x) ------------------------------------------------------
-check('LDR : 1 lx → R1lx (50 kΩ)', near(variableResistorOhms('ldr', 1), 50_000));
-check('LDR : 100 lx, γ=0,7 → 50k·100^-0,7', near(variableResistorOhms('ldr', 100), 50_000 * Math.pow(100, -0.7)));
+check('LDR : 10 lx → RL0 (100 kΩ)', near(variableResistorOhms('ldr', 10), 100_000));
+check('LDR : 500 lx, γ=0,8 → 4373 Ω (fiche d\'aide)', Math.round(variableResistorOhms('ldr', 500)) === 4373);
+check('LDR : décroît avec la lumière', variableResistorOhms('ldr', 1000) < variableResistorOhms('ldr', 100));
 check('LDR : obscurité totale (0 lx) → 10 MΩ', near(variableResistorOhms('ldr', 0), 1e7));
-check('LDR : paramètres inspecteur (R1lx=100k, γ=1)', near(variableResistorOhms('ldr', 10, { r1lx: '100000', gamma: '1' }), 10_000));
+check('LDR : paramètres inspecteur (L0=100, RL0=20k, γ=1)', near(variableResistorOhms('ldr', 1000, { l0: '100', rl0: '20000', gamma: '1' }), 2_000));
+check('LDR : ancien projet (r1lx=50k, γ=0,7) → calcul conservé', near(variableResistorOhms('ldr', 100, { r1lx: '50000', gamma: '0.7' }), 50_000 * Math.pow(100, -0.7)));
+{
+  const m = migratePartAttrs({ type: 'ldr', attrs: { lux: '500', r1lx: '50000', gamma: '0.7' } });
+  check('LDR : chargement d\'un ancien projet → l0=1, rl0=r1lx, plus de r1lx', m.l0 === '1' && m.rl0 === '50000' && m.gamma === '0.7' && m.r1lx === undefined);
+  check('LDR : même courbe après conversion', near(variableResistorOhms('ldr', 100, m), 50_000 * Math.pow(100, -0.7)));
+}
 check('CTN : 25 °C → R25 (10 kΩ)', near(variableResistorOhms('ntc', 25), 10_000));
 check('CTN : 100 °C, B=3950 → ~697 Ω (décroît)', near(variableResistorOhms('ntc', 100), 10_000 * Math.exp(3950 * (1 / 373.15 - 1 / 298.15))));
 check('CTN : -55 °C → résistance très forte (>500 kΩ)', variableResistorOhms('ntc', -55) > 500_000);

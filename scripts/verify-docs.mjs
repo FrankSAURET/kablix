@@ -384,6 +384,26 @@ ok('rendu : une image .mp4 sort quand même en <video>, pas en <img>',
   /<video[^>]*><source src="asset:\.\.\/\.\.\/media\/simuler\.mp4" type="video\/mp4"/.test(demoMd)
   && !/<img/.test(demoMd), demoMd.slice(0, 160));
 
+// Formules TeX (fiche LDR, v2026.11.4.321) : `$$…$$` en bloc, `$…$` en ligne,
+// y compris dans un tableau ; aucun `$` ni `\frac` ne doit rester visible.
+{
+  const opt = { resolveAsset: (r) => r, resolveDocLink: () => '' };
+  const md = 'Loi :\n$$\\Large R = R_{L_0} \\times \\left(\\frac{L_0}{L}\\right)^{\\gamma}$$\n\n| P | D |\n|---|---|\n| $R_{L_0}$ | 100 k |\n\n> a  \n> b\n\nPrix : 5 $ et 10 $.';
+  const html = renderMarkdown(md, opt);
+  ok('rendu : formule en bloc (fraction, indice, exposant γ, taille)',
+    /<p>Loi :<\/p>\s*<div class="math math-bloc"><span class="math-Large">/.test(html)
+    && /<span class="math-frac"><span class="math-num"><i>L<\/i><sub>0<\/sub><\/span><span class="math-den"><i>L<\/i><\/span><\/span>/.test(html)
+    && /<sup>γ<\/sup>/.test(html) && /<sub><i>L<\/i><sub>0<\/sub><\/sub>/.test(html) && /×/.test(html),
+    html.slice(0, 400));
+  ok('rendu : formule en ligne dans un tableau', /<td><span class="math"><i>R<\/i><sub>/.test(html), html);
+  ok('rendu : aucune commande TeX ni $ de formule laissés bruts', !/\\frac|\\left|\$\$|\$R_/.test(html), html);
+  ok('rendu : « 5 $ et 10 $ » n\'est pas une formule', /5 \$ et 10 \$/.test(html), html);
+  ok('rendu : deux espaces en fin de ligne = retour forcé', /<blockquote>a<br \/>b<\/blockquote>/.test(html), html);
+  ok('webviews : styles des formules dans l’aide (guides et fiches)',
+    /\$\{MATH_CSS\}/.test(readFileSync(join(root, 'src', 'guide.ts'), 'utf8'))
+    && /\$\{MATH_CSS\}/.test(readFileSync(join(root, 'src', 'partHelp.ts'), 'utf8')));
+}
+
 // Sans `media-src`, `default-src 'none'` bloque la vidéo sans un mot d'erreur.
 // Le guide doit en plus accepter `data:` : c'est ainsi qu'il sert ses démos.
 const guideSrc = readFileSync(join(root, 'src', 'guide.ts'), 'utf8');

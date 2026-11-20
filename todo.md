@@ -1,10 +1,24 @@
 # À faire
+1. nouveau rapport de bug (rapport-kablix-2026.11.4-8f891187) le même que d'abitude sur le même poste du même compte. Aprés un mise à jour impossible de voir kablix il s'aouvre puis l'explorateur le cache (ou le réduit)
 ## ne pas faire pour l'instant
 1. transformer kompix editor en créateur de projet info meca (typiquement robotique) en 3D. 
     - des composants existent (carte elec, moteur, servo, roue...)
     - Construction de modèles découpé laser, imprimé en  3D et assemblage
     - import de modeles assemblés (solidworks et autres)
     - une dénomination standard des éléments permet de leur attribuer un rôle de simulation
+---
+
+# v2026.11.4.321 — LDR : modèle à éclairement de référence, formules dans l'aide
+
+1. ✅ **Cohérence de la fiche FR** : l'équation écrite `(L0/L)^-γ` faisait CROÎTRE R avec la lumière ; les chiffres de la fiche (100 kΩ à 10 lx, 4373 Ω à 500 lx) suivent `(L0/L)^γ`. Exposant corrigé (deux endroits), plus cellule parasite `, ` du tableau, « photo résistance », texte alternatif de la courbe, double espace.
+2. ✅ **Modèle** ([model.mts](src/webview/diagram/model.mts) `variableResistorOhms`) : `R = RL0 · (L0/lux)^γ`, propriétés `l0` (10 lx), `rl0` (100 kΩ), `gamma` (0,8) ; `r1lx` disparaît de l'inspecteur ([catalog.mts](src/webview/diagram/catalog.mts)).
+3. ✅ **Anciens projets** : `migratePartAttrs` convertit `r1lx` → `rl0` avec `l0 = 1` (γ 0,7 si absent) — même courbe, et l'inspecteur montre les vraies valeurs. Repli identique dans `variableResistorOhms` pour un schéma lu sans conversion.
+4. ✅ **Formules dans l'aide** : le lecteur maison ([markdown.ts](src/markdown.ts)) ignorait `$…$` / `$$…$$` ; nouveau [math.ts](src/math.ts) (fractions, indices, exposants, grec, `\times`, `\left( \right)`, `\large`/`\Large`), styles `MATH_CSS` dans les deux webviews d'aide (classes, pas de `style=` : CSP). Deux espaces en fin de ligne = `<br />` (paragraphes et citations).
+5. ✅ **Traductions** (demandées par Frank pour ce lot) : fiches `docs/en|es|zh/composants/ldr.md`, libellés L0/RL0 dans `i18n.mts` (FR), `i18n-es.mts`, `i18n-zh.mts`.
+6. ✅ Bancs : `verify:divider` (+4 contrôles LDR : 4373 Ω, décroissance, ancien projet, conversion), `verify:docs` (+6 : formule en bloc, en ligne dans un tableau, rien de brut, « 5 $ » intact, retour forcé, styles). `verify:i18n`, `verify:kompixhelp`, `verify:guide-nav`, `verify:proprietes`, `verify:diagram` verts.
+7. ⏳ **Courbe `docs/fr/images/CourbeLED.svg`** : les fiches EN/ES/ZH pointent vers la version française (libellés FR) ; copies traduites non créées (écriture refusée). Dans Chrome, la légende « Obscurité … Éclairage élevé » perd ses espaces (`xml:space` ignoré) : les trois mots se tassent à gauche. Texte gris foncé `#3D3D3D` peu lisible en thème sombre. À voir avec Frank.
+8. ℹ️ Tests `testkablix` LDR gardent `r1lx` dans `_spec.mjs` : ils passent par la conversion (non régénérés, emplacements préservés).
+
 ---
 
 # v2026.11.4.320 — icône Kablix renvoyée à l'Explorateur après mise à jour (rapport 08c2ca50)

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { randomBytes } from 'node:crypto';
 import { renderMarkdown, markdownTitle } from './markdown';
+import { MATH_CSS } from './math';
 
 // Aide LOCALE d'un composant (bouton « ? » de l'inspecteur), rendue dans une
 // webview Kablix plutôt que dans l'aperçu Markdown de VS Code.
@@ -261,6 +262,7 @@ function pageHtml(webview: vscode.Webview, lang: string, title: string, body: st
     hr { border: none; border-top: 1px solid var(--vscode-panel-border, rgba(128,128,128,.3)); margin: 1.8rem 0; }
     ul, ol { padding-left: 1.4rem; }
     li { margin: 0.2rem 0; }
+${MATH_CSS}
   </style>
 </head>
 <body>
