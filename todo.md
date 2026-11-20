@@ -1,11 +1,12 @@
 # À faire
-1. nouveau rapport de bug (rapport-kablix-2026.11.4-8f891187) le même que d'abitude sur le même poste du même compte. Aprés un mise à jour impossible de voir kablix il s'aouvre puis l'explorateur le cache (ou le réduit)
+1. ⏳ rapport 8f891187 (Kablix caché par l'Explorateur) : envoyé depuis la 2026.11.4 publique (build 318), sans la trace de v320 → inexploitable. Attendre un rapport envoyé depuis la 2026.11.5 (voir v320, item 8).
 ## ne pas faire pour l'instant
 1. transformer kompix editor en créateur de projet info meca (typiquement robotique) en 3D. 
-    - des composants existent (carte elec, moteur, servo, roue...)
+    - des composants existants (carte et composants electronique, moteur, servo, roue, engrenage, aimants...)
     - Construction de modèles découpé laser, imprimé en  3D et assemblage
-    - import de modeles assemblés (solidworks et autres)
+    - import de modeles assemblés (solidworks, freecad ...)
     - une dénomination standard des éléments permet de leur attribuer un rôle de simulation
+    - Une fois le systeme monté, 
 ---
 
 # v2026.11.4.322 — dessins SVG de l'aide aux couleurs du thème
@@ -39,6 +40,7 @@
 5. ✅ **`reveal()` sûr** ([panel.ts](src/panel.ts)) : rend faux sur un onglet disparu ; l'icône retombe alors sur l'ouverture d'un atelier. `active()` était déjà propre (`onDispose` efface la référence).
 6. ✅ Banc `verify:reveal` (31) : motifs mis à jour + 2 contrôles (repli sur l'ouverture, `reveal()` booléen).
 7. ⏳ **Attendre le prochain rapport** de l'élève sur ce défaut (sans réinstaller avant d'envoyer) : la trace dira si le volet Kablix devient visible ou non. Seules la session en cours et la précédente partent dans le rapport.
+8. ℹ️ **Rapport 8f891187** (19/11, même poste, même compte) : envoyé depuis la 2026.11.4 publique (build 318), donc **sans** la trace du clic. Journaux du 19/11 : une seule ligne Kablix, activation `onCustomEditor:kablix.projix` (projet ouvert depuis l'Explorateur), aucune erreur, aucun canal « Kablix — suivi ». Rien de neuf sur la cause : la trace ne servira qu'une fois la 2026.11.5 publiée et installée sur ce poste.
 
 ---
 
