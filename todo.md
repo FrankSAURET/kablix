@@ -20,8 +20,8 @@
 1. ✅ **Décisions de Frank** reportées dans la liste « à faire » (lots D0, D1, D2) ; roadmap complétée par Frank enregistrée telle quelle.
 2. ✅ **Branche `mecatronique`** créée depuis `main`, dossier de travail séparé `C:\- VS Code\Extensions\Kablix-mecatronique` (git worktree) : le travail de nuit ne change jamais la branche du dossier de Frank.
 3. ✅ **Lanceur de nuit** `C:\Users\Frank\.claude\nuit\` (hors dépôt) : `nuit.mjs`, `config.json`, `inactivite.ps1`, `installer.ps1`, `test-reveil.ps1`, `LISEZMOI.md`. Tâche « Claude nuit » chaque heure de 20 h à 8 h avec réveil du PC ; plafond hebdomadaire par nuit 10/20/35/50/60/80/100 % (nuit 1 = mardi soir après la remise à zéro de 11 h) ; PC utilisé dans les 10 dernières minutes → nouvel essai une heure après ; un lot par appel `claude -p` (Opus, sous-agents Sonnet/Haiku pour le mécanique) ; consignes vers un autre projet déposées dans `a-lancer/` et exécutées dans leur dossier ; veille prolongée à la fin.
-4. ⏳ **Lecture du quota** par le point d'accès de `/usage` avec le jeton de connexion (accord de Frank) : bloquée par le contrôle de sécurité dans la session Claude, à essayer par Frank (`node C:\Users\Frank\.claude\nuit\nuit.mjs --essai`).
-5. ⏳ **Réveil depuis la veille prolongée** : à tester par Frank (`test-reveil.ps1`), dépend du BIOS.
+4. ✅ **Lecture du quota** par le point d'accès de `/usage` avec le jeton de connexion (accord de Frank ; bloquée par le contrôle de sécurité dans une session Claude, lue par le lanceur hors Claude). Essai de Frank le 20/11 : hebdo 17 %, remise mardi 24/11 10 h 59, nuit et plafond justes.
+5. ✅ **Réveil depuis la veille prolongée** validé par Frank le 20/11 (`test-reveil.ps1` réduit à 1 min, réveil à 13 h 44 ; tâche d'essai retirée ensuite).
 
 ---
 
