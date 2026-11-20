@@ -164,6 +164,6 @@ Total : **XL**, de l'ordre de 2 à 4 M jetons. Premier démonstrateur complet (b
 6. **Ordre** : commencer par D0 (piste 7, petite, utile seule) puis D4–D5, ou attaquer directement D1–D2 ?  
 D0 , D1 et D2
 7. **Kompix Editor** : garde son nom et reste un outil à part, ou devient le module 3D de Kablix à terme ?  
-**garde son nom et reste un outil à part. un composant créé doit pouvoir être utilisé dans kablix sans kompix editor. Kompix editor devra aussi pouvoir créer des composants 3d seulement élec dans méca.**  
+**garde son nom et reste un outil à part. un composant créé doit pouvoir être utilisé dans kablix sans kompix editor. Kompix editor devra aussi pouvoir créer des composants 3d seulement élec sans méca (le type de composant actuel, mais en 3D).**  
 
 **Les modifications dans kablix seront faites dans une branche (mecatronique)**
