@@ -15,6 +15,15 @@
 
 ---
 
+# v2026.11.5.325 — préparation de la publication 2026.11.5
+
+1. ✅ **Numéro** : même mois (novembre) → `2026.11.5`. `package.json` et `package-lock.json` en `2026.11.5`, `buildNumber` 325, CLAUDE.md à jour.
+2. ✅ **CHANGELOG daté du 21 novembre 2026** (formules et SVG de l'aide, LDR, trace du clic sur l'icône, atelier fermé pendant sa mise en place).
+3. ✅ **Traductions** : rien à ajouter — fiches LDR, courbes et libellés EN/ES/ZH déjà faits en v321-v322. `verify:i18n` 18/18, `verify:docs` 38/38.
+4. ⬜ **Reste à Frank** : publier (`npm run publier`). Après la mise en ligne : ouvrir `## 2026.11.6 (prochaine publication)` dans le CHANGELOG.
+
+---
+
 # v2026.11.4.324 — décisions de la piste 11, lanceur de nuit
 
 1. ✅ **Décisions de Frank** reportées dans la liste « à faire » (lots D0, D1, D2) ; roadmap complétée par Frank enregistrée telle quelle.
