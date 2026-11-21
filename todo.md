@@ -24,7 +24,7 @@
 4. ✅ Côté web (Frank, 21/11) : environnement `marketplace` (relecteur, étiquettes `v*`), politiques Marketplace et Open VSX saisies.
 4b. ⬜ Première publication par étiquette à la prochaine VRAIE publication (2026.11.6) : `git tag` + `git push origin vX`, approbation dans Actions, plus de `npm run publier`.
 5. ⬜ Après la première publication CI : CLAUDE.md, `/livre`, commentaires de `scripts/publier.mjs`, sort des PAT ; puis les trois autres extensions (consigne par dossier).
-6. ⏳ `PASSATION-trusted-publishing.md` : non suivi, à déplacer ou supprimer sur décision de Frank ; non exclu par `.vscodeignore`, ne pas construire de `.vsix` de publication tant qu'il est à la racine.
+6. ✅ `PASSATION-trusted-publishing.md` supprimé à la demande de Frank (21/11).
 
 ---
 
