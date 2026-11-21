@@ -66,6 +66,8 @@ const PARTS = {
   // Capteur à effet Hall : boîtier partagé TO92S (dessin étroit et haut comme le
   // TO-92 du transistor) — illustré hors simulation, donc sans son aimant.
   hall: { module: 'hall-element.mjs', tag: 'kablix-hall', width: 160, pinNames: true },
+  // Aimant : petit barreau N/S sans broche, agrandi pour la fiche.
+  aimant: { module: 'aimant-element.mjs', tag: 'kablix-aimant', width: 160 },
   // Potentiomètre ajustable : illustré avec le code le plus parlant (104 =
   // 100 kΩ), vis à mi-course.
   'pot-rot2': { module: 'pot-rot2-element.mjs', tag: 'kablix-pot-rot2', width: 200, attrs: { ohms: '100000', value: '50' } },

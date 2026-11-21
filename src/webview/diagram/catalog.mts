@@ -31,6 +31,7 @@ export type PartKind =
   | 'digital-source'
   | 'ao-do-sensor'
   | 'hall'
+  | 'magnet'
   | 'servo'
   | 'patte'
   | 'araignee'
@@ -1047,6 +1048,18 @@ export const CATALOG: readonly PartDef[] = [
       { attr: 'trigger', label: 'Trigger distance (mm)', kind: 'number', min: 1, max: 25, step: 1 },
     ],
   },
+  // Aimant droit (piste 7, lot D0 de la piste 11) : SANS broche, premier
+  // composant mécanique. Fixé sur un servo (`mount` = repère du servo), il suit
+  // le palonnier pendant la simulation ; les capteurs Hall de la feuille le
+  // voient passer (montage.mts, sim.mts). Béta tant que Frank ne l'a pas validé.
+  {
+    type: 'aimant', label: 'Magnet', tag: 'kablix-aimant', kind: 'magnet',
+    pinless: true,
+    attrs: { mount: '' },
+    props: [
+      { attr: 'mount', label: 'Mounted on (servo reference)', kind: 'text', rows: 1 },
+    ],
+  },
   {
     type: 'servo', label: 'Servo motor', tag: 'kablix-servo', kind: 'servo',
     // Impulsions 0°/180° réglables : SG90 (datasheet) = 500-2500 µs ; lib
@@ -1613,6 +1626,7 @@ export function partCategory(def: PartDef): string {
       return 'Instruments'; // « Appareils de mesure » : alim de laboratoire, multimètre…
     case 'spi-sd':
     case 'i2c-pwm':
+    case 'magnet':
       return 'Misc'; // « Divers » : modules divers (carte SD, pilote PWM…)
     case 'pushbutton':
     case 'potentiometer':

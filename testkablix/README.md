@@ -73,6 +73,7 @@ Le robot araignée n'a pas de jumeau : sa Pico W est **dans** le châssis, il n'
 | Capteur PIR | `pir-uno` | `pir-pico` | `pir-pico2` | survol = mouvement |
 | Capteur d'inclinaison | `tilt-uno` | `tilt-pico` | `tilt-pico2` | clic maintenu = incliné |
 | Capteur à effet Hall | `hall-uno` | `hall-pico` | `hall-pico2` | aimant glissé = sortie basse ; rappel externe 10 kΩ (Uno) ou interne (Pico) |
+| Aimant (Béta) | `aimant-uno` | `aimant-pico` | — | aimant fixé sur le palonnier du servo ; le Hall posé en face de 90° ne le voit qu'à 90° (servo via PCA9685 côté Pico) |
 | Servomoteur | `servo-uno` | — (retiré) | — | 0° / 90° / 180° ; côté Pico, 16 servos et leur alim sont éprouvés par `powerbank-pico` et `patte-pico` |
 | LCD 16×2 I²C | `lcd-uno` | `lcd-pico` | `lcd-pico2` | texte + compteur |
 | OLED SSD1306 I²C | `oled-ssd1306-uno` | `oled-ssd1306-pico` | `oled-ssd1306-pico2` | cadre + dessin |

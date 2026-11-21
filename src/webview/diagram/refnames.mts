@@ -42,6 +42,9 @@ const FAMILIES = {
   // partie de rien. Les numéroter ensemble mêlerait deux séries que l'élève
   // lit séparément (M1, M2 sur la table · SD1, SD2 sur les broches).
   probe: { en: 'SD', fr: 'SD' },
+  // Pièce mécanique (aimant) : « A » comme dans la convention `aimant:A1` de la
+  // piste 11 ; « MAG » en anglais.
+  magnet: { en: 'MAG', fr: 'A' },
 } as const;
 
 export type RefFamily = keyof typeof FAMILIES;
@@ -81,6 +84,7 @@ const BY_KIND: Record<string, RefFamily> = {
   'digital-source': 'sensor',
   'analog-source': 'sensor',
   hall: 'sensor',
+  magnet: 'magnet',
   buzzer: 'actuator',
   servo: 'actuator',
   // Patte de robot et araignée complète : des actionneurs (servos), même si

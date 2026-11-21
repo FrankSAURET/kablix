@@ -29,6 +29,8 @@ import './composants/photoresistor-sensor-element.mjs';
 import './composants/pir-motion-sensor-element.mjs';
 import './composants/tilt-switch-element.mjs';
 import './composants/hall-element.mjs';
+import './composants/aimant-element.mjs';
+import { MontageSim } from './montage-sim.mjs';
 import './composants/servo-element.mjs';
 import './composants/lcd1602-element.mjs';
 import './composants/ssd1306-element.mjs';
@@ -423,6 +425,9 @@ let motionTargets: Array<{ pin: string; el: SimElement; last: boolean }> = [];
 let hallTargets: Array<{ binding: HallBinding; el: SimElement }> = [];
 /** Défaut de câblage courant de chaque capteur Hall (pour ne le dire qu'au changement). */
 const hallFaults = new Map<string, string>();
+// Pièces PORTÉES (aimant fixé sur un servo) et aimants lus par les capteurs
+// Hall : relevés au lancement, replacés à chaque frame (montage-sim.mts).
+const montage = new MontageSim();
 // Composants de bibliothèque (.kompix) à sortie collecteur ouvert — la barrière
 // optique. Même relecture par frame que le Hall : le rappel INTERNE du µC n'existe
 // qu'une fois le `pinMode(pin, INPUT_PULLUP)` exécuté, donc après le démarrage.
@@ -1051,6 +1056,7 @@ function renderTick(): void {
   updatePulses();
   updateGbfs();
   updateMotion();
+  montage.update();
   updateHall();
   updateOpenDrain();
   updateSupplyChecks();
@@ -2123,6 +2129,7 @@ function clearRelayFaults(): void {
   icFrame = [];
   hallTargets = [];
   hallFaults.clear();
+  montage.reset();
   openDrainTargets = [];
   openDrainFaults.clear();
   supplyChecks = [];
@@ -3965,6 +3972,7 @@ function bindInputs(nouvelleMesure = false): void {
     const el = editor.elementOf(binding.partId);
     if (el) hallTargets.push({ binding, el });
   }
+  montage.start(editor.diagram, hallTargets.map((h) => h.el), editor, signalerMessage);
   updateHall();
   // Idem pour les sorties à collecteur ouvert venues de la bibliothèque .kompix.
   openDrainTargets = [];

@@ -6,13 +6,33 @@
     - une dénomination standard des éléments permet de leur attribuer un rôle de simulation
     - Une fois le systeme monté, il doit être simulable dans kablix
     - ✅ Décisions de Frank (20/11, [roadmap.md](roadmap.md#11-créateur-de-projets-mécatroniques-3d)) : système monté dans le `.projix` ; cinématique seule au départ ; three.js dans Kablix ; nommage `rôle:repère` ; STEP par OpenCascade WASM téléchargé à la demande ; Kompix Editor reste un outil à part (un composant créé s'utilise dans Kablix sans lui ; il doit aussi créer des composants 3D purement électroniques, sans rôle mécanique : le type de composant actuel, mais en 3D). **Tout ce qui touche Kablix se fait sur la branche `mecatronique`** (dossier de travail `C:\- VS Code\Extensions\Kablix-mecatronique`), jamais sur `main`.
-    - ⬜ **D0** — piste 7 (servo + aimant + Hall : lien de montage, suivi de l'angle simulé, champ binaire), en 2D dans Kablix, branche `mecatronique`.
+    - ✅ **D0** — piste 7 (servo + aimant + Hall : lien de montage, suivi de l'angle simulé, champ binaire), en 2D dans Kablix, branche `mecatronique` (v325). ⏳ **À valider par Frank** (composant Béta) ; suites en ⏳ dans la section v325.
     - ⬜ **D1** — document système (composants posés, poses, liaisons) rangé dans le `.projix`, lié aux repères du schéma. Partie Kablix ici, partie Kompix Editor par consigne à son dossier.
     - ⬜ **D2** — liaisons durables et solveur cinématique en arbre (pivot, glissière, encastrement, engrenage, roue sur sol) dans `kompix-core` : par consigne au dossier `kompix_editor/`.
     - ℹ️ Lots enchaînés la nuit par le lanceur `C:\Users\Frank\.claude\nuit\nuit.mjs` (v324). **Règle de Frank (21/11)** : travail de 19 h à 9 h ; PC utilisé → nouvel essai une heure plus tard ; on enchaîne les lots **tant que le plafond hebdo fixé pour la nuit n'est pas atteint** — un point qui attend Frank se note ⏳ et on prend le lot faisable suivant, on ne s'arrête que si plus rien n'est faisable.
     - ℹ️ Nuit du 20/11 perdue : `claude` global (npm) en 2.1.117, refusé par l'API pour Opus 5.5 ; mis à jour en 2.1.330 le 21/11. Un lot en erreur est désormais relancé une fois avant de bloquer la nuit.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.4.325 — D0 : aimant fixé sur servo, lu par le Hall
+
+1. ✅ **Composant `aimant`** (`<kablix-aimant>`, [aimant-element.mts](src/webview/composants/aimant-element.mts)) : barreau 20×10 N rouge / S bleu, sans broche, catégorie Divers, repère `A1` (FR) / `MAG1` (EN). Propriété `mount` (« Fixé sur ») = repère du servo porteur ; anneau dessiné quand il est fixé.
+2. ✅ **Lien de montage** ([montage.mts](src/webview/diagram/montage.mts), logique pure) : `mountLinks()` rend les liens valides et les problèmes (`missing` : repère absent ou soi-même ; `not-carrier` : composant qui ne porte rien — seul `servo` pour l'instant).
+3. ✅ **Suivi de l'angle simulé** ([montage-sim.mts](src/webview/montage-sim.mts), branché dans `sim.mts`) : au lancement, centre de l'aimant exprimé dans le repère du palonnier `#horn-rot` (matrice écran, `hornMatrix()` du servo) ; chaque frame, reprojeté puis `editor.setSimPose()` (translate + rotate CSS du conteneur, schéma intact, poses rendues à l'arrêt). Rotation, miroir, zoom et défilement pris en compte sans recalcul géométrique.
+4. ✅ **Champ binaire** : écart bord à bord (centres − 5 − 5 mm, 1 px = 1 mm) ≤ `trigger` du Hall → commute. Hall : propriétés `external` (aimants sur la feuille → plus d'aimant glissant) et `field` (aimant à portée, cercle vert pointillé), `faceClient()`.
+5. ✅ **Erreurs dites au lancement** : repère absent / non porteur → message dans la zone de simulation + cadre rouge sur l'aimant, retiré à l'arrêt.
+6. ✅ **Banc `npm run verify:aimant`** ([verify-aimant.mjs](scripts/verify-aimant.mjs), ajouté à `verify:all:serie`) : vrais éléments en Chrome headless, vraie `MontageSim`, éditeur minimal ; 45 contrôles (catalogue, liens, champ, modes du Hall, bout en bout droit et tourné 90° + miroir + zoom 1,7, repère absent). Contre-épreuve faite : pose neutralisée → 10 échecs.
+7. ✅ **Tests `aimant-uno` / `aimant-pico`** (spec + `_generate.mjs` sur ces deux seuls tests, ligne README) : servo qui balaie 0/90/180°, Hall posé en face de 90°. Côté Pico, servo via PCA9685 (comme `powerbank-pico`, `servo-pico` ayant été retiré).
+8. ✅ **Fiche d'aide FR** [docs/fr/composants/aimant.md](docs/fr/composants/aimant.md) (Béta) + illustration `docs/img/composants/aimant.webp` par `_capture-part.mjs`. Traductions FR de l'interface (`i18n.mts`).
+9. ⏳ **Validation de Frank** : composant Béta tant qu'il ne l'a pas dit. Pas de pastille « Béta » pour les composants intégrés (le drapeau `experimental` n'existe que pour la bibliothèque `.kompix`) : Béta écrit dans la fiche et dans les tests.
+10. ⏳ **Dessin provisoire** de l'aimant : à remplacer par celui de Frank (groupe `aimant` dans `Composants2D.svg`).
+11. ⏳ **Geste de fixation** : pour l'instant un champ texte dans l'inspecteur ; à faire : fixer par glisser sur le palonnier, et suivre le renommage du servo (renommer `Act1` ne met pas `mount` à jour).
+12. ⏳ **Emplacements dans `aimant-uno` / `aimant-pico`** calculés (axe du palonnier ≈ coin du servo + 75/70 px) : à vérifier dans le vrai éditeur, Frank peut les retoucher.
+13. ⏳ **Non éprouvé dans la vraie webview** (banc à éditeur minimal) : essai F5 de Frank à faire.
+14. ⏳ **Traductions** EN (fiche `docs/en/composants/aimant.md`), ES, ZH (3 chaînes + libellé « Magnet ») : avant publication ; `verify:i18n` et `verify:docs` les signalent, c'est normal.
+15. ⏳ **Champ progressif** (décroissance avec la distance, pôles N/S, capteurs analogiques) : lot suivant de la piste 7.
 
 ---
 

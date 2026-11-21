@@ -49,6 +49,13 @@ export class HallElement extends LitElement {
   /** Distance actuelle de l'aimant (mm), réglée à la souris en simulation. */
   declare distance: number;
   declare simulating: boolean;
+  /**
+   * Le schéma contient de VRAIS aimants (composant `aimant`) : l'aimant glissant
+   * de démonstration disparaît, c'est la scène qui commande (posé par sim.mts).
+   */
+  declare external: boolean;
+  /** Un aimant de la feuille est à portée (posé par sim.mts, image par image). */
+  declare field: boolean;
 
   static properties = {
     text: { type: String },
@@ -58,6 +65,8 @@ export class HallElement extends LitElement {
     trigger: { type: Number },
     distance: { type: Number },
     simulating: { type: Boolean },
+    external: { type: Boolean },
+    field: { type: Boolean },
   };
 
   constructor() {
@@ -69,11 +78,23 @@ export class HallElement extends LitElement {
     this.trigger = 10;
     this.distance = 20;
     this.simulating = false;
+    this.external = false;
+    this.field = false;
   }
 
   /** Aimant assez près pour faire commuter le capteur (lu par le moteur). */
   get near(): boolean {
-    return this.distance <= this.trigger;
+    if (this.field) return true;
+    return !this.external && this.distance <= this.trigger;
+  }
+
+  /** Centre de la face sensible en coordonnées ÉCRAN (rotation, miroir, zoom compris). */
+  faceClient(): { x: number; y: number } | null {
+    const root = this.renderRoot.querySelector('svg') as SVGSVGElement | null;
+    const m = root?.getScreenCTM();
+    if (!m) return null;
+    const p = new DOMPointReadOnly(PIN_X[1], FACE.cy).matrixTransform(m);
+    return { x: p.x, y: p.y };
   }
 
   /**
@@ -185,7 +206,11 @@ export class HallElement extends LitElement {
       <svg width=${BOX.w} height=${BOX.h} viewBox="0 0 ${BOX.w} ${BOX.h}" xmlns="http://www.w3.org/2000/svg">
         ${unsafeSVG(drawing)}
         ${packageText(this.text, FACE)}
-        ${this.simulating ? this.magnet() : null}
+        ${this.simulating && !this.external ? this.magnet() : null}
+        ${this.simulating && this.field
+          ? svg`<circle class="field" cx=${PIN_X[1]} cy=${FACE.cy} r="9" fill="none"
+                        stroke="#1a8f3c" stroke-width="0.8" stroke-dasharray="2 1.2" />`
+          : null}
       </svg>
     `;
   }

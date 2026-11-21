@@ -1060,6 +1060,61 @@ void loop() {
   }),
 
   test({
+    // Aimant fixé sur le palonnier du servo (propriété « Fixé sur » = Act1) :
+    // en simulation il tourne avec lui, et le capteur à effet Hall posé en face
+    // de la position 90° le voit passer. Rappel externe 10 kΩ comme hall-uno.
+    name: 'aimant-uno', board: 'uno', ext: 'ino',
+    parts: [
+      MCU('uno'),
+      { id: 'Act1', type: 'servo', x: 620, y: 80, attrs: { horn: 'single', pulsemin: '500', pulsemax: '2500' } },
+      { id: 'A1', type: 'aimant', x: 710, y: 145, attrs: { mount: 'Act1' } },
+      { id: 'Capt1', type: 'hall', x: 665, y: 172, attrs: { text: 'A3144', vplus: '1', gnd: '2', s: '3' } },
+      { id: 'R1', type: 'resistor', x: 500, y: 60, attrs: { value: '10000' } },
+    ],
+    wires: () => [
+      w('Act1', 'V+', 'U1', '5V', 'red'),
+      w('Act1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Act1', 'PWM', 'U1', '9', 'orange'),
+      w('Capt1', 'V+', 'U1', '5V', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Capt1', 'S', 'U1', '2', 'yellow'),
+      w('R1', '1', 'Capt1', 'S', 'orange'),
+      w('R1', '2', 'U1', '5V', 'red'),
+    ],
+    expect: { kind: 'hall', partId: 'Capt1', mcuPin: '2', powered: true, pullupOhms: 10000 },
+    code: `// Test aimant (Beta) : l'aimant est fixe sur le palonnier du servo.
+// Le servo balaie 0, 90 puis 180 degres ; le capteur a effet Hall, pose en
+// face de la position 90 degres, ne doit voir l'aimant qu'a 90 degres.
+#include <Servo.h>
+
+const int HALL = 2;
+Servo servo;
+
+void mesure(int angle) {
+  servo.write(angle);
+  delay(1000);
+  bool aimant = digitalRead(HALL) == LOW;  // sortie active basse
+  digitalWrite(LED_BUILTIN, aimant ? HIGH : LOW);
+  Serial.print(angle);
+  Serial.println(aimant ? " degres : AIMANT" : " degres : rien");
+}
+
+void setup() {
+  pinMode(HALL, INPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
+  servo.attach(9);
+  Serial.begin(115200);
+}
+
+void loop() {
+  mesure(0);
+  mesure(90);
+  mesure(180);
+}
+`,
+  }),
+
+  test({
     name: 'pca9685-uno', board: 'uno', ext: 'ino',
     parts: [
       MCU('uno'),
@@ -4862,6 +4917,67 @@ while True:
     led.value(1 if aimant else 0)
     print("AIMANT" if aimant else "rien")
     time.sleep(0.3)
+`,
+  }),
+
+  test({
+    // Aimant fixé sur le palonnier d'un servo, côté Pico : le servo passe par
+    // le PCA9685 (usage réel sur Pico, cf. powerbank-pico), le capteur à effet
+    // Hall par le rappel interne du Pico (cf. hall-pico). Le capteur est posé
+    // en face de la position 90° : il ne voit l'aimant qu'à 90°.
+    name: 'aimant-pico', board: 'pico', ext: 'py',
+    parts: [
+      MCU('pico'),
+      { id: 'Mod1', type: 'pca9685', x: 620, y: 40, attrs: { address: '0x40' } },
+      { id: 'Act1', type: 'servo', x: 940, y: 40, attrs: { horn: 'single', pulsemin: '500', pulsemax: '2500' } },
+      { id: 'A1', type: 'aimant', x: 1030, y: 105, attrs: { mount: 'Act1' } },
+      { id: 'Capt1', type: 'hall', x: 985, y: 132, attrs: { text: 'A3144', vplus: '1', gnd: '2', s: '3' } },
+      { id: 'Bat1', type: 'powerbank', x: 940, y: 260, attrs: { voltage: '5', maxcurrent: '2' } },
+    ],
+    wires: () => [
+      w('Mod1', 'GND', 'U1', 'GND.1', 'black'),
+      w('Mod1', 'VCC', 'U1', 'VBUS', 'red'),
+      w('Mod1', 'SDA', 'U1', 'GP0', 'blue'),
+      w('Mod1', 'SCL', 'U1', 'GP1', 'yellow'),
+      w('Act1', 'PWM', 'Mod1', 'PWM0', 'orange'),
+      w('Act1', 'V+', 'Mod1', 'P1.5V', 'red'),
+      w('Act1', 'GND', 'Mod1', 'P1.GND', 'black'),
+      w('Bat1', 'V+', 'Mod1', 'V+', 'red'),
+      w('Bat1', 'GND', 'Mod1', 'GND.2', 'black'),
+      w('Capt1', 'V+', 'U1', '3V3', 'red'),
+      w('Capt1', 'GND', 'U1', 'GND.4', 'black'),
+      w('Capt1', 'S', 'U1', 'GP16', 'yellow'),
+    ],
+    expect: { kind: 'hall', partId: 'Capt1', mcuPin: 'GP16', powered: true, pullupOhms: null },
+    code: `# Test aimant (Beta) : l'aimant est fixe sur le palonnier du servo (canal 0
+# du PCA9685). Le servo balaie 0, 90 puis 180 degres ; le capteur a effet Hall,
+# pose en face de la position 90 degres, ne doit voir l'aimant qu'a 90 degres.
+from machine import Pin, I2C
+import time
+
+i2c = I2C(0, sda=Pin(0), scl=Pin(1), freq=400000)
+PCA = 0x40
+hall = Pin(16, Pin.IN, Pin.PULL_UP)  # sortie a drain ouvert, active basse
+led = Pin(25, Pin.OUT)
+
+def pca_ecrit(reg, val):
+    i2c.writeto_mem(PCA, reg, bytes([val]))
+
+def pca_impulsion(canal, microsecondes):
+    off = microsecondes * 4096 // 20000
+    i2c.writeto_mem(PCA, 0x06 + 4 * canal, bytes([0x00, 0x00, off & 0xFF, off >> 8]))
+
+pca_ecrit(0x00, 0x10)  # MODE1 : sleep pour regler le prescaler
+pca_ecrit(0xFE, 121)   # prescale 50 Hz
+pca_ecrit(0x00, 0x20)  # MODE1 : reveil + auto-increment
+
+while True:
+    for angle, us in ((0, 500), (90, 1500), (180, 2500)):
+        pca_impulsion(0, us)
+        time.sleep(1)
+        aimant = hall.value() == 0
+        led.value(1 if aimant else 0)
+        print(angle, "degres :", "AIMANT" if aimant else "rien")
 `,
   }),
 

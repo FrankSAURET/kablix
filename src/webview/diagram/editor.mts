@@ -854,6 +854,43 @@ export class Editor {
         (r.el as unknown as HTMLElement).style.pointerEvents = locked ? 'auto' : 'none';
       }
     }
+    // Fin de simulation : les pièces portées (aimant sur un servo) reviennent à
+    // leur place dessinée — leur décalage n'a jamais touché le schéma.
+    if (!locked) for (const id of [...this.simPosed]) this.setSimPose(id, 0, 0, 0);
+  }
+
+  /** Composants décalés par la simulation (pièces portées par un autre). */
+  private simPosed = new Set<string>();
+
+  /**
+   * Décalage VISUEL d'un composant pendant la simulation (aimant fixé sur un
+   * palonnier de servo) : translation en px du monde puis rotation autour du
+   * centre du dessin. Ne modifie ni le schéma ni l'historique : `part.x/y`
+   * restent la place dessinée, rétablie par `setLocked(false)`.
+   */
+  setSimPose(id: string, dx: number, dy: number, deg: number): void {
+    const r = this.rendered.get(id);
+    if (!r) return;
+    const still = Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01 && Math.abs(deg) < 0.01;
+    if (still) {
+      r.container.style.transform = '';
+      r.container.style.transformOrigin = '';
+      this.simPosed.delete(id);
+      return;
+    }
+    const body = r.container.querySelector('.part__body') as HTMLElement | null;
+    if (body) {
+      // Pivot = centre du DESSIN (le conteneur peut porter un bandeau en plus).
+      r.container.style.transformOrigin =
+        `${body.offsetLeft + body.offsetWidth / 2}px ${body.offsetTop + body.offsetHeight / 2}px`;
+    }
+    r.container.style.transform = `translate(${dx}px, ${dy}px) rotate(${deg}deg)`;
+    this.simPosed.add(id);
+  }
+
+  /** Point écran → coordonnées du monde (pour la simulation : montages, capteurs). */
+  clientToWorld(clientX: number, clientY: number): XY {
+    return this.canvasPoint(clientX, clientY);
   }
 
   /** Composant dont une touche/un bouton se verrouille au Ctrl+clic (BP, clavier, joystick). */

@@ -13,6 +13,11 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - Les fiches d'aide affichent les formules mathématiques (fractions, indices, exposants, lettres grecques).
 - Les dessins SVG de l'aide suivent le thème de VS Code (textes et traits lisibles en thème sombre comme en clair).
 
+**Capteurs et mécanique**
+
+- Nouveau composant **Aimant** (Béta) : fixé sur un servo, il tourne avec le palonnier pendant la simulation.
+- Le capteur à effet Hall détecte les aimants posés ou fixés sur la feuille ; un cercle vert signale l'aimant à portée.
+
 ### Modification
 
 **Composants**

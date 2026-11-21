@@ -371,6 +371,11 @@ const FR: Record<string, string> = {
   'GND pin': 'Patte GND',
   'S (output) pin': 'Patte S (sortie)',
   'Trigger distance (mm)': 'Distance de déclenchement (mm)',
+  // Aimant (piste 7) : pièce sans broche, fixée sur un servo.
+  Magnet: 'Aimant',
+  'Mounted on (servo reference)': 'Fixé sur (repère du servo)',
+  'Magnet {0}: no component named "{1}" to mount it on.': 'Aimant {0} : aucun composant « {1} » sur lequel le fixer.',
+  'Magnet {0}: "{1}" cannot carry it — only a servo can, for now.': "Aimant {0} : « {1} » ne peut pas le porter — seul un servo le peut, pour l'instant.",
   'Servo motor': 'Servomoteur',
   'Spider leg': "Patte d'araignée",
   // Robot araignée complet : châssis + 4 pattes, PCA9685 et batterie embarqués.

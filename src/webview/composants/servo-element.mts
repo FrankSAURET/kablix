@@ -182,6 +182,16 @@ export class ServoElement extends LitElement {
     { name: 'PWM', x: 10, y: 80, signals: [{ type: 'pwm' }] },
   ];
 
+  /**
+   * Matrice écran du palonnier TEL QU'IL EST DESSINÉ (angle affiché `shown`,
+   * rotation et miroir du composant, zoom). Sert à faire suivre une pièce fixée
+   * dessus (aimant, sim.mts) : un point du repère du palonnier reste solidaire.
+   */
+  hornMatrix(): DOMMatrix | null {
+    const g = this.renderRoot.querySelector('#horn-rot') as SVGGraphicsElement | null;
+    return g?.getScreenCTM() ?? null;
+  }
+
   render() {
     const horn = HORNS[this.horn] ?? HORNS.single;
     return html`
