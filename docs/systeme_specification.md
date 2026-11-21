@@ -61,12 +61,14 @@ Règle commune : **`a` est l'enfant, `b` le parent** (l'aimant pivote sur le ser
 | Type | Variable | `params` | Effet |
 | --- | --- | --- | --- |
 | `encastrement` | aucune | aucun | l'enfant garde sa pose relative au parent |
-| `pivot` | angle en degrés | `min`, `max` (bornes, facultatives), `zero` (angle de la pose du document, 0 par défaut) | l'enfant tourne autour de l'axe `b.axe` du parent (point et direction de l'axe nommé) ; `a.axe` doit coïncider avec lui dans la pose du document |
+| `pivot` | angle en degrés | `min`, `max` (bornes, facultatives), `zero` (angle de la pose du document, 0 par défaut) | l'enfant tourne de `q − zero` autour de l'axe `b.axe` du parent (point et direction de l'axe nommé, règle de la main droite) ; `a.axe`, s'il est donné, doit exister (sa coïncidence avec `b.axe` n'est pas contrôlée) ; hors bornes → arrêté à la borne et signalé (saturation), sans erreur |
 | `glissiere` | course en mm | `min`, `max`, `zero` | l'enfant se translate le long de la direction de `b.axe` |
-| `engrenage` | aucune (couplage) | `dentsA`, `dentsB` (entiers > 0) ou `rapport` (= vitesse de B / vitesse de A), `interne` (booléen, faux par défaut) | n'ajoute pas d'arête à l'arbre : l'angle du pivot qui porte B suit celui du pivot qui porte A, `θB = −(dentsA/dentsB)·θA` (même signe si `interne`) |
+| `engrenage` | aucune (couplage) | `dentsA`, `dentsB` (entiers > 0) ou `rapport` (= vitesse de B / vitesse de A), `interne` (booléen, faux par défaut) | n'ajoute pas d'arête à l'arbre : l'angle du pivot qui porte B suit celui du pivot qui porte A, `θB − zeroB = k·(θA − zeroA)`, avec `k = −dentsA/dentsB` (positif si `interne`) ou `k = rapport` s'il est donné (signé, pris tel quel, `interne` alors sans effet) ; chaînes permises, bornes du pivot mené appliquées après le couplage, valeur fournie pour un pivot mené ignorée (`variable-menee`) |
 | `roue-sol` | aucune (couplage) | `rayon` (mm, obligatoire) | `a` = roue (enfant d'un pivot), `b` = sol ; le parent du pivot de la roue (le châssis) devient mobile sur le plan Z = 0 du sol : une roue → ligne droite, deux roues sur un même axe → conduite différentielle (`rayon × angle`, sans glissement) |
 
 Refusés clairement (problème signalé, pièces concernées laissées à leur pose du document) : **boucle fermée** (une pièce enfant de deux liaisons, ou un cycle de liaisons ; parallélogramme, bielle-manivelle — plus tard), axe nommé absent, engrenage dont un côté n'est pas porté par un pivot, couplages en cycle, `roue-sol` sans rayon, plus de deux roues motrices ou roues sur des axes différents.
+
+Codes rendus par le solveur (`{ code, target }`, `target` = id de la liaison) : `boucle-fermee`, `axe-absent`, `engrenage-sans-pivot`, `parametre-invalide` (engrenage sans `rapport` non nul ni `dentsA`/`dentsB` positifs), `couplage-cycle` (engrenages en cycle, ou pivot mené par deux engrenages), `roue-sans-rayon`, `roue-sans-pivot` (roue qui n'est pas l'enfant d'un pivot accepté), `roues-incompatibles`, `type-inconnu` (liaison d'un type futur, ignorée sans erreur) ; `variable-menee` est rendu par `solve`, pas à la construction. Un axe nommé sans direction est pris selon Z. La pose monde d'une pièce quelconque peut être imposée (`base`, le châssis qui roule) : sa liaison parente est alors ignorée. Détail de l'API : `docs/cinematique.md` de Kompix Editor (v2026.10.0.15).
 
 Champs inconnus (ici ou à la racine, comme l'état de l'éditeur) : ignorés à la lecture, **conservés** à l'enregistrement — Kablix regrave le document brut.
 
@@ -81,5 +83,5 @@ Un avertissement d'une ligne, sans bloquer l'ouverture, quand :
 
 ## Ce qui reste à faire
 
-- Kompix Editor : solveur cinématique en arbre (lot D2, consigne à son dossier). L'écriture et la relecture du document y sont faites (`packages/kompix-core/src/system.ts`, v2026.10.0.14).
+- Kompix Editor : écriture et relecture du document (`system.ts`, v2026.10.0.14) et solveur cinématique (`kinematics.ts`, v2026.10.0.15) faits ; animation du montage dans sa visionneuse, sur demande de Frank.
 - Kablix : faire suivre un renommage de repère (`renommerRepere()` existe, pas encore branché à l'inspecteur) ; vue 3D (lot D6).

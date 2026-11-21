@@ -9,11 +9,21 @@
     - ✅ **D0** — piste 7 (servo + aimant + Hall : lien de montage, suivi de l'angle simulé, champ binaire), en 2D dans Kablix, branche `mecatronique` (v325). ⏳ **À valider par Frank** (composant Béta) ; suites en ⏳ dans la section v325.
     - ✅ **D1, partie Kablix** — document système `system.json` (+ `system/`) dans le `.projix` : lu, contrôlé contre les repères du schéma, regravé à l'identique (v326). Format : [docs/systeme_specification.md](docs/systeme_specification.md).
     - ✅ **D1, partie Kompix Editor** — `packages/kompix-core/src/system.ts` (lecture tolérante, regravure, `.projix` réécrit sans toucher aux autres entrées), Kompix Editor `v2026.10.0.14` relu et envoyé (v328). Ses ⏳ (commande d'export, `systemFromAssembly`) attendent Frank, dans son `todo.md`.
-    - ⏳ **D2** — solveur cinématique en arbre : contrat fixé dans [systeme_specification.md](docs/systeme_specification.md) (v328), consigne déposée dans `C:/Users/Frank/.claude/nuit/a-lancer/kompix_editor.md`, exécutée par le lanceur dans `kompix_editor/` ; à cocher ici après relecture de son enregistrement (`v2026.10.0.15` attendu), en reportant ses écarts au contrat dans la spécification.
+    - ✅ **D2** — solveur cinématique en arbre `kompix-core/src/kinematics.ts`, Kompix Editor `v2026.10.0.15` relu (97/97 rejoué), écarts au contrat reportés dans [systeme_specification.md](docs/systeme_specification.md) (v329). Animation dans sa visionneuse : ⏳ sur demande de Frank (point 30 de son `todo.md`).
+    - ⏳ **Suite de la piste 11** : Frank a fixé « D0, D1 et D2 » ; l'ordre de D3–D8 attend sa décision ([roadmap.md](roadmap.md), question 6). En attendant, la nuit prend les ⏳ faisables sans lui (suivi du renommage du servo par l'aimant, ⏳ 11 de v325 + ⏳ 6 de v326).
     - ℹ️ Lots enchaînés la nuit par le lanceur `C:\Users\Frank\.claude\nuit\nuit.mjs` (v324). **Règle de Frank (21/11)** : travail de 19 h à 9 h ; PC utilisé → nouvel essai une heure plus tard ; on enchaîne les lots **tant que le plafond hebdo fixé pour la nuit n'est pas atteint** — un point qui attend Frank se note ⏳ et on prend le lot faisable suivant, on ne s'arrête que si plus rien n'est faisable.
     - ℹ️ Nuit du 20/11 perdue : `claude` global (npm) en 2.1.117, refusé par l'API pour Opus 5.5 ; mis à jour en 2.1.330 le 21/11. Un lot en erreur est désormais relancé une fois avant de bloquer la nuit.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.4.329 — D2 relu, écarts reportés dans la spécification
+
+1. ✅ **D2 relu** : enregistrement `50cd08c` (`v2026.10.0.15`) envoyé sur `main` de `kompix_editor` ; `kinematics.ts` (533 lignes), 16 tests, contre-épreuve faite par la session (6 et 9 rouges) ; `kompix-core` rejoué ici : 97/97.
+2. ✅ **Spécification** [systeme_specification.md](docs/systeme_specification.md) : pivot `q − zero` main droite + saturation aux bornes, engrenage `θB − zeroB = k·(θA − zeroA)` (`rapport` signé, `interne` sans effet avec lui, bornes après couplage, `variable-menee`), liste des codes du solveur (`parametre-invalide`, `roue-sans-pivot` ajoutés), axe sans direction = Z, `base` sur toute pièce, coïncidence de `a.axe` non contrôlée.
+3. ℹ️ Le point 31 du `todo.md` de Kompix Editor (report des écarts) est donc fait : à cocher par sa prochaine session (pas touché d'ici).
+4. ℹ️ Kablix : aucun code touché, CHANGELOG inchangé, pas de `.vsix`.
 
 ---
 
