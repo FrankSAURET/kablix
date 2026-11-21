@@ -64,6 +64,7 @@ import { DEFAULT_WIRE_COLORS, DUPONT_COLORS, dupontHex, roundedWirePath, snapPoi
 import { startAutoPan, type AutoPan } from './autopan.mjs';
 import { installerListeCrantee } from './liste-crantee.mjs';
 import { PartCreator } from './creator.mjs';
+import { remapMounts } from './montage.mjs';
 import '../composants/custom-part.mjs';
 import { t } from '../i18n.mjs';
 
@@ -6561,6 +6562,7 @@ export class Editor {
     }, PASTE_OFFSET * this.pasteRun.n);
     const idMap = new Map<string, string>();
     const newIds = new Set<string>();
+    const poses: Part[] = [];
     for (const p of parts) {
       const np: Part = {
         ...p,
@@ -6570,10 +6572,14 @@ export class Editor {
         attrs: migratePartAttrs(p),
       };
       idMap.set(p.id, np.id);
-      this.diagram.parts.push(np);
-      this.renderPart(np);
+      this.diagram.parts.push(np); // avant le repère suivant : freeRef le voit pris
+      poses.push(np);
       newIds.add(np.id);
     }
+    // Aimant copié AVEC son servo : il suit le servo copié (nouveau repère).
+    // Avant le dessin, pour que l'élément naisse avec le bon « Fixé sur ».
+    remapMounts(poses, idMap);
+    for (const np of poses) this.renderPart(np);
     for (const w of payload.wires) {
       const a = idMap.get(w.a.partId);
       const b = idMap.get(w.b.partId);

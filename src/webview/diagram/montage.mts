@@ -9,7 +9,7 @@
 //
 // Logique PURE ici (testable sous Node) ; la mesure des positions à l'écran et
 // le déplacement visible sont dans sim.mts.
-import type { Diagram } from './model.mjs';
+import type { Diagram, Part } from './model.mjs';
 import { partDef } from './catalog.mjs';
 
 /** Type de l'aimant au catalogue. */
@@ -67,6 +67,29 @@ export function mountLinks(diagram: Diagram): { links: MountLink[]; problems: Mo
     else links.push({ partId: part.id, carrierId: carrier.id });
   }
   return { links, problems };
+}
+
+/**
+ * Suit les repères réattribués : un aimant fixé sur un porteur qui change de
+ * repère (copié-collé ou dupliqué avec lui, doublon renuméroté à l'ouverture)
+ * reste fixé sur CE porteur — sans cela, la copie d'un servo et de son aimant
+ * donnait un aimant collé au servo d'origine. `idMap` : ancien repère → neuf,
+ * comme pour les fils. Un porteur absent de la table (aimant copié seul) garde
+ * son repère : la copie reste fixée sur le même servo que l'original.
+ * Les attributs sont remplacés, jamais modifiés sur place (la charge utile du
+ * presse-papier resservira). Rend le nombre d'aimants mis à jour.
+ */
+export function remapMounts(parts: Part[], idMap: ReadonlyMap<string, string>): number {
+  let n = 0;
+  for (const part of parts) {
+    if (part.type !== AIMANT_TYPE) continue;
+    const target = (part.attrs?.mount ?? '').trim();
+    const next = target ? idMap.get(target) : undefined;
+    if (next === undefined || next === target) continue;
+    part.attrs = { ...part.attrs, mount: next };
+    n++;
+  }
+  return n;
 }
 
 /** Le schéma contient-il au moins un aimant (libre ou fixé) ? */

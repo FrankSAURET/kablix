@@ -10,11 +10,21 @@
     - ✅ **D1, partie Kablix** — document système `system.json` (+ `system/`) dans le `.projix` : lu, contrôlé contre les repères du schéma, regravé à l'identique (v326). Format : [docs/systeme_specification.md](docs/systeme_specification.md).
     - ✅ **D1, partie Kompix Editor** — `packages/kompix-core/src/system.ts` (lecture tolérante, regravure, `.projix` réécrit sans toucher aux autres entrées), Kompix Editor `v2026.10.0.14` relu et envoyé (v328). Ses ⏳ (commande d'export, `systemFromAssembly`) attendent Frank, dans son `todo.md`.
     - ✅ **D2** — solveur cinématique en arbre `kompix-core/src/kinematics.ts`, Kompix Editor `v2026.10.0.15` relu (97/97 rejoué), écarts au contrat reportés dans [systeme_specification.md](docs/systeme_specification.md) (v329). Animation dans sa visionneuse : ⏳ sur demande de Frank (point 30 de son `todo.md`).
-    - ⏳ **Suite de la piste 11** : Frank a fixé « D0, D1 et D2 » ; l'ordre de D3–D8 attend sa décision ([roadmap.md](roadmap.md), question 6). En attendant, la nuit prend les ⏳ faisables sans lui (suivi du renommage du servo par l'aimant, ⏳ 11 de v325 + ⏳ 6 de v326).
+    - ⏳ **Suite de la piste 11** : Frank a fixé « D0, D1 et D2 » ; l'ordre de D3–D8 attend sa décision ([roadmap.md](roadmap.md), question 6). En attendant, la nuit prend les ⏳ faisables sans lui. Suivi du renommage : fait au collage (v330), le seul cas réel. Prochain : geste de fixation par glisser sur le palonnier (⏳ 11 de v325).
     - ℹ️ Lots enchaînés la nuit par le lanceur `C:\Users\Frank\.claude\nuit\nuit.mjs` (v324). **Règle de Frank (21/11)** : travail de 19 h à 9 h ; PC utilisé → nouvel essai une heure plus tard ; on enchaîne les lots **tant que le plafond hebdo fixé pour la nuit n'est pas atteint** — un point qui attend Frank se note ⏳ et on prend le lot faisable suivant, on ne s'arrête que si plus rien n'est faisable.
     - ℹ️ Nuit du 20/11 perdue : `claude` global (npm) en 2.1.117, refusé par l'API pour Opus 5.5 ; mis à jour en 2.1.330 le 21/11. Un lot en erreur est désormais relancé une fois avant de bloquer la nuit.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.4.330 — l'aimant copié suit son servo copié
+
+1. ✅ **Constat** : l'éditeur ne renomme jamais un repère existant (pas de champ « repère » dans l'inspecteur). Deux seuls cas de repère réattribué : le **collage** (copie neuve → `Act2`…) et l'**ouverture** (doublon ou repère vide renuméroté). À l'ouverture, rien à suivre : un repère vide n'est référencé par personne, et un doublon laisse l'original sous son nom.
+2. ✅ **Défaut corrigé au collage** : servo + aimant copiés (Ctrl+C/V, Ctrl+D) donnaient un aimant copié fixé sur le servo d'ORIGINE. `remapMounts()` ([montage.mts](src/webview/diagram/montage.mts), pur) applique la table ancien → neuf repère aux `mount` des aimants collés, attributs remplacés (le presse-papier reste intact pour les collages suivants). Branché dans `insertPayload` ([editor.mts](src/webview/diagram/editor.mts)) AVANT le dessin : l'élément naît avec le bon « Fixé sur ». Aimant copié seul : garde le servo de l'original.
+3. ✅ **Banc `npm run verify:montage-copie`** (12 contrôles, vrai éditeur en Chrome headless, ajouté à `verify:all:serie`). Contre-épreuve : appel neutralisé → 4 échecs. `aimant`, `copie-selection`, `clipboard`, `selection`, `suppression`, `hygiene` verts ; typecheck propre.
+4. ℹ️ ⏳ 6 de v326 (`renommerRepere()` du document système) : reste sans objet tant que l'éditeur ne renomme rien ; à brancher si Frank ajoute un renommage de repère.
+5. ⏳ **Servo supprimé** : l'aimant garde son `mount` orphelin, signalé au lancement de la simulation (comportement de v325, inchangé).
 
 ---
 
