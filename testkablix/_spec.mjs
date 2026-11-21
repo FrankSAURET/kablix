@@ -1063,12 +1063,15 @@ void loop() {
     // Aimant fixé sur le palonnier du servo (propriété « Fixé sur » = Act1) :
     // en simulation il tourne avec lui, et le capteur à effet Hall posé en face
     // de la position 90° le voit passer. Rappel externe 10 kΩ comme hall-uno.
+    // Emplacements MESURÉS dans le vrai éditeur (npm run verify:aimant-tests) :
+    // axe du palonnier (695, 150), bras vers le haut à 0° ; aimant à 60 mm de
+    // l'axe sur le bras ; à 90° il passe à 5 mm (bord à bord) de la face du Hall.
     name: 'aimant-uno', board: 'uno', ext: 'ino',
     parts: [
       MCU('uno'),
       { id: 'Act1', type: 'servo', x: 620, y: 80, attrs: { horn: 'single', pulsemin: '500', pulsemax: '2500' } },
-      { id: 'A1', type: 'aimant', x: 710, y: 145, attrs: { mount: 'Act1' } },
-      { id: 'Capt1', type: 'hall', x: 665, y: 172, attrs: { text: 'A3144', vplus: '1', gnd: '2', s: '3' } },
+      { id: 'A1', type: 'aimant', x: 685, y: 80, attrs: { mount: 'Act1' } },
+      { id: 'Capt1', type: 'hall', x: 740, y: 135, attrs: { text: 'A3144', vplus: '1', gnd: '2', s: '3' } },
       { id: 'R1', type: 'resistor', x: 500, y: 60, attrs: { value: '10000' } },
     ],
     wires: () => [
@@ -4924,14 +4927,15 @@ while True:
     // Aimant fixé sur le palonnier d'un servo, côté Pico : le servo passe par
     // le PCA9685 (usage réel sur Pico, cf. powerbank-pico), le capteur à effet
     // Hall par le rappel interne du Pico (cf. hall-pico). Le capteur est posé
-    // en face de la position 90° : il ne voit l'aimant qu'à 90°.
+    // en face de la position 90° : il ne voit l'aimant qu'à 90°. Emplacements
+    // mesurés comme aimant-uno (servo décalé de +320, −40).
     name: 'aimant-pico', board: 'pico', ext: 'py',
     parts: [
       MCU('pico'),
       { id: 'Mod1', type: 'pca9685', x: 620, y: 40, attrs: { address: '0x40' } },
       { id: 'Act1', type: 'servo', x: 940, y: 40, attrs: { horn: 'single', pulsemin: '500', pulsemax: '2500' } },
-      { id: 'A1', type: 'aimant', x: 1030, y: 105, attrs: { mount: 'Act1' } },
-      { id: 'Capt1', type: 'hall', x: 985, y: 132, attrs: { text: 'A3144', vplus: '1', gnd: '2', s: '3' } },
+      { id: 'A1', type: 'aimant', x: 1005, y: 40, attrs: { mount: 'Act1' } },
+      { id: 'Capt1', type: 'hall', x: 1060, y: 95, attrs: { text: 'A3144', vplus: '1', gnd: '2', s: '3' } },
       { id: 'Bat1', type: 'powerbank', x: 940, y: 260, attrs: { voltage: '5', maxcurrent: '2' } },
     ],
     wires: () => [
