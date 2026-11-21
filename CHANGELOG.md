@@ -15,7 +15,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 **Capteurs et mécanique**
 
-- Nouveau composant **Aimant** (Béta) : fixé sur un servo, il tourne avec le palonnier pendant la simulation. Copié avec son servo, il reste fixé sur la copie.
+- Nouveau composant **Aimant** (Béta) : fixé sur un servo, il tourne avec le palonnier pendant la simulation. Il se fixe en le glissant sur le palonnier (cercle vert sur la cible) et se détache en le reposant ailleurs. Copié avec son servo, il reste fixé sur la copie.
 - Le capteur à effet Hall détecte les aimants posés ou fixés sur la feuille ; un cercle vert signale l'aimant à portée.
 
 **Projets**

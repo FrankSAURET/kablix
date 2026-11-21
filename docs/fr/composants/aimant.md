@@ -14,9 +14,11 @@ Petit **aimant permanent** en barreau (20 × 10 mm, pôle **N** rouge, pôle **S
 
 ## Fixer l'aimant sur un servo
 
-1. Poser l'aimant **sur le palonnier** du servo, là où il doit se trouver.
-2. Dans l'inspecteur, écrire le **repère du servo** dans `Fixé sur` (par exemple `Act1`).
+1. **Glisser l'aimant sur le palonnier** du servo, là où il doit se trouver. Pendant le geste, un cercle vert entoure le palonnier visé ; au lâcher, `Fixé sur` reçoit le repère du servo (par exemple `Act1`).
+2. On peut aussi écrire ce repère à la main dans `Fixé sur`, depuis l'inspecteur.
 3. Lancer la simulation : l'aimant **tourne avec le palonnier**, autour de son axe, en suivant l'angle commandé par le programme. Rotation, miroir et zoom du servo sont pris en compte. Un petit anneau au-dessus de l'aimant rappelle qu'il est fixé.
+
+Déplacer un aimant fixé **sur son servo** (hors palonnier) ne le détache pas. Lâché sur le palonnier d'un **autre** servo, il passe sur celui-ci ; lâché **ailleurs**, il se détache.
 
 À l'arrêt de la simulation, l'aimant reprend sa place d'origine : le schéma n'est jamais modifié.
 

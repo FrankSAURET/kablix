@@ -192,6 +192,15 @@ export class ServoElement extends LitElement {
     return g?.getScreenCTM() ?? null;
   }
 
+  /**
+   * Boîte ÉCRAN du palonnier dessiné : la cible où l'on lâche un aimant pour
+   * le fixer sur ce servo (geste de l'éditeur).
+   */
+  hornClientRect(): DOMRect | null {
+    const g = this.renderRoot.querySelector('#horn-rot') as SVGGraphicsElement | null;
+    return g?.getBoundingClientRect() ?? null;
+  }
+
   render() {
     const horn = HORNS[this.horn] ?? HORNS.single;
     return html`

@@ -10,11 +10,22 @@
     - ✅ **D1, partie Kablix** — document système `system.json` (+ `system/`) dans le `.projix` : lu, contrôlé contre les repères du schéma, regravé à l'identique (v326). Format : [docs/systeme_specification.md](docs/systeme_specification.md).
     - ✅ **D1, partie Kompix Editor** — `packages/kompix-core/src/system.ts` (lecture tolérante, regravure, `.projix` réécrit sans toucher aux autres entrées), Kompix Editor `v2026.10.0.14` relu et envoyé (v328). Ses ⏳ (commande d'export, `systemFromAssembly`) attendent Frank, dans son `todo.md`.
     - ✅ **D2** — solveur cinématique en arbre `kompix-core/src/kinematics.ts`, Kompix Editor `v2026.10.0.15` relu (97/97 rejoué), écarts au contrat reportés dans [systeme_specification.md](docs/systeme_specification.md) (v329). Animation dans sa visionneuse : ⏳ sur demande de Frank (point 30 de son `todo.md`).
-    - ⏳ **Suite de la piste 11** : Frank a fixé « D0, D1 et D2 » ; l'ordre de D3–D8 attend sa décision ([roadmap.md](roadmap.md), question 6). En attendant, la nuit prend les ⏳ faisables sans lui. Suivi du renommage : fait au collage (v330), le seul cas réel. Prochain : geste de fixation par glisser sur le palonnier (⏳ 11 de v325).
+    - ⏳ **Suite de la piste 11** : Frank a fixé « D0, D1 et D2 » ; l'ordre de D3–D8 attend sa décision ([roadmap.md](roadmap.md), question 6). En attendant, la nuit prend les ⏳ faisables sans lui. Suivi du renommage : fait au collage (v330), le seul cas réel. Geste de fixation par glisser : fait (v331). Prochain : emplacements de `aimant-uno`/`aimant-pico` contrôlés dans le vrai éditeur (⏳ 12 de v325), puis champ progressif (⏳ 15 de v325).
     - ℹ️ Lots enchaînés la nuit par le lanceur `C:\Users\Frank\.claude\nuit\nuit.mjs` (v324). **Règle de Frank (21/11)** : travail de 19 h à 9 h ; PC utilisé → nouvel essai une heure plus tard ; on enchaîne les lots **tant que le plafond hebdo fixé pour la nuit n'est pas atteint** — un point qui attend Frank se note ⏳ et on prend le lot faisable suivant, on ne s'arrête que si plus rien n'est faisable.
     - ℹ️ Nuit du 20/11 perdue : `claude` global (npm) en 2.1.117, refusé par l'API pour Opus 5.5 ; mis à jour en 2.1.330 le 21/11. Un lot en erreur est désormais relancé une fois avant de bloquer la nuit.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.4.331 — fixer l'aimant en le glissant sur le palonnier
+
+1. ✅ **Geste** ([editor.mts](src/webview/diagram/editor.mts), `startDrag`) : aimant glissé seul → palonniers de la feuille mesurés à l'appui (`mountZones`, boîte de `#horn-rot` via `hornClientRect()` du servo, en coordonnées du monde) ; pendant le geste, cadre vert `.mount-target` sur le palonnier visé ; au lâcher, `poserAimant()` écrit `mount`, l'attribut de l'élément et rafraîchit l'inspecteur (une seule fois). Glissé dans un lot multiple : rien ne change.
+2. ✅ **Règles pures** `hornUnder()` / `mountAfterDrop()` ([montage.mts](src/webview/diagram/montage.mts)) : sur un palonnier (tolérance 5 mm) → fixé ; sur le corps de SON servo hors palonnier → inchangé ; ailleurs → détaché ; repère absent ou non porteur → inchangé (l'erreur reste dite au lancement).
+3. ✅ **Banc à vraie souris `npm run verify:aimant-glisse`** (24 contrôles, CDP port 9412, ajouté à `verify:all:serie`) : règles pures, cadre pendant le geste, Act1 → corps d'Act1 → Act2 → vide, repère absent, servo tourné de 90°. Contre-épreuve : appel à `poserAimant` neutralisé → 6 échecs. `aimant`, `montage-copie`, `souris`, `selection`, `copie-selection`, `hygiene`, `docs` verts ; typecheck propre.
+4. ✅ Fiche [aimant.md](docs/fr/composants/aimant.md) (FR) et CHANGELOG mis à jour. Aucune chaîne d'interface nouvelle.
+5. ⏳ **Non éprouvé dans la vraie webview** (F5 de Frank), comme le reste de l'aimant.
+6. ⏳ Fiche EN (`docs/en/composants/aimant.md`) : avant publication.
 
 ---
 
@@ -78,7 +89,7 @@
 8. ✅ **Fiche d'aide FR** [docs/fr/composants/aimant.md](docs/fr/composants/aimant.md) (Béta) + illustration `docs/img/composants/aimant.webp` par `_capture-part.mjs`. Traductions FR de l'interface (`i18n.mts`).
 9. ⏳ **Validation de Frank** : composant Béta tant qu'il ne l'a pas dit. Pas de pastille « Béta » pour les composants intégrés (le drapeau `experimental` n'existe que pour la bibliothèque `.kompix`) : Béta écrit dans la fiche et dans les tests.
 10. ⏳ **Dessin provisoire** de l'aimant : à remplacer par celui de Frank (groupe `aimant` dans `Composants2D.svg`).
-11. ⏳ **Geste de fixation** : pour l'instant un champ texte dans l'inspecteur ; à faire : fixer par glisser sur le palonnier, et suivre le renommage du servo (renommer `Act1` ne met pas `mount` à jour).
+11. ✅ **Geste de fixation** (fait en v331 ; renommage suivi au collage en v330) : pour l'instant un champ texte dans l'inspecteur ; à faire : fixer par glisser sur le palonnier, et suivre le renommage du servo (renommer `Act1` ne met pas `mount` à jour).
 12. ⏳ **Emplacements dans `aimant-uno` / `aimant-pico`** calculés (axe du palonnier ≈ coin du servo + 75/70 px) : à vérifier dans le vrai éditeur, Frank peut les retoucher.
 13. ⏳ **Non éprouvé dans la vraie webview** (banc à éditeur minimal) : essai F5 de Frank à faire.
 14. ⏳ **Traductions** EN (fiche `docs/en/composants/aimant.md`), ES, ZH (3 chaînes + libellé « Magnet ») : avant publication ; `verify:i18n` et `verify:docs` les signalent, c'est normal.

@@ -64,7 +64,7 @@ import { DEFAULT_WIRE_COLORS, DUPONT_COLORS, dupontHex, roundedWirePath, snapPoi
 import { startAutoPan, type AutoPan } from './autopan.mjs';
 import { installerListeCrantee } from './liste-crantee.mjs';
 import { PartCreator } from './creator.mjs';
-import { remapMounts } from './montage.mjs';
+import { AIMANT_TYPE, hornUnder, isCarrierType, mountAfterDrop, remapMounts, type MountZone, type WorldRect } from './montage.mjs';
 import '../composants/custom-part.mjs';
 import { t } from '../i18n.mjs';
 
@@ -548,6 +548,8 @@ export class Editor {
   /** Vrai tant qu'on POSE une sonde logique : même bulle de nom, alors qu'aucun
    *  fil n'est tiré — c'est la superposition des pastilles qui fait la liaison. */
   private sondeDrag = false;
+  /** Cadre du palonnier visé pendant le glisser d'un aimant. */
+  private mountTarget: HTMLDivElement | null = null;
   /** Couche (au-dessus des fils) où l'on dessine le rond de sélection de la broche
    *  atteignable au survol, sans hisser le corps du composant. */
   private pinHoistLayer!: HTMLDivElement;
@@ -3523,6 +3525,10 @@ export class Editor {
     // chaque sonde reste sur sa broche.
     const isSonde = !isGroup && partDef(part.type).kind === 'logic-probe';
     this.sondeDrag = isSonde;
+    // Aimant glissé seul : « Fixé sur » se décide au lâcher, sur le palonnier
+    // visé (même logique que la sonde). Zones mesurées une fois à l'appui, en
+    // coordonnées du monde : les servos ne bougent pas pendant le geste.
+    const mountZones = !isGroup && part.type === AIMANT_TYPE ? this.mountZones(part.id) : null;
     // Enfichage : seulement pour un composant seul (pas un support qui emmène
     // déjà sa grappe), et hors cartes/platines — SAUF la Pico / Pico W, qui
     // s'enfiche sur le socle du Grove Shield (et uniquement là).
@@ -3609,6 +3615,9 @@ export class Editor {
       // écouterait si on lâchait maintenant (même retour que pendant un
       // câblage — le geste doit dire ce qu'il va faire).
       if (isSonde) this.trackPinBubble(this.sondeCible(part.id));
+      // Aimant : le palonnier qu'il toucherait au lâcher s'entoure (le geste
+      // dit ce qu'il va faire).
+      if (mountZones) this.showMountTarget(part.id, mountZones);
     };
     const auto = this.beginAutoPan<PointerEvent>(move);
     const release = this.capturePointer(e);
@@ -3624,6 +3633,8 @@ export class Editor {
         this.hidePinBubble();
         this.sondeDrag = false;
       }
+      if (mountZones) this.hideMountTarget();
+      if (moved && mountZones) this.poserAimant(part, mountZones);
       if (!moved) {
         // Déjà sélectionné à l'appui ; ne reste que le cas d'une sélection
         // multiple, qu'un clic sans glissé réduit à ce seul composant.
@@ -4512,6 +4523,83 @@ export class Editor {
     if (this.selection?.kind === 'part' && this.selection.id === part.id) {
       this.renderInspector();
     }
+  }
+
+  /** Boîte écran → boîte du monde (zoom et défilement courants). */
+  private clientRectToWorld(r: DOMRect): WorldRect {
+    const a = this.clientToWorld(r.left, r.top);
+    const b = this.clientToWorld(r.right, r.bottom);
+    return { x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y };
+  }
+
+  /**
+   * Palonniers de la feuille où l'aimant `selfId` peut se fixer, mesurés sur le
+   * dessin (rotation, miroir et angle affiché compris).
+   */
+  private mountZones(selfId: string): MountZone[] {
+    const zones: MountZone[] = [];
+    for (const [id, rr] of this.rendered) {
+      if (id === selfId || !isCarrierType(rr.part.type)) continue;
+      const horn = (rr.el as unknown as { hornClientRect?: () => DOMRect | null }).hornClientRect?.();
+      if (!horn || horn.width === 0) continue;
+      zones.push({
+        carrierId: id,
+        horn: this.clientRectToWorld(horn),
+        body: this.clientRectToWorld(rr.container.getBoundingClientRect()),
+      });
+    }
+    return zones;
+  }
+
+  /** Centre de l'aimant dans le monde, ou null s'il n'est pas mesurable. */
+  private aimantCenter(partId: string): XY | null {
+    const el = this.rendered.get(partId)?.el as unknown as { centerClient?: () => XY | null } | undefined;
+    const c = el?.centerClient?.();
+    return c ? this.clientToWorld(c.x, c.y) : null;
+  }
+
+  /** Cadre sur le palonnier que toucherait l'aimant lâché maintenant. */
+  private showMountTarget(partId: string, zones: readonly MountZone[]): void {
+    const c = this.aimantCenter(partId);
+    const hit = c ? hornUnder(c, zones) : null;
+    const zone = hit ? zones.find((z) => z.carrierId === hit) : undefined;
+    if (!zone) {
+      this.hideMountTarget();
+      return;
+    }
+    if (!this.mountTarget) {
+      this.mountTarget = document.createElement('div');
+      this.mountTarget.className = 'mount-target';
+      this.world.appendChild(this.mountTarget);
+    }
+    const s = this.mountTarget.style;
+    s.left = `${zone.horn.x}px`;
+    s.top = `${zone.horn.y}px`;
+    s.width = `${zone.horn.w}px`;
+    s.height = `${zone.horn.h}px`;
+    this.mountTarget.dataset.carrier = zone.carrierId;
+  }
+
+  private hideMountTarget(): void {
+    this.mountTarget?.remove();
+    this.mountTarget = null;
+  }
+
+  /**
+   * Écrit « Fixé sur » d'un aimant qu'on vient de lâcher (règles dans
+   * `mountAfterDrop`) : sur un palonnier il s'y fixe, ailleurs il se détache.
+   */
+  private poserAimant(part: Part, zones: readonly MountZone[]): void {
+    const c = this.aimantCenter(part.id);
+    if (!c) return;
+    const before = part.attrs?.mount ?? '';
+    const mount = mountAfterDrop(c, zones, before);
+    if (mount === before) return;
+    part.attrs = { ...part.attrs, mount };
+    (this.rendered.get(part.id)?.el as unknown as HTMLElement | undefined)?.setAttribute('mount', mount);
+    // L'inspecteur montre « Fixé sur » : il suit le geste (renderInspector vide
+    // avant de dessiner, cf. poserSonde).
+    if (this.selection?.kind === 'part' && this.selection.id === part.id) this.renderInspector();
   }
 
   /**

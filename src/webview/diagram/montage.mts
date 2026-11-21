@@ -92,6 +92,70 @@ export function remapMounts(parts: Part[], idMap: ReadonlyMap<string, string>): 
   return n;
 }
 
+/** Ce type de composant sait-il porter un aimant ? */
+export function isCarrierType(type: string): boolean {
+  return CARRIER_KINDS.has(kindOf(type));
+}
+
+/** Rectangle en coordonnées du MONDE (px = mm). */
+export interface WorldRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** Zones d'accrochage d'un porteur, mesurées à l'appui du geste. */
+export interface MountZone {
+  carrierId: string;
+  /** Boîte du palonnier, là où l'on lâche l'aimant pour le fixer. */
+  horn: WorldRect;
+  /** Boîte du porteur entier : lâché dedans, un aimant déjà fixé le reste. */
+  body: WorldRect;
+}
+
+function inside(p: XY, r: WorldRect, tol: number): boolean {
+  return p.x >= r.x - tol && p.x <= r.x + r.w + tol && p.y >= r.y - tol && p.y <= r.y + r.h + tol;
+}
+
+/**
+ * Palonnier visé par le centre de l'aimant (tolérance = demi-épaisseur de
+ * l'aimant : il suffit qu'il touche le palonnier). Plusieurs candidats → le
+ * palonnier dont le centre est le plus proche. `null` si aucun.
+ */
+export function hornUnder(center: XY, zones: readonly MountZone[], tol = AIMANT_HALF): string | null {
+  let best: string | null = null;
+  let bestD = Infinity;
+  for (const z of zones) {
+    if (!inside(center, z.horn, tol)) continue;
+    const d = Math.hypot(center.x - (z.horn.x + z.horn.w / 2), center.y - (z.horn.y + z.horn.h / 2));
+    if (d < bestD) {
+      bestD = d;
+      best = z.carrierId;
+    }
+  }
+  return best;
+}
+
+/**
+ * « Fixé sur » après le lâcher d'un aimant glissé seul :
+ * - lâché SUR un palonnier → fixé sur ce servo ;
+ * - lâché sur le servo qui le porte déjà (corps, hors palonnier) → inchangé :
+ *   ajuster la position de l'aimant sur son servo ne doit pas le détacher ;
+ * - lâché ailleurs → détaché (vide), comme une sonde reposée dans le vide ;
+ * - fixé sur un repère que le geste ne connaît pas (absent, pas un porteur) →
+ *   inchangé : l'erreur reste dite au lancement plutôt qu'effacée en silence.
+ */
+export function mountAfterDrop(center: XY, zones: readonly MountZone[], current: string, tol = AIMANT_HALF): string {
+  const hit = hornUnder(center, zones, tol);
+  if (hit) return hit;
+  const cur = current.trim();
+  if (!cur) return '';
+  const own = zones.find((z) => z.carrierId === cur);
+  if (!own) return current;
+  return inside(center, own.body, tol) ? current : '';
+}
+
 /** Le schéma contient-il au moins un aimant (libre ou fixé) ? */
 export function hasAimant(diagram: Diagram): boolean {
   return diagram.parts.some((p) => p.type === AIMANT_TYPE);

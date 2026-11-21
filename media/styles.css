@@ -2589,6 +2589,19 @@ body.vscode-light .inspector__ref--nouveau {
   box-shadow: 0 0 6px 2px rgba(255, 214, 51, 0.7);
 }
 
+/* Palonnier visé pendant le glisser d'un aimant : lâcher ici le fixe sur ce
+   servo. Posé dans le monde sur la boîte mesurée du palonnier, au-dessus des
+   composants (z=3) et des fils (z=5). */
+.mount-target {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px dashed #2ea043;
+  border-radius: 50%;
+  background: rgba(46, 160, 67, 0.12);
+  pointer-events: none;
+  z-index: 6;
+}
+
 /* Bulle de nom de broche pendant le câblage (tooltip natif muet en plein drag) :
    posée dans le monde juste au-dessus de la pastille visée. */
 .pin-bubble {
