@@ -21,7 +21,7 @@
 1. ✅ **Numéro** : même mois (novembre) → `2026.11.5`. `package.json` et `package-lock.json` en `2026.11.5`, `buildNumber` 325, CLAUDE.md à jour.
 2. ✅ **CHANGELOG daté du 21 novembre 2026** (formules et SVG de l'aide, LDR, trace du clic sur l'icône, atelier fermé pendant sa mise en place).
 3. ✅ **Traductions** : rien à ajouter — fiches LDR, courbes et libellés EN/ES/ZH déjà faits en v321-v322. `verify:i18n` 18/18, `verify:docs` 38/38.
-4. ⬜ **Reste à Frank** : publier (`npm run publier`). Après la mise en ligne : ouvrir `## 2026.11.6 (prochaine publication)` dans le CHANGELOG.
+4. ✅ **Publiée par Frank** le 21/11/2026 ; `## 2026.11.6 (prochaine publication)` ouvert dans le CHANGELOG, CLAUDE.md à jour.
 
 ---
 
