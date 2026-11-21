@@ -21,7 +21,8 @@
 1. ✅ **Essai sur clone neuf** : `npm ci` (10 avertissements patch-package sur `patches/rp2350js/`, sans effet : appliqués par `_vendor-rp2350js.mjs`) puis `vsce package` = mêmes 623 fichiers et mêmes bundles que `kablix-2026.11.5.vsix` ; écarts de taille = fins de ligne seulement. `typecheck` et `verify:paquet` verts sur le clone.
 2. ✅ **[publier.yml](.github/workflows/publier.yml)** : `--skip-duplicate` des deux côtés (relance sans risque), actions figées par SHA (checkout v6.1.0, setup-node v6.5.0, upload-artifact v7.0.1), `persist-credentials: false`, plus de cache npm, `typecheck` + `verify:paquet` avant publication, version obligatoire dans la tête du CHANGELOG, lancement à la main seulement depuis une étiquette, `concurrency`, `.vsix` joint en artefact du travail.
 3. ✅ **`ovsx` 1.3.0** en devDependency figée (dépôt public : pas besoin du `--registrationCode` de la 1.4.0).
-4. ⬜ Côté web (Frank) : environnement `marketplace`, deux politiques, première publication 2026.11.6 par étiquette.
+4. ✅ Côté web (Frank, 21/11) : environnement `marketplace` (relecteur, étiquettes `v*`), politiques Marketplace et Open VSX saisies.
+4b. ⬜ Première publication par étiquette à la prochaine VRAIE publication (2026.11.6) : `git tag` + `git push origin vX`, approbation dans Actions, plus de `npm run publier`.
 5. ⬜ Après la première publication CI : CLAUDE.md, `/livre`, commentaires de `scripts/publier.mjs`, sort des PAT ; puis les trois autres extensions (consigne par dossier).
 6. ⏳ `PASSATION-trusted-publishing.md` : non suivi, à déplacer ou supprimer sur décision de Frank ; non exclu par `.vscodeignore`, ne pas construire de `.vsix` de publication tant qu'il est à la racine.
 
