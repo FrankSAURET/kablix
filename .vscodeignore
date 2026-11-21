@@ -136,6 +136,9 @@ docs/*/Creating-components.md
 docs/*/Drawing-systems.md
 docs/img/systemes/**
 docs/exemples/**
+# Spécification du document système (piste 11) : pour les développeurs de
+# Kablix et de Kompix Editor, rien ne la lit à l'exécution.
+docs/systeme_specification.md
 
 # Videos de demonstration (hors paquet)
 media/video/**

@@ -105,6 +105,11 @@ export interface UnpackedProject {
   manifest: ProjixManifest;
   diagram: unknown;
   codeFiles: Array<{ path: string; data: Uint8Array }>;
+  /** Document système (`system.json`, piste 11) tel que lu, ou absent. Gardé
+   *  BRUT : regravé à l'identique, champs inconnus compris. */
+  system?: unknown;
+  /** Fichiers du dossier `system/` (maillages, contours), chemin relatif à lui. */
+  systemFiles: Array<{ path: string; data: Uint8Array }>;
 }
 
 /** Version courante du format (incrémenter en cas de changement incompatible). */
@@ -121,10 +126,17 @@ export async function packProject(opts: {
   manifest: ProjixManifest;
   diagramJson: string;
   codeRoot?: vscode.Uri;
+  /** Document système à graver (`system.json`), omis s'il n'y en a pas. */
+  system?: unknown;
+  systemFiles?: Array<{ path: string; data: Uint8Array }>;
 }): Promise<Uint8Array> {
   const zip = new (await jszip())();
   zip.file('kablix.json', JSON.stringify(opts.manifest, null, 2));
   zip.file('diagram.json', opts.diagramJson);
+  if (opts.system !== undefined) {
+    zip.file('system.json', JSON.stringify(opts.system, null, 2));
+    for (const f of opts.systemFiles ?? []) zip.file('system/' + f.path, f.data);
+  }
 
   if (opts.codeRoot) {
     const codeFolder = zip.folder('code');
@@ -171,7 +183,27 @@ export async function unpackProject(bytes: Uint8Array): Promise<UnpackedProject>
     codeFiles.push({ path: entry.path, data: await entry.file.async('uint8array') });
   }
 
-  return { manifest, diagram, codeFiles };
+  // Document système (piste 11). Illisible = ignoré : le schéma et le code
+  // s'ouvrent quand même, le montage 3D n'est qu'un complément.
+  let system: unknown;
+  const systemEntry = zip.file('system.json');
+  if (systemEntry) {
+    try {
+      system = JSON.parse(await systemEntry.async('string'));
+    } catch {
+      system = undefined;
+    }
+  }
+  const systemFiles: Array<{ path: string; data: Uint8Array }> = [];
+  if (system !== undefined) {
+    const sys: Array<{ path: string; file: JSZip.JSZipObject }> = [];
+    zip.forEach((relPath, file) => {
+      if (!file.dir && relPath.startsWith('system/')) sys.push({ path: relPath.slice('system/'.length), file });
+    });
+    for (const entry of sys) systemFiles.push({ path: entry.path, data: await entry.file.async('uint8array') });
+  }
+
+  return { manifest, diagram, codeFiles, system, systemFiles };
 }
 
 /**

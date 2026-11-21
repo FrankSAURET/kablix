@@ -18,6 +18,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - Nouveau composant **Aimant** (Béta) : fixé sur un servo, il tourne avec le palonnier pendant la simulation.
 - Le capteur à effet Hall détecte les aimants posés ou fixés sur la feuille ; un cercle vert signale l'aimant à portée.
 
+**Projets**
+
+- Un projet peut emporter son montage mécanique en 3D (pièces, positions, liaisons). Kablix le conserve à l'enregistrement et signale à l'ouverture les pièces qui ne correspondent à aucun composant du schéma.
+
 ### Modification
 
 **Composants**

@@ -7,12 +7,26 @@
     - Une fois le systeme monté, il doit être simulable dans kablix
     - ✅ Décisions de Frank (20/11, [roadmap.md](roadmap.md#11-créateur-de-projets-mécatroniques-3d)) : système monté dans le `.projix` ; cinématique seule au départ ; three.js dans Kablix ; nommage `rôle:repère` ; STEP par OpenCascade WASM téléchargé à la demande ; Kompix Editor reste un outil à part (un composant créé s'utilise dans Kablix sans lui ; il doit aussi créer des composants 3D purement électroniques, sans rôle mécanique : le type de composant actuel, mais en 3D). **Tout ce qui touche Kablix se fait sur la branche `mecatronique`** (dossier de travail `C:\- VS Code\Extensions\Kablix-mecatronique`), jamais sur `main`.
     - ✅ **D0** — piste 7 (servo + aimant + Hall : lien de montage, suivi de l'angle simulé, champ binaire), en 2D dans Kablix, branche `mecatronique` (v325). ⏳ **À valider par Frank** (composant Béta) ; suites en ⏳ dans la section v325.
-    - ⬜ **D1** — document système (composants posés, poses, liaisons) rangé dans le `.projix`, lié aux repères du schéma. Partie Kablix ici, partie Kompix Editor par consigne à son dossier.
+    - ✅ **D1, partie Kablix** — document système `system.json` (+ `system/`) dans le `.projix` : lu, contrôlé contre les repères du schéma, regravé à l'identique (v326). Format : [docs/systeme_specification.md](docs/systeme_specification.md).
+    - ⬜ **D1, partie Kompix Editor** — écrire et relire `system.json` dans un `.projix` : consigne à déposer dans `C:/Users/Frank/.claude/nuit/a-lancer/kompix_editor.md` (lot suivant).
     - ⬜ **D2** — liaisons durables et solveur cinématique en arbre (pivot, glissière, encastrement, engrenage, roue sur sol) dans `kompix-core` : par consigne au dossier `kompix_editor/`.
     - ℹ️ Lots enchaînés la nuit par le lanceur `C:\Users\Frank\.claude\nuit\nuit.mjs` (v324). **Règle de Frank (21/11)** : travail de 19 h à 9 h ; PC utilisé → nouvel essai une heure plus tard ; on enchaîne les lots **tant que le plafond hebdo fixé pour la nuit n'est pas atteint** — un point qui attend Frank se note ⏳ et on prend le lot faisable suivant, on ne s'arrête que si plus rien n'est faisable.
     - ℹ️ Nuit du 20/11 perdue : `claude` global (npm) en 2.1.117, refusé par l'API pour Opus 5.5 ; mis à jour en 2.1.330 le 21/11. Un lot en erreur est désormais relancé une fois avant de bloquer la nuit.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.4.326 — D1 (Kablix) : document système dans le `.projix`
+
+1. ✅ **Format** `kablix-system` v1 ([systeme_specification.md](docs/systeme_specification.md), hors paquet) : pièces (`id`, `nom`, `ref` = repère du schéma, `source` kompix ou fichier sous `system/`, `pose` pos/rot en mm et degrés X→Y→Z, `miroir`), liaisons (`encastrement`, `pivot`, `glissiere`, `engrenage`, `roue-sol` ; bouts pièce + axe nommé ; `params` libres pour D2). Conventions de `model3d.json` v2 de Kompix Editor.
+2. ✅ **Module pur** [systeme.ts](src/systeme.ts) : `lireSysteme()` tolérant (pièce/liaison abîmée écartée et signalée, chemins `..` ou absolus refusés), `controlerSysteme()` (repère absent, en double, fichier manquant), `reperesDuSchema()`, `renommerRepere()` (sur le brut).
+3. ✅ **Archive** ([projix.ts](src/projix.ts)) : `system.json` + `system/…` gravés et relus ; `system.json` illisible → projet ouvert quand même.
+4. ✅ **Panneau** ([panel.ts](src/panel.ts)) : document gardé BRUT à l'ouverture (`systemeDuProjet`) et regravé tel quel (champs inconnus compris), oublié sur « nouveau projet », transmis à la reprise après fermeture non enregistrée ; avertissement d'une ligne à l'ouverture si problème (7 chaînes, FR faites).
+5. ✅ **Banc `npm run verify:systeme`** (33 contrôles, ajouté à `verify:all:serie`). Contre-épreuve : regravure neutralisée → 3 échecs. `projixparts`, `analyseur-projix`, `reouverture`, `hygiene`, `dictionnaires`, `savename`, `vierge` verts ; typecheck propre.
+6. ⏳ **Renommage de repère** : `renommerRepere()` prêt, pas branché (le schéma ne signale pas les renommages à l'hôte) — à faire avec le geste de fixation de l'aimant (⏳ 11 de v325).
+7. ⏳ **Traductions** ES/ZH des 7 chaînes d'avertissement : avant publication (`verify:i18n` les signale, normal).
+8. ℹ️ Aucun document système n'est encore produit : Kompix Editor l'écrira (partie Kompix Editor de D1).
 
 ---
 

@@ -36,6 +36,7 @@ import {
   type ProjixDebugVars,
   type ProjixAnalyseur,
 } from './projix';
+import { controlerSysteme, lireSysteme, reperesDuSchema, type ProblemeSysteme } from './systeme';
 import {
   resolveMicropythonFirmware,
   FirmwareCancelled,
@@ -507,6 +508,11 @@ export class SimulatorPanel {
    *  et le fichier se rouvrait ailleurs amputé du composant et de ses fils
    *  (projet « chauffage », 16/11/2026). */
   private embarquesDuProjet = new Map<string, unknown>();
+  /** DOCUMENT SYSTÈME du .projix ouvert (piste 11 : montage 3D, `system.json`)
+   *  et ses fichiers (`system/`). Kablix ne l'édite pas encore : gardé BRUT et
+   *  regravé tel quel, sans quoi un simple réenregistrement depuis Kablix
+   *  effacerait le montage fait dans Kompix Editor. */
+  private systemeDuProjet: { brut: unknown; fichiers: Array<{ path: string; data: Uint8Array }> } | undefined;
   /** Modifications du schéma non encore enregistrées (signalées par la webview) :
    *  ● dans le titre de l'onglet tant que c'est vrai, garde-fou avant d'ouvrir un
    *  autre projet. */
@@ -528,6 +534,7 @@ export class SimulatorPanel {
         projectUri: vscode.Uri | undefined;
         projectBaseName: string | undefined;
         codeFileUri: vscode.Uri | undefined;
+        systeme?: SimulatorPanel['systemeDuProjet'];
       }
     | undefined;
   /** Fichier source actuellement chargé dans le simulateur (.py ou source C ; pas les artefacts). */
@@ -2466,6 +2473,7 @@ ${err instanceof Error ? err.message : String(err)}`
         this.projectBaseName = undefined;
         this.projectUri = undefined;
         this.currentSourceUri = undefined;
+        this.systemeDuProjet = undefined; // le montage 3D était celui de l'ancien projet
         this.setCodeFile(undefined);
         break;
       case 'help':
@@ -2847,6 +2855,50 @@ ${err instanceof Error ? err.message : String(err)}`
       });
   }
 
+  /**
+   * Problèmes du document système d'un projet : lecture (pièce ou liaison
+   * illisible) puis contrôle contre le schéma (repère absent ou en double,
+   * fichier manquant). Liste vide quand il n'y a pas de document système.
+   */
+  static problemesSysteme(
+    brut: unknown,
+    diagram: unknown,
+    fichiers: Array<{ path: string }> = []
+  ): ProblemeSysteme[] {
+    if (brut === undefined) return [];
+    const { systeme, problemes } = lireSysteme(brut);
+    if (!systeme) return problemes;
+    const reperes = reperesDuSchema(diagram);
+    // Schéma illisible : on ne déclare pas tous les repères « absents ».
+    const controle = controlerSysteme(
+      systeme,
+      reperes ?? systeme.pieces.flatMap((p) => (p.ref ? [p.ref] : [])),
+      fichiers.map((f) => f.path)
+    );
+    return [...problemes, ...controle];
+  }
+
+  /** Message d'avertissement, une ligne, pour les problèmes du document système. */
+  static messageSysteme(problemes: ProblemeSysteme[]): string {
+    const cibles = (cle: ProblemeSysteme['cle']) =>
+      problemes.filter((p) => p.cle === cle).map((p) => p.cible ?? '?');
+    const morceaux: string[] = [];
+    if (problemes.some((p) => p.cle === 'format')) morceaux.push(l10n.t('the 3D assembly is unreadable'));
+    const futur = cibles('version-future');
+    if (futur.length) morceaux.push(l10n.t('the 3D assembly comes from a newer version of Kablix'));
+    const absents = cibles('ref-absente');
+    if (absents.length) morceaux.push(l10n.t('parts not in the schematic: {0}', absents.join(', ')));
+    const doublons = cibles('ref-doublon');
+    if (doublons.length) morceaux.push(l10n.t('parts used twice: {0}', doublons.join(', ')));
+    const fichiers = cibles('fichier-absent');
+    if (fichiers.length) morceaux.push(l10n.t('missing files: {0}', fichiers.join(', ')));
+    const ignores = problemes.filter((p) =>
+      ['piece-invalide', 'piece-doublon', 'liaison-invalide', 'liaison-doublon', 'liaison-piece-absente'].includes(p.cle)
+    ).length;
+    if (ignores) morceaux.push(l10n.t('{0} faulty item(s) (parts or joints)', String(ignores)));
+    return l10n.t('Kablix: 3D assembly of the project — {0}.', morceaux.join(' ; '));
+  }
+
   /** Types de composants posés sur un schéma, ou `null` s'il est illisible. */
   private static partTypesOf(diagram: unknown): Set<string> | null {
     const parts = (diagram as { parts?: unknown } | undefined)?.parts;
@@ -2901,8 +2953,14 @@ ${err instanceof Error ? err.message : String(err)}`
       manifest.dirtyAtExit = this.backupDirtyFlag;
       this.backupDirtyFlag = undefined;
     }
-    // Schéma seul : pas de codeRoot transmis.
-    return packProject({ manifest, diagramJson: JSON.stringify(diagramPayload) });
+    // Schéma seul : pas de codeRoot transmis. Le document système du projet
+    // ouvert repart tel quel (piste 11).
+    return packProject({
+      manifest,
+      diagramJson: JSON.stringify(diagramPayload),
+      system: this.systemeDuProjet?.brut,
+      systemFiles: this.systemeDuProjet?.fichiers,
+    });
   }
 
   private async saveProject(diagram: unknown, board?: Board, saveAs = false): Promise<void> {
@@ -3083,6 +3141,14 @@ ${err instanceof Error ? err.message : String(err)}`
     // le vider laissait la palette sans ses composants installés.
     if (customParts && customParts.length > 0) {
       await this.context.globalState.update(CUSTOM_PARTS_KEY, customParts);
+    }
+    // Document système (piste 11) : gardé pour être regravé, contrôlé contre
+    // les repères du schéma. Un problème se dit sans bloquer l'ouverture.
+    this.systemeDuProjet =
+      project.system !== undefined ? { brut: project.system, fichiers: project.systemFiles } : undefined;
+    const problemesSysteme = SimulatorPanel.problemesSysteme(project.system, project.diagram, project.systemFiles);
+    if (problemesSysteme.length > 0) {
+      void vscode.window.showWarningMessage(SimulatorPanel.messageSysteme(problemesSysteme));
     }
     this.setCurrentBoard(project.manifest.board ?? this.currentBoard);
     // Réglages du panneau de débogage du projet (masquages + bases). Envoyés
@@ -3465,8 +3531,10 @@ ${err instanceof Error ? err.message : String(err)}`
     projectUri: vscode.Uri | undefined;
     projectBaseName: string | undefined;
     codeFileUri: vscode.Uri | undefined;
+    systeme?: SimulatorPanel['systemeDuProjet'];
   }): Promise<void> {
     this.projectUri = state.projectUri;
+    this.systemeDuProjet = state.systeme;
     this.projectBaseName = state.projectBaseName;
     if (state.board) this.setCurrentBoard(state.board);
     this.pendingDiagram = state.diagram;
@@ -3527,6 +3595,7 @@ ${err instanceof Error ? err.message : String(err)}`
         projectUri: this.projectUri,
         projectBaseName: this.projectBaseName,
         codeFileUri: this.codeFileUri,
+        systeme: this.systemeDuProjet,
       };
     }
 
