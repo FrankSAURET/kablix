@@ -8,12 +8,19 @@
     - ✅ Décisions de Frank (20/11, [roadmap.md](roadmap.md#11-créateur-de-projets-mécatroniques-3d)) : système monté dans le `.projix` ; cinématique seule au départ ; three.js dans Kablix ; nommage `rôle:repère` ; STEP par OpenCascade WASM téléchargé à la demande ; Kompix Editor reste un outil à part (un composant créé s'utilise dans Kablix sans lui ; il doit aussi créer des composants 3D purement électroniques, sans rôle mécanique : le type de composant actuel, mais en 3D). **Tout ce qui touche Kablix se fait sur la branche `mecatronique`** (dossier de travail `C:\- VS Code\Extensions\Kablix-mecatronique`), jamais sur `main`.
     - ✅ **D0** — piste 7 (servo + aimant + Hall : lien de montage, suivi de l'angle simulé, champ binaire), en 2D dans Kablix, branche `mecatronique` (v325). ⏳ **À valider par Frank** (composant Béta) ; suites en ⏳ dans la section v325.
     - ✅ **D1, partie Kablix** — document système `system.json` (+ `system/`) dans le `.projix` : lu, contrôlé contre les repères du schéma, regravé à l'identique (v326). Format : [docs/systeme_specification.md](docs/systeme_specification.md).
-    - ⬜ **D1, partie Kompix Editor** — écrire et relire `system.json` dans un `.projix` : consigne à déposer dans `C:/Users/Frank/.claude/nuit/a-lancer/kompix_editor.md` (lot suivant).
+    - ⏳ **D1, partie Kompix Editor** — écrire et relire `system.json` dans un `.projix` : consigne déposée dans `C:/Users/Frank/.claude/nuit/a-lancer/kompix_editor.md` (v327), exécutée par le lanceur dans `kompix_editor/` ; à cocher ici après relecture de son enregistrement (`v2026.10.0.14` attendu).
     - ⬜ **D2** — liaisons durables et solveur cinématique en arbre (pivot, glissière, encastrement, engrenage, roue sur sol) dans `kompix-core` : par consigne au dossier `kompix_editor/`.
     - ℹ️ Lots enchaînés la nuit par le lanceur `C:\Users\Frank\.claude\nuit\nuit.mjs` (v324). **Règle de Frank (21/11)** : travail de 19 h à 9 h ; PC utilisé → nouvel essai une heure plus tard ; on enchaîne les lots **tant que le plafond hebdo fixé pour la nuit n'est pas atteint** — un point qui attend Frank se note ⏳ et on prend le lot faisable suivant, on ne s'arrête que si plus rien n'est faisable.
     - ℹ️ Nuit du 20/11 perdue : `claude` global (npm) en 2.1.117, refusé par l'API pour Opus 5.5 ; mis à jour en 2.1.330 le 21/11. Un lot en erreur est désormais relancé une fois avant de bloquer la nuit.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.4.327 — D1 (Kompix Editor) : consigne déposée
+
+1. ✅ **Consigne** `C:/Users/Frank/.claude/nuit/a-lancer/kompix_editor.md` : module pur `kompix-core/src/system.ts` (types, `readSystem` tolérant, `writeSystem`, `readProjixSystem`/`writeProjixSystem` qui ne touchent que `system.json` et `system/`), tests `node --test` avec contre-épreuve, rien dans l'interface ; règles de livraison de Kompix Editor (`buildNumber` 2026.10.0.14, CHANGELOG, 4 fichiers déjà modifiés à laisser, envoi sur `main` de son dépôt).
+2. ℹ️ Kablix : aucun code touché, CHANGELOG inchangé (rien ne change pour l'utilisateur), pas de `.vsix`.
 
 ---
 
