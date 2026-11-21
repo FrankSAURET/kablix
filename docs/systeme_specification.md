@@ -52,7 +52,21 @@ Reprises du format `model3d.json` v2 de Kompix Editor : millimètres ; X à droi
 | `id` | identifiant unique |
 | `type` | `encastrement`, `pivot`, `glissiere`, `engrenage`, `roue-sol` |
 | `a`, `b` | `{ "piece": "<id>", "axe": "<axe nommé>" }`, `axe` facultatif |
-| `params` | propres au type (rapport d'engrenage, bornes…) ; liste fixée par le solveur du lot D2 |
+| `params` | propres au type (bornes, rapport d'engrenage, rayon…) : voir « Paramètres et sens des liaisons » |
+
+### Paramètres et sens des liaisons (lot D2)
+
+Règle commune : **`a` est l'enfant, `b` le parent** (l'aimant pivote sur le servo, le servo est encastré dans le châssis). Les poses du document sont la position de référence : chaque variable de liaison y vaut son `zero`. Le solveur (kompix-core, `kinematics.ts`) part des pièces sans parent et descend l'arbre ; il n'y a ni masse ni frottement (cinématique seule, décision de Frank du 20/11/2026).
+
+| Type | Variable | `params` | Effet |
+| --- | --- | --- | --- |
+| `encastrement` | aucune | aucun | l'enfant garde sa pose relative au parent |
+| `pivot` | angle en degrés | `min`, `max` (bornes, facultatives), `zero` (angle de la pose du document, 0 par défaut) | l'enfant tourne autour de l'axe `b.axe` du parent (point et direction de l'axe nommé) ; `a.axe` doit coïncider avec lui dans la pose du document |
+| `glissiere` | course en mm | `min`, `max`, `zero` | l'enfant se translate le long de la direction de `b.axe` |
+| `engrenage` | aucune (couplage) | `dentsA`, `dentsB` (entiers > 0) ou `rapport` (= vitesse de B / vitesse de A), `interne` (booléen, faux par défaut) | n'ajoute pas d'arête à l'arbre : l'angle du pivot qui porte B suit celui du pivot qui porte A, `θB = −(dentsA/dentsB)·θA` (même signe si `interne`) |
+| `roue-sol` | aucune (couplage) | `rayon` (mm, obligatoire) | `a` = roue (enfant d'un pivot), `b` = sol ; le parent du pivot de la roue (le châssis) devient mobile sur le plan Z = 0 du sol : une roue → ligne droite, deux roues sur un même axe → conduite différentielle (`rayon × angle`, sans glissement) |
+
+Refusés clairement (problème signalé, pièces concernées laissées à leur pose du document) : **boucle fermée** (une pièce enfant de deux liaisons, ou un cycle de liaisons ; parallélogramme, bielle-manivelle — plus tard), axe nommé absent, engrenage dont un côté n'est pas porté par un pivot, couplages en cycle, `roue-sol` sans rayon, plus de deux roues motrices ou roues sur des axes différents.
 
 Champs inconnus (ici ou à la racine, comme l'état de l'éditeur) : ignorés à la lecture, **conservés** à l'enregistrement — Kablix regrave le document brut.
 
@@ -67,5 +81,5 @@ Un avertissement d'une ligne, sans bloquer l'ouverture, quand :
 
 ## Ce qui reste à faire
 
-- Kompix Editor : écrire et relire ce document (partie Kompix Editor du lot D1, par consigne à son dossier).
+- Kompix Editor : solveur cinématique en arbre (lot D2, consigne à son dossier). L'écriture et la relecture du document y sont faites (`packages/kompix-core/src/system.ts`, v2026.10.0.14).
 - Kablix : faire suivre un renommage de repère (`renommerRepere()` existe, pas encore branché à l'inspecteur) ; vue 3D (lot D6).

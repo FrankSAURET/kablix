@@ -8,12 +8,21 @@
     - ✅ Décisions de Frank (20/11, [roadmap.md](roadmap.md#11-créateur-de-projets-mécatroniques-3d)) : système monté dans le `.projix` ; cinématique seule au départ ; three.js dans Kablix ; nommage `rôle:repère` ; STEP par OpenCascade WASM téléchargé à la demande ; Kompix Editor reste un outil à part (un composant créé s'utilise dans Kablix sans lui ; il doit aussi créer des composants 3D purement électroniques, sans rôle mécanique : le type de composant actuel, mais en 3D). **Tout ce qui touche Kablix se fait sur la branche `mecatronique`** (dossier de travail `C:\- VS Code\Extensions\Kablix-mecatronique`), jamais sur `main`.
     - ✅ **D0** — piste 7 (servo + aimant + Hall : lien de montage, suivi de l'angle simulé, champ binaire), en 2D dans Kablix, branche `mecatronique` (v325). ⏳ **À valider par Frank** (composant Béta) ; suites en ⏳ dans la section v325.
     - ✅ **D1, partie Kablix** — document système `system.json` (+ `system/`) dans le `.projix` : lu, contrôlé contre les repères du schéma, regravé à l'identique (v326). Format : [docs/systeme_specification.md](docs/systeme_specification.md).
-    - ⏳ **D1, partie Kompix Editor** — écrire et relire `system.json` dans un `.projix` : consigne déposée dans `C:/Users/Frank/.claude/nuit/a-lancer/kompix_editor.md` (v327), exécutée par le lanceur dans `kompix_editor/` ; à cocher ici après relecture de son enregistrement (`v2026.10.0.14` attendu).
-    - ⬜ **D2** — liaisons durables et solveur cinématique en arbre (pivot, glissière, encastrement, engrenage, roue sur sol) dans `kompix-core` : par consigne au dossier `kompix_editor/`.
+    - ✅ **D1, partie Kompix Editor** — `packages/kompix-core/src/system.ts` (lecture tolérante, regravure, `.projix` réécrit sans toucher aux autres entrées), Kompix Editor `v2026.10.0.14` relu et envoyé (v328). Ses ⏳ (commande d'export, `systemFromAssembly`) attendent Frank, dans son `todo.md`.
+    - ⏳ **D2** — solveur cinématique en arbre : contrat fixé dans [systeme_specification.md](docs/systeme_specification.md) (v328), consigne déposée dans `C:/Users/Frank/.claude/nuit/a-lancer/kompix_editor.md`, exécutée par le lanceur dans `kompix_editor/` ; à cocher ici après relecture de son enregistrement (`v2026.10.0.15` attendu), en reportant ses écarts au contrat dans la spécification.
     - ℹ️ Lots enchaînés la nuit par le lanceur `C:\Users\Frank\.claude\nuit\nuit.mjs` (v324). **Règle de Frank (21/11)** : travail de 19 h à 9 h ; PC utilisé → nouvel essai une heure plus tard ; on enchaîne les lots **tant que le plafond hebdo fixé pour la nuit n'est pas atteint** — un point qui attend Frank se note ⏳ et on prend le lot faisable suivant, on ne s'arrête que si plus rien n'est faisable.
     - ℹ️ Nuit du 20/11 perdue : `claude` global (npm) en 2.1.117, refusé par l'API pour Opus 5.5 ; mis à jour en 2.1.330 le 21/11. Un lot en erreur est désormais relancé une fois avant de bloquer la nuit.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.4.328 — D1 (Kompix Editor) relu, D2 : contrat et consigne
+
+1. ✅ **D1, partie Kompix Editor** relue : enregistrement `56119a5` (`v2026.10.0.14`) envoyé sur `main` de `kompix_editor`, `system.ts` + 10 tests (`kompix-core` 81/81), contre-épreuve faite. L'échec `led-strip.kompix` du paquet éditeur vient d'un fichier modifié hors lot : question posée à Frank dans le `todo.md` de Kompix Editor (point 29).
+2. ✅ **Contrat du solveur** dans [systeme_specification.md](docs/systeme_specification.md) (hors paquet), section « Paramètres et sens des liaisons » : `a` enfant / `b` parent, poses du document = variables à `zero`, `params` par type (`min`/`max`/`zero` ; `dentsA`/`dentsB`/`rapport`/`interne` ; `rayon`), engrenage et roue-sol en couplages hors arbre, cas refusés (boucle fermée, axe absent, couplage en cycle…).
+3. ✅ **Consigne D2** `C:/Users/Frank/.claude/nuit/a-lancer/kompix_editor.md` : module pur `kinematics.ts` (`buildKinematics`, `solve`, `rollStep`), tests `node --test` avec contre-épreuve, `docs/cinematique.md`, rien dans l'interface ; livraison `v2026.10.0.15`.
+4. ℹ️ Kablix : aucun code touché, CHANGELOG inchangé (rien ne change pour l'utilisateur), pas de `.vsix`.
 
 ---
 
