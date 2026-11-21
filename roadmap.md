@@ -21,6 +21,7 @@ L'ordre des numéros est celui **choisi par Frank**, pas un classement par inté
 | 9   | [Notation automatique](#9-notation-automatique-par-assertions)                | ★★★★☆   | **L** | À faire, plus tard             |
 | 10  | [Vue des périphériques internes](#10-vue-des-périphériques-internes-timer-adc) | ★★★★☆   | **L** | À faire, plus tard             |
 | 11  | [Créateur de projets mécatroniques 3D](#11-créateur-de-projets-mécatroniques-3d) | ★★★★★   | **XL** | Cadré ci-dessous, décisions attendues |
+| 12  | [Cartes ESP32-C3 / S3](#12-cartes-esp32-c3--s3)                               | ★★★★☆   | **L** (MicroPython) · **XL** (tout) | Faisable depuis le 21/11/2026, sonde réussie |
 
 ---
 
@@ -167,3 +168,87 @@ D0 , D1 et D2
 **garde son nom et reste un outil à part. un composant créé doit pouvoir être utilisé dans kablix sans kompix editor. Kompix editor devra aussi pouvoir créer des composants 3d seulement élec sans méca (le type de composant actuel, mais en 3D).**  
 
 **Les modifications dans kablix seront faites dans une branche (mecatronique)**
+
+---
+
+## 12. Cartes ESP32-C3 / S3
+
+**Bilan du 21/11/2026**, après sonde. Il remplace celui d'août 2026 (anciennes pistes « Sonder l'émulateur Espressif » et « Ajouter la famille ESP32 »), qui butait sur l'absence d'accès aux broches.
+
+### Ce qui a changé depuis août
+
+Espressif publie **esp-emulator** ([dépôt](https://github.com/espressif/esp-emulator)) : un émulateur écrit en Rust, compilé en WASM, licence Apache-2.0, ROM des puces fournies. Versions 1.0 le 13/11, 1.1 le 16/11, 1.2 le 20/11/2026. Il expose ce qui manquait en août :
+
+- horloge pilotée par l'hôte (`run_until(cycles)`), comme nos moteurs AVR et Pico ;
+- état des broches (`gpio_state()`), entrées imposées (`gpio_set_input()`), console série (`uart_input()` et retour de `run_until()`) ;
+- un protocole de co-simulation (protobuf, liaisons JS fournies) pour I²C, SPI, PWM, tension analogique, impulsions : de quoi brancher nos composants sans écrire de Rust.
+
+Puces couvertes : C3, C5, C6, H2, P4 (RISC-V) et **S3** (Xtensa LX7). **L'ESP32 classique (WROOM, DevKit V1) n'y est pas.**
+
+### Sonde (MicroPython 1.25 officiel, sous Node)
+
+| Mesure                          | ESP32-C3 (160 MHz) | ESP32-S3 (240 MHz) |
+| ------------------------------- | ------------------ | ------------------ |
+| Invite `>>>`                    | ~100 ms émulées    | ~100 ms émulées    |
+| Sortie vue par l'hôte           | oui                | oui                |
+| Entrée imposée lue par `Pin`    | oui                | oui                |
+| Vitesse en calcul pur           | 0,22× temps réel   | 0,14× temps réel   |
+| Bascules de broche par seconde  | ~40 000            | ~40 000            |
+
+`time.sleep()` est sauté : c'est l'hôte qui cadence, comme pour le Pico. Une liste en compréhension de 20 000 éléments sature la mémoire du C3. Non testé : ADC, I²C, PWM, WS2812 (tous par la co-simulation).
+
+**Verdict technique** : faisable. 0,14 à 0,22× temps réel en calcul pur suffit pour les montages scolaires, qui passent leur temps à attendre (le Pico tourne aujourd'hui dans le même ordre de grandeur).
+
+### Risques
+
+- **Cœur fermé** : le dépôt ne publie que des binaires et de la doc. Un défaut de l'émulateur ne se corrige pas chez nous, contrairement à rp2040js et avr8js.
+- **API jeune** : trois versions en huit jours. Figer une version dans le `.vsix`, ne monter qu'après essai.
+- **Poids** : WASM de 6,1 Mo (5 Mo en archive), soit +2 à 3 Mo compressés dans le `.vsix` (7,3 Mo aujourd'hui). À mesurer.
+- **Arduino C++** : le cœur Arduino-ESP32 pèse plusieurs centaines de Mo. Téléchargé à la demande, jamais dans le `.vsix`.
+- **Débogage C++** : la lecture des variables est à refaire pour RISC-V et Xtensa.
+- **Annonce** : dire « ESP32-C3 / S3 », jamais « ESP32 ». Les écoles ont surtout des DevKit V1 (ESP32 classique), que cette piste ne couvre pas.
+
+### Lots proposés
+
+| Lot | Contenu                                                                                                    | Coût    |
+| --- | ---------------------------------------------------------------------------------------------------------- | ------- |
+| 0   | Sonde (fait le 21/11/2026)                                                                                  | **S** ✅ |
+| 1   | Troisième moteur `esp.mts` (interface `SimEngine`), MicroPython sur C3 : broches, console, cadencement, téléversement | **L**   |
+| 2   | Cartes : ESP32-C3 SuperMini et DevKitM, dessin, brochage, tests `testkablix`, fiches d'aide                | **M**   |
+| 3   | ESP32-S3 (même moteur, autre puce)                                                                         | **S**   |
+| 4   | Arduino C++ : cœur ESP32 téléchargé à la demande, compilation, chargement du binaire                      | **M**   |
+| 5   | Débogage C++ (variables, pas à pas) sur RISC-V puis Xtensa                                                 | **M–L** |
+| 6   | Wi-Fi (NAT de l'émulateur) : requêtes HTTP, serveur web minimal                                            | **M**   |
+
+MicroPython C3 + S3 (lots 1 à 3) : **L**, environ 1 M jetons. Tout (lots 1 à 6) : **XL**, 2 M jetons et plus.
+
+### Et si on écrivait notre propre simulateur en Rust ?
+
+La question se pose à cause du cœur fermé et de l'ESP32 classique absent. Chiffrage, en partant de rien et pour un firmware MicroPython ou Arduino qui démarre et pilote ses broches :
+
+| Morceau                                                                                                                               | Coût                  |
+| ------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| Cœur RV32IMC (C3) : jeu d'instructions, interruptions, CSR                                                                            | **S–M**               |
+| Périphériques C3 : chemin ROM et chargeur, matrice d'interruptions, SYSTIMER, matrice GPIO et IO_MUX, UART, USB série-JTAG, flash SPI et cache MMU, efuse, RTC_CNTL, timers, LEDC, ADC, I²C, SPI, RMT | **L–XL**              |
+| Mise au point jusqu'au démarrage complet des firmwares réels (le gros du temps, registre par registre contre la doc technique)        | **L**                 |
+| Cœur Xtensa LX6 / LX7 (fenêtres de registres, jeu d'instructions large, options par puce)                                             | **XL**                |
+| Périphériques de l'ESP32 classique (deux cœurs, autre carte mémoire, autres blocs)                                                    | **XL**                |
+| Wi-Fi et Bluetooth                                                                                                                    | hors de portée        |
+
+Totaux : **C3 seul ≈ XL, 2 à 4 M jetons**. **ESP32 classique ≈ 4 à 8 M jetons et plus**, Wi-Fi exclu. C'est le prix de la piste 11 entière, pour une seule carte.
+
+Ce qui pèse contre :
+
+- **Vitesse** : notre cœur WASM maison pour le Pico n'a gagné que ×1,86 (objectif ×3) et a été abandonné. Rien ne dit qu'un cœur maison battrait celui d'Espressif, qui a la doc interne.
+- **Fidélité** : Espressif connaît ses puces ; nous les découvririons par la doc publique, avec des registres non documentés.
+- **ROM** : il faut les ROM des puces. Leur licence de redistribution est à vérifier avant tout lot.
+
+Ce qui pèse pour : le code serait à nous (correctifs, débogage, pérennité), et c'est **la seule voie vers l'ESP32 classique** dans une extension MIT, puisque QEMU est sous GPL.
+
+**Recommandation** : construire sur esp-emulator (lots 1 à 3). Le simulateur maison reste une voie de secours, à rouvrir seulement si Espressif ferme ou abandonne son émulateur, ou si l'ESP32 classique devient indispensable.
+
+### Points à revoir
+
+- **ESP32 classique** : toujours non. Seul QEMU l'émule, sous GPL, incompatible avec la licence MIT de l'extension. Seule autre voie : le simulateur maison ci-dessus, au prix fort.
+- **ESP8266** : rien de sérieux à reprendre. Non.
+- **Veille** : suivre les versions d'esp-emulator. Une ouverture du code source ou l'arrivée de l'ESP32 classique changerait le chiffrage.

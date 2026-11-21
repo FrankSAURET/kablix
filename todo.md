@@ -16,6 +16,14 @@
 
 ---
 
+# v2026.11.5.326 — bilan ESP32-C3 / S3, piste 12 de la roadmap
+
+1. ✅ **Sonde de l'émulateur Espressif** (esp-emulator 1.2.0, WASM, sous Node, lancée par Frank) : MicroPython 1.25 démarre sur C3 et S3, sorties vues, entrées imposées lues, 0,22× (C3) et 0,14× (S3) temps réel en calcul pur.
+2. ✅ **[roadmap.md](roadmap.md#12-cartes-esp32-c3--s3), piste 12** : bilan, risques (cœur fermé, API jeune, poids), lots 0 à 6 (MicroPython C3+S3 ≈ L, tout ≈ XL), chiffrage d'un simulateur maison en Rust (C3 seul ≈ 2 à 4 M jetons, ESP32 classique ≈ 4 à 8 M et plus) ; recommandation : construire sur esp-emulator.
+3. ⏳ Lots 1 à 6 en attente d'une décision de Frank.
+
+---
+
 # v2026.11.5.325 — préparation de la publication 2026.11.5
 
 1. ✅ **Numéro** : même mois (novembre) → `2026.11.5`. `package.json` et `package-lock.json` en `2026.11.5`, `buildNumber` 325, CLAUDE.md à jour.
