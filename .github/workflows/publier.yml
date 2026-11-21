@@ -1,0 +1,99 @@
+# Publication de Kablix sur le Visual Studio Marketplace ET Open VSX par Trusted Publishing (OIDC).
+# Aucun VSCE_PAT ni OVSX_PAT : les deux registres font confiance à CE fichier, dans CE dépôt,
+# dans l'environnement « marketplace ».
+# Le nom du fichier (publier.yml) doit correspondre aux deux politiques enregistrées.
+#
+# Déclenchement : pousser une étiquette vX.Y.Z identique à la version de package.json
+#   git tag v2026.11.6 ; git push origin v2026.11.6
+# ou relancer à la main depuis l'onglet Actions EN CHOISISSANT L'ÉTIQUETTE dans « Use workflow from »
+# (l'environnement n'accepte que les étiquettes v* : un lancement depuis main est refusé).
+#
+# Relançable sans risque : --skip-duplicate des deux côtés. Si le Marketplace a publié et qu'Open VSX
+# a échoué, « Re-run jobs » saute le Marketplace et refait Open VSX.
+#
+# Actions figées par empreinte (SHA) : ce travail a le droit de demander un jeton de publication,
+# une étiquette d'action déplacée en amont ne doit pas pouvoir s'y glisser.
+
+name: Publier (Marketplace + Open VSX)
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+# Une étiquette poussée deux fois ne lance pas deux publications en parallèle.
+concurrency:
+  group: publier
+  cancel-in-progress: false
+
+jobs:
+  publier:
+    runs-on: ubuntu-latest
+    environment: marketplace        # doit exister dans Settings > Environments, même nom que dans les politiques
+    permissions:
+      contents: read
+      id-token: write               # indispensable : autorise la demande du jeton OIDC
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      # Pas de cache npm : un cache partagé pourrait être empoisonné, et npm ci ne prend que ~40 s.
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+
+      - run: npm ci                 # lance aussi patch-package (postinstall) ; vsce et ovsx viennent du lock
+
+      - name: Vérifier que l'étiquette correspond à package.json
+        run: |
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "À lancer depuis une étiquette v*, pas depuis ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
+          VERSION=$(node -p "require('./package.json').version")
+          if [ "${GITHUB_REF_NAME}" != "v${VERSION}" ]; then
+            echo "Étiquette ${GITHUB_REF_NAME} ≠ version v${VERSION} de package.json" >&2
+            exit 1
+          fi
+
+      # Même garde-fou que scripts/publier.mjs, en plus strict : la version absente du titre bloque.
+      - name: Vérifier la tête du CHANGELOG
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TITRE=$(grep -m1 '^## ' CHANGELOG.md || true)
+          if echo "$TITRE" | grep -qi 'prochaine publication'; then
+            echo "CHANGELOG pas prêt : « $TITRE »" >&2
+            exit 1
+          fi
+          if ! echo "$TITRE" | grep -qF "$VERSION"; then
+            echo "La tête du CHANGELOG (« $TITRE ») ne porte pas la version $VERSION" >&2
+            exit 1
+          fi
+
+      - run: npm run typecheck
+
+      # Un seul .vsix, construit une fois, envoyé aux deux registres (comme publier.mjs).
+      # vscode:prepublish (npm run build) est lancé automatiquement par vsce package.
+      - name: Construire le paquet
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VSIX=kablix-${VERSION}.vsix" >> "$GITHUB_ENV"
+          npx vsce package --no-dependencies --out "kablix-${VERSION}.vsix"
+
+      # Le banc qui lit l'emballage : tout bundle produit doit être DANS le .vsix.
+      - run: npm run verify:paquet
+
+      # Trace de ce qui part en ligne, téléchargeable depuis la page du travail.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ env.VSIX }}
+          path: ${{ env.VSIX }}
+          if-no-files-found: error
+
+      - name: Publier sur le Visual Studio Marketplace (OIDC, sans PAT)
+        run: npx vsce publish --packagePath "$VSIX" --oidc --skip-duplicate
+
+      # Pas de OVSX_PAT ici : s'il était présent, il passerait avant le trusted publishing.
+      - name: Publier sur Open VSX (trusted publishing, sans PAT)
+        run: npx ovsx publish "$VSIX" --trusted-publishing --skip-duplicate
