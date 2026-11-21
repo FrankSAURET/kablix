@@ -9,7 +9,8 @@
     - ⬜ **D0** — piste 7 (servo + aimant + Hall : lien de montage, suivi de l'angle simulé, champ binaire), en 2D dans Kablix, branche `mecatronique`.
     - ⬜ **D1** — document système (composants posés, poses, liaisons) rangé dans le `.projix`, lié aux repères du schéma. Partie Kablix ici, partie Kompix Editor par consigne à son dossier.
     - ⬜ **D2** — liaisons durables et solveur cinématique en arbre (pivot, glissière, encastrement, engrenage, roue sur sol) dans `kompix-core` : par consigne au dossier `kompix_editor/`.
-    - ℹ️ Lots enchaînés la nuit par le lanceur `C:\Users\Frank\.claude\nuit\nuit.mjs` (v324).
+    - ℹ️ Lots enchaînés la nuit par le lanceur `C:\Users\Frank\.claude\nuit\nuit.mjs` (v324). **Règle de Frank (21/11)** : travail de 19 h à 9 h ; PC utilisé → nouvel essai une heure plus tard ; on enchaîne les lots **tant que le plafond hebdo fixé pour la nuit n'est pas atteint** — un point qui attend Frank se note ⏳ et on prend le lot faisable suivant, on ne s'arrête que si plus rien n'est faisable.
+    - ℹ️ Nuit du 20/11 perdue : `claude` global (npm) en 2.1.117, refusé par l'API pour Opus 5.5 ; mis à jour en 2.1.330 le 21/11. Un lot en erreur est désormais relancé une fois avant de bloquer la nuit.
 
 ## ne pas faire pour l'instant
 
