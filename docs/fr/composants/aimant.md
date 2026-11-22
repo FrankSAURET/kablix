@@ -18,7 +18,7 @@ Petit **aimant permanent** en barreau (20 × 10 mm, pôle **N** rouge, pôle **S
 2. On peut aussi écrire ce repère à la main dans `Fixé sur`, depuis l'inspecteur.
 3. Lancer la simulation : l'aimant **tourne avec le palonnier**, autour de son axe, en suivant l'angle commandé par le programme. Rotation, miroir et zoom du servo sont pris en compte. Un petit anneau au-dessus de l'aimant rappelle qu'il est fixé.
 
-Déplacer un aimant fixé **sur son servo** (hors palonnier) ne le détache pas. Lâché sur le palonnier d'un **autre** servo, il passe sur celui-ci ; lâché **ailleurs**, il se détache.
+Déplacer un aimant fixé **sur son servo** (hors palonnier) ne le détache pas. Lâché sur le palonnier d'un **autre** servo, il passe sur celui-ci ; lâché **ailleurs**, il se détache. Supprimer le servo détache aussi ses aimants (un Ctrl+Z ramène le servo et les refixe).
 
 À l'arrêt de la simulation, l'aimant reprend sa place d'origine : le schéma n'est jamais modifié.
 

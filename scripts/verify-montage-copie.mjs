@@ -9,8 +9,10 @@
 // Contrôlé : Ctrl+D sur servo + aimant, collages répétés de la même copie
 // (charge utile du presse-papier intacte), aimant copié seul (garde Act1),
 // élément dessiné avec le bon « Fixé sur », liens de montage sans problème.
+// Puis servo supprimé : ses aimants détachés (`detachMounts`), Ctrl+Z les refixe.
 //
-// Contre-épreuve : neutraliser `remapMounts` dans editor.mts — le banc DOIT échouer.
+// Contre-épreuve : neutraliser `remapMounts` ou `detachMounts` dans editor.mts —
+// le banc DOIT échouer.
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
@@ -32,7 +34,7 @@ const entry = `
 import { Editor } from '../../src/webview/diagram/editor.mjs';
 import '../../src/webview/composants/servo-element.mjs';
 import '../../src/webview/composants/aimant-element.mjs';
-import { mountLinks, remapMounts } from '../../src/webview/diagram/montage.mjs';
+import { detachMounts, mountLinks, remapMounts } from '../../src/webview/diagram/montage.mjs';
 const DIAGRAM = ${JSON.stringify(DIAGRAM)};
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
@@ -96,6 +98,29 @@ async function run() {
 	await wait(200);
 	const aimant4 = byType('aimant').find((p) => ![ 'A1', aimant2.id, aimant3.id ].includes(p.id));
 	ok('aimant copié seul : garde Act1', aimant4 && aimant4.attrs.mount === 'Act1', aimant4 && aimant4.attrs.mount);
+
+	// 5. Porteur supprimé (touche Suppr) : ses aimants sont détachés, les autres
+	// restent ; un seul Ctrl+Z ramène le servo ET les aimants refixés.
+	editor.select({ kind: 'part', id: 'Act1' });
+	await wait(20);
+	key('Delete');
+	await wait(200);
+	const get = (id) => editor.diagram.parts.find((p) => p.id === id);
+	ok('Suppr du servo : Act1 retiré', !get('Act1'), editor.diagram.parts.map((p) => p.id));
+	ok('Suppr du servo : A1 et la copie seule détachés', get('A1')?.attrs.mount === '' && get(aimant4.id)?.attrs.mount === '',
+		JSON.stringify([get('A1')?.attrs, get(aimant4.id)?.attrs]));
+	ok('Suppr du servo : l élément dessiné est détaché', editor.rendered.get('A1')?.el.mount === '', editor.rendered.get('A1')?.el.mount);
+	ok('Suppr du servo : les aimants des autres servos restent fixés', get(aimant2.id)?.attrs.mount === servo2.id && get(aimant3.id)?.attrs.mount === servo3.id);
+	ok('Suppr du servo : plus aucun problème de montage', mountLinks(editor.diagram).problems.length === 0,
+		JSON.stringify(mountLinks(editor.diagram).problems));
+	editor.undo();
+	await wait(300);
+	ok('Ctrl+Z : servo revenu, A1 refixé sur Act1', !!get('Act1') && get('A1')?.attrs.mount === 'Act1' && get(aimant4.id)?.attrs.mount === 'Act1',
+		JSON.stringify(get('A1')?.attrs));
+	ok('Ctrl+Z : l élément dessiné est refixé', editor.rendered.get('A1')?.el.mount === 'Act1', editor.rendered.get('A1')?.el.mount);
+	const brut2 = [{ id: 'A5', type: 'aimant', x: 0, y: 0, attrs: { mount: 'Act1' } }, { id: 'A6', type: 'aimant', x: 0, y: 0, attrs: { mount: 'Act2' } }];
+	const garde = brut2[0].attrs;
+	ok('pur : detachMounts ne vise que le porteur supprimé', JSON.stringify(detachMounts(brut2, 'Act1')) === '["A5"]' && brut2[1].attrs.mount === 'Act2' && garde.mount === 'Act1');
 
 	const out = document.createElement('pre');
 	out.id = 'measures';

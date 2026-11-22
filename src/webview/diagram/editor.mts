@@ -64,7 +64,7 @@ import { DEFAULT_WIRE_COLORS, DUPONT_COLORS, dupontHex, roundedWirePath, snapPoi
 import { startAutoPan, type AutoPan } from './autopan.mjs';
 import { installerListeCrantee } from './liste-crantee.mjs';
 import { PartCreator } from './creator.mjs';
-import { AIMANT_TYPE, hornUnder, isCarrierType, mountAfterDrop, remapMounts, type MountZone, type WorldRect } from './montage.mjs';
+import { AIMANT_TYPE, detachMounts, hornUnder, isCarrierType, mountAfterDrop, remapMounts, type MountZone, type WorldRect } from './montage.mjs';
 import '../composants/custom-part.mjs';
 import { t } from '../i18n.mjs';
 
@@ -2368,6 +2368,12 @@ export class Editor {
     this.pinoutShown.delete(id);
     this.selectedParts.delete(id);
     this.diagram.parts = this.diagram.parts.filter((p) => p.id !== id);
+    // Porteur supprimé : ses aimants sont détachés dans le MÊME instantané
+    // d'historique (un Ctrl+Z ramène le servo et les aimants refixés).
+    for (const aimantId of detachMounts(this.diagram.parts, id)) {
+      (this.rendered.get(aimantId)?.el as unknown as HTMLElement | undefined)?.setAttribute('mount', '');
+      if (this.selection?.kind === 'part' && this.selection.id === aimantId) this.renderInspector();
+    }
     if (this.selection?.kind === 'part' && this.selection.id === id) this.select(null);
     this.redrawWires();
     this.notify();

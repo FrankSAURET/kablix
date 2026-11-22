@@ -92,6 +92,23 @@ export function remapMounts(parts: Part[], idMap: ReadonlyMap<string, string>): 
   return n;
 }
 
+/**
+ * Porteur supprimé : les aimants fixés sur lui sont détachés (`mount` vidé),
+ * comme un aimant lâché hors de tout palonnier. Sans cela, ils gardaient un
+ * repère orphelin, signalé en erreur au lancement de la simulation. Attributs
+ * remplacés, jamais modifiés sur place. Rend les repères des aimants détachés.
+ */
+export function detachMounts(parts: Part[], carrierId: string): string[] {
+  const ids: string[] = [];
+  for (const part of parts) {
+    if (part.type !== AIMANT_TYPE || part.id === carrierId) continue;
+    if ((part.attrs?.mount ?? '').trim() !== carrierId) continue;
+    part.attrs = { ...part.attrs, mount: '' };
+    ids.push(part.id);
+  }
+  return ids;
+}
+
 /** Ce type de composant sait-il porter un aimant ? */
 export function isCarrierType(type: string): boolean {
   return CARRIER_KINDS.has(kindOf(type));
