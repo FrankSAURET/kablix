@@ -6,31 +6,32 @@
     - une dénomination standard des éléments permet de leur attribuer un rôle de simulation
     - Une fois le systeme monté, il doit être simulable dans kablix
     - ✅ Décisions de Frank (20/11, [roadmap.md](roadmap.md#11-créateur-de-projets-mécatroniques-3d)) : système monté dans le `.projix` ; cinématique seule au départ ; three.js dans Kablix ; nommage `rôle:repère` ; STEP par OpenCascade WASM téléchargé à la demande ; Kompix Editor reste un outil à part (un composant créé s'utilise dans Kablix sans lui ; il doit aussi créer des composants 3D purement électroniques, sans rôle mécanique : le type de composant actuel, mais en 3D). **Tout ce qui touche Kablix se fait sur la branche `mecatronique`** (dossier de travail `C:\- VS Code\Extensions\Kablix-mecatronique`), jamais sur `main`.
-    - ✅ **D0** — piste 7 (servo + aimant + Hall : lien de montage, suivi de l'angle simulé, champ binaire), en 2D dans Kablix, branche `mecatronique` (v325). ⏳ **À valider par Frank** (composant Béta) ; suites en ⏳ dans la section v325.
-    - ✅ **D1, partie Kablix** — document système `system.json` (+ `system/`) dans le `.projix` : lu, contrôlé contre les repères du schéma, regravé à l'identique (v326). Format : [docs/systeme_specification.md](docs/systeme_specification.md).
-    - ✅ **D1, partie Kompix Editor** — `packages/kompix-core/src/system.ts` (lecture tolérante, regravure, `.projix` réécrit sans toucher aux autres entrées), Kompix Editor `v2026.10.0.14` relu et envoyé (v328). Ses ⏳ (commande d'export, `systemFromAssembly`) attendent Frank, dans son `todo.md`.
-    - ✅ **D2** — solveur cinématique en arbre `kompix-core/src/kinematics.ts`, Kompix Editor `v2026.10.0.15` relu (97/97 rejoué), écarts au contrat reportés dans [systeme_specification.md](docs/systeme_specification.md) (v329). Animation dans sa visionneuse : ⏳ sur demande de Frank (point 30 de son `todo.md`).
-    - ⏳ **Suite de la piste 11** : Frank a fixé « D0, D1 et D2 » ; l'ordre de D3–D8 attend sa décision ([roadmap.md](roadmap.md), question 6). En attendant, la nuit prend les ⏳ faisables sans lui. Suivi du renommage : fait au collage (v330), le seul cas réel. Geste de fixation par glisser : fait (v331). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v332). Servo supprimé → aimants détachés (v333). ⏳ **Champ progressif bloqué** (⏳ 15 de v325) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
+    - ✅ **D0** — piste 7 (servo + aimant + Hall : lien de montage, suivi de l'angle simulé, champ binaire), en 2D dans Kablix, branche `mecatronique` (v328). ⏳ **À valider par Frank** (composant Béta) ; suites en ⏳ dans la section v328.
+    - ✅ **D1, partie Kablix** — document système `system.json` (+ `system/`) dans le `.projix` : lu, contrôlé contre les repères du schéma, regravé à l'identique (v329). Format : [docs/systeme_specification.md](docs/systeme_specification.md).
+    - ✅ **D1, partie Kompix Editor** — `packages/kompix-core/src/system.ts` (lecture tolérante, regravure, `.projix` réécrit sans toucher aux autres entrées), Kompix Editor `v2026.10.0.14` relu et envoyé (v331). Ses ⏳ (commande d'export, `systemFromAssembly`) attendent Frank, dans son `todo.md`.
+    - ✅ **D2** — solveur cinématique en arbre `kompix-core/src/kinematics.ts`, Kompix Editor `v2026.10.0.15` relu (97/97 rejoué), écarts au contrat reportés dans [systeme_specification.md](docs/systeme_specification.md) (v332). Animation dans sa visionneuse : ⏳ sur demande de Frank (point 30 de son `todo.md`).
+    - ⏳ **Suite de la piste 11** : Frank a fixé « D0, D1 et D2 » ; l'ordre de D3–D8 attend sa décision ([roadmap.md](roadmap.md), question 6). En attendant, la nuit prend les ⏳ faisables sans lui. Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
     - ℹ️ Lots enchaînés la nuit par le lanceur `C:\Users\Frank\.claude\nuit\nuit.mjs` (v324). **Règle de Frank (21/11)** : travail de 19 h à 9 h ; PC utilisé → nouvel essai une heure plus tard ; on enchaîne les lots **tant que le plafond hebdo fixé pour la nuit n'est pas atteint** — un point qui attend Frank se note ⏳ et on prend le lot faisable suivant, on ne s'arrête que si plus rien n'est faisable.
     - ℹ️ Nuit du 20/11 perdue : `claude` global (npm) en 2.1.117, refusé par l'API pour Opus 5.5 ; mis à jour en 2.1.330 le 21/11. Un lot en erreur est désormais relancé une fois avant de bloquer la nuit.
+    - ℹ️ **Numéros (22/11)** : `main` fusionné dans `mecatronique` ; les lots de la branche, nés en `2026.11.4.325` à `.333` (doublons de `main` en 325-327), sont renumérotés `2026.11.5.328` à `.336` (les messages des enregistrements gardent l'ancien numéro). **Règle** : le `buildNumber` d'un lot = le plus grand des deux branches (`git show main:package.json`) + 1 ; fusionner `main` dans `mecatronique` après chaque publication.
 
 ## ne pas faire pour l'instant
 
 ---
 
-# v2026.11.4.333 — servo supprimé : ses aimants se détachent
+# v2026.11.5.336 — servo supprimé : ses aimants se détachent
 
-1. ✅ **Défaut** : supprimer un servo laissait ses aimants fixés sur un repère disparu ; erreur au lancement de la simulation, cadre rouge (⏳ 5 de v330).
-2. ✅ **Correction** : `detachMounts()` ([montage.mts](src/webview/diagram/montage.mts), pur) vide `mount` des aimants du porteur supprimé, branché dans `removePart` ([editor.mts](src/webview/diagram/editor.mts)) avant l'instantané d'historique : un seul Ctrl+Z ramène le servo et refixe les aimants. Attribut de l'élément et inspecteur suivis. Même règle qu'un aimant lâché hors palonnier (v331).
+1. ✅ **Défaut** : supprimer un servo laissait ses aimants fixés sur un repère disparu ; erreur au lancement de la simulation, cadre rouge (⏳ 5 de v333).
+2. ✅ **Correction** : `detachMounts()` ([montage.mts](src/webview/diagram/montage.mts), pur) vide `mount` des aimants du porteur supprimé, branché dans `removePart` ([editor.mts](src/webview/diagram/editor.mts)) avant l'instantané d'historique : un seul Ctrl+Z ramène le servo et refixe les aimants. Attribut de l'élément et inspecteur suivis. Même règle qu'un aimant lâché hors palonnier (v334).
 3. ✅ **Banc `verify:montage-copie`** étendu (12 → 20 contrôles) : Suppr du servo, aimants des autres servos intacts, plus aucun problème de montage, Ctrl+Z. Contre-épreuve : boucle neutralisée → 3 échecs. `aimant`, `aimant-glisse`, `aimant-tests`, `suppression`, `selection`, `hygiene` verts ; typecheck propre.
 4. ✅ Fiche [aimant.md](docs/fr/composants/aimant.md) (FR) et CHANGELOG mis à jour. Aucune chaîne d'interface nouvelle.
-5. ⏳ **Champ progressif** (⏳ 15 de v325) : bloqué. Le Hall du catalogue est tout-ou-rien (sortie à drain ouvert) ; décroissance et pôles N/S ne changent rien sans un capteur analogique ou polarisé, à définir par Frank (règle « simulation précisée au cas par cas »).
+5. ⏳ **Champ progressif** (⏳ 15 de v328) : bloqué. Le Hall du catalogue est tout-ou-rien (sortie à drain ouvert) ; décroissance et pôles N/S ne changent rien sans un capteur analogique ou polarisé, à définir par Frank (règle « simulation précisée au cas par cas »).
 6. ⏳ Fiche EN : avant publication.
 
 ---
 
-# v2026.11.4.332 — emplacements des tests aimant mesurés dans le vrai éditeur
+# v2026.11.5.335 — emplacements des tests aimant mesurés dans le vrai éditeur
 
 1. ✅ **Défaut trouvé** : dans `aimant-uno` et `aimant-pico`, l'aimant était posé 25 mm à DROITE de l'axe, alors que le palonnier simple pointe vers le HAUT à 0° (axe mesuré en (695, 150) côté Uno) : aimant hors du palonnier, et à 90° il passait par-dessus le boîtier du Hall. Le Hall commutait quand même à 90° (par hasard).
 2. ✅ **Spec corrigée** ([_spec.mjs](testkablix/_spec.mjs)) : aimant sur le bras, à 60 mm de l'axe ; Hall à droite de la position 90°, face à 5 mm bord à bord (seuil 10). Uno : aimant (685, 80), Hall (740, 135) ; Pico : (1005, 40), (1060, 95). Servo, carte, PCA9685, résistance et alimentation inchangés. `_generate.mjs aimant-uno aimant-pico` seulement.
@@ -40,7 +41,7 @@
 
 ---
 
-# v2026.11.4.331 — fixer l'aimant en le glissant sur le palonnier
+# v2026.11.5.334 — fixer l'aimant en le glissant sur le palonnier
 
 1. ✅ **Geste** ([editor.mts](src/webview/diagram/editor.mts), `startDrag`) : aimant glissé seul → palonniers de la feuille mesurés à l'appui (`mountZones`, boîte de `#horn-rot` via `hornClientRect()` du servo, en coordonnées du monde) ; pendant le geste, cadre vert `.mount-target` sur le palonnier visé ; au lâcher, `poserAimant()` écrit `mount`, l'attribut de l'élément et rafraîchit l'inspecteur (une seule fois). Glissé dans un lot multiple : rien ne change.
 2. ✅ **Règles pures** `hornUnder()` / `mountAfterDrop()` ([montage.mts](src/webview/diagram/montage.mts)) : sur un palonnier (tolérance 5 mm) → fixé ; sur le corps de SON servo hors palonnier → inchangé ; ailleurs → détaché ; repère absent ou non porteur → inchangé (l'erreur reste dite au lancement).
@@ -51,17 +52,17 @@
 
 ---
 
-# v2026.11.4.330 — l'aimant copié suit son servo copié
+# v2026.11.5.333 — l'aimant copié suit son servo copié
 
 1. ✅ **Constat** : l'éditeur ne renomme jamais un repère existant (pas de champ « repère » dans l'inspecteur). Deux seuls cas de repère réattribué : le **collage** (copie neuve → `Act2`…) et l'**ouverture** (doublon ou repère vide renuméroté). À l'ouverture, rien à suivre : un repère vide n'est référencé par personne, et un doublon laisse l'original sous son nom.
 2. ✅ **Défaut corrigé au collage** : servo + aimant copiés (Ctrl+C/V, Ctrl+D) donnaient un aimant copié fixé sur le servo d'ORIGINE. `remapMounts()` ([montage.mts](src/webview/diagram/montage.mts), pur) applique la table ancien → neuf repère aux `mount` des aimants collés, attributs remplacés (le presse-papier reste intact pour les collages suivants). Branché dans `insertPayload` ([editor.mts](src/webview/diagram/editor.mts)) AVANT le dessin : l'élément naît avec le bon « Fixé sur ». Aimant copié seul : garde le servo de l'original.
 3. ✅ **Banc `npm run verify:montage-copie`** (12 contrôles, vrai éditeur en Chrome headless, ajouté à `verify:all:serie`). Contre-épreuve : appel neutralisé → 4 échecs. `aimant`, `copie-selection`, `clipboard`, `selection`, `suppression`, `hygiene` verts ; typecheck propre.
-4. ℹ️ ⏳ 6 de v326 (`renommerRepere()` du document système) : reste sans objet tant que l'éditeur ne renomme rien ; à brancher si Frank ajoute un renommage de repère.
-5. ✅ **Servo supprimé** (fait en v333 : aimants détachés) : l'aimant garde son `mount` orphelin, signalé au lancement de la simulation (comportement de v325, inchangé).
+4. ℹ️ ⏳ 6 de v329 (`renommerRepere()` du document système) : reste sans objet tant que l'éditeur ne renomme rien ; à brancher si Frank ajoute un renommage de repère.
+5. ✅ **Servo supprimé** (fait en v336 : aimants détachés) : l'aimant garde son `mount` orphelin, signalé au lancement de la simulation (comportement de v328, inchangé).
 
 ---
 
-# v2026.11.4.329 — D2 relu, écarts reportés dans la spécification
+# v2026.11.5.332 — D2 relu, écarts reportés dans la spécification
 
 1. ✅ **D2 relu** : enregistrement `50cd08c` (`v2026.10.0.15`) envoyé sur `main` de `kompix_editor` ; `kinematics.ts` (533 lignes), 16 tests, contre-épreuve faite par la session (6 et 9 rouges) ; `kompix-core` rejoué ici : 97/97.
 2. ✅ **Spécification** [systeme_specification.md](docs/systeme_specification.md) : pivot `q − zero` main droite + saturation aux bornes, engrenage `θB − zeroB = k·(θA − zeroA)` (`rapport` signé, `interne` sans effet avec lui, bornes après couplage, `variable-menee`), liste des codes du solveur (`parametre-invalide`, `roue-sans-pivot` ajoutés), axe sans direction = Z, `base` sur toute pièce, coïncidence de `a.axe` non contrôlée.
@@ -70,7 +71,7 @@
 
 ---
 
-# v2026.11.4.328 — D1 (Kompix Editor) relu, D2 : contrat et consigne
+# v2026.11.5.331 — D1 (Kompix Editor) relu, D2 : contrat et consigne
 
 1. ✅ **D1, partie Kompix Editor** relue : enregistrement `56119a5` (`v2026.10.0.14`) envoyé sur `main` de `kompix_editor`, `system.ts` + 10 tests (`kompix-core` 81/81), contre-épreuve faite. L'échec `led-strip.kompix` du paquet éditeur vient d'un fichier modifié hors lot : question posée à Frank dans le `todo.md` de Kompix Editor (point 29).
 2. ✅ **Contrat du solveur** dans [systeme_specification.md](docs/systeme_specification.md) (hors paquet), section « Paramètres et sens des liaisons » : `a` enfant / `b` parent, poses du document = variables à `zero`, `params` par type (`min`/`max`/`zero` ; `dentsA`/`dentsB`/`rapport`/`interne` ; `rayon`), engrenage et roue-sol en couplages hors arbre, cas refusés (boucle fermée, axe absent, couplage en cycle…).
@@ -79,27 +80,27 @@
 
 ---
 
-# v2026.11.4.327 — D1 (Kompix Editor) : consigne déposée
+# v2026.11.5.330 — D1 (Kompix Editor) : consigne déposée
 
 1. ✅ **Consigne** `C:/Users/Frank/.claude/nuit/a-lancer/kompix_editor.md` : module pur `kompix-core/src/system.ts` (types, `readSystem` tolérant, `writeSystem`, `readProjixSystem`/`writeProjixSystem` qui ne touchent que `system.json` et `system/`), tests `node --test` avec contre-épreuve, rien dans l'interface ; règles de livraison de Kompix Editor (`buildNumber` 2026.10.0.14, CHANGELOG, 4 fichiers déjà modifiés à laisser, envoi sur `main` de son dépôt).
 2. ℹ️ Kablix : aucun code touché, CHANGELOG inchangé (rien ne change pour l'utilisateur), pas de `.vsix`.
 
 ---
 
-# v2026.11.4.326 — D1 (Kablix) : document système dans le `.projix`
+# v2026.11.5.329 — D1 (Kablix) : document système dans le `.projix`
 
 1. ✅ **Format** `kablix-system` v1 ([systeme_specification.md](docs/systeme_specification.md), hors paquet) : pièces (`id`, `nom`, `ref` = repère du schéma, `source` kompix ou fichier sous `system/`, `pose` pos/rot en mm et degrés X→Y→Z, `miroir`), liaisons (`encastrement`, `pivot`, `glissiere`, `engrenage`, `roue-sol` ; bouts pièce + axe nommé ; `params` libres pour D2). Conventions de `model3d.json` v2 de Kompix Editor.
 2. ✅ **Module pur** [systeme.ts](src/systeme.ts) : `lireSysteme()` tolérant (pièce/liaison abîmée écartée et signalée, chemins `..` ou absolus refusés), `controlerSysteme()` (repère absent, en double, fichier manquant), `reperesDuSchema()`, `renommerRepere()` (sur le brut).
 3. ✅ **Archive** ([projix.ts](src/projix.ts)) : `system.json` + `system/…` gravés et relus ; `system.json` illisible → projet ouvert quand même.
 4. ✅ **Panneau** ([panel.ts](src/panel.ts)) : document gardé BRUT à l'ouverture (`systemeDuProjet`) et regravé tel quel (champs inconnus compris), oublié sur « nouveau projet », transmis à la reprise après fermeture non enregistrée ; avertissement d'une ligne à l'ouverture si problème (7 chaînes, FR faites).
 5. ✅ **Banc `npm run verify:systeme`** (33 contrôles, ajouté à `verify:all:serie`). Contre-épreuve : regravure neutralisée → 3 échecs. `projixparts`, `analyseur-projix`, `reouverture`, `hygiene`, `dictionnaires`, `savename`, `vierge` verts ; typecheck propre.
-6. ⏳ **Renommage de repère** : `renommerRepere()` prêt, pas branché (le schéma ne signale pas les renommages à l'hôte) — à faire avec le geste de fixation de l'aimant (⏳ 11 de v325).
+6. ⏳ **Renommage de repère** : `renommerRepere()` prêt, pas branché (le schéma ne signale pas les renommages à l'hôte) — à faire avec le geste de fixation de l'aimant (⏳ 11 de v328).
 7. ⏳ **Traductions** ES/ZH des 7 chaînes d'avertissement : avant publication (`verify:i18n` les signale, normal).
 8. ℹ️ Aucun document système n'est encore produit : Kompix Editor l'écrira (partie Kompix Editor de D1).
 
 ---
 
-# v2026.11.4.325 — D0 : aimant fixé sur servo, lu par le Hall
+# v2026.11.5.328 — D0 : aimant fixé sur servo, lu par le Hall
 
 1. ✅ **Composant `aimant`** (`<kablix-aimant>`, [aimant-element.mts](src/webview/composants/aimant-element.mts)) : barreau 20×10 N rouge / S bleu, sans broche, catégorie Divers, repère `A1` (FR) / `MAG1` (EN). Propriété `mount` (« Fixé sur ») = repère du servo porteur ; anneau dessiné quand il est fixé.
 2. ✅ **Lien de montage** ([montage.mts](src/webview/diagram/montage.mts), logique pure) : `mountLinks()` rend les liens valides et les problèmes (`missing` : repère absent ou soi-même ; `not-carrier` : composant qui ne porte rien — seul `servo` pour l'instant).
@@ -111,11 +112,40 @@
 8. ✅ **Fiche d'aide FR** [docs/fr/composants/aimant.md](docs/fr/composants/aimant.md) (Béta) + illustration `docs/img/composants/aimant.webp` par `_capture-part.mjs`. Traductions FR de l'interface (`i18n.mts`).
 9. ⏳ **Validation de Frank** : composant Béta tant qu'il ne l'a pas dit. Pas de pastille « Béta » pour les composants intégrés (le drapeau `experimental` n'existe que pour la bibliothèque `.kompix`) : Béta écrit dans la fiche et dans les tests.
 10. ⏳ **Dessin provisoire** de l'aimant : à remplacer par celui de Frank (groupe `aimant` dans `Composants2D.svg`).
-11. ✅ **Geste de fixation** (fait en v331 ; renommage suivi au collage en v330) : pour l'instant un champ texte dans l'inspecteur ; à faire : fixer par glisser sur le palonnier, et suivre le renommage du servo (renommer `Act1` ne met pas `mount` à jour).
-12. ✅ **Emplacements dans `aimant-uno` / `aimant-pico`** (fait en v332 : mesurés dans le vrai éditeur, aimant remis sur le palonnier) : calculés (axe du palonnier ≈ coin du servo + 75/70 px) : à vérifier dans le vrai éditeur, Frank peut les retoucher.
+11. ✅ **Geste de fixation** (fait en v334 ; renommage suivi au collage en v333) : pour l'instant un champ texte dans l'inspecteur ; à faire : fixer par glisser sur le palonnier, et suivre le renommage du servo (renommer `Act1` ne met pas `mount` à jour).
+12. ✅ **Emplacements dans `aimant-uno` / `aimant-pico`** (fait en v335 : mesurés dans le vrai éditeur, aimant remis sur le palonnier) : calculés (axe du palonnier ≈ coin du servo + 75/70 px) : à vérifier dans le vrai éditeur, Frank peut les retoucher.
 13. ⏳ **Non éprouvé dans la vraie webview** (banc à éditeur minimal) : essai F5 de Frank à faire.
 14. ⏳ **Traductions** EN (fiche `docs/en/composants/aimant.md`), ES, ZH (3 chaînes + libellé « Magnet ») : avant publication ; `verify:i18n` et `verify:docs` les signalent, c'est normal.
 15. ⏳ **Champ progressif** (décroissance avec la distance, pôles N/S, capteurs analogiques) : lot suivant de la piste 7.
+
+---
+
+# v2026.11.5.327 — publication par Trusted Publishing (OIDC), CI GitHub
+
+1. ✅ **Essai sur clone neuf** : `npm ci` (10 avertissements patch-package sur `patches/rp2350js/`, sans effet : appliqués par `_vendor-rp2350js.mjs`) puis `vsce package` = mêmes 623 fichiers et mêmes bundles que `kablix-2026.11.5.vsix` ; écarts de taille = fins de ligne seulement. `typecheck` et `verify:paquet` verts sur le clone.
+2. ✅ **[publier.yml](.github/workflows/publier.yml)** : `--skip-duplicate` des deux côtés (relance sans risque), actions figées par SHA (checkout v6.1.0, setup-node v6.5.0, upload-artifact v7.0.1), `persist-credentials: false`, plus de cache npm, `typecheck` + `verify:paquet` avant publication, version obligatoire dans la tête du CHANGELOG, lancement à la main seulement depuis une étiquette, `concurrency`, `.vsix` joint en artefact du travail.
+3. ✅ **`ovsx` 1.3.0** en devDependency figée (dépôt public : pas besoin du `--registrationCode` de la 1.4.0).
+4. ✅ Côté web (Frank, 21/11) : environnement `marketplace` (relecteur, étiquettes `v*`), politiques Marketplace et Open VSX saisies.
+4b. ⬜ Première publication par étiquette à la prochaine VRAIE publication (2026.11.6) : `git tag` + `git push origin vX`, approbation dans Actions, plus de `npm run publier`.
+5. ⬜ Après la première publication CI : CLAUDE.md, `/livre`, commentaires de `scripts/publier.mjs`, sort des PAT ; puis les trois autres extensions (consigne par dossier).
+6. ✅ `PASSATION-trusted-publishing.md` supprimé à la demande de Frank (21/11).
+
+---
+
+# v2026.11.5.326 — bilan ESP32-C3 / S3, piste 12 de la roadmap
+
+1. ✅ **Sonde de l'émulateur Espressif** (esp-emulator 1.2.0, WASM, sous Node, lancée par Frank) : MicroPython 1.25 démarre sur C3 et S3, sorties vues, entrées imposées lues, 0,22× (C3) et 0,14× (S3) temps réel en calcul pur.
+2. ✅ **[roadmap.md](roadmap.md#12-cartes-esp32-c3--s3), piste 12** : bilan, risques (cœur fermé, API jeune, poids), lots 0 à 6 (MicroPython C3+S3 ≈ L, tout ≈ XL), chiffrage d'un simulateur maison en Rust (C3 seul ≈ 2 à 4 M jetons, ESP32 classique ≈ 4 à 8 M et plus) ; recommandation : construire sur esp-emulator.
+3. ⏳ Lots 1 à 6 en attente d'une décision de Frank.
+
+---
+
+# v2026.11.5.325 — préparation de la publication 2026.11.5
+
+1. ✅ **Numéro** : même mois (novembre) → `2026.11.5`. `package.json` et `package-lock.json` en `2026.11.5`, `buildNumber` 325, CLAUDE.md à jour.
+2. ✅ **CHANGELOG daté du 21 novembre 2026** (formules et SVG de l'aide, LDR, trace du clic sur l'icône, atelier fermé pendant sa mise en place).
+3. ✅ **Traductions** : rien à ajouter — fiches LDR, courbes et libellés EN/ES/ZH déjà faits en v321-v322. `verify:i18n` 18/18, `verify:docs` 38/38.
+4. ✅ **Publiée par Frank** le 21/11/2026 ; `## 2026.11.6 (prochaine publication)` ouvert dans le CHANGELOG, CLAUDE.md à jour.
 
 ---
 

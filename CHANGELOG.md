@@ -4,14 +4,9 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 [Voir en ligne](https://github.com/FrankSAURET/kablix/blob/main/CHANGELOG.md) · [View online](https://github.com/FrankSAURET/kablix/blob/main/CHANGELOG.md)
 
-## 2026.11.5 (prochaine publication)
+## 2026.11.6 (prochaine publication)
 
 ### Nouveauté
-
-**Aide**
-
-- Les fiches d'aide affichent les formules mathématiques (fractions, indices, exposants, lettres grecques).
-- Les dessins SVG de l'aide suivent le thème de VS Code (textes et traits lisibles en thème sombre comme en clair).
 
 **Capteurs et mécanique**
 
@@ -21,6 +16,15 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 **Projets**
 
 - Un projet peut emporter son montage mécanique en 3D (pièces, positions, liaisons). Kablix le conserve à l'enregistrement et signale à l'ouverture les pièces qui ne correspondent à aucun composant du schéma.
+
+## 2026.11.5 (21 novembre 2026)
+
+### Nouveauté
+
+**Aide**
+
+- Les fiches d'aide affichent les formules mathématiques (fractions, indices, exposants, lettres grecques).
+- Les dessins SVG de l'aide suivent le thème de VS Code (textes et traits lisibles en thème sombre comme en clair).
 
 ### Modification
 
@@ -37,6 +41,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 **Atelier**
 
 - Un atelier fermé pendant sa mise en place ne provoque plus d'erreur, et l'icône Kablix ouvre un atelier neuf si le précédent a disparu.
+
 ## 2026.11.4 (16 novembre 2026)
 
 ### Nouveauté
