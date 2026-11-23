@@ -30,7 +30,7 @@ Reprises du format `model3d.json` v2 de Kompix Editor : millimètres ; X à droi
   ],
   "liaisons": [
     { "id": "L1", "type": "encastrement", "a": { "piece": "servo" }, "b": { "piece": "chassis" } },
-    { "id": "L2", "type": "pivot", "a": { "piece": "aimant", "axe": "horn" }, "b": { "piece": "servo", "axe": "horn" }, "params": { "min": 0, "max": 180 } }
+    { "id": "L2", "type": "pivot", "a": { "piece": "aimant", "axe": "pose" }, "b": { "piece": "servo", "axe": "horn" }, "params": { "min": 0, "max": 180 } }
   ]
 }
 ```
@@ -102,6 +102,28 @@ Kompix Editor (kompix-core) lit et contrôle sans le schéma : syntaxe, rôles, 
 
 Précisions communes aux deux mises en œuvre (`roles.ts` de kompix-core, `controlerRoles` de `src/systeme.ts`) : `role-ref-different` ne rend pas la pièce inerte, elle garde son rôle sur le repère de `ref` ; avec le schéma, le type de `source` reste contrôlé en plus (une pièce n'est signalée qu'une fois) ; `:Act1` (rôle vide) est un `role-inconnu`. Côté Kablix, `ref-doublon` se calcule aussi sur le repère effectif, sauf entre pièces déjà signalées `role-doublon` ; schéma illisible → contrôles par le schéma sautés.
 
+### Bibliothèque mécanique de départ (lot D3)
+
+Sept paquets `.kompix` 3D, tous Béta, dans `components/meca/` de Kompix Editor (v2026.10.0.17) ; détail des dimensions et exemple complet de robot à deux roues : `docs/bibliotheque.md` de Kompix Editor. Dimensions choisies d'après les pièces du commerce, à valider par Frank.
+
+| Type | Pièce | Axes nommés | Propriétés | Simulation |
+| --- | --- | --- | --- | --- |
+| `servo` | SG90 avec palonnier | `horn` (arbre de sortie, dessus du palonnier), `fixation-1`, `fixation-2` | — | modèle Kablix `servo` (pattes `GND`, `V+`, `PWM`) |
+| `moteur-dc` | motoréducteur TT, arbre double | `arbre` (selon X), `fixation-1`, `fixation-2` | — | modèle Kablix `moteur-dc` (pattes `1`, `2`) |
+| `roue` | roue Ø 65 pour arbre TT | `moyeu` (selon X) | `diametre` | aucune |
+| `engrenage` | roue dentée droite, module 1 | `moyeu` (selon Z, à mi-épaisseur) | `dents`, `epaisseur`, `alesage` | aucune |
+| `aimant` | néodyme Ø 10 × 3, sud en bas | `pose` (centre de la face sud, selon Z) | — | modèle Kablix `aimant` |
+| `palier` | roulement 608 | `alesage` | — | aucune |
+| `chassis-2-roues` | plaque de 3 mm à découper au laser | `moteur-gauche`, `moteur-droit` (alignés, selon X), `roue-folle` | — | aucune |
+
+Règles qui en découlent pour le document système :
+
+- **Aimant** : son axe s'appelle `pose` (l'exemple du format ci-dessus le suit). Un autre nom → `axe-absent`.
+- **Robot à roues** : les roues pivotent **sur le châssis** (axes `moteur-gauche`/`moteur-droit`), pas sur l'arbre du moteur, et les moteurs y sont encastrés. Le solveur l'exige : les deux roues d'un `roue-sol` ont le même parent de pivot, qui devient le châssis mobile. Le moteur n'est donc pas dans la chaîne cinématique de sa roue ; D6 les reliera par le rôle `roue:<repère du moteur>`.
+- **Propriétés d'une pièce** : le document ne les porte pas encore (pas de champ `props` sur une pièce). Une roue y est prise à son diamètre par défaut ; le `rayon` d'un `roue-sol` et les `dentsA`/`dentsB` d'un `engrenage` se recopient à la main. À trancher avec l'éditeur du document (Kompix Editor) ou D6.
+- **Formes calculées** : `roue` et `engrenage` n'ont pas de volume figé (`model3d.json`), il naît de leur `shape.mjs`. La vue 3D de Kablix (D6) devra lancer ce script, comme Kompix Editor.
+- **Types partagés avec Kablix** : `servo`, `moteur-dc` et `aimant` portent le type des éléments intégrés. Comportement actuel du catalogue de Kablix (`partDef` de `catalog.mts`) : l'élément intégré passe avant un composant de bibliothèque du même type, qui est masqué sans avertissement. Pour le schéma, c'est le bon résultat (même simulation) ; pour la 3D, D6 devra aller chercher le volume dans le paquet tout en gardant l'élément intégré.
+
 Champs inconnus (ici ou à la racine, comme l'état de l'éditeur) : ignorés à la lecture, **conservés** à l'enregistrement — Kablix regrave le document brut.
 
 ## Contrôles faits à l'ouverture dans Kablix
@@ -118,4 +140,5 @@ Un avertissement d'une ligne, sans bloquer l'ouverture, quand :
 
 - Kompix Editor : écriture et relecture du document (`system.ts`, v2026.10.0.14) et solveur cinématique (`kinematics.ts`, v2026.10.0.15) faits ; animation du montage dans sa visionneuse, sur demande de Frank.
 - Convention de nommage (D5) : faite (kompix-core v2026.10.0.16, Kablix v2026.11.5.338). Affichage du rôle dans la vue 3D de Kablix : avec D6.
+- Bibliothèque mécanique (D3) : faite (Kompix Editor v2026.10.0.17), Béta, relue côté Kablix (v2026.11.5.340). Suivant : D4 (export SVG/DXF des pièces extrudées, export STL, import `.scad`).
 - Kablix : faire suivre un renommage de repère (`renommerRepere()` existe, pas encore branché à l'inspecteur) ; vue 3D (lot D6).
