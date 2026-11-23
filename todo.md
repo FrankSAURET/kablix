@@ -10,7 +10,8 @@
     - ✅ **D1, partie Kablix** — document système `system.json` (+ `system/`) dans le `.projix` : lu, contrôlé contre les repères du schéma, regravé à l'identique (v329). Format : [docs/systeme_specification.md](docs/systeme_specification.md).
     - ✅ **D1, partie Kompix Editor** — `packages/kompix-core/src/system.ts` (lecture tolérante, regravure, `.projix` réécrit sans toucher aux autres entrées), Kompix Editor `v2026.10.0.14` relu et envoyé (v331). Ses ⏳ (commande d'export, `systemFromAssembly`) attendent Frank, dans son `todo.md`.
     - ✅ **D2** — solveur cinématique en arbre `kompix-core/src/kinematics.ts`, Kompix Editor `v2026.10.0.15` relu (97/97 rejoué), écarts au contrat reportés dans [systeme_specification.md](docs/systeme_specification.md) (v332). Animation dans sa visionneuse : ⏳ sur demande de Frank (point 30 de son `todo.md`).
-    - ⏳ **D5** — convention de nommage `rôle:repère` : contrat écrit dans [systeme_specification.md](docs/systeme_specification.md) (v337) ; partie kompix-core confiée à la consigne `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md` (Kompix Editor `v2026.10.0.16`), à relire au lot suivant ; puis contrôles avec schéma dans `src/systeme.ts` de Kablix.
+    - ✅ **D5** — convention de nommage `rôle:repère` : contrat (v337), kompix-core `roles.ts` (Kompix Editor `v2026.10.0.16`, relu, 116/116 rejoué), contrôles avec schéma dans `src/systeme.ts` de Kablix (v338). Affichage du rôle dans la vue 3D : avec D6.
+    - ⬜ **D3** — suivant dans l'ordre de Frank : bibliothèque mécanique de départ (roue, engrenage, aimant, châssis 2 roues, palier) + servo et moteur DC en 3D, projet **Kompix Editor** ([roadmap.md](roadmap.md), tableau des lots) → consigne de nuit `a-lancer/kompix_editor.md`.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
@@ -23,13 +24,25 @@
 
 ---
 
+# v2026.11.5.338 — D5 : contrôles des rôles avec le schéma (Kablix)
+
+1. ✅ **Lot Kompix Editor `v2026.10.0.16` relu** : `roles.ts` conforme au contrat, `kompix-core` 116/116 rejoué ici, contre-épreuves faites là-bas, inspecteur 3D qui affiche le rôle. Ses trois choix (`role-ref-different` garde la pièce active sur `ref` ; type de `source` contrôlé aussi avec schéma ; `:Act1` = `role-inconnu`) repris tels quels et reportés dans [systeme_specification.md](docs/systeme_specification.md) (point 33 de son `todo.md` : à cocher par une session Kompix Editor).
+2. ✅ **[systeme.ts](src/systeme.ts)** : `ROLES`, `lireRole`, `repereEffectif`, `controlerRoles(systeme, types?)` (mêmes règles que kompix-core, plus `role-type` par le schéma et `role-repere-absent`) ; `controlerSysteme` prend les types du schéma (`typesDuSchema`), calcule `ref-absente`/`ref-doublon` sur le repère EFFECTIF (pas de `ref-doublon` en plus d'un `role-doublon`) et ajoute les problèmes de rôles. Schéma illisible : contrôles par le schéma sautés.
+3. ✅ **[panel.ts](src/panel.ts)** : avertissement d'ouverture complété (six morceaux, cible = id de la pièce) ; FR dans `l10n/bundle.l10n.fr.json`.
+4. ✅ **Banc `verify:systeme`** 41 → 56 contrôles (section D : syntaxe, repère effectif, montage sain, chaque code, schéma illisible, pièce inerte ; section C : message à l'ouverture). Contre-épreuve : problèmes de rôles retirés de `controlerSysteme` → 9 échecs. Typecheck, construction, `hygiene` verts.
+5. ✅ CHANGELOG (Projets) et spécification mis à jour.
+6. ⏳ Six chaînes nouvelles en ES/ZH : avant publication (`verify:i18n` le signale, normal).
+7. ⏳ Aucun projet réel ne porte encore de `system.json` : avertissement non vu dans la vraie webview (F5 de Frank), comme tout D1.
+
+---
+
 # v2026.11.5.337 — D5 : contrat de la convention de nommage, consigne Kompix Editor
 
 1. ✅ **Ordre de Frank lu** dans [roadmap.md](roadmap.md) (question 6, modifiée par lui, non enregistrée — pas touchée) : « D5 puis D1, D2 puis D3, D4, D6, D7 et D8 ». D1 et D2 faits : D5 est le suivant.
 2. ✅ **Contrat** dans [systeme_specification.md](docs/systeme_specification.md), section « Convention de nommage (lot D5) » : syntaxe `rôle:repère` (coupure au premier `:`, rôle insensible à la casse, `sol` seul), six rôles de l'esquisse validée (`servo`, `moteur`, `aimant`, `hall`, `roue`, `sol`) et leurs types acceptés (`servo`, `moteur-dc`, `aimant`, `hall`), rôles propres (repère = `ref` effectif, `ref` l'emporte) ou entraînés (`roue:M2`, plusieurs pièces permises), codes `role-inconnu`, `role-sans-repere`, `role-ref-different`, `role-doublon`, `role-type`, `role-repere-absent`. Pièce en défaut = inerte, jamais bloquant.
 3. ✅ **Consigne** `C:/Users/Frank/.claude/nuit/a-lancer/kompix_editor.md` : module pur `roles.ts` (`ROLES`, `parseRole`, `effectiveRef`, `checkRoles` avec schéma facultatif), tests avec contre-épreuve, rôle dans l'inspecteur seulement si un champ « nom » de pièce existe (sinon ⏳), `docs/nommage.md` ; livraison `v2026.10.0.16`.
 4. ⏳ Choix faits sans Frank, à confirmer par lui : `roue` accepte un `servo` comme entraîneur (en plus de `moteur-dc`) ; suffixes de CAO (`(1)`, `.001`) non reconnus avant D8 ; rôles des capteurs de D7 (HC-SR04, fin de course) reportés à D7.
-5. ⬜ Lot suivant : relire le lot Kompix Editor (enregistrement, `npm test`, contre-épreuve, écarts), puis contrôles avec schéma dans [systeme.ts](src/systeme.ts) (`role-type`, `role-repere-absent`, `ref-absente` sur le repère effectif) + banc `verify:systeme`.
+5. ✅ (v338) Lot suivant : relire le lot Kompix Editor (enregistrement, `npm test`, contre-épreuve, écarts), puis contrôles avec schéma dans [systeme.ts](src/systeme.ts) (`role-type`, `role-repere-absent`, `ref-absente` sur le repère effectif) + banc `verify:systeme`.
 6. ℹ️ Kablix : aucun code touché, CHANGELOG inchangé (rien ne change pour l'utilisateur), pas de `.vsix`.
 
 ---

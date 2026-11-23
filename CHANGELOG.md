@@ -16,6 +16,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 **Projets**
 
 - Un projet peut emporter son montage mécanique en 3D (pièces, positions, liaisons). Kablix le conserve à l'enregistrement et signale à l'ouverture les pièces qui ne correspondent à aucun composant du schéma.
+- Le nom d'une pièce du montage lui donne un rôle (`servo:Act1`, `roue:M2`, `sol`…). À l'ouverture, Kablix signale les rôles mal écrits, en double ou qui ne correspondent pas au composant du schéma.
 
 ## 2026.11.5 (21 novembre 2026)
 

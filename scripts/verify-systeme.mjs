@@ -99,7 +99,8 @@ const systeme = () => ({
   ],
   editeur: { camera: [1, 2, 3] },
 });
-const schema = { parts: ['Act1', 'A1', 'U1', 'R1'].map((id) => ({ id, type: 'x', x: 0, y: 0, attrs: {} })), wires: [] };
+const TYPES = { Act1: 'servo', A1: 'aimant', U1: 'hall', R1: 'resistor', M2: 'moteur-dc' };
+const schema = { parts: Object.entries(TYPES).map(([id, type]) => ({ id, type, x: 0, y: 0, attrs: {} })), wires: [] };
 const maillage = new Uint8Array([115, 111, 108, 105, 100, 32, 99]);
 
 // ------------------------------------------------- A. systeme.ts
@@ -148,6 +149,57 @@ const maillage = new Uint8Array([115, 111, 108, 105, 100, 32, 99]);
   check(S.renommerRepere(brut, 'Act1', 'Act7') === 1 && brut.pieces[1].ref === 'Act7', 'A : renommage suivi dans le brut');
   check(brut.pieces[3].futur === 'champ inconnu', 'A : renommage sans perte des champs inconnus');
   check(S.renommerRepere(brut, 'Zzz', 'Z1') === 0, 'A : renommage d’un repère inconnu → rien');
+}
+
+// ------------------------------------------------- D. rôles `rôle:repère` (lot D5)
+{
+  const R = S.lireRole;
+  check(JSON.stringify(R(' Servo : Act1 ')) === JSON.stringify({ role: 'servo', repere: 'Act1', sorte: 'propre' }),
+    'D : rôle insensible à la casse, espaces de bord retirés, repère gardé tel quel');
+  check(R('roue:M2:avant')?.repere === 'M2:avant', 'D : coupure au PREMIER « : »');
+  check(R('chassis') === null && R(undefined) === null, 'D : nom sans « : » → pas de rôle');
+  check(R('Sol')?.role === 'sol', 'D : « sol » seul est un rôle');
+  check(R('srevo:Act1')?.faute === 'role-inconnu' && R(':Act1')?.faute === 'role-inconnu', 'D : rôle inconnu (faute, rôle vide)');
+  check(R('servo:')?.faute === 'role-sans-repere' && R('sol:x')?.faute === 'role-sans-repere', 'D : rôle sans repère, sol avec repère');
+  check(S.repereEffectif({ nom: 'servo:Act1' }) === 'Act1' && S.repereEffectif({ nom: 'servo:Act1', ref: 'Act9' }) === 'Act9'
+    && S.repereEffectif({ nom: 'roue:M2' }) === undefined, 'D : repère effectif (ref l’emporte ; roue sans repère propre)');
+
+  const piece = (id, nom, extra = {}) => ({ id, nom, source: { kind: 'kompix', type: 'x' }, pose: {}, ...extra });
+  const doc = (pieces) => S.lireSysteme({ format: 'kablix-system', version: 1, pieces, liaisons: [] }).systeme;
+  const codes = (pieces, reperes = Object.keys(TYPES), types = new Map(Object.entries(TYPES))) =>
+    S.controlerSysteme(doc(pieces), reperes, ['roue.stl'], types ?? undefined).map((p) => `${p.cle}:${p.cible}`).sort().join(' ');
+  const mecanique = (id, nom) => ({ id, nom, source: { kind: 'fichier', path: 'roue.stl' }, pose: {} });
+
+  // Montage sain : servo nommé sans ref, deux roues sur M2, sol, pièce libre.
+  const sain = [
+    { id: 's', nom: 'servo:Act1', source: { kind: 'kompix', type: 'servo' }, pose: {} },
+    mecanique('r1', 'roue:M2'), mecanique('r2', 'roue:M2'), mecanique('sol', 'sol'), mecanique('c', 'chassis'),
+  ];
+  const ctlSain = S.controlerSysteme(doc(sain), Object.keys(TYPES), ['roue.stl'], new Map(Object.entries(TYPES)));
+  check(ctlSain.length === 0, 'D : montage sain (rôle sans ref, deux roues, sol) → aucun problème', JSON.stringify(ctlSain));
+  const { roles } = S.controlerRoles(doc(sain), new Map(Object.entries(TYPES)));
+  check(roles.get('s')?.repere === 'Act1' && roles.get('r2')?.role === 'roue' && roles.get('sol')?.sorte === 'sol' && !roles.has('c'),
+    'D : rôles rendus (pièce libre sans rôle)');
+
+  check(codes([mecanique('m', 'srevo:Act1')]) === 'role-inconnu:m', 'D : faute de frappe → role-inconnu');
+  check(codes([mecanique('m', 'servo:')]) === 'role-sans-repere:m', 'D : servo: → role-sans-repere');
+  check(codes([mecanique('m', 'servo:Act1'), mecanique('n', 'Servo:Act1')]) === 'role-doublon:m role-doublon:n',
+    'D : même rôle propre deux fois → role-doublon sur les deux, sans ref-doublon en plus');
+  check(codes([{ ...mecanique('m', 'servo:Act1'), ref: 'U1' }]) === 'role-ref-different:m role-type:m',
+    'D : ref différente → signalée, ref l’emporte (U1 est un hall → role-type)');
+  check(codes([{ ...mecanique('m', 'servo:Act1'), ref: 'Act1' }]) === '', 'D : ref identique au nom → rien');
+  check(codes([mecanique('m', 'servo:U1')]) === 'role-type:m', 'D : rôle servo sur un hall du schéma → role-type');
+  check(codes([piece('m', 'aimant:A1', { source: { kind: 'kompix', type: 'servo' } })]) === 'role-type:m',
+    'D : type de source incompatible → role-type');
+  check(codes([mecanique('m', 'roue:R1')]) === 'role-type:m', 'D : roue entraînée par une résistance → role-type');
+  check(codes([mecanique('m', 'roue:M9')]) === 'role-repere-absent:m', 'D : roue sur un moteur absent → role-repere-absent');
+  check(codes([mecanique('m', 'servo:Act9')]) === 'ref-absente:Act9', 'D : rôle propre hors schéma → ref-absente sur le repère effectif');
+  check(codes([mecanique('m', 'servo:Act1'), { ...mecanique('n', 'hall'), ref: 'Act1' }]) === 'ref-doublon:Act1',
+    'D : repère effectif partagé avec une autre ref → ref-doublon');
+  check(codes([mecanique('m', 'roue:M9'), mecanique('n', 'servo:U1')], Object.keys(TYPES), null) === '',
+    'D : schéma illisible (pas de types) → pas de contrôle par le schéma');
+  const pb = S.controlerRoles(doc([mecanique('m', 'servo:U1'), mecanique('n', 'servo:Act1')]), new Map(Object.entries(TYPES)));
+  check(!pb.roles.has('m') && pb.roles.has('n'), 'D : pièce en défaut inerte, les autres gardent leur rôle');
 }
 
 // ------------------------------------------------- B. projix.ts
@@ -217,6 +269,18 @@ const panneau = () => {
   check(/U1/.test(msg) && /meshes\/chassis\.stl/.test(msg), 'C : repère absent et fichier manquant dits à l’ouverture', msg);
   const garde = await JSZip.loadAsync(await r.buildProjixBytes(sansU1, 'uno'));
   check(!!garde.file('system.json'), 'C : un montage à problème est gardé quand même (rien ne se perd)');
+
+  // Rôle qui ne correspond pas au composant du schéma : dit à l'ouverture, par le panneau.
+  globalThis.__avertis.length = 0;
+  const faux = systeme();
+  faux.pieces[2].nom = 'servo:U1';
+  delete faux.pieces[2].ref;
+  faux.pieces.push({ id: 'roueG', nom: 'roue:M9', source: { kind: 'fichier', path: 'meshes/chassis.stl' }, pose: {} });
+  await panneau().openProjectFromBytes(await P.packProject({ manifest, diagramJson: JSON.stringify(schema), system: faux,
+    systemFiles: [{ path: 'meshes/chassis.stl', data: maillage }] }), { fsPath: 'W:/projet/roles.projix' });
+  const msgRoles = globalThis.__avertis.join(' | ');
+  check(/role not matching the component: aimant/.test(msgRoles) && /driving component not in the schematic: roueG/.test(msgRoles),
+    'C : rôle incompatible et entraîneur absent dits à l’ouverture', msgRoles);
 }
 
 // Le routage du message « newProject » est privé : on vérifie au moins qu'il oublie le montage.

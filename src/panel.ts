@@ -36,7 +36,7 @@ import {
   type ProjixDebugVars,
   type ProjixAnalyseur,
 } from './projix';
-import { controlerSysteme, lireSysteme, reperesDuSchema, type ProblemeSysteme } from './systeme';
+import { controlerSysteme, lireSysteme, repereEffectif, reperesDuSchema, typesDuSchema, type ProblemeSysteme } from './systeme';
 import {
   resolveMicropythonFirmware,
   FirmwareCancelled,
@@ -2869,11 +2869,16 @@ ${err instanceof Error ? err.message : String(err)}`
     const { systeme, problemes } = lireSysteme(brut);
     if (!systeme) return problemes;
     const reperes = reperesDuSchema(diagram);
-    // Schéma illisible : on ne déclare pas tous les repères « absents ».
+    // Schéma illisible : on ne déclare pas tous les repères « absents », et les
+    // contrôles de rôles par le schéma sautent.
     const controle = controlerSysteme(
       systeme,
-      reperes ?? systeme.pieces.flatMap((p) => (p.ref ? [p.ref] : [])),
-      fichiers.map((f) => f.path)
+      reperes ?? systeme.pieces.flatMap((p) => {
+        const ref = repereEffectif(p);
+        return ref ? [ref] : [];
+      }),
+      fichiers.map((f) => f.path),
+      typesDuSchema(diagram) ?? undefined
     );
     return [...problemes, ...controle];
   }
@@ -2892,6 +2897,19 @@ ${err instanceof Error ? err.message : String(err)}`
     if (doublons.length) morceaux.push(l10n.t('parts used twice: {0}', doublons.join(', ')));
     const fichiers = cibles('fichier-absent');
     if (fichiers.length) morceaux.push(l10n.t('missing files: {0}', fichiers.join(', ')));
+    // Rôles (convention `rôle:repère`) : cible = id de la pièce, inerte en simulation.
+    const roles: Array<[ProblemeSysteme['cle'], (ids: string) => string]> = [
+      ['role-inconnu', (ids) => l10n.t('unknown roles: {0}', ids)],
+      ['role-sans-repere', (ids) => l10n.t('roles without a designator: {0}', ids)],
+      ['role-ref-different', (ids) => l10n.t('role and designator disagree: {0}', ids)],
+      ['role-doublon', (ids) => l10n.t('role given twice: {0}', ids)],
+      ['role-type', (ids) => l10n.t('role not matching the component: {0}', ids)],
+      ['role-repere-absent', (ids) => l10n.t('driving component not in the schematic: {0}', ids)],
+    ];
+    for (const [cle, texte] of roles) {
+      const ids = cibles(cle);
+      if (ids.length) morceaux.push(texte(ids.join(', ')));
+    }
     const ignores = problemes.filter((p) =>
       ['piece-invalide', 'piece-doublon', 'liaison-invalide', 'liaison-doublon', 'liaison-piece-absente'].includes(p.cle)
     ).length;

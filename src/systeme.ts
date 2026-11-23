@@ -46,7 +46,7 @@ export type SourcePiece = { kind: 'kompix'; type: string } | { kind: 'fichier'; 
 export interface PieceSysteme {
   /** Identifiant unique dans le document (désigné par les liaisons). */
   id: string;
-  /** Nom libre ; la convention `rôle:repère` (lot D5) s'y lira. */
+  /** Nom libre ; la convention `rôle:repère` (lot D5) y donne un rôle de simulation. */
   nom?: string;
   /** Repère du composant correspondant dans le schéma (`S1`, `M2`…). Absent =
    *  pièce purement mécanique (châssis, roue folle, décor). */
@@ -95,8 +95,124 @@ export interface ProblemeSysteme {
     | 'liaison-piece-absente'
     | 'ref-absente'
     | 'ref-doublon'
-    | 'fichier-absent';
+    | 'fichier-absent'
+    | CleRole;
   cible?: string;
+}
+
+// ------------------------------------------------------------ rôles (lot D5)
+// Convention `rôle:repère` lue dans le nom d'une pièce. Contrat : section
+// « Convention de nommage » de `docs/systeme_specification.md`. Même table et
+// mêmes règles que `roles.ts` de kompix-core (Kompix Editor v2026.10.0.16) ;
+// Kablix y ajoute les contrôles qui demandent le schéma.
+
+export type CleRole =
+  | 'role-inconnu'
+  | 'role-sans-repere'
+  | 'role-ref-different'
+  | 'role-doublon'
+  | 'role-type'
+  | 'role-repere-absent';
+
+export type NomRole = 'servo' | 'moteur' | 'aimant' | 'hall' | 'roue' | 'sol';
+/** Propre : le repère est la pièce elle-même ; entraîné : un autre composant. */
+export type SorteRole = 'propre' | 'entraine' | 'sol';
+
+export const ROLES: Readonly<Record<NomRole, { sorte: SorteRole; types: readonly string[] }>> = {
+  servo: { sorte: 'propre', types: ['servo'] },
+  moteur: { sorte: 'propre', types: ['moteur-dc'] },
+  aimant: { sorte: 'propre', types: ['aimant'] },
+  hall: { sorte: 'propre', types: ['hall'] },
+  roue: { sorte: 'entraine', types: ['moteur-dc', 'servo'] },
+  sol: { sorte: 'sol', types: [] },
+};
+
+export type RoleLu = { role: NomRole; repere: string; sorte: SorteRole };
+
+const estRole = (s: string): s is NomRole => Object.prototype.hasOwnProperty.call(ROLES, s);
+
+/**
+ * Rôle d'un nom : coupé au PREMIER `:`, espaces de bord retirés, rôle
+ * insensible à la casse. `null` = pas de rôle (nom sans `:` autre que `sol`) ;
+ * `{ faute }` = syntaxe fautive.
+ */
+export function lireRole(nom: string | undefined): RoleLu | { faute: 'role-inconnu' | 'role-sans-repere' } | null {
+  if (nom === undefined) return null;
+  const s = nom.trim();
+  const i = s.indexOf(':');
+  if (i < 0) return s.toLowerCase() === 'sol' ? { role: 'sol', repere: '', sorte: 'sol' } : null;
+  const role = s.slice(0, i).trim().toLowerCase();
+  const repere = s.slice(i + 1).trim();
+  if (!estRole(role)) return { faute: 'role-inconnu' };
+  if (role === 'sol' || !repere) return { faute: 'role-sans-repere' };
+  return { role, repere, sorte: ROLES[role].sorte };
+}
+
+const estLu = (r: ReturnType<typeof lireRole>): r is RoleLu => !!r && !('faute' in r);
+
+/** Repère effectif d'une pièce : `ref`, sinon le repère de son rôle propre. */
+export function repereEffectif(p: Pick<PieceSysteme, 'nom' | 'ref'>): string | undefined {
+  if (p.ref) return p.ref;
+  const r = lireRole(p.nom);
+  return estLu(r) && r.sorte === 'propre' ? r.repere : undefined;
+}
+
+/**
+ * Rôles des pièces et avertissements (jamais bloquants ; `cible` = id de la
+ * pièce). Une pièce en défaut est absente de `roles` : elle reste inerte, sauf
+ * `role-ref-different` (`ref` l'emporte). `types` (repère → type du schéma) :
+ * absent quand le schéma est illisible, les contrôles par le schéma sautent.
+ */
+export function controlerRoles(
+  systeme: DocumentSysteme,
+  types?: Map<string, string>
+): { roles: Map<string, RoleLu>; problemes: ProblemeSysteme[] } {
+  const problemes: ProblemeSysteme[] = [];
+  const enDefaut = new Set<string>();
+  const signaler = (cle: CleRole, id: string): void => {
+    problemes.push({ cle, cible: id });
+    enDefaut.add(id);
+  };
+  const trouves: { p: PieceSysteme; r: RoleLu }[] = [];
+  for (const p of systeme.pieces) {
+    const r = lireRole(p.nom);
+    if (!r) continue;
+    if (!estLu(r)) {
+      signaler(r.faute, p.id);
+      continue;
+    }
+    trouves.push({ p, r });
+    if (r.sorte === 'propre' && p.ref && p.ref !== r.repere) problemes.push({ cle: 'role-ref-different', cible: p.id });
+  }
+
+  // Doublons : même rôle propre sur le même repère effectif, toutes les pièces en cause.
+  const parCle = new Map<string, string[]>();
+  for (const { p, r } of trouves) {
+    if (r.sorte !== 'propre') continue;
+    const cle = `${r.role}:${repereEffectif(p)}`;
+    parCle.set(cle, [...(parCle.get(cle) ?? []), p.id]);
+  }
+  for (const ids of parCle.values()) if (ids.length > 1) for (const id of ids) signaler('role-doublon', id);
+
+  for (const { p, r } of trouves) {
+    if (r.sorte === 'sol') continue;
+    const acceptes = ROLES[r.role].types;
+    let mauvais = r.sorte === 'propre' && p.source.kind === 'kompix' && !acceptes.includes(p.source.type);
+    if (types) {
+      const type = types.get(r.sorte === 'propre' ? repereEffectif(p)! : r.repere);
+      // Rôle propre hors schéma : c'est le `ref-absente` de `controlerSysteme`.
+      if (type === undefined) {
+        if (r.sorte === 'entraine') signaler('role-repere-absent', p.id);
+      } else if (!acceptes.includes(type)) mauvais = true;
+    }
+    if (mauvais) signaler('role-type', p.id);
+  }
+
+  const roles = new Map<string, RoleLu>();
+  for (const { p, r } of trouves) {
+    if (!enDefaut.has(p.id)) roles.set(p.id, r.sorte === 'propre' ? { ...r, repere: repereEffectif(p)! } : r);
+  }
+  return { roles, problemes };
 }
 
 const estObjet = (v: unknown): v is Record<string, unknown> =>
@@ -213,28 +329,47 @@ export function lireSysteme(brut: unknown): { systeme?: DocumentSysteme; problem
  *  - `ref-absente` : une pièce désigne un repère que le schéma n'a pas (composant
  *    supprimé, renommé sans suivre) ;
  *  - `ref-doublon` : deux pièces pour le même repère ;
- *  - `fichier-absent` : un maillage désigné mais absent de l'archive.
+ *  - `fichier-absent` : un maillage désigné mais absent de l'archive ;
+ *  - les contrôles de rôles (`controlerRoles`), avec le schéma si `types` est donné.
+ * Le repère d'une pièce est son repère EFFECTIF (`ref`, sinon celui de son rôle
+ * propre). Deux pièces déjà signalées `role-doublon` ne refont pas un `ref-doublon`.
  */
 export function controlerSysteme(
   systeme: DocumentSysteme,
   reperes: Iterable<string>,
-  fichiers: Iterable<string> = []
+  fichiers: Iterable<string> = [],
+  types?: Map<string, string>
 ): ProblemeSysteme[] {
   const problemes: ProblemeSysteme[] = [];
   const connus = new Set(reperes);
   const presents = new Set([...fichiers].map((f) => f.replace(/\\/g, '/')));
   const vus = new Set<string>();
+  const roles = controlerRoles(systeme, types);
+  const doublonsRole = new Set(roles.problemes.filter((p) => p.cle === 'role-doublon').map((p) => p.cible));
   for (const p of systeme.pieces) {
-    if (p.ref !== undefined) {
-      if (!connus.has(p.ref)) problemes.push({ cle: 'ref-absente', cible: p.ref });
-      else if (vus.has(p.ref)) problemes.push({ cle: 'ref-doublon', cible: p.ref });
-      vus.add(p.ref);
+    const ref = repereEffectif(p);
+    if (ref !== undefined) {
+      if (!connus.has(ref)) problemes.push({ cle: 'ref-absente', cible: ref });
+      else if (vus.has(ref) && !doublonsRole.has(p.id)) problemes.push({ cle: 'ref-doublon', cible: ref });
+      vus.add(ref);
     }
     if (p.source.kind === 'fichier' && !presents.has(p.source.path)) {
       problemes.push({ cle: 'fichier-absent', cible: p.source.path });
     }
   }
-  return problemes;
+  return [...problemes, ...roles.problemes];
+}
+
+/** Repère → type de composant d'un schéma, ou `null` s'il est illisible. */
+export function typesDuSchema(diagram: unknown): Map<string, string> | null {
+  const parts = (diagram as { parts?: unknown } | undefined)?.parts;
+  if (!Array.isArray(parts)) return null;
+  const types = new Map<string, string>();
+  for (const p of parts) {
+    const { id, type } = (p ?? {}) as { id?: unknown; type?: unknown };
+    if (typeof id === 'string' && typeof type === 'string') types.set(id, type);
+  }
+  return types;
 }
 
 /** Repères (`id`) des composants d'un schéma, ou `null` s'il est illisible. */

@@ -100,6 +100,8 @@ Contrôles (avertissements, jamais bloquants ; une pièce en défaut redevient i
 
 Kompix Editor (kompix-core) lit et contrôle sans le schéma : syntaxe, rôles, doublons, type de `source`. Kablix ajoute les contrôles qui demandent le schéma (`role-type` par le schéma, `role-repere-absent`, `ref-absente` sur le repère effectif). Les deux affichent le rôle reconnu d'une pièce (inspecteur de Kompix Editor ; vue 3D de Kablix en D6).
 
+Précisions communes aux deux mises en œuvre (`roles.ts` de kompix-core, `controlerRoles` de `src/systeme.ts`) : `role-ref-different` ne rend pas la pièce inerte, elle garde son rôle sur le repère de `ref` ; avec le schéma, le type de `source` reste contrôlé en plus (une pièce n'est signalée qu'une fois) ; `:Act1` (rôle vide) est un `role-inconnu`. Côté Kablix, `ref-doublon` se calcule aussi sur le repère effectif, sauf entre pièces déjà signalées `role-doublon` ; schéma illisible → contrôles par le schéma sautés.
+
 Champs inconnus (ici ou à la racine, comme l'état de l'éditeur) : ignorés à la lecture, **conservés** à l'enregistrement — Kablix regrave le document brut.
 
 ## Contrôles faits à l'ouverture dans Kablix
@@ -107,12 +109,13 @@ Champs inconnus (ici ou à la racine, comme l'état de l'éditeur) : ignorés à
 Un avertissement d'une ligne, sans bloquer l'ouverture, quand :
 
 - le document est illisible ou vient d'une version plus récente ;
-- une pièce désigne un repère absent du schéma (`ref-absente`), ou deux pièces le même repère (`ref-doublon`) ;
+- une pièce désigne un repère absent du schéma (`ref-absente`), ou deux pièces le même repère (`ref-doublon`) — repère effectif, rôle compris ;
+- un rôle est fautif (codes `role-*` de la convention de nommage) ;
 - un fichier désigné manque sous `system/` (`fichier-absent`) ;
 - une pièce ou une liaison est illisible, en double ou désigne une pièce absente (écartée de la lecture, gardée dans le fichier).
 
 ## Ce qui reste à faire
 
 - Kompix Editor : écriture et relecture du document (`system.ts`, v2026.10.0.14) et solveur cinématique (`kinematics.ts`, v2026.10.0.15) faits ; animation du montage dans sa visionneuse, sur demande de Frank.
-- Convention de nommage (D5) : lecture et contrôles sans schéma dans kompix-core (consigne de nuit du 23/11/2026) ; contrôles avec schéma dans `src/systeme.ts` de Kablix, ensuite.
+- Convention de nommage (D5) : faite (kompix-core v2026.10.0.16, Kablix v2026.11.5.338). Affichage du rôle dans la vue 3D de Kablix : avec D6.
 - Kablix : faire suivre un renommage de repère (`renommerRepere()` existe, pas encore branché à l'inspecteur) ; vue 3D (lot D6).

@@ -368,6 +368,12 @@
   "parts not in the schematic: {0}": "composants absents du schéma : {0}",
   "parts used twice: {0}": "composants utilisés deux fois : {0}",
   "missing files: {0}": "fichiers manquants : {0}",
+  "unknown roles: {0}": "rôles inconnus : {0}",
+  "roles without a designator: {0}": "rôles sans repère : {0}",
+  "role and designator disagree: {0}": "rôle et repère en désaccord : {0}",
+  "role given twice: {0}": "rôle donné deux fois : {0}",
+  "role not matching the component: {0}": "rôle qui ne correspond pas au composant : {0}",
+  "driving component not in the schematic: {0}": "composant entraînant absent du schéma : {0}",
   "{0} faulty item(s) (parts or joints)": "{0} élément(s) défectueux (pièces ou liaisons)",
   "Kablix: 3D assembly of the project — {0}.": "Kablix : montage 3D du projet — {0}."
 }
