@@ -13,7 +13,13 @@
     - ✅ **D5** — convention de nommage `rôle:repère` : contrat (v337), kompix-core `roles.ts` (Kompix Editor `v2026.10.0.16`, relu, 116/116 rejoué), contrôles avec schéma dans `src/systeme.ts` de Kablix (v338). Affichage du rôle dans la vue 3D : avec D6.
     - ✅ **D3** — bibliothèque mécanique de départ (sept paquets 3D Béta), projet **Kompix Editor** : consigne (v339), lot `v2026.10.0.17` relu (126/126 rejoué), écarts reportés dans [systeme_specification.md](docs/systeme_specification.md) (v340). ⏳ Validation des sept composants et de leurs dimensions par Frank.
     - ✅ **D4** — fabrication : export SVG/DXF des pièces extrudées, export STL, import `.scad`, projet **Kompix Editor** : consigne (v341), lot `v2026.10.0.18` relu (136/136 et 37/38 rejoués), reporté dans [systeme_specification.md](docs/systeme_specification.md) (v342). ⏳ Convention de trait laser et recette F5 par Frank (points 40-41 du `todo.md` de Kompix Editor).
-    - ⬜ **D6** — vue 3D de simulation dans Kablix (three.js), pilotée par servo, moteur DC et le solveur de D2 ; affichage du rôle. Lot **L** : à découper avant de commencer.
+    - ⬜ **D6** — vue 3D de simulation dans Kablix (three.js), pilotée par servo, moteur DC et le solveur de D2 ; affichage du rôle. Découpé le 23/11 (v343) en cinq lots, tous Kablix, branche `mecatronique` :
+        1. ✅ **D6a** — solveur cinématique porté dans la webview : `src/webview/mecanique/cinematique.mts`, copie à l'identique de `kinematics.ts` de kompix-core (imports exceptés, socle `socle.mts`) ; banc `verify:cinematique` (dérive de la copie, 16 tests de kompix-core rejoués, exemple du format lu par `lireSysteme`) (v343).
+        2. ⬜ **D6b** — volume de chaque pièce (S-M) : `source.kind = kompix` → élément intégré (`assemblages.mts`/`iso3d.mts`, même format que `model3d.json`) ou `model3d.json` du paquet `.kompix` même quand l'élément intégré masque le type (règle D3) ; `fichier` → STL/glTF sous `system/` ; axes nommés de chaque pièce (miroir appliqué) pour `buildKinematics`. Formes calculées (`roue`, `engrenage` : `shape.mjs`) lancées côté extension (`node:vm`, comme `shape-runner.ts` de Kompix Editor), résultat envoyé à la webview. Banc sur le robot deux roues de `docs/bibliotheque.md` de Kompix Editor.
+        3. ⬜ **D6c** — vue 3D fixe (M) : three.js (même version que Kompix Editor, 0.186.1) dans un paquet esbuild À PART chargé à la demande (pas dans le bundle principal, ~600 Ko) ; panneau « Vue 3D » ouvert depuis la barre quand le projet a un `system.json` ; montage à sa pose du document, caméra orbitale, rôle et repère au survol ; pièce en défaut (problèmes D1/D5) marquée. Banc Chrome headless (géométrie) + `verify:souris` pour l'orbite.
+        4. ⬜ **D6d** — pilotage pendant la simulation (M) : rôle `servo` → angle simulé (`servoAngleUs` de `sim.mts`) sur le pivot dont la pièce est parent ; rôle `moteur`/`roue` → vitesse de `motorStates` intégrée en angle ; `roue-sol` → `rollStep` ; saturation et problèmes du solveur affichés dans la vue ; arrêt de la simulation → retour à la pose du document.
+        5. ⬜ **D6e** — démonstrateurs et aide (S) : projets d'exemple bras servo + aimant et robot deux roues (`.projix` avec `system.json`), fiche d'aide FR de la vue 3D, entrée CHANGELOG. Composants mécaniques toujours Béta.
+        - ℹ️ Pourquoi une copie du solveur : Kompix Editor est un dépôt séparé, Kablix n'en dépend pas (même choix que `controlerRoles` pour D5). Corriger dans kompix-core puis recopier ; le banc tombe si la copie dérive.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
@@ -23,6 +29,17 @@
     - ℹ️ **Numéros (22/11)** : `main` fusionné dans `mecatronique` ; les lots de la branche, nés en `2026.11.4.325` à `.333` (doublons de `main` en 325-327), sont renumérotés `2026.11.5.328` à `.336` (les messages des enregistrements gardent l'ancien numéro). **Règle** : le `buildNumber` d'un lot = le plus grand des deux branches (`git show main:package.json`) + 1 ; fusionner `main` dans `mecatronique` après chaque publication.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.343 — D6 découpé ; D6a : solveur cinématique dans Kablix
+
+1. ✅ **D6 découpé** en cinq lots (D6a à D6e), liste « à faire » en tête.
+2. ✅ **Solveur porté** : `src/webview/mecanique/cinematique.mts` = copie de `kinematics.ts` de kompix-core v2026.10.0.18 (seules les lignes d'import changent, marquées `// Kablix :`) ; `socle.mts` porte les vecteurs, `rotXYZ`, `axisVector` et relie les types du document à ceux de `src/systeme.ts`. Typecheck propre.
+3. ✅ **Banc `npm run verify:cinematique`** (ajouté à `verify:all`) : A. copie identique à kompix-core (dépôt cherché par `KOMPIX_EDITOR` ou à côté, étage sauté avec avis s'il manque) ; B. `test/kinematics.test.ts` de kompix-core rejoué contre la copie, 16/16 ; C. exemple du format lu par `lireSysteme` → servo à 0/90/200° (borne), axe absent refusé. 12/12. Contre-épreuve : un signe changé dans la copie → A rouge, B 8/16, C rouge.
+4. ℹ️ Rien de visible pour l'utilisateur : pas d'entrée au CHANGELOG (elle viendra avec la vue 3D, D6c-D6e).
+5. ✅ **`verify:all`** : 176/182 verts en parallèle. Rejoués seuls et verts : `debugavr-pas`, `analyseur-sans-declenchement`, `dictionnaires`, `analyseur-i2c-pose` (charge). `verify:i18n` : ES/ZH manquants de l'aimant et du montage 3D, normal avant publication.
+6. ⏳ **`verify:linter` rouge, hors lot** : « ruban : 30 LED pilotées, 60 dessinées (Pico) (obtenu []) », rouge aussi seul ; le lot ne touche ni au linter ni aux rubans. À examiner dans un lot à part.
 
 ---
 
