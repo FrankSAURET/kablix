@@ -140,5 +140,6 @@ Un avertissement d'une ligne, sans bloquer l'ouverture, quand :
 
 - Kompix Editor : écriture et relecture du document (`system.ts`, v2026.10.0.14) et solveur cinématique (`kinematics.ts`, v2026.10.0.15) faits ; animation du montage dans sa visionneuse, sur demande de Frank.
 - Convention de nommage (D5) : faite (kompix-core v2026.10.0.16, Kablix v2026.11.5.338). Affichage du rôle dans la vue 3D de Kablix : avec D6.
-- Bibliothèque mécanique (D3) : faite (Kompix Editor v2026.10.0.17), Béta, relue côté Kablix (v2026.11.5.340). Suivant : D4 (export SVG/DXF des pièces extrudées, export STL, import `.scad`).
+- Bibliothèque mécanique (D3) : faite (Kompix Editor v2026.10.0.17), Béta, relue côté Kablix (v2026.11.5.340).
+- Fabrication (D4) : faite (Kompix Editor v2026.10.0.18), relue côté Kablix (v2026.11.5.342). Sans effet sur le document système : elle lit les pièces extrudées (`poly`, `ep`) du volume d'un composant, pas `system.json`. Détail (formats, unités, sens, convention de trait laser à valider par Frank) : `docs/fabrication.md` de Kompix Editor. Une pièce maillée (STL importé, `.scad` compris) ne sort ni en contour laser ni dans le STL de l'ensemble. Suivant : D6 (vue 3D dans Kablix).
 - Kablix : faire suivre un renommage de repère (`renommerRepere()` existe, pas encore branché à l'inspecteur) ; vue 3D (lot D6).

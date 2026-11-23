@@ -12,7 +12,8 @@
     - ✅ **D2** — solveur cinématique en arbre `kompix-core/src/kinematics.ts`, Kompix Editor `v2026.10.0.15` relu (97/97 rejoué), écarts au contrat reportés dans [systeme_specification.md](docs/systeme_specification.md) (v332). Animation dans sa visionneuse : ⏳ sur demande de Frank (point 30 de son `todo.md`).
     - ✅ **D5** — convention de nommage `rôle:repère` : contrat (v337), kompix-core `roles.ts` (Kompix Editor `v2026.10.0.16`, relu, 116/116 rejoué), contrôles avec schéma dans `src/systeme.ts` de Kablix (v338). Affichage du rôle dans la vue 3D : avec D6.
     - ✅ **D3** — bibliothèque mécanique de départ (sept paquets 3D Béta), projet **Kompix Editor** : consigne (v339), lot `v2026.10.0.17` relu (126/126 rejoué), écarts reportés dans [systeme_specification.md](docs/systeme_specification.md) (v340). ⏳ Validation des sept composants et de leurs dimensions par Frank.
-    - ⬜ **D4** — fabrication : export SVG/DXF des pièces extrudées, export STL, import `.scad`, projet **Kompix Editor** : consigne déposée (v341), lot `v2026.10.0.18` à relire.
+    - ✅ **D4** — fabrication : export SVG/DXF des pièces extrudées, export STL, import `.scad`, projet **Kompix Editor** : consigne (v341), lot `v2026.10.0.18` relu (136/136 et 37/38 rejoués), reporté dans [systeme_specification.md](docs/systeme_specification.md) (v342). ⏳ Convention de trait laser et recette F5 par Frank (points 40-41 du `todo.md` de Kompix Editor).
+    - ⬜ **D6** — vue 3D de simulation dans Kablix (three.js), pilotée par servo, moteur DC et le solveur de D2 ; affichage du rôle. Lot **L** : à découper avant de commencer.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
@@ -22,6 +23,15 @@
     - ℹ️ **Numéros (22/11)** : `main` fusionné dans `mecatronique` ; les lots de la branche, nés en `2026.11.4.325` à `.333` (doublons de `main` en 325-327), sont renumérotés `2026.11.5.328` à `.336` (les messages des enregistrements gardent l'ancien numéro). **Règle** : le `buildNumber` d'un lot = le plus grand des deux branches (`git show main:package.json`) + 1 ; fusionner `main` dans `mecatronique` après chaque publication.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.342 — D4 : lot Kompix Editor relu
+
+1. ✅ **Lot Kompix Editor `v2026.10.0.18` relu** : kompix-core `fabrication.ts` (SVG/DXF en mm, planche, STL binaire pièce et ensemble, trianguleur propre sans three.js), éditeur `scad.ts` et trois commandes, `docs/fabrication.md` ; `kompix-core` 136/136 et `kompix-editor` 37/38 rejoués ici (échec connu `led-strip.kompix`, fichier modifié hors lot). Contre-épreuves faites là-bas (parois inversées, trous oubliés, variable ignorée → rouges). STL de l'ensemble : la copie en `miroir` garde des triangles directs (volume de l'araignée = Σ aire × épaisseur, contrôlé par les tests).
+2. ✅ **[systeme_specification.md](docs/systeme_specification.md)** : « Ce qui reste à faire » à jour (D4 fait, sans effet sur le document système, pièces maillées exclues des exports ; suivant D6).
+3. ⏳ Convention de trait laser (rouge `#ff0000`, 0,1 mm) et recette F5 : à Frank (points 40-41 du `todo.md` de Kompix Editor).
+4. ℹ️ Doc seule : CHANGELOG inchangé (rien ne change pour l'utilisateur de Kablix), pas de `.vsix`.
 
 ---
 
