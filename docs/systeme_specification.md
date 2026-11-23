@@ -40,7 +40,7 @@ Reprises du format `model3d.json` v2 de Kompix Editor : millimètres ; X à droi
 | Champ | Rôle |
 | --- | --- |
 | `id` | identifiant unique dans le document, désigné par les liaisons |
-| `nom` | nom libre ; la convention `rôle:repère` (lot D5) s'y lira |
+| `nom` | nom libre ; s'il suit la convention `rôle:repère`, il donne à la pièce son rôle de simulation : voir « Convention de nommage » |
 | `ref` | repère du composant dans le schéma (`Act1`, `M2`, `U1`…) ; absent = pièce purement mécanique (châssis, roue folle, décor) |
 | `source` | `{ "kind": "kompix", "type": "<type du composant>" }` ou `{ "kind": "fichier", "path": "<chemin sous system/>" }` — chemin relatif, sans `..` ni lettre de lecteur |
 | `pose` | `pos` et `rot` (`{ x, y, z }`), `miroir` facultatif |
@@ -70,6 +70,36 @@ Refusés clairement (problème signalé, pièces concernées laissées à leur p
 
 Codes rendus par le solveur (`{ code, target }`, `target` = id de la liaison) : `boucle-fermee`, `axe-absent`, `engrenage-sans-pivot`, `parametre-invalide` (engrenage sans `rapport` non nul ni `dentsA`/`dentsB` positifs), `couplage-cycle` (engrenages en cycle, ou pivot mené par deux engrenages), `roue-sans-rayon`, `roue-sans-pivot` (roue qui n'est pas l'enfant d'un pivot accepté), `roues-incompatibles`, `type-inconnu` (liaison d'un type futur, ignorée sans erreur) ; `variable-menee` est rendu par `solve`, pas à la construction. Un axe nommé sans direction est pris selon Z. La pose monde d'une pièce quelconque peut être imposée (`base`, le châssis qui roule) : sa liaison parente est alors ignorée. Détail de l'API : `docs/cinematique.md` de Kompix Editor (v2026.10.0.15).
 
+### Convention de nommage (lot D5)
+
+Le nom d'une pièce lui donne un **rôle de simulation** (décision de Frank du 20/11/2026 : `rôle:repère`). Il sert surtout quand seul le nom existe : pièce maillée, arbre d'un assemblage STEP importé (lot D8). Une pièce sans rôle reste **inerte** (structure, décor) : elle bouge avec ses liaisons, la simulation ne la pilote pas et ne la lit pas.
+
+**Syntaxe** : `<rôle>:<repère>`, coupé au PREMIER `:` ; espaces de tête et de fin retirés de chaque côté. Le rôle se compare sans tenir compte de la casse (`Servo:Act1` = `servo:Act1`) ; le repère garde la sienne (`Act1`, comme dans le schéma). Un nom sans `:` n'a pas de rôle, sauf `sol` (seul rôle sans repère). Les suffixes que les logiciels de CAO ajoutent aux noms (`servo:Act1 (1)`, `<1>`, `.001`) ne sont pas reconnus en v1 : ils se traiteront avec l'import STEP (D8).
+
+| Rôle | Le repère désigne | Types de composant acceptés | Ce que la simulation en fera |
+| --- | --- | --- | --- |
+| `servo` | le composant lui-même | `servo` | angle simulé → variable du pivot dont la pièce est le parent (D6) |
+| `moteur` | le composant lui-même | `moteur-dc` | vitesse simulée → variable du pivot dont la pièce est le parent (D6) |
+| `aimant` | le composant lui-même | `aimant` | position lue par les capteurs à effet Hall (D7) |
+| `hall` | le composant lui-même | `hall` | lit la distance aux aimants (D7) |
+| `roue` | le moteur ou le servo qui l'entraîne | `moteur-dc`, `servo` | tourne avec son moteur ; avec une liaison `roue-sol`, fait rouler le châssis (D6) |
+| `sol` | aucun (nom exactement `sol`) | — | plan Z = 0, côté `b` des liaisons `roue-sol` |
+
+Rôles **propres** (`servo`, `moteur`, `aimant`, `hall`) : le repère est celui de la pièce elle-même. Il tient lieu de `ref` quand `ref` est absent (repère effectif) ; si les deux sont donnés et diffèrent, `ref` l'emporte. Rôles **entraînés** (`roue`) : le repère désigne un AUTRE composant ; la pièce, purement mécanique, n'a pas de `ref` et plusieurs pièces peuvent porter le même nom (deux roues sur `M2`). Les capteurs de D7 (HC-SR04, fin de course) ajouteront leurs rôles à ce tableau le moment venu.
+
+Contrôles (avertissements, jamais bloquants ; une pièce en défaut redevient inerte, le reste du montage marche) — `target` = id de la pièce :
+
+| Code | Cas |
+| --- | --- |
+| `role-inconnu` | nom de la forme `x:y` dont le rôle `x` n'est pas au tableau (faute de frappe probable : `srevo:Act1`) ; un nom sans `:` n'est jamais signalé |
+| `role-sans-repere` | rôle connu, repère vide (`servo:`), ou `sol:…` (le sol n'a pas de repère) |
+| `role-ref-different` | rôle propre dont le repère diffère de `ref` (`ref` l'emporte) |
+| `role-doublon` | deux pièces au même rôle propre et au même repère effectif |
+| `role-type` | type incompatible avec le rôle : celui de `source` (`kompix`) pour un rôle propre ; celui du composant du schéma désigné, quand le schéma est connu (Kablix), pour tous les rôles |
+| `role-repere-absent` | rôle entraîné dont le repère n'est pas dans le schéma (Kablix seulement) ; pour un rôle propre, c'est le `ref-absente` déjà existant, calculé sur le repère effectif |
+
+Kompix Editor (kompix-core) lit et contrôle sans le schéma : syntaxe, rôles, doublons, type de `source`. Kablix ajoute les contrôles qui demandent le schéma (`role-type` par le schéma, `role-repere-absent`, `ref-absente` sur le repère effectif). Les deux affichent le rôle reconnu d'une pièce (inspecteur de Kompix Editor ; vue 3D de Kablix en D6).
+
 Champs inconnus (ici ou à la racine, comme l'état de l'éditeur) : ignorés à la lecture, **conservés** à l'enregistrement — Kablix regrave le document brut.
 
 ## Contrôles faits à l'ouverture dans Kablix
@@ -84,4 +114,5 @@ Un avertissement d'une ligne, sans bloquer l'ouverture, quand :
 ## Ce qui reste à faire
 
 - Kompix Editor : écriture et relecture du document (`system.ts`, v2026.10.0.14) et solveur cinématique (`kinematics.ts`, v2026.10.0.15) faits ; animation du montage dans sa visionneuse, sur demande de Frank.
+- Convention de nommage (D5) : lecture et contrôles sans schéma dans kompix-core (consigne de nuit du 23/11/2026) ; contrôles avec schéma dans `src/systeme.ts` de Kablix, ensuite.
 - Kablix : faire suivre un renommage de repère (`renommerRepere()` existe, pas encore branché à l'inspecteur) ; vue 3D (lot D6).
