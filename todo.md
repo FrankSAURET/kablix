@@ -11,7 +11,7 @@
     - ✅ **D1, partie Kompix Editor** — `packages/kompix-core/src/system.ts` (lecture tolérante, regravure, `.projix` réécrit sans toucher aux autres entrées), Kompix Editor `v2026.10.0.14` relu et envoyé (v331). Ses ⏳ (commande d'export, `systemFromAssembly`) attendent Frank, dans son `todo.md`.
     - ✅ **D2** — solveur cinématique en arbre `kompix-core/src/kinematics.ts`, Kompix Editor `v2026.10.0.15` relu (97/97 rejoué), écarts au contrat reportés dans [systeme_specification.md](docs/systeme_specification.md) (v332). Animation dans sa visionneuse : ⏳ sur demande de Frank (point 30 de son `todo.md`).
     - ✅ **D5** — convention de nommage `rôle:repère` : contrat (v337), kompix-core `roles.ts` (Kompix Editor `v2026.10.0.16`, relu, 116/116 rejoué), contrôles avec schéma dans `src/systeme.ts` de Kablix (v338). Affichage du rôle dans la vue 3D : avec D6.
-    - ⬜ **D3** — suivant dans l'ordre de Frank : bibliothèque mécanique de départ (roue, engrenage, aimant, châssis 2 roues, palier) + servo et moteur DC en 3D, projet **Kompix Editor** ([roadmap.md](roadmap.md), tableau des lots) → consigne de nuit `a-lancer/kompix_editor.md`.
+    - ⬜ **D3** — bibliothèque mécanique de départ (roue, engrenage, aimant, châssis 2 roues, palier) + servo et moteur DC en 3D, projet **Kompix Editor**. Consigne déposée (v339) ; reste : relire son lot (`v2026.10.0.17`), reporter les écarts dans la spécification, puis D4.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
@@ -21,6 +21,14 @@
     - ℹ️ **Numéros (22/11)** : `main` fusionné dans `mecatronique` ; les lots de la branche, nés en `2026.11.4.325` à `.333` (doublons de `main` en 325-327), sont renumérotés `2026.11.5.328` à `.336` (les messages des enregistrements gardent l'ancien numéro). **Règle** : le `buildNumber` d'un lot = le plus grand des deux branches (`git show main:package.json`) + 1 ; fusionner `main` dans `mecatronique` après chaque publication.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.339 — D3 : consigne Kompix Editor déposée
+
+1. ✅ **Consigne** `C:/Users/Frank/.claude/nuit/a-lancer/kompix_editor.md` : sept paquets `.kompix` 3D Béta (`servo` SG90 avec axe `horn`, `moteur-dc` TT avec axe `arbre`, `roue` Ø 65 avec `moyeu`, `engrenage` module 1 à `dents` paramétré par `shape.mjs`, `aimant` Ø 10 × 3, `palier` 608, `chassis-2-roues` extrudé pour la découpe laser avec axes `moteur-gauche`/`moteur-droit` alignés) ; simulation reprise du modèle Kablix existant, rien d'inventé ; fabrication par script ; tests avec contre-épreuve (axes, drapeau, rapport 20/40 = 2, montage deux roues par `buildKinematics`) ; `docs/bibliotheque.md` ; livraison `v2026.10.0.17`. Repli prévu : pièces mécaniques d'abord, servo et moteur au lot suivant.
+2. ⏳ Dimensions et noms d'axes choisis sans Frank (valeurs courantes du commerce) : à valider par lui avec les sept composants Béta.
+3. ℹ️ Kablix : aucun code touché, CHANGELOG inchangé (rien ne change pour l'utilisateur), pas de `.vsix`.
 
 ---
 
