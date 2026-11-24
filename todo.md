@@ -23,9 +23,9 @@
         - ℹ️ Pourquoi une copie du solveur : Kompix Editor est un dépôt séparé, Kablix n'en dépend pas (même choix que `controlerRoles` pour D5). Corriger dans kompix-core puis recopier ; le banc tombe si la copie dérive.
     - ⬜ **D7** — capteurs dans la scène 3D. Découpé le 24/11 (v350) en trois lots :
         1. ✅ **D7a** — capteur à effet Hall : `src/webview/mecanique/capteurs.mts` (écart des boîtes monde `hall:`/`aimant:`), lu par `vue3d.mts` à chaque image, comparé au seuil `trigger` du capteur dans `sim.mts` ; banc `verify:vue3d` 60/60 (v350). ⏳ Règle de l'écart des boîtes et paquet 3D `hall` absent de la bibliothèque : voir v350.
-        2. ⬜ **D7b** — HC-SR04 : lancer de rayon depuis la pièce jusqu'au premier obstacle de la scène → distance lue par le moteur ultrason. Deux temps :
-            - ✅ **D7b-1, partie Kompix Editor** — consigne déposée (v351) dans `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md` : rôle `ultrason` (propre, type `hcsr04`) dans `roles.ts`, paquets 3D Béta `hcsr04` (axe `faisceau`, rayon dans le sens positif) et `hall` dans la bibliothèque mécanique, attendu en Kompix Editor `v2026.10.0.20`. ⬜ Relire le lot quand le lanceur l'aura exécuté.
-            - ⬜ **D7b-2, partie Kablix** — recopier le rôle dans `src/systeme.ts`, lancer de rayon dans `capteurs.mts` (axe `faisceau` → premier obstacle, distance en cm bornée `distancemin`/`distancemax`), branché dans `sim.mts` comme le Hall ; banc `verify:vue3d` ; docs.
+        2. ✅ **D7b** — HC-SR04 : lancer de rayon depuis la pièce jusqu'au premier obstacle de la scène → distance lue par le moteur ultrason. Deux temps :
+            - ✅ **D7b-1, partie Kompix Editor** — consigne (v351), lot Kompix Editor `v2026.10.0.20` exécuté par le lanceur, relu (145/145 rejoué) en v352.
+            - ✅ **D7b-2, partie Kablix** — rôle `ultrason` dans `src/systeme.ts`, rayon dans `capteurs.mts` + `vue3d.mts`, distance posée sur le curseur du HC-SR04 dans `sim.mts` ; banc `verify:vue3d` 77/77 (v352). ⏳ Choix faits sans Frank : voir v352.
         3. ⏳ **D7c** — fin de course (contact) : **aucun composant fin de course dans Kablix** ; sa simulation (et s'il faut un nouveau composant ou un bouton-poussoir) est à préciser par Frank.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
@@ -36,6 +36,25 @@
     - ℹ️ **Numéros (22/11)** : `main` fusionné dans `mecatronique` ; les lots de la branche, nés en `2026.11.4.325` à `.333` (doublons de `main` en 325-327), sont renumérotés `2026.11.5.328` à `.336` (les messages des enregistrements gardent l'ancien numéro). **Règle** : le `buildNumber` d'un lot = le plus grand des deux branches (`git show main:package.json`) + 1 ; fusionner `main` dans `mecatronique` après chaque publication.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.352 — D7b : relecture Kompix Editor v20 ; télémètre HC-SR04 dans la scène 3D
+
+1. ✅ **Relecture** du lot Kompix Editor `v2026.10.0.20` (enregistrement `54a5769`) : rôle `ultrason` (propre, `hcsr04`) dans `roles.ts`, paquets Béta `hcsr04` (axe `faisceau` (0, 0, 13,6) selon Z, sommet des transducteurs) et `hall` (TO-92 sans pattes en volume), modèles `sim.model` `hcsr04`/`hall`. Conforme à la consigne ; `npm test -w kompix-core` rejoué : 145/145.
+2. ✅ **Rôle recopié** dans [src/systeme.ts](src/systeme.ts) (`NomRole`, `ROLES`) : le type Kablix du HC-SR04 est déjà `hcsr04`, le contrôle `role-type` marche sans autre changement.
+3. ✅ **Module pur [capteurs.mts](src/webview/mecanique/capteurs.mts)** : `piecesCapteurs` trie aussi les `ultrason:` (un capteur par repère, Hall et télémètre partagent le compte), `rayonLocal` (point de l'axe, sens +`dir`, Z par défaut), `lireCapteurs` reçoit un lanceur (mm → cm, null = pas de faisceau, non lu), `distanceUltrason` (bornage à la plage, borne haute sans obstacle, arrondi au mm).
+4. ✅ **Vue [vue3d.mts](src/webview/vue3d.mts)** : axe `faisceau` lu dans le modèle NON reflété, porté par la matrice monde du groupe (miroir compris) ; `Raycaster` sur les maillages du montage, ceux du capteur écartés.
+5. ✅ **Simulation [sim.mts](src/webview/sim.mts)** : `lireUltrasonVue3d` pose la distance sur le curseur du HC-SR04 et émet `input` (même chemin que le réglage à la main, donc moteur dans la page ou sur son fil). Vue fermée : la dernière distance reste.
+6. ✅ **Banc `verify:vue3d`** 60 → 77 : étage F sous Node (tri, conversion, lanceur absent, rayon local, bornage, rôle reconnu) et dans Chrome (télémètre couché, roulement 608 à 113,6 mm → 8,9 cm ; sans obstacle → Infinity). Contre-épreuve : conversion faussée (÷ 100) → 2 échecs.
+7. ✅ **Docs** : [systeme_specification.md](docs/systeme_specification.md) (tableau des rôles, règle du rayon), [docs/fr/3D-view.md](docs/fr/3D-view.md) ; CHANGELOG (Projets).
+8. ⏳ **Choix faits sans Frank, à confirmer** : rayon unique (pas de cône de 15°) ; sans obstacle, borne haute de la plage (un vrai HC-SR04 renvoie un écho très long) ; distance posée sur le curseur (il bouge seul pendant la simulation) ; vue fermée, la distance n'est pas remise.
+9. ℹ️ L'exclusion des maillages du capteur n'est pas prouvée par le banc : le rayon part de la face des transducteurs, que three.js ne touche pas par l'arrière. Gardée par sûreté (axe placé à l'intérieur du volume).
+10. ⏳ **Pas de banc de bout en bout** (programme `pulseIn` → distance de la scène) : essai F5 par Frank. Pas de démonstrateur HC-SR04 dans `docs/exemples/mecanique/` (à faire si Frank le veut).
+11. ⏳ Version EN de la fiche d'aide avant publication.
+12. ⏳ Points 45-46 du `todo.md` de Kompix Editor (validation des paquets `hcsr04`/`hall`, nom du rôle et sens du faisceau) : Frank.
+13. ✅ **Tests** `verify:all` : 181/185 verts. `verify:analyseur-sans-declenchement` tombé sous la charge, vert rejoué seul. Rouges connus : `verify:i18n` (ES/ZH), `verify:help-bars` (doc EN), `verify:linter` (⏳ 6 de v343).
+14. ✅ `.vsix` construit, non installé (mode nuit).
 
 ---
 

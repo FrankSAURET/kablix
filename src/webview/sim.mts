@@ -77,6 +77,7 @@ import { SUCCES, SuiviSucces, etatValide, etatVierge, type DefSucces, type InfoL
 import { Plotter } from './plotter.mjs';
 import { brancherPoignees } from './poignee-hauteur.mjs';
 import { brancherVue3D } from './vue3d-page.mjs';
+import { distanceUltrason } from './mecanique/capteurs.mjs';
 import { CompteurConsommation, LisseurCourant, decharger, autonomieH, tensionBatterie, PLAGES_ENTREE, ENTREES_NON_PROTEGEES, COURANT_FORFAITAIRE_A } from './consommation.mjs';
 import { Editor, KABLIX_BADGE, type PaletteState } from './diagram/editor.mjs';
 import { partDef, boardFamily, isPicoBoard, isBoardId, mcuPinRole, pca9685Address, controlMax, PARAM_ATTR_PREFIX, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
@@ -1101,6 +1102,24 @@ function piloterVue3d(): void {
   }
   const lectures = vue3dPage.simuler({ servos, moteurs }, dt);
   lireHallVue3d(lectures?.hall ?? {});
+  lireUltrasonVue3d(lectures?.ultrason ?? {});
+}
+// Télémètres lus dans la scène 3D (lot D7b) : un HC-SR04 dont le repère a une
+// pièce `ultrason:` prend la distance du rayon (bornée par sa plage, borne
+// haute sans obstacle). Elle passe par le curseur du composant et son
+// événement `input`, le chemin du réglage à la main jusqu'au moteur. Vue
+// fermée : la dernière distance reste, le curseur reprend la main.
+type UltrasonScene = HTMLElement & { distance: number; distanceMin: number; distanceMax: number };
+function lireUltrasonVue3d(lectures: Record<string, number>): void {
+  for (const [id, cm] of Object.entries(lectures)) {
+    const part = editor.diagram.parts.find((p) => p.id === id);
+    const el = editor.elementOf(id) as unknown as UltrasonScene | null;
+    if (!part || !el || partDef(part.type).kind !== 'ultrasonic') continue;
+    const d = distanceUltrason(cm, Number(el.distanceMin ?? 2), Number(el.distanceMax ?? 400));
+    if (Number(el.distance) === d) continue;
+    el.distance = d;
+    el.dispatchEvent(new Event('input'));
+  }
 }
 
 let renderRaf = 0;

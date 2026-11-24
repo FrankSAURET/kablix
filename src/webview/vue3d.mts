@@ -11,15 +11,16 @@
 // d'animation propre. Pendant une simulation (lot D6d), `simuler` pose les
 // pièces d'après les servos et moteurs (`pilotage.mts`) ; `arreter` les
 // ramène à la pose du document. Chaque image rend ce que les capteurs lisent
-// dans la scène (lot D7a : écart des capteurs Hall à l'aimant le plus proche).
+// dans la scène (lot D7a : écart des capteurs Hall à l'aimant le plus proche ;
+// lot D7b : rayon des télémètres jusqu'au premier obstacle).
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { bulleDePiece, vue3D, type DonneesVue3D, type TextesBulle } from './mecanique/vue3d-donnees.mjs';
 import { construireScene, matricePiece, type SceneMontage } from './mecanique/scene3d.mjs';
-import { montageCinematique } from './mecanique/volumes.mjs';
+import { axesDuModele, montageCinematique } from './mecanique/volumes.mjs';
 import { Pilotage, type EtatSimulation, type ImagePilotee, type PiecePilotee } from './mecanique/pilotage.mjs';
-import { lireCapteurs, piecesCapteurs, type LecturesCapteurs } from './mecanique/capteurs.mjs';
+import { lireCapteurs, piecesCapteurs, rayonLocal, type LecturesCapteurs } from './mecanique/capteurs.mjs';
 
 /** Défauts qui rendent une pièce inerte (lot D5) : son rôle est ignoré. */
 const INERTE = new Set(['role-inconnu', 'role-sans-repere', 'role-doublon', 'role-type', 'role-repere-absent', 'ref-absente']);
@@ -64,7 +65,7 @@ export async function ouvrir(conteneur: HTMLElement, donnees: DonneesVue3D, text
       fermer: () => conteneur.replaceChildren(),
       etat: () => ({ pieces: 0, enDefaut: [], camera: [0, 0, 0], cible: [0, 0, 0] }),
       pieceSous: () => null,
-      simuler: () => ({ hall: {} }),
+      simuler: () => ({ hall: {}, ultrason: {} }),
       arreter: () => undefined,
       pose: () => null,
       lignesEtat: () => [],
@@ -191,6 +192,28 @@ export async function ouvrir(conteneur: HTMLElement, donnees: DonneesVue3D, text
     if (boiteMonde.isEmpty()) return null;
     return { min: boiteMonde.min.toArray(), max: boiteMonde.max.toArray() };
   };
+  // Télémètres (D7b) : axe `faisceau` du modèle, NON reflété — la matrice monde
+  // du groupe porte déjà le miroir. Les maillages du capteur lui-même ne
+  // comptent pas comme obstacle.
+  const faisceaux = new Map<string, ReturnType<typeof rayonLocal>>();
+  for (const u of capteurs.ultrason) {
+    const s = parId.get(u.piece)?.source;
+    const axe = s && (s.de === 'paquet' || s.de === 'integre') ? axesDuModele(s.model).faisceau : undefined;
+    if (axe) faisceaux.set(u.piece, rayonLocal(axe));
+  }
+  const rayonCapteur = new THREE.Raycaster();
+  const origine = new THREE.Vector3();
+  const direction = new THREE.Vector3();
+  const lancer = (id: string): number | null => {
+    const f = faisceaux.get(id);
+    const g = montage.pieces.get(id);
+    if (!f || !g) return null;
+    origine.fromArray(f.origine).applyMatrix4(g.matrixWorld);
+    direction.fromArray(f.direction).transformDirection(g.matrixWorld);
+    rayonCapteur.set(origine, direction);
+    const touche = rayonCapteur.intersectObjects(montage.objets, false).find((t) => (t.object.userData as { piece?: string }).piece !== id);
+    return touche ? touche.distance : Infinity;
+  };
   const parIdVue = new Map(vue.pieces.map((p) => [p.id, p]));
   let lignes: string[] = [];
   const appliquer = (image: ImagePilotee, enCours: boolean): void => {
@@ -247,7 +270,7 @@ export async function ouvrir(conteneur: HTMLElement, donnees: DonneesVue3D, text
     pieceSous,
     simuler: (etat, dt) => {
       appliquer(pilotage.pas(etat, dt), true);
-      return lireCapteurs(capteurs, boiteDe);
+      return lireCapteurs(capteurs, boiteDe, lancer);
     },
     arreter: () => appliquer(pilotage.remettre(), false),
     pose: (id) => {

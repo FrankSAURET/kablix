@@ -18,7 +18,10 @@
 //      `simuler` déplace le châssis et `arreter` le ramène ;
 //   E. capteurs lus dans la scène (lot D7a) : écart des boîtes, tri des
 //      pièces sous Node ; dans Chrome, le servo amène l'aimant devant le
-//      capteur Hall et `simuler` rend l'écart mesuré dans la vraie scène.
+//      capteur Hall et `simuler` rend l'écart mesuré dans la vraie scène ;
+//   F. télémètres (lot D7b) : tri, conversion, bornage sous Node ; dans
+//      Chrome, le rayon du paquet `hcsr04` (axe `faisceau`) touche un
+//      roulement à 8,9 cm, et rien sans obstacle.
 // A et B sont sautés (avec un avis) sans le dépôt de Kompix Editor ; C sans
 // Chrome. Contre-épreuve : sans `src/webview/vue3d.mts`, B et C échouent.
 //
@@ -67,6 +70,7 @@ if (editeur) {
 // ------------------------------------------------ B. scène sous Node
 let donnees;
 let donneesHall;
+const donneesTele = {};
 if (editeur && existsSync(join(editeur, 'components/meca'))) {
   console.log('B. robot à deux roues, scène three.js sous Node');
   const sortie = join(tmp, 'vue3d.mjs');
@@ -76,7 +80,7 @@ if (editeur && existsSync(join(editeur, 'components/meca'))) {
       contents: [
         `export * from ${p('src/webview/mecanique/vue3d-donnees.mts')};`,
         `export * from ${p('src/webview/mecanique/scene3d.mts')};`,
-        `export { lireSysteme } from ${p('src/systeme.ts')};`,
+        `export { lireSysteme, lireRole } from ${p('src/systeme.ts')};`,
         `export { volumesDuSysteme } from ${p('src/systemeVolumes.ts')};`,
         `export * from ${p('src/webview/mecanique/pilotage.mts')};`,
         `export { montageCinematique } from ${p('src/webview/mecanique/volumes.mts')};`,
@@ -222,12 +226,53 @@ if (editeur && existsSync(join(editeur, 'components/meca'))) {
     { id: 'a2', role: { nom: 'aimant', repere: 'A2' }, repere: 'A2', inerte: false },
     { id: 'a3', inerte: false },
   ]);
-  check(JSON.stringify(pcs) === '{"hall":[{"piece":"h1","repere":"U1"}],"aimants":["a1","a2"]}', 'tri des pièces : un Hall par repère, inertes écartés', JSON.stringify(pcs));
+  check(JSON.stringify(pcs) === '{"hall":[{"piece":"h1","repere":"U1"}],"aimants":["a1","a2"],"ultrason":[]}', 'tri des pièces : un Hall par repère, inertes écartés', JSON.stringify(pcs));
   const bts = { h1: bx(0, 0, 0), a1: bx(40, 0, 0), a2: bx(0, 18, 0) };
   const lu = M.lireCapteurs(pcs, (id) => bts[id] ?? null);
-  check(JSON.stringify(lu) === '{"hall":{"U1":8}}', 'Hall : l\'aimant le plus proche l\'emporte', JSON.stringify(lu));
-  check(M.lireCapteurs({ hall: pcs.hall, aimants: [] }, (id) => bts[id] ?? null).hall.U1 === Infinity, 'sans aimant : écart infini (la scène pilote quand même)');
-  check(JSON.stringify(M.lireCapteurs({ hall: [], aimants: ['a1'] }, () => bx(0, 0, 0))) === '{"hall":{}}', 'sans pièce Hall : rien n\'est lu');
+  check(JSON.stringify(lu) === '{"hall":{"U1":8},"ultrason":{}}', 'Hall : l\'aimant le plus proche l\'emporte', JSON.stringify(lu));
+  check(M.lireCapteurs({ ...pcs, aimants: [] }, (id) => bts[id] ?? null).hall.U1 === Infinity, 'sans aimant : écart infini (la scène pilote quand même)');
+  check(JSON.stringify(M.lireCapteurs({ hall: [], aimants: ['a1'], ultrason: [] }, () => bx(0, 0, 0))) === '{"hall":{},"ultrason":{}}', 'sans pièce Hall : rien n\'est lu');
+
+  // ---------------------------------------------- F. télémètres (lot D7b)
+  console.log('F. télémètres HC-SR04 lus dans la scène (Node)');
+  const pcu = M.piecesCapteurs([
+    { id: 'u1', role: { nom: 'ultrason', repere: 'U4' }, repere: 'U4', inerte: false },
+    { id: 'u2', role: { nom: 'ultrason', repere: 'U4' }, repere: 'U4', inerte: false },
+    { id: 'u3', role: { nom: 'ultrason', repere: 'U5' }, repere: 'U5', inerte: true },
+    { id: 'u6', role: { nom: 'ultrason', repere: 'U6' }, repere: 'U6', inerte: false },
+    { id: 'h1', role: { nom: 'hall', repere: 'U4' }, repere: 'U4', inerte: false },
+  ]);
+  check(JSON.stringify(pcu) === '{"hall":[],"aimants":[],"ultrason":[{"piece":"u1","repere":"U4"},{"piece":"u6","repere":"U6"}]}', 'tri : un télémètre par repère, inertes écartés, un Hall ne double pas le repère', JSON.stringify(pcu));
+  const lancers = { u1: 965, u6: null };
+  const luU = M.lireCapteurs(pcu, () => null, (id) => lancers[id] ?? null);
+  check(JSON.stringify(luU) === '{"hall":{},"ultrason":{"U4":96.5}}', 'distance du rayon en cm ; pièce sans faisceau : non lue', JSON.stringify(luU));
+  check(M.lireCapteurs(pcu, () => null, (id) => (id === 'u1' ? Infinity : null)).ultrason.U4 === Infinity, 'sans obstacle : distance infinie');
+  check(JSON.stringify(M.lireCapteurs(pcu, () => null).ultrason) === '{}', 'sans lanceur : aucun télémètre lu');
+  check(JSON.stringify(M.rayonLocal({ x: 0, y: 0, z: 13.6, dir: 'z' })) === '{"origine":[0,0,13.6],"direction":[0,0,1]}', 'rayon local : départ au point de l\'axe, sens +dir');
+  check(JSON.stringify(M.rayonLocal({ x: 1, y: 2, z: 3 }).direction) === '[0,0,1]', 'rayon local : Z par défaut');
+  check(JSON.stringify(M.rayonLocal({ x: 0, y: 0, z: 0, dir: 'y' }).direction) === '[0,1,0]', 'rayon local : axe Y');
+  check(M.distanceUltrason(96.5, 2, 400) === 96.5, 'distance dans la plage : inchangée');
+  check(M.distanceUltrason(1, 2, 400) === 2 && M.distanceUltrason(900, 2, 400) === 400, 'distance bornée par la plage du composant');
+  check(M.distanceUltrason(Infinity, 2, 400) === 400, 'sans obstacle : borne haute');
+  check(M.distanceUltrason(12.345, 400, 2) === 12.3, 'plage inversée tolérée, arrondi au mm');
+  check(M.lireRole('ultrason:U4')?.role === 'ultrason' && M.lireRole('ultrason:U4')?.sorte === 'propre', 'rôle ultrason reconnu (propre)');
+  // Montage pour Chrome : télémètre couché (faisceau vers +X), roulement 608
+  // debout à 113,6 mm : le rayon (Y = Z = 0) touche sa bague extérieure (Ø 22)
+  // à X = 102,6, soit 89 mm du départ (13,6).
+  const teleBrut = (avecObstacle, nomCapteur = 'ultrason:U4') => ({
+    format: 'kablix-system', version: 1,
+    pieces: [
+      { id: 'u', nom: nomCapteur, source: { kind: 'kompix', type: 'hcsr04' }, pose: { pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 90, z: 0 } } },
+      ...(avecObstacle ? [{ id: 'o', nom: 'obstacle', source: { kind: 'kompix', type: 'palier' }, pose: { pos: { x: 113.6, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0 } } }] : []),
+    ],
+    liaisons: [],
+  });
+  for (const [cle, brut] of [['avec', teleBrut(true)], ['sans', teleBrut(false)]]) {
+    const dt = M.lireSysteme(brut).systeme;
+    check(!!dt, `montage télémètre ${cle} obstacle lu`);
+    donneesTele[cle] = { doc: dt, volumes: await M.volumesDuSysteme(dt, (t) => paquets.get(t), []), problemes: [] };
+  }
+  check(!!paquets.get('hcsr04'), 'paquet hcsr04 présent dans la bibliothèque mécanique de Kompix Editor');
   // Montage pour Chrome : servo, aimant porté, capteur Hall fixe à 32 mm en Y.
   const hallBrut = (aimantNom, hallNom) => ({
     format: 'kablix-system', version: 1,
@@ -385,6 +430,16 @@ if (!donnees) {
         const pres = await lit(90);
         check(typeof loin === 'number' && loin > 10, 'servo à 0° : aimant hors de portée du Hall (> 10 mm)', String(loin));
         check(typeof pres === 'number' && pres <= 10, 'servo à 90° : aimant devant le Hall (≤ 10 mm)', String(pres));
+        await ev('window.vue.fermer()');
+      }
+
+      // F. télémètre dans la vraie scène : rayon jusqu'au roulement, ou rien.
+      for (const cle of ['avec', 'sans']) {
+        if (!donneesTele[cle]) continue;
+        await ev(`KablixVue3D.ouvrir(document.getElementById('vue3d-scene'), ${JSON.stringify(donneesTele[cle]).replace(/</g, '<')}, ${JSON.stringify(textes)}).then((v) => { window.vue = v; })`, true);
+        const d = await ev('String(window.vue.simuler({ servos: {}, moteurs: {} }, 0.02).ultrason.U4)');
+        if (cle === 'avec') check(Math.abs(Number(d) - 8.9) < 0.1, 'télémètre : 8,9 cm jusqu\'au roulement', d);
+        else check(d === 'Infinity', 'télémètre sans obstacle : distance infinie', d);
         await ev('window.vue.fermer()');
       }
     }

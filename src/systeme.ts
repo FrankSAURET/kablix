@@ -103,7 +103,7 @@ export interface ProblemeSysteme {
 // ------------------------------------------------------------ rôles (lot D5)
 // Convention `rôle:repère` lue dans le nom d'une pièce. Contrat : section
 // « Convention de nommage » de `docs/systeme_specification.md`. Même table et
-// mêmes règles que `roles.ts` de kompix-core (Kompix Editor v2026.10.0.16) ;
+// mêmes règles que `roles.ts` de kompix-core (Kompix Editor v2026.10.0.20) ;
 // Kablix y ajoute les contrôles qui demandent le schéma.
 
 export type CleRole =
@@ -114,7 +114,7 @@ export type CleRole =
   | 'role-type'
   | 'role-repere-absent';
 
-export type NomRole = 'servo' | 'moteur' | 'aimant' | 'hall' | 'roue' | 'sol';
+export type NomRole = 'servo' | 'moteur' | 'aimant' | 'hall' | 'ultrason' | 'roue' | 'sol';
 /** Propre : le repère est la pièce elle-même ; entraîné : un autre composant. */
 export type SorteRole = 'propre' | 'entraine' | 'sol';
 
@@ -123,6 +123,8 @@ export const ROLES: Readonly<Record<NomRole, { sorte: SorteRole; types: readonly
   moteur: { sorte: 'propre', types: ['moteur-dc'] },
   aimant: { sorte: 'propre', types: ['aimant'] },
   hall: { sorte: 'propre', types: ['hall'] },
+  // Télémètre HC-SR04 (D7b, Kompix Editor v2026.10.0.20) : rayon le long de l'axe `faisceau`.
+  ultrason: { sorte: 'propre', types: ['hcsr04'] },
   roue: { sorte: 'entraine', types: ['moteur-dc', 'servo'] },
   sol: { sorte: 'sol', types: [] },
 };
