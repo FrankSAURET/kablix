@@ -23,7 +23,9 @@
         - ℹ️ Pourquoi une copie du solveur : Kompix Editor est un dépôt séparé, Kablix n'en dépend pas (même choix que `controlerRoles` pour D5). Corriger dans kompix-core puis recopier ; le banc tombe si la copie dérive.
     - ⬜ **D7** — capteurs dans la scène 3D. Découpé le 24/11 (v350) en trois lots :
         1. ✅ **D7a** — capteur à effet Hall : `src/webview/mecanique/capteurs.mts` (écart des boîtes monde `hall:`/`aimant:`), lu par `vue3d.mts` à chaque image, comparé au seuil `trigger` du capteur dans `sim.mts` ; banc `verify:vue3d` 60/60 (v350). ⏳ Règle de l'écart des boîtes et paquet 3D `hall` absent de la bibliothèque : voir v350.
-        2. ⬜ **D7b** — HC-SR04 : lancer de rayon depuis la pièce jusqu'au premier obstacle de la scène → distance lue par le moteur ultrason. Demande un **rôle nouveau** (`ultrason:U1`, type `hcsr04`) dans la convention : d'abord dans kompix-core (`roles.ts`, projet Kompix Editor, consigne à déposer), puis recopié dans `src/systeme.ts` de Kablix ; sens du rayon = un axe nommé de la pièce (à fixer dans la consigne).
+        2. ⬜ **D7b** — HC-SR04 : lancer de rayon depuis la pièce jusqu'au premier obstacle de la scène → distance lue par le moteur ultrason. Deux temps :
+            - ✅ **D7b-1, partie Kompix Editor** — consigne déposée (v351) dans `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md` : rôle `ultrason` (propre, type `hcsr04`) dans `roles.ts`, paquets 3D Béta `hcsr04` (axe `faisceau`, rayon dans le sens positif) et `hall` dans la bibliothèque mécanique, attendu en Kompix Editor `v2026.10.0.20`. ⬜ Relire le lot quand le lanceur l'aura exécuté.
+            - ⬜ **D7b-2, partie Kablix** — recopier le rôle dans `src/systeme.ts`, lancer de rayon dans `capteurs.mts` (axe `faisceau` → premier obstacle, distance en cm bornée `distancemin`/`distancemax`), branché dans `sim.mts` comme le Hall ; banc `verify:vue3d` ; docs.
         3. ⏳ **D7c** — fin de course (contact) : **aucun composant fin de course dans Kablix** ; sa simulation (et s'il faut un nouveau composant ou un bouton-poussoir) est à préciser par Frank.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
@@ -34,6 +36,15 @@
     - ℹ️ **Numéros (22/11)** : `main` fusionné dans `mecatronique` ; les lots de la branche, nés en `2026.11.4.325` à `.333` (doublons de `main` en 325-327), sont renumérotés `2026.11.5.328` à `.336` (les messages des enregistrements gardent l'ancien numéro). **Règle** : le `buildNumber` d'un lot = le plus grand des deux branches (`git show main:package.json`) + 1 ; fusionner `main` dans `mecatronique` après chaque publication.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.351 — D7b-1 : consigne Kompix Editor (rôle `ultrason`, paquets `hcsr04` et `hall`)
+
+1. ✅ **Consigne déposée** dans `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md`, exécutée par le lanceur dans le dossier de Kompix Editor : rôle `ultrason` (sorte propre, type `hcsr04`) dans `roles.ts` et ses tests (contre-épreuve exigée) ; paquets 3D Béta `hcsr04` (carte 45 × 20 mm, transducteurs Ø 16 mm, axe nommé `faisceau`) et `hall` (TO-92) fabriqués par `build-meca.ts` ; `bibliotheque.md`, CHANGELOG, `v2026.10.0.20`.
+2. ⏳ **Choix faits sans Frank, à confirmer** : nom du rôle `ultrason` ; sens du rayon = sens positif de la direction de l'axe `faisceau` (le format n'a pas d'axe signé) ; dimensions des deux paquets.
+3. ℹ️ Le paquet `hall` comble le manque relevé en v350 (⏳ 8) : une pièce `hall:` ne sera plus une boîte rouge une fois le paquet disponible.
+4. ℹ️ Lot sans code Kablix : pas de `.vsix`, pas de tests rejoués, pas d'entrée au CHANGELOG (rien ne change pour l'utilisateur de Kablix).
 
 ---
 
