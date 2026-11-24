@@ -27,6 +27,10 @@
             - ✅ **D7b-1, partie Kompix Editor** — consigne (v351), lot Kompix Editor `v2026.10.0.20` exécuté par le lanceur, relu (145/145 rejoué) en v352.
             - ✅ **D7b-2, partie Kablix** — rôle `ultrason` dans `src/systeme.ts`, rayon dans `capteurs.mts` + `vue3d.mts`, distance posée sur le curseur du HC-SR04 dans `sim.mts` ; banc `verify:vue3d` 77/77 (v352). ⏳ Choix faits sans Frank : voir v352.
         3. ⏳ **D7c** — fin de course (contact) : **aucun composant fin de course dans Kablix** ; sa simulation (et s'il faut un nouveau composant ou un bouton-poussoir) est à préciser par Frank.
+    - ⬜ **D8** — import STEP (OpenCascade WASM téléchargé à la demande), arbre d'assemblage et noms → convention D5. Découpé le 24/11 (v353) en trois lots :
+        1. ⬜ **D8a, partie Kompix Editor** — module pur `kompix-core/src/step.ts` (sortie de `occt-import-js` → `SystemDoc` + STL sous `system/meshes/`, noms passés par `parseRole`), fixture STEP fabriquée par FreeCAD, `occt-import-js` en dépendance de développement seulement. Consigne déposée (v353) dans `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md` ; à relire au retour du lanceur.
+        2. ⬜ **D8b, partie Kompix Editor** — téléchargement du WASM à la demande (version épinglée, SHA-256, cache), commande « Importer un assemblage STEP… » qui écrit `system.json` + `system/` dans un `.projix`.
+        3. ⬜ **D8c, partie Kablix** — démonstrateur et banc d'un projet issu d'un STEP dans la vue 3D.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
@@ -36,6 +40,17 @@
     - ℹ️ **Numéros (22/11)** : `main` fusionné dans `mecatronique` ; les lots de la branche, nés en `2026.11.4.325` à `.333` (doublons de `main` en 325-327), sont renumérotés `2026.11.5.328` à `.336` (les messages des enregistrements gardent l'ancien numéro). **Règle** : le `buildNumber` d'un lot = le plus grand des deux branches (`git show main:package.json`) + 1 ; fusionner `main` dans `mecatronique` après chaque publication.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.353 — D8 découpé ; D8a : consigne Kompix Editor (conversion STEP → document système)
+
+1. ✅ **D7c sauté** : fin de course bloqué par Frank (aucun composant, simulation à préciser). Lot suivant de l'ordre de Frank : D8.
+2. ✅ **D8 découpé** en trois lots (D8a conversion pure, D8b téléchargement + commande d'import, tous deux Kompix Editor ; D8c démonstrateur Kablix), liste « à faire » en tête. Le point 6 du `todo.md` de Kompix Editor (B6, « sur demande de Frank ») est levé par la décision 5 et l'ordre de la roadmap.
+3. ✅ **Consigne D8a déposée** dans `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md` : `stepToSystem` (une pièce par feuille maillée, sous-assemblage à rôle fusionné en une pièce, ids dérivés du nom, STL binaire, pose nulle en coordonnées globales, aucune liaison), fixture `robot-mini.step` fabriquée par FreeCADCmd (installé), tests réels sous Node avec `occt-import-js` 0.0.23 en dépendance de développement, contre-épreuve exigée ; `v2026.10.0.21`.
+4. ⏳ **Choix faits sans Frank, à confirmer** : règles de conversion ci-dessus (fusion d'un sous-assemblage à rôle, pose nulle, pas de liaison déduite) ; `occt-import-js` (LGPL-2.1, environ 7 Mo) plutôt qu'une compilation maison d'OpenCascade.
+5. ⏳ `package-lock.json` de Kompix Editor déjà modifié par Frank : la ligne `occt-import-js` n'y sera pas enregistrée par la nuit (consigne).
+6. ℹ️ Lot sans code Kablix : pas de `.vsix`, pas de tests rejoués, pas d'entrée au CHANGELOG.
 
 ---
 
