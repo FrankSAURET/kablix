@@ -75,6 +75,7 @@ import { lint, piegesExecution, type LintLang } from './linter.mjs';
 import { SUCCES, SuiviSucces, etatValide, etatVierge, type DefSucces, type InfoLancement, type Instantane, type ProtocoleSucces } from './succes.mjs';
 import { Plotter } from './plotter.mjs';
 import { brancherPoignees } from './poignee-hauteur.mjs';
+import { brancherVue3D } from './vue3d-page.mjs';
 import { CompteurConsommation, LisseurCourant, decharger, autonomieH, tensionBatterie, PLAGES_ENTREE, ENTREES_NON_PROTEGEES, COURANT_FORFAITAIRE_A } from './consommation.mjs';
 import { Editor, KABLIX_BADGE, type PaletteState } from './diagram/editor.mjs';
 import { partDef, boardFamily, isPicoBoard, isBoardId, mcuPinRole, pca9685Address, controlMax, PARAM_ATTR_PREFIX, type BoardId, type CustomPartData } from './diagram/catalog.mjs';
@@ -321,6 +322,8 @@ const internalToggleBtn = document.getElementById('internal-toggle') as HTMLButt
 internalToggleBtn.innerHTML = KABLIX_BADGE;
 
 const editor = new Editor(canvas, paletteScroll, wiresSvg, inspectorScroll);
+// Vue 3D du montage (lot D6c) : bouton « 3D » si le projet a un system.json.
+const vue3dPage = brancherVue3D((m) => vscode.postMessage(m), () => editor.serialize());
 
 // Bouton ☢ de la barre d'outils : affiché seulement quand le composant sélectionné
 // dispose d'un câblage interne / poster de brochage ; agit sur ce composant.
@@ -6837,10 +6840,14 @@ window.addEventListener('message', (event: MessageEvent) => {
       );
       break;
     }
+    case 'vue3d':
+      void vue3dPage.recevoir(msg.donnees);
+      break;
     case 'loadProject':
       // Recharge un projet .projix : coupe d'abord une simulation en cours (sinon
       // le nouveau schéma se recâble sur un moteur qui tourne encore pour l'ancien).
       if (engine) stopRun();
+      vue3dPage.projet(msg.hasSystem === true);
       // L'atelier vient du DISQUE : l'état persisté de la webview est périmé et
       // ne doit plus être rejoué. Sans cette ligne, le message `customParts` —
       // qui arrive APRÈS (sendCustomParts attend la bibliothèque) — rechargeait

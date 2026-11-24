@@ -1,10 +1,11 @@
 // Build de l'extension Kablix.
-// Produit cinq bundles :
+// Produit plusieurs bundles :
 //   - dist/extension.js : code de l'extension (hôte Node, externe : vscode)
 //   - dist/zip.js       : JSZip seul, chargé au premier .projix (cf. src/zip.ts)
 //   - dist/webview.js   : code du simulateur exécuté dans la webview (navigateur)
 //   - dist/webview-worker.js : le moteur de simulation, dans un Web Worker
 //   - dist/analyseur.js : l'onglet de l'analyseur logique (page à part)
+//   - dist/vue3d.js     : la vue 3D du montage (three.js), chargée à la demande
 //   - dist/i18n-<langue>.js : un dictionnaire de traduction par langue (fr, es, zh)
 const esbuild = require('esbuild');
 const fs = require('fs');
@@ -223,6 +224,25 @@ const analyseurConfig = {
   logLevel: 'info',
 };
 
+/**
+ * Vue 3D du montage (piste 11, lot D6c) : three.js et la scène, ~600 Ko. Hors
+ * de webview.js — la page ne la charge qu'au clic sur « Vue 3D », et seulement
+ * pour un projet qui a un montage (`system.json`).
+ * @type {import('esbuild').BuildOptions}
+ */
+const vue3dConfig = {
+  entryPoints: ['src/webview/vue3d.mts'],
+  bundle: true,
+  outfile: 'dist/vue3d.js',
+  platform: 'browser',
+  format: 'iife',
+  target: 'es2020',
+  charset: 'utf8',
+  sourcemap: !production,
+  minify: production,
+  logLevel: 'info',
+};
+
 async function main() {
   copyPinouts();
   if (watch) {
@@ -231,6 +251,7 @@ async function main() {
     const ctxWeb = await esbuild.context(webviewConfig);
     const ctxWorker = await esbuild.context(workerConfig);
     const ctxAnal = await esbuild.context(analyseurConfig);
+    const ctxVue3d = await esbuild.context(vue3dConfig);
     const ctxDicts = await Promise.all(Object.keys(LANGUES_DICTS).map((l) => esbuild.context(configDict(l))));
     await Promise.all([
       ctxExt.watch(),
@@ -238,6 +259,7 @@ async function main() {
       ctxWeb.watch(),
       ctxWorker.watch(),
       ctxAnal.watch(),
+      ctxVue3d.watch(),
       ...ctxDicts.map((c) => c.watch()),
     ]);
     console.log('[watch] build initial terminé, surveillance des fichiers…');
@@ -248,6 +270,7 @@ async function main() {
       esbuild.build(webviewConfig),
       esbuild.build(workerConfig),
       esbuild.build(analyseurConfig),
+      esbuild.build(vue3dConfig),
       ...Object.keys(LANGUES_DICTS).map((l) => esbuild.build(configDict(l))),
     ]);
   }

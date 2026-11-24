@@ -16,7 +16,9 @@
 // hostile. Les paquets lus sont ceux de la bibliothèque de l'utilisateur.
 
 import vm from 'node:vm';
-import JSZip from 'jszip';
+// JSZip : type seul, la bibliothèque vit dans dist/zip.js, lue à la demande
+// (même règle que `projix.ts` : rien de JSZip dans dist/extension.js).
+import type JSZip from 'jszip';
 import type { DocumentSysteme } from './systeme';
 
 /** Délai d'un appel à `shape()` (ms) : une forme se calcule en quelques ms. */
@@ -97,7 +99,7 @@ export async function volumeDePaquet(octets: Uint8Array, delai = DELAI_FORME_MS)
   let zip: JSZip;
   let manifeste: Record<string, unknown>;
   try {
-    zip = await JSZip.loadAsync(octets);
+    zip = await (await import('./zip.js')).JSZip.loadAsync(octets);
     const brut = await zip.file('manifest.json')?.async('string');
     const m = brut === undefined ? undefined : (JSON.parse(brut) as unknown);
     if (!isObj(m) || typeof m.type !== 'string') return { type: '', erreur: 'manifest.json missing or invalid' };

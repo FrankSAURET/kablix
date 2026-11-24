@@ -76,6 +76,7 @@ const ATTENDU = {
   'toggle-labels': [/\bNoms\b/, /\bNames\b/],
   'rearrange-layout': [/réarranger/i, /rearrange/i],
   'text-mode': [/mode texte/i, /text mode/i],
+  'view-3d': [/Vue 3D/, /3D view/i],
   'more-btn': [/hamburger/i, /hamburger/i],
   'more-list': null, // le menu lui-même, détaillé via more-btn
   'open-help': [/aide/i, /help/i],

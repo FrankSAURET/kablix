@@ -56,6 +56,11 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
   const workerUri = webview.asWebviewUri(
     vscode.Uri.joinPath(extensionUri, 'dist', 'webview-worker.js')
   );
+  // Vue 3D du montage (piste 11, lot D6c) : three.js dans son propre paquet,
+  // posé par une balise <script> à nonce au premier clic sur « 3D ».
+  const vue3dUri = webview.asWebviewUri(
+    vscode.Uri.joinPath(extensionUri, 'dist', 'vue3d.js')
+  );
   const nonce = getNonce();
   // Numéro PUBLIC seul : le build a sa propre ligne en dessous, écrite par la
   // webview depuis `__BUILD_NUMBER__` (voir sim.mts). Un `versionAffichee()` ici
@@ -136,6 +141,8 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
     <button id="toggle-labels" title="${l10n.t('Show/hide part names')}">${l10n.t('Names')}</button>
     <button id="rearrange-layout" class="toolbar__icon-btn" title="${l10n.t('Rearrange the windows (code / Kablix)')}"><img src="${rearrangerIconUri}" alt="${l10n.t('Rearrange the windows (code / Kablix)')}" /></button>
     <button id="text-mode" class="toolbar__icon-btn" aria-pressed="false" title="${l10n.t('Text mode: click the sheet to place a free text label')}"><img src="${texteIconUri}" alt="${l10n.t('Text mode: click the sheet to place a free text label')}" /></button>
+    <!-- Vue 3D du montage : visible seulement quand le projet a un system.json. -->
+    <button id="view-3d" hidden title="${l10n.t('3D view of the assembly')}">3D</button>
     <div class="more-menu" id="more-menu">
       <button id="more-btn" class="toolbar__icon-btn" title="${l10n.t('Other functions')}" aria-haspopup="true" aria-expanded="false" aria-label="${l10n.t('Other functions')}"><img src="${hamburgerIconUri}" alt="${l10n.t('Other functions')}" /></button>
       <ul id="more-list" class="more-menu__list" role="menu" hidden>
@@ -252,6 +259,11 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
         <!-- Succès : annonce d'un badge obtenu, et panneau qui les liste. -->
         <div id="succes-toast" class="succes-toast" hidden role="status" aria-live="polite"></div>
         <div id="succes-panel" class="succes-panel" hidden></div>
+        <!-- Vue 3D du montage (lot D6c) : rendu three.js dans .vue3d__scene. -->
+        <div id="vue3d" class="vue3d" hidden>
+          <div class="vue3d__head"><span class="vue3d__titre">${l10n.t('3D view of the assembly')}</span><button id="vue3d-close" class="vue3d__close" title="${l10n.t('Close')}">✕</button></div>
+          <div id="vue3d-scene" class="vue3d__scene"></div>
+        </div>
         <!-- Tâche longue (autoroutage d'un gros schéma) : voile sur le canvas,
              avancement et bouton d'annulation. Le voile prend les clics, le
              schéma ne bouge donc pas pendant le calcul. -->
@@ -373,6 +385,7 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
 window.KABLIX_NONCE = ${JSON.stringify(nonce)};
 window.KABLIX_PINOUT_BASE = ${JSON.stringify(pinoutBase.toString())};
 window.KABLIX_WORKER_URL = ${JSON.stringify(workerUri.toString())};
+window.KABLIX_VUE3D_URL = ${JSON.stringify(vue3dUri.toString())};
 window.KABLIX_SIM_WORKER = ${JSON.stringify(simWorker)};</script>
   ${scriptDictionnaire(webview, extensionUri, nonce)}
   <script nonce="${nonce}" src="${scriptUri}"></script>

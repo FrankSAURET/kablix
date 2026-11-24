@@ -17,7 +17,7 @@
         1. ✅ **D6a** — solveur cinématique porté dans la webview : `src/webview/mecanique/cinematique.mts`, copie à l'identique de `kinematics.ts` de kompix-core (imports exceptés, socle `socle.mts`) ; banc `verify:cinematique` (dérive de la copie, 16 tests de kompix-core rejoués, exemple du format lu par `lireSysteme`) (v343).
         2. ✅ **D6b** — volume et axes nommés de chaque pièce : `src/systemeVolumes.ts` (extension : paquets `.kompix`, `shape.mjs` en `node:vm`, maillages de `system/`), `src/webview/mecanique/volumes.mts` (paquet > élément intégré, miroir, `montageCinematique`), banc `verify:volumes` sur le robot deux roues (v344). ⏳ Convention du miroir (plan X = 0 de la pièce) à confirmer par Frank.
         2b. ✅ **D6b′ — défaut du solveur** — voie de la conduite différentielle = écart des roues (147 mm) et non des points d'axe du châssis (90 mm) : corrigé dans kompix-core (Kompix Editor `v2026.10.0.19`, consigne v345), relu et recopié dans `cinematique.mts`, `verify:volumes` contrôle le virage (v346).
-        3. ⬜ **D6c** — vue 3D fixe (M) : three.js (même version que Kompix Editor, 0.186.1) dans un paquet esbuild À PART chargé à la demande (pas dans le bundle principal, ~600 Ko) ; panneau « Vue 3D » ouvert depuis la barre quand le projet a un `system.json` ; montage à sa pose du document, caméra orbitale, rôle et repère au survol ; pièce en défaut (problèmes D1/D5) marquée. Banc Chrome headless (géométrie) + `verify:souris` pour l'orbite.
+        3. ✅ **D6c** — vue 3D fixe : three.js 0.186.1 dans `dist/vue3d.js` chargé au premier clic ; bouton « 3D » de la barre (projet avec `system.json`), panneau flottant, caméra orbitale, bulle au survol (rôle, repère, défauts), pièces en défaut en rouge ; banc `verify:vue3d` (dérive des copies, scène sous Node, Chrome à vraie souris) (v347). ⏳ Textes ES/ZH avant publication.
         4. ⬜ **D6d** — pilotage pendant la simulation (M) : rôle `servo` → angle simulé (`servoAngleUs` de `sim.mts`) sur le pivot dont la pièce est parent ; rôle `moteur`/`roue` → vitesse de `motorStates` intégrée en angle ; `roue-sol` → `rollStep` ; saturation et problèmes du solveur affichés dans la vue ; arrêt de la simulation → retour à la pose du document.
         5. ⬜ **D6e** — démonstrateurs et aide (S) : projets d'exemple bras servo + aimant et robot deux roues (`.projix` avec `system.json`), fiche d'aide FR de la vue 3D, entrée CHANGELOG. Composants mécaniques toujours Béta.
         - ℹ️ Pourquoi une copie du solveur : Kompix Editor est un dépôt séparé, Kablix n'en dépend pas (même choix que `controlerRoles` pour D5). Corriger dans kompix-core puis recopier ; le banc tombe si la copie dérive.
@@ -30,6 +30,24 @@
     - ℹ️ **Numéros (22/11)** : `main` fusionné dans `mecatronique` ; les lots de la branche, nés en `2026.11.4.325` à `.333` (doublons de `main` en 325-327), sont renumérotés `2026.11.5.328` à `.336` (les messages des enregistrements gardent l'ancien numéro). **Règle** : le `buildNumber` d'un lot = le plus grand des deux branches (`git show main:package.json`) + 1 ; fusionner `main` dans `mecatronique` après chaque publication.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.347 — D6c : vue 3D fixe du montage
+
+1. ✅ **Paquet à part** : three.js 0.186.1 (même version que Kompix Editor, `@types/three` en dev) ; entrée [src/webview/vue3d.mts](src/webview/vue3d.mts) → `dist/vue3d.js` (iife, ~1,6 Mo en dev), configuration `vue3dConfig` dans [esbuild.js](esbuild.js). Rien de three.js dans `webview.js`.
+2. ✅ **Copies de kompix-core** : [modele3d.mts](src/webview/mecanique/modele3d.mts) (`model3d.ts`) et [montage3d.mts](src/webview/mecanique/montage3d.mts) (`montage.ts`), imports exceptés ; `pieceOutline` (`mesh.ts`) ajouté à [socle.mts](src/webview/mecanique/socle.mts).
+3. ✅ **Données pures** : [vue3d-donnees.mts](src/webview/mecanique/vue3d-donnees.mts), `vue3D()` (source de volume, pose du solveur, rôle, défauts répartis par ID, repère, chemin, liaison) et `bulleDePiece()`.
+4. ✅ **Scène** : [scene3d.mts](src/webview/mecanique/scene3d.mts), `construireScene()` (volumes extrudés repris de `scene.ts` de Kompix Editor, maillages STL/glTF, miroir, boîte rouge si pas de volume, rouge + cadre `defaut:<id>` sur les pièces en défaut).
+5. ✅ **Extension** : [panel.ts](src/panel.ts) envoie `hasSystem` avec `loadProject` ; sur `vue3dDemande` (schéma courant joint), relit `system.json`, le contrôle, joint les volumes → `vue3d`. JSZip passé en import différé dans [systemeVolumes.ts](src/systemeVolumes.ts) (reste hors de `extension.js`).
+6. ✅ **Page** : bouton `#view-3d` et panneau `#vue3d` dans [webview-html.ts](src/webview-html.ts), branchement dans [vue3d-page.mts](src/webview/vue3d-page.mts) (chargement unique à nonce, fermeture au changement de projet, réponse tardive ignorée), CSS `.vue3d*` dans [styles.css](media/styles.css).
+7. ✅ **Textes** : FR dans [i18n.mts](src/webview/i18n.mts) (34 clés : bulle, défauts du document, des rôles, des volumes et du solveur) et `bundle.l10n.fr.json` (titre du bouton). ⏳ ES/ZH avant publication.
+8. ✅ **Banc [verify-vue3d.mjs](scripts/verify-vue3d.mjs)** (`verify:vue3d`, dans `verify:all`) 32/32 : copies identiques à kompix-core ; robot deux roues enrichi (repère absent, rôle, paquet inconnu) : 7 pièces, roues à ±73,5 mm, défauts sur mg/sol/x seulement, bulles ; Chrome headless (WebGL SwiftShader, port libre) à la vraie souris : survol → bulle de mg avec son défaut, glisser → orbite à recul constant, molette → rapproche, fermer vide la scène. Contre-épreuve : sur l'enregistrement précédent, `vue3d.mts` et `vue3d-donnees.mts` n'existent pas, le banc tombe.
+9. ✅ **Paquet** : `!dist/vue3d.js` ajouté à `.vscodeignore` (sinon le `.vsix` perdait la vue, piège de l'analyseur) ; `verify:paquet` vert, 6 bundles embarqués.
+10. ✅ **Aide** : bouton **3D** décrit dans [docs/fr/USAGE.md](docs/fr/USAGE.md) (section L'interface), entrée `view-3d` dans la table de `verify:help-bars`. ⏳ Phrase EN de `docs/en/USAGE.md` avant publication : `verify:help-bars` rouge sur ce seul contrôle d'ici là.
+11. ✅ **`verify:all`** : 179/184 verts. Rejoués seuls et verts : `analyseur-trames`, `servo` (charge). Rouges connus : `verify:i18n` (ES/ZH, normal avant publication), `verify:linter` (⏳ 6 de v343), `verify:help-bars` (EN, voir 10).
+12. ✅ `.vsix` construit, non installé (mode nuit).
+13. ⏳ **Reste** : pilotage par la simulation (D6d) ; pas de vue Chrome du bouton dans l'atelier complet (le panneau est testé seul) ; vérification à l'œil par Frank.
 
 ---
 

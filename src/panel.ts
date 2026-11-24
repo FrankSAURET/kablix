@@ -37,6 +37,7 @@ import {
   type ProjixAnalyseur,
 } from './projix';
 import { controlerSysteme, lireSysteme, repereEffectif, reperesDuSchema, typesDuSchema, type ProblemeSysteme } from './systeme';
+import { volumesDuSysteme } from './systemeVolumes';
 import {
   resolveMicropythonFirmware,
   FirmwareCancelled,
@@ -2378,6 +2379,11 @@ ${err instanceof Error ? err.message : String(err)}`
       case 'nativeSaveAs':
         this.saveSmart(true);
         break;
+      case 'vue3dDemande':
+        // Bouton « Vue 3D » (piste 11, lot D6c) : la webview fournit son schéma
+        // du moment, pour contrôler le montage contre les repères posés.
+        void this.envoyerVue3D(msg.diagram);
+        break;
       case 'saveProject':
         // La webview fournit le schéma sérialisé : on construit le .projix.
         // Écriture directe si un .projix est déjà connu, boîte de dialogue sinon.
@@ -2883,6 +2889,26 @@ ${err instanceof Error ? err.message : String(err)}`
     return [...problemes, ...controle];
   }
 
+  /**
+   * Données de la vue 3D (lot D6c) : document lu, volumes des pièces (paquets
+   * de la bibliothèque dépliés, maillages de `system/`) et problèmes contrôlés
+   * contre le schéma de la webview. Document illisible : l'avertissement
+   * habituel, et rien n'est envoyé.
+   */
+  private async envoyerVue3D(diagram: unknown): Promise<void> {
+    const s = this.systemeDuProjet;
+    if (!s) return;
+    const { systeme } = lireSysteme(s.brut);
+    const problemes = SimulatorPanel.problemesSysteme(s.brut, diagram, s.fichiers);
+    if (!systeme) {
+      void vscode.window.showWarningMessage(SimulatorPanel.messageSysteme(problemes));
+      return;
+    }
+    const lib = SimulatorPanel.library as { paquetDe?: (type: string) => Uint8Array | undefined } | undefined;
+    const volumes = await volumesDuSysteme(systeme, (type) => lib?.paquetDe?.(type), s.fichiers);
+    this.post({ type: 'vue3d', donnees: { doc: systeme, volumes, problemes } });
+  }
+
   /** Message d'avertissement, une ligne, pour les problèmes du document système. */
   static messageSysteme(problemes: ProblemeSysteme[]): string {
     const cibles = (cle: ProblemeSysteme['cle']) =>
@@ -3183,6 +3209,7 @@ ${err instanceof Error ? err.message : String(err)}`
       diagram: project.diagram,
       board: project.manifest.board,
       customParts: await this.installesDabord(customParts ?? [], project.diagram),
+      hasSystem: this.systemeDuProjet !== undefined,
     });
     // Restaure le fichier de code à exécuter/déboguer mémorisé dans le projet
     // (résolu en priorité à côté du .projix ; l'ancien fichier est oublié).
@@ -3571,6 +3598,7 @@ ${err instanceof Error ? err.message : String(err)}`
       board: state.board,
       markDirty: true,
       customParts: await this.installesDabord([], state.diagram),
+      hasSystem: this.systemeDuProjet !== undefined,
     });
 
     const save = l10n.t('Save');

@@ -17,6 +17,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - Un projet peut emporter son montage mécanique en 3D (pièces, positions, liaisons). Kablix le conserve à l'enregistrement et signale à l'ouverture les pièces qui ne correspondent à aucun composant du schéma.
 - Le nom d'une pièce du montage lui donne un rôle (`servo:Act1`, `roue:M2`, `sol`…). À l'ouverture, Kablix signale les rôles mal écrits, en double ou qui ne correspondent pas au composant du schéma.
+- **Vue 3D du montage** (Béta) : le bouton « 3D » de la barre montre le montage mécanique du projet en volume. Glisser pour tourner autour, molette pour zoomer ; le survol d'une pièce affiche son rôle, son repère et ses défauts. Les pièces en défaut sont en rouge.
 
 ## 2026.11.5 (21 novembre 2026)
 

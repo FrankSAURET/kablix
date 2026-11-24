@@ -41,8 +41,11 @@ PROGRESSION.md
 # dist/i18n-*.js : un dictionnaire de traduction par langue (v2026.9.7.176),
 # chargé par la page avant son script. Oublié ici, l'interface resterait en
 # anglais pour tout le monde, sans un mot d'erreur.
+# dist/vue3d.js : la vue 3D du montage (three.js), chargée au premier clic sur
+# « 3D » (v2026.11.5.347). Oubliée ici, le panneau resterait vide.
 dist/**
 !dist/extension.js
+!dist/vue3d.js
 !dist/zip.js
 !dist/webview.js
 !dist/webview-worker.js

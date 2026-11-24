@@ -3779,6 +3779,79 @@ body.vscode-light .inspector__ref--nouveau {
 .succes-panel__body {
   padding: 4px 12px 12px;
 }
+/* Vue 3D du montage (lot D6c) : grand panneau flottant sur le canvas. */
+.vue3d {
+  position: absolute;
+  top: 46px;
+  right: 8px;
+  z-index: 9;
+  width: min(720px, calc(100% - 16px));
+  height: min(520px, calc(100% - 60px));
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
+  color: var(--vscode-editor-foreground, #ccc);
+  background: var(--vscode-editorWidget-background, #252526);
+  border: 1px solid var(--vscode-editorWidget-border, #454545);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  font: 12px/1.35 sans-serif;
+}
+.vue3d[hidden] {
+  display: none;
+}
+.vue3d__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--vscode-editorWidget-border, #454545);
+}
+.vue3d__close {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+}
+.vue3d__scene {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.vue3d__canvas {
+  display: block;
+  cursor: grab;
+}
+.vue3d__canvas:active {
+  cursor: grabbing;
+}
+.vue3d__bulle {
+  position: absolute;
+  pointer-events: none;
+  max-width: 260px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--vscode-editorHoverWidget-background, #2d2d30);
+  border: 1px solid var(--vscode-editorHoverWidget-border, #454545);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+}
+.vue3d__bulle[hidden] {
+  display: none;
+}
+.vue3d__bulle-titre {
+  font-weight: bold;
+}
+.vue3d__bulle-defaut {
+  color: #ef5350;
+}
+.vue3d__message {
+  margin: 0;
+  padding: 24px;
+  text-align: center;
+  opacity: 0.8;
+}
 .succes-panel__body h4 {
   margin: 12px 0 6px;
   text-transform: uppercase;

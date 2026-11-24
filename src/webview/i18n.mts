@@ -1097,6 +1097,75 @@ const FR: Record<string, string> = {
     'Régulateur trop chaud : {0} W dissipés, jonction à {1} °C',
   'The regulator dissipates (Vin − Vout) × I as heat. Lower the input voltage or the current, or add a heatsink (Heatsink property).':
     'Le régulateur dissipe (Ventrée − Vsortie) × I en chaleur. Baisser la tension d\'entrée ou le courant, ou ajouter un radiateur (propriété Radiateur).',
+  // Vue 3D du montage (lot D6c)
+  '3D view of the assembly':
+    'Vue 3D du montage',
+  'role':
+    'rôle',
+  'reference':
+    'repère',
+  'mechanical part':
+    'pièce mécanique',
+  '3D view unavailable: WebGL is disabled.':
+    'Vue 3D indisponible : WebGL est désactivé.',
+  'Unreadable assembly file':
+    'Fichier de montage illisible',
+  'Assembly file from a newer version':
+    'Fichier de montage d’une version plus récente',
+  'Invalid part':
+    'Pièce invalide',
+  'Duplicate part ID':
+    'ID de pièce en double',
+  'Invalid joint':
+    'Liaison invalide',
+  'Joint to a missing part':
+    'Liaison vers une pièce absente',
+  'Duplicate joint ID':
+    'ID de liaison en double',
+  'Reference missing from the schematic':
+    'Repère absent du schéma',
+  'Reference used twice':
+    'Repère utilisé deux fois',
+  'Missing file':
+    'Fichier absent',
+  'Unknown role':
+    'Rôle inconnu',
+  'Role without reference':
+    'Rôle sans repère',
+  'Role and reference disagree':
+    'Rôle et repère en désaccord',
+  'Role given twice':
+    'Rôle donné deux fois',
+  'Role does not fit the component':
+    'Rôle qui ne convient pas au composant',
+  'Role reference missing from the schematic':
+    'Repère du rôle absent du schéma',
+  'Component package missing':
+    'Paquet du composant absent',
+  'Component has no 3D model':
+    'Composant sans modèle 3D',
+  'Unreadable mesh':
+    'Maillage illisible',
+  'Closed loop of joints':
+    'Boucle fermée de liaisons',
+  'Joint axis missing':
+    'Axe de liaison absent',
+  'Gear without a pivot':
+    'Engrenage sans pivot',
+  'Coupling cycle':
+    'Couplage en boucle',
+  'Wheel without a radius':
+    'Roue sans rayon',
+  'Wheel without a pivot':
+    'Roue sans pivot',
+  'Incompatible wheels':
+    'Roues incompatibles',
+  'Invalid joint parameter':
+    'Paramètre de liaison invalide',
+  'Unknown joint type':
+    'Type de liaison inconnu',
+  'Driven variable set by hand':
+    'Variable menée fixée à la main',
 };
 
 // `zh` : chinois simplifié (VS Code : zh-cn). zh-tw retombe aussi dessus.

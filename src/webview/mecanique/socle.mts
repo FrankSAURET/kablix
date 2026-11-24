@@ -11,6 +11,7 @@
 // Module pur : ni DOM, ni `vscode`.
 
 import type { DocumentSysteme, LiaisonSysteme, PieceSysteme } from '../../systeme.js';
+import type { AssemblyPiece, Vec2 } from './modele3d.mjs';
 
 export type Vec3 = { x: number; y: number; z: number };
 export type AxisDir = 'x' | 'y' | 'z';
@@ -52,4 +53,12 @@ export function rotXYZ(p: Vec3, r?: Vec3): Vec3 {
 /** Vecteur unitaire d'une direction d'axe. */
 export function axisVector(dir: AxisDir): Vec3 {
   return { x: dir === 'x' ? 1 : 0, y: dir === 'y' ? 1 : 0, z: dir === 'z' ? 1 : 0 };
+}
+
+/** Contour d'une pièce ; pièce maillée sans contour = sa boîte (copie de
+ *  `pieceOutline` de `mesh.ts`, kompix-core ; sert à `montage3d.mts`, lot D6c). */
+export function pieceOutline(p: AssemblyPiece): Vec2[] {
+  if (p.poly.length >= 3 || !p.mesh) return p.poly;
+  const x = p.w / 2, y = p.h / 2;
+  return [{ x: -x, y: -y }, { x, y: -y }, { x, y }, { x: -x, y }];
 }
