@@ -33,6 +33,12 @@ Le **nom** d'une pièce lui donne son rôle, sous la forme `rôle:repère`, où 
 
 Une pièce sans rôle (châssis, décor) suit les pièces auxquelles elle est fixée, sans être pilotée.
 
+## Montage importé d'un STEP
+
+Kompix Editor importe un assemblage STEP (exporté de SolidWorks, FreeCAD…) dans un projet `.projix` : commande **Importer un assemblage STEP…**. Chaque pièce garde la place et la couleur qu'elle a dans le STEP. Nommez les pièces dans votre logiciel de CAO selon la convention `rôle:repère` (`servo:S1`, `aimant:A1`, `hall:U3`) : elles prennent leur rôle à l'import.
+
+Un STEP ne décrit aucune liaison : le montage importé reste **fixe** dans la vue 3D. Les capteurs (Hall, ultrasons) y lisent quand même la position des pièces.
+
 ## Pendant la simulation
 
 - **Servo** : la pièce montée sur le palonnier prend l'angle du servo, de 0 à 180°.
@@ -56,9 +62,10 @@ Une pièce en défaut reste immobile en simulation ; le reste du montage fonctio
 
 ## Projets d'exemple
 
-Deux projets démonstrateurs sont fournis dans le dépôt de Kablix, dossier `docs/exemples/mecanique/` :
+Trois projets démonstrateurs sont fournis dans le dépôt de Kablix, dossier `docs/exemples/mecanique/` :
 
 - **bras-servo-aimant** : un servo fait tourner un aimant devant un capteur à effet Hall ; dans la vue 3D, l'aimant tourne avec le palonnier.
 - **robot-deux-roues** : deux moteurs, chacun commandé par un transistor PN2222A avec sa diode de roue libre ; dans la vue 3D, le robot roule tout droit puis tourne.
+- **robot-step** : un montage importé du fichier `robot-mini.step` fourni à côté (châssis, servo, aimant, capteur à effet Hall) ; ses pièces sont rangées dans le projet, il s'ouvre sans rien ajouter à la bibliothèque.
 
-Leurs pièces sont les composants mécaniques de Kompix Editor (`servo`, `aimant`, `moteur-dc`, `roue`, `chassis-2-roues`) : déposez-les dans la bibliothèque de composants (**Kablix : Ouvrir la bibliothèque de composants**) avant d'ouvrir la vue, sinon les pièces restent des boîtes rouges.
+Les pièces des deux premiers sont les composants mécaniques de Kompix Editor (`servo`, `aimant`, `moteur-dc`, `roue`, `chassis-2-roues`) : déposez-les dans la bibliothèque de composants (**Kablix : Ouvrir la bibliothèque de composants**) avant d'ouvrir la vue, sinon les pièces restent des boîtes rouges.

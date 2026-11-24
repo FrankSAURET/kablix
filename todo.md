@@ -27,10 +27,10 @@
             - ✅ **D7b-1, partie Kompix Editor** — consigne (v351), lot Kompix Editor `v2026.10.0.20` exécuté par le lanceur, relu (145/145 rejoué) en v352.
             - ✅ **D7b-2, partie Kablix** — rôle `ultrason` dans `src/systeme.ts`, rayon dans `capteurs.mts` + `vue3d.mts`, distance posée sur le curseur du HC-SR04 dans `sim.mts` ; banc `verify:vue3d` 77/77 (v352). ⏳ Choix faits sans Frank : voir v352.
         3. ⏳ **D7c** — fin de course (contact) : **aucun composant fin de course dans Kablix** ; sa simulation (et s'il faut un nouveau composant ou un bouton-poussoir) est à préciser par Frank.
-    - ⬜ **D8** — import STEP (OpenCascade WASM téléchargé à la demande), arbre d'assemblage et noms → convention D5. Découpé le 24/11 (v353) en trois lots :
+    - ✅ **D8** — import STEP (OpenCascade WASM téléchargé à la demande), arbre d'assemblage et noms → convention D5. Découpé le 24/11 (v353) en trois lots :
         1. ✅ **D8a, partie Kompix Editor** — module pur `kompix-core/src/step.ts` (sortie de `occt-import-js` → `SystemDoc` + STL sous `system/meshes/`, noms passés par `parseRole`), fixture STEP fabriquée par FreeCAD, `occt-import-js` en dépendance de développement seulement. Consigne (v353), lot Kompix Editor `v2026.10.0.21` relu (159/159 rejoué), règles reportées dans [systeme_specification.md](docs/systeme_specification.md) (v354).
-        2. ⬜ **D8b, partie Kompix Editor** — téléchargement du WASM à la demande (version épinglée, SHA-256, cache), commande « Importer un assemblage STEP… » qui écrit `system.json` + `system/` dans un `.projix`. Consigne déposée (v354) dans `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md` ; à relire au retour du lanceur.
-        3. ⬜ **D8c, partie Kablix** — démonstrateur et banc d'un projet issu d'un STEP dans la vue 3D.
+        2. ✅ **D8b, partie Kompix Editor** — téléchargement du WASM à la demande (version épinglée, SHA-256, cache), commande « Importer un assemblage STEP… » qui écrit `system.json` + `system/` dans un `.projix`. Consigne (v354), lot Kompix Editor `v2026.10.0.22` relu (159/159 et 52/53 rejoués) en v355.
+        3. ✅ **D8c, partie Kablix** — démonstrateur `docs/exemples/mecanique/robot-step/`, pièces `fichier` non recentrées (défaut corrigé), `extra.couleur` lue ; bancs `verify:vue3d` 85/85, `verify:exemples-meca` 34/34 (v355).
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
@@ -40,6 +40,22 @@
     - ℹ️ **Numéros (22/11)** : `main` fusionné dans `mecatronique` ; les lots de la branche, nés en `2026.11.4.325` à `.333` (doublons de `main` en 325-327), sont renumérotés `2026.11.5.328` à `.336` (les messages des enregistrements gardent l'ancien numéro). **Règle** : le `buildNumber` d'un lot = le plus grand des deux branches (`git show main:package.json`) + 1 ; fusionner `main` dans `mecatronique` après chaque publication.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.355 — D8b relu ; D8c : montage importé d'un STEP dans la vue 3D
+
+1. ✅ **Relecture** du lot Kompix Editor `v2026.10.0.22` (enregistrement `aff8b60`, exécuté par le lanceur) : `occt.ts` (téléchargement vérifié en mémoire avant écriture, cache revérifié, repli unpkg sur réseau/HTTP seulement), `step-import.ts` pur, `step-commands.ts` (dialogues, canal « Kompix »). Conforme à la consigne. Rejoué : kompix-core 159/159, kompix-editor 52/53 (échec connu `led-strip.kompix`, point 29 de son `todo.md`).
+2. ✅ **Défaut trouvé et corrigé** : [scene3d.mts](src/webview/mecanique/scene3d.mts) ramenait chaque maillage de pièce `fichier` au centre de sa boîte ; un STEP importé (pose nulle, coordonnées globales) s'empilait donc à l'origine. `geometrieMaillage` prend `recentrer` (vrai pour les pièces `mesh` d'un paquet, faux pour les pièces `fichier`). Effet de bord : le sol de `robot-deux-roues` (pavé Z −2…0) descend de 1 mm, dessus à Z = 0 comme voulu.
+3. ✅ **Couleur** : `extra.couleur` (`#rrggbb`) lue par `lireSysteme` ([systeme.ts](src/systeme.ts), champ `couleur`), passée par `vue3D`, appliquée aux pièces `fichier` sans couleurs de sommets. L'écriture du document travaille sur le brut : `extra` reste intact.
+4. ✅ **Démonstrateur** `docs/exemples/mecanique/robot-step/` (`.projix`, `.ino`, `robot-mini.step` d'origine) fabriqué par [scripts/_exemple-step.mjs](scripts/_exemple-step.mjs) avec le VRAI `stepToSystem` et `occt-import-js` du dépôt Kompix Editor (même appel que la commande d'import) : 5 pièces (`chassis`, `servo:S1`, `aimant:A1`, `hall:U3`, `entretoise`), schéma Uno + servo S1 + aimant A1 + Hall U3. Exclu du `.vsix` (`docs/exemples/**`).
+5. ✅ **Bancs** : `verify:vue3d` 77 → 85 (étage G : pièces à la boîte de leur STL, séparées, rôles, Hall lu entre deux pièces importées, couleur lue/ignorée/appliquée) ; contre-épreuve recentrage rétabli → 3 échecs. `verify:exemples-meca` 34/34 (robot-step ajouté). `verify:systeme`, `verify:volumes`, `verify:cinematique`, `verify:docs` verts. `verify:all` : 181/185 ; échecs connus `verify:linter` (ruban Pico, déjà en v344) et `verify:i18n` (ES/ZH, attendus), `verify:help-bars` (bouton 3D absent de l'aide EN, attend la publication), `verify:analyseur-sans-declenchement` instable (`sessionStorage` refusé), vert au rejeu seul.
+6. ✅ **Docs** : [systeme_specification.md](docs/systeme_specification.md) (pièce `fichier` non recentrée, couleur, sections « Commande d'import (D8b) » et « Montage importé dans la vue 3D (D8c) », D8 fait), [docs/fr/3D-view.md](docs/fr/3D-view.md) (section STEP, troisième exemple) ; CHANGELOG (Projets).
+7. ⏳ **Choix faits sans Frank, à confirmer** : pièce `fichier` dans les coordonnées de son fichier (non recentrée) ; couleur des sommets prioritaire sur `extra.couleur`.
+8. ⏳ `docs/en/3D-view.md` : section STEP et troisième exemple avant publication.
+9. ⏳ Essai F5 par Frank : importer `robot-mini.step` dans un projet par Kompix Editor, l'ouvrir dans Kablix, vue 3D.
+10. ℹ️ D1 à D8 faits ; D7c (fin de course) et le champ progressif restent bloqués par Frank. Les autres ⏳ attendent Frank ou la publication.
+11. ℹ️ Mode nuit : `.vsix` construit, non installé.
 
 ---
 

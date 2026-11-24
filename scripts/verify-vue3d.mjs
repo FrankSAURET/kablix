@@ -21,7 +21,10 @@
 //      capteur Hall et `simuler` rend l'écart mesuré dans la vraie scène ;
 //   F. télémètres (lot D7b) : tri, conversion, bornage sous Node ; dans
 //      Chrome, le rayon du paquet `hcsr04` (axe `faisceau`) touche un
-//      roulement à 8,9 cm, et rien sans obstacle.
+//      roulement à 8,9 cm, et rien sans obstacle ;
+//   G. montage importé d'un STEP (lot D8c) : le démonstrateur robot-step,
+//      pièces `fichier` à leur place du STEP (non recentrées), rôles, Hall
+//      lu, couleur `extra.couleur`.
 // A et B sont sautés (avec un avis) sans le dépôt de Kompix Editor ; C sans
 // Chrome. Contre-épreuve : sans `src/webview/vue3d.mts`, B et C échouent.
 //
@@ -286,6 +289,71 @@ if (editeur && existsSync(join(editeur, 'components/meca'))) {
   const dh = M.lireSysteme(hallBrut('aimant:A1', 'hall:U1')).systeme;
   check(!!dh, 'montage servo + aimant + Hall lu');
   donneesHall = { doc: dh, volumes: await M.volumesDuSysteme(dh, (t) => paquets.get(t), []), problemes: [] };
+
+  // ---------------------------------------------- G. montage importé d'un STEP (D8c)
+  // Démonstrateur robot-step (fabriqué par _exemple-step.mjs avec le vrai
+  // `stepToSystem`) : pièces `fichier` en coordonnées globales, pose nulle.
+  // Elles doivent rester où le STEP les met, pas s'empiler à l'origine.
+  // N'utilise aucun paquet de Kompix Editor ; placé ici pour réutiliser M.
+  {
+  console.log('G. montage importé d\'un STEP (Node)');
+  const JSZip = (await import('jszip')).default;
+  const zs = await JSZip.loadAsync(readFileSync(join(ROOT, 'docs/exemples/mecanique/robot-step/robot-step.projix')));
+  const brutStep = JSON.parse(await zs.file('system.json').async('string'));
+  const fichiersStep = [];
+  for (const [chemin, f] of Object.entries(zs.files)) {
+    if (!f.dir && chemin.startsWith('system/')) fichiersStep.push({ path: chemin.slice(7), data: await f.async('uint8array') });
+  }
+  /** Boîte d'un STL binaire, lue dans ses octets. */
+  const boiteStl = (o) => {
+    const dv = new DataView(o.buffer, o.byteOffset, o.byteLength);
+    const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+    for (let t = 0, n = dv.getUint32(80, true); t < n; t++) {
+      for (let s = 0; s < 3; s++) for (let k = 0; k < 3; k++) {
+        const v = dv.getFloat32(84 + t * 50 + 12 + s * 12 + k * 4, true);
+        min[k] = Math.min(min[k], v);
+        max[k] = Math.max(max[k], v);
+      }
+    }
+    return { min, max };
+  };
+  const ds = M.lireSysteme(brutStep).systeme;
+  check(!!ds && ds.pieces.length === 5 && ds.pieces.every((q) => q.source.kind === 'fichier'), 'STEP : 5 pièces fichier lues', ds?.pieces.length);
+  const vs = await M.volumesDuSysteme(ds, () => undefined, fichiersStep);
+  const vueS = M.vue3D({ doc: ds, volumes: vs, problemes: [] });
+  check(vueS.pieces.every((q) => q.defauts.length === 0), 'STEP : aucune pièce en défaut', JSON.stringify(vueS.pieces.filter((q) => q.defauts.length).map((q) => [q.id, q.defauts])));
+  const roles = vueS.pieces.filter((q) => q.role).map((q) => `${q.role.nom}:${q.repere}`).sort().join(',');
+  check(roles === 'aimant:A1,hall:U3,servo:S1', 'STEP : rôles lus dans les noms du STEP', roles);
+  const scS = await M.construireScene(vueS);
+  scS.racine.updateMatrixWorld(true);
+  const Box3 = (await import('three')).Box3;
+  let places = 0;
+  const centres = new Set();
+  for (const q of ds.pieces) {
+    const attendu = boiteStl(fichiersStep.find((f) => f.path === q.source.path).data);
+    const b = new Box3().setFromObject(scS.pieces.get(q.id));
+    const egal = [0, 1, 2].every((k) => near(b.min.getComponent(k), attendu.min[k], 1e-3) && near(b.max.getComponent(k), attendu.max[k], 1e-3));
+    if (egal) places++;
+    else console.log(`    ${q.id} : vue ${b.min.toArray().map((x) => x.toFixed(2))} → ${b.max.toArray().map((x) => x.toFixed(2))}, STL ${attendu.min.map((x) => x.toFixed(2))} → ${attendu.max.map((x) => x.toFixed(2))}`);
+    centres.add(b.getCenter(b.min.clone()).toArray().map((x) => x.toFixed(1)).join());
+  }
+  check(places === 5, 'STEP : chaque pièce à sa place du STEP (boîte de la vue = boîte du STL)', `${places}/5`);
+  check(centres.size === 5, 'STEP : pièces séparées, pas empilées à l\'origine', [...centres].join(' | '));
+  const boiteDe = (id) => { const b = new Box3().setFromObject(scS.pieces.get(id)); return { min: b.min.toArray(), max: b.max.toArray() }; };
+  const ecartHall = M.ecartBoites(boiteDe('hall-u3'), boiteDe('aimant-a1'));
+  check(Number.isFinite(ecartHall) && ecartHall > 0, 'STEP : le capteur U3 mesure l\'aimant A1 dans la scène', ecartHall);
+  scS.dispose();
+  // Couleur de l'import (`extra.couleur`) : appliquée ; mal écrite : ignorée.
+  const brutC = structuredClone(brutStep);
+  brutC.pieces[0].extra = { couleur: '#FF0000' };
+  brutC.pieces[1].extra = { couleur: 'rouge' };
+  const dc = M.lireSysteme(brutC).systeme;
+  check(dc.pieces[0].couleur === '#ff0000' && dc.pieces[1].couleur === undefined, 'couleur : #rrggbb lue, texte libre ignoré', JSON.stringify(dc.pieces.slice(0, 2).map((q) => q.couleur)));
+  const scC = await M.construireScene(M.vue3D({ doc: dc, volumes: await M.volumesDuSysteme(dc, () => undefined, fichiersStep), problemes: [] }));
+  const coul = (id) => scC.objets.find((o) => o.userData.piece === id).material.color.getHexString();
+  check(coul(dc.pieces[0].id) === 'ff0000' && coul(dc.pieces[1].id) === 'b0b0b0', 'couleur : rouge sur la pièce colorée, gris par défaut ailleurs', `${coul(dc.pieces[0].id)} / ${coul(dc.pieces[1].id)}`);
+  scC.dispose();
+  }
 } else {
   console.log('B. ⚠ dépôt de Kompix Editor absent : scène sautée');
 }

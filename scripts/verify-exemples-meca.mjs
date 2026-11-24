@@ -1,5 +1,5 @@
 // Projets démonstrateurs de la vue 3D (piste 11, lot D6e) :
-// docs/exemples/mecanique/{bras-servo-aimant,robot-deux-roues}.
+// docs/exemples/mecanique/{bras-servo-aimant,robot-deux-roues,robot-step}.
 //
 // Trois étages :
 //   A. chaque .projix lu par le vrai `unpackProject` : schéma, document système
@@ -67,6 +67,9 @@ const M = await import(pathToFileURL(sortie).href);
 const ATTENDUS = {
   'bras-servo-aimant': { pieces: 2, commandes: 'Palonnier<Act1' },
   'robot-deux-roues': { pieces: 6, commandes: 'Pd<Act2,Pg<Act1' },
+  // Montage importé d'un STEP (lot D8c, _exemple-step.mjs) : aucune liaison,
+  // donc aucune commande ; ses pièces `fichier` n'ont besoin d'aucun paquet.
+  'robot-step': { pieces: 5, commandes: '' },
 };
 const projets = {};
 console.log('A. projets lus');

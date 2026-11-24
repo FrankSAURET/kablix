@@ -34,6 +34,8 @@ export interface PieceVue {
   miroir: boolean;
   /** Maillages des pièces `mesh` de son paquet, en base64 (par chemin). */
   maillages?: Record<string, string>;
+  /** Couleur `#rrggbb` d'une pièce `fichier` (`extra.couleur`, import STEP). */
+  couleur?: string;
   /** Codes des défauts qui la touchent (vide = pièce saine). */
   defauts: string[];
 }
@@ -107,6 +109,7 @@ export function vue3D(d: DonneesVue3D): Vue3D {
       ...(role ? { role } : {}),
       source: volumeDePiece(p, volumes),
       ...(p.source.kind === 'kompix' && volumes.paquets[p.source.type]?.maillages ? { maillages: volumes.paquets[p.source.type].maillages } : {}),
+      ...(p.couleur ? { couleur: p.couleur } : {}),
       matrice: sol.poses[p.id]?.matrix ?? poseToMat(p.pose),
       miroir: !!p.pose.miroir,
       defauts: [...(defauts.get(p.id) ?? [])],

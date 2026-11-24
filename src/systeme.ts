@@ -53,6 +53,9 @@ export interface PieceSysteme {
   ref?: string;
   source: SourcePiece;
   pose: Pose;
+  /** Couleur d'affichage `#rrggbb`, lue dans `extra.couleur` (import STEP,
+   *  lot D8a) ; seule la vue 3D s'en sert, pour les pièces `fichier`. */
+  couleur?: string;
 }
 
 /** Types de liaisons prévus pour le solveur du lot D2. */
@@ -292,6 +295,8 @@ export function lireSysteme(brut: unknown): { systeme?: DocumentSysteme; problem
     if (nom) piece.nom = nom;
     const ref = texte(o.ref);
     if (ref) piece.ref = ref;
+    const couleur = estObjet(o.extra) ? texte(o.extra.couleur) : undefined;
+    if (couleur && /^#[0-9a-f]{6}$/i.test(couleur)) piece.couleur = couleur.toLowerCase();
     pieces.push(piece);
   }
 

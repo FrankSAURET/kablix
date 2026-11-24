@@ -21,7 +21,8 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - La vue 3D suit la simulation : les servos et les moteurs à courant continu font tourner les pièces liées par leur rôle, et un robot à roues roule sur le sol. Les butées et les pièces non pilotées sont signalées dans un encart. À l'arrêt, le montage revient à sa position de départ.
 - Dans la vue 3D, un capteur à effet Hall du montage détecte l'aimant qui passe devant lui pendant la simulation.
 - Dans la vue 3D, un capteur à ultrasons HC-SR04 du montage mesure la distance jusqu'à la première pièce devant lui ; le programme la lit comme d'habitude.
-- Fiche d'aide de la vue 3D, et deux projets d'exemple dans le dépôt : un bras servo + aimant et un robot à deux roues.
+- La vue 3D montre un montage importé d'un assemblage STEP (SolidWorks, FreeCAD) par Kompix Editor : chaque pièce à sa place, dans sa couleur d'origine.
+- Fiche d'aide de la vue 3D, et trois projets d'exemple dans le dépôt : un bras servo + aimant, un robot à deux roues et un montage importé d'un STEP.
 
 ## 2026.11.5 (21 novembre 2026)
 

@@ -103,8 +103,11 @@ export function formatDe(chemin: string): FormatMaillage | undefined {
   return m ? (m[1].toLowerCase() as FormatMaillage) : undefined;
 }
 
-/** Lit un maillage, le met en mm, Z en haut, centre de sa boîte à l'origine. */
-export async function geometrieMaillage(base64: string, format: FormatMaillage, echelle = 1, haut: 'y' | 'z' = 'z'): Promise<THREE.BufferGeometry> {
+/** Lit un maillage, le met en mm, Z en haut, centre de sa boîte à l'origine
+ *  (`recentrer`, pièce `mesh` d'un model3d). Une pièce `fichier` du document
+ *  garde ses coordonnées : son repère est celui du fichier (import STEP en
+ *  coordonnées globales, pose nulle, lot D8). */
+export async function geometrieMaillage(base64: string, format: FormatMaillage, echelle = 1, haut: 'y' | 'z' = 'z', recentrer = true): Promise<THREE.BufferGeometry> {
   const octets = octetsDe(base64);
   let geo: THREE.BufferGeometry;
   if (format === 'stl') {
@@ -139,9 +142,11 @@ export async function geometrieMaillage(base64: string, format: FormatMaillage, 
   if ((geo.getAttribute('position')?.count ?? 0) < 3) throw new Error('empty mesh');
   if (haut === 'y') geo.rotateX(Math.PI / 2);
   geo.scale(echelle, echelle, echelle);
-  geo.computeBoundingBox();
-  const c = geo.boundingBox!.getCenter(new THREE.Vector3());
-  geo.translate(-c.x, -c.y, -c.z);
+  if (recentrer) {
+    geo.computeBoundingBox();
+    const c = geo.boundingBox!.getCenter(new THREE.Vector3());
+    geo.translate(-c.x, -c.y, -c.z);
+  }
   geo.computeVertexNormals();
   return geo;
 }
@@ -220,12 +225,13 @@ export async function construireScene(vue: Vue3D): Promise<SceneMontage> {
     } else if (s.de === 'fichier') {
       let geo: THREE.BufferGeometry;
       try {
-        geo = await geometrieMaillage(s.maillage.base64, s.maillage.format);
+        geo = await geometrieMaillage(s.maillage.base64, s.maillage.format, 1, 'z', false);
       } catch {
         geo = new THREE.BoxGeometry(10, 10, 10);
         p.defauts.push('maillage-illisible');
       }
-      const mesh = new THREE.Mesh(geo, matiere(0xb0b0b0, 1, geo.hasAttribute('color'))) as unknown as ObjetPiece;
+      // Couleur des sommets (STL coloré, glTF) d'abord, puis `extra.couleur`.
+      const mesh = new THREE.Mesh(geo, matiere(p.couleur ?? 0xb0b0b0, 1, geo.hasAttribute('color'))) as unknown as ObjetPiece;
       mesh.userData = { piece: p.id };
       g.add(mesh);
       objets.push(mesh);
