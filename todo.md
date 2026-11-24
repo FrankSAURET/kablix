@@ -28,8 +28,8 @@
             - ✅ **D7b-2, partie Kablix** — rôle `ultrason` dans `src/systeme.ts`, rayon dans `capteurs.mts` + `vue3d.mts`, distance posée sur le curseur du HC-SR04 dans `sim.mts` ; banc `verify:vue3d` 77/77 (v352). ⏳ Choix faits sans Frank : voir v352.
         3. ⏳ **D7c** — fin de course (contact) : **aucun composant fin de course dans Kablix** ; sa simulation (et s'il faut un nouveau composant ou un bouton-poussoir) est à préciser par Frank.
     - ⬜ **D8** — import STEP (OpenCascade WASM téléchargé à la demande), arbre d'assemblage et noms → convention D5. Découpé le 24/11 (v353) en trois lots :
-        1. ⬜ **D8a, partie Kompix Editor** — module pur `kompix-core/src/step.ts` (sortie de `occt-import-js` → `SystemDoc` + STL sous `system/meshes/`, noms passés par `parseRole`), fixture STEP fabriquée par FreeCAD, `occt-import-js` en dépendance de développement seulement. Consigne déposée (v353) dans `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md` ; à relire au retour du lanceur.
-        2. ⬜ **D8b, partie Kompix Editor** — téléchargement du WASM à la demande (version épinglée, SHA-256, cache), commande « Importer un assemblage STEP… » qui écrit `system.json` + `system/` dans un `.projix`.
+        1. ✅ **D8a, partie Kompix Editor** — module pur `kompix-core/src/step.ts` (sortie de `occt-import-js` → `SystemDoc` + STL sous `system/meshes/`, noms passés par `parseRole`), fixture STEP fabriquée par FreeCAD, `occt-import-js` en dépendance de développement seulement. Consigne (v353), lot Kompix Editor `v2026.10.0.21` relu (159/159 rejoué), règles reportées dans [systeme_specification.md](docs/systeme_specification.md) (v354).
+        2. ⬜ **D8b, partie Kompix Editor** — téléchargement du WASM à la demande (version épinglée, SHA-256, cache), commande « Importer un assemblage STEP… » qui écrit `system.json` + `system/` dans un `.projix`. Consigne déposée (v354) dans `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md` ; à relire au retour du lanceur.
         3. ⬜ **D8c, partie Kablix** — démonstrateur et banc d'un projet issu d'un STEP dans la vue 3D.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
@@ -40,6 +40,18 @@
     - ℹ️ **Numéros (22/11)** : `main` fusionné dans `mecatronique` ; les lots de la branche, nés en `2026.11.4.325` à `.333` (doublons de `main` en 325-327), sont renumérotés `2026.11.5.328` à `.336` (les messages des enregistrements gardent l'ancien numéro). **Règle** : le `buildNumber` d'un lot = le plus grand des deux branches (`git show main:package.json`) + 1 ; fusionner `main` dans `mecatronique` après chaque publication.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.354 — D8a : relecture Kompix Editor v21 ; D8b : consigne Kompix Editor (WASM à la demande, commande d'import)
+
+1. ✅ **Relecture** du lot Kompix Editor `v2026.10.0.21` (enregistrement `9847748`) : `step.ts` pur, conforme à la consigne ; règle ajoutée par la nuit et retenue : un maillage à rôle dans un nœud sans rôle fait sa propre pièce (OpenCascade aplatit les sous-assemblages de solides). Constats sur le fichier réel : millimètres, coordonnées globales. `npm test -w kompix-core` rejoué : 159/159.
+2. ✅ **Report** dans [systeme_specification.md](docs/systeme_specification.md) : section « Import d'un assemblage STEP (lot D8a) » (pièces, nom/id/repère, pose, liaisons, couleur, problèmes) et D8 dans « Ce qui reste à faire ».
+3. ✅ **Consigne D8b déposée** dans `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md` : `occt.ts` (deux fichiers `occt-import-js` 0.0.23 depuis jsDelivr, SHA-256 en dur vérifiées contre un vrai téléchargement, cache `globalStorage/occt/0.0.23/`, accord modal au premier usage), `step-import.ts` + commande `kompixEditor.importStep` (palette et clic droit sur `.step`/`.stp`, `.projix` existant seulement, remplacement d'un montage confirmé), tests sans réseau + contre-épreuve, CHANGELOG ; `v2026.10.0.22`.
+4. ⏳ **Choix faits sans Frank, à confirmer** : source jsDelivr (repli unpkg) ; chargement dans l'hôte de l'extension ; `.projix` existant seulement (pas de création de projet) ; conversion sans `recentrer`.
+5. ⏳ **`extra.couleur`** des pièces importées : la vue 3D de Kablix ne la lit pas (couleur par défaut). À traiter avec D8c.
+6. ⏳ Points 50 (règles de conversion de D8a) et 52 (`package-lock.json`) du `todo.md` de Kompix Editor : Frank.
+7. ℹ️ Lot sans code Kablix : pas de `.vsix`, pas de tests Kablix rejoués, pas d'entrée au CHANGELOG.
 
 ---
 
