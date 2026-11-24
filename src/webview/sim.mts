@@ -1050,6 +1050,34 @@ function tickBehaviors(): void {
   }
 }
 
+// Vue 3D pilotée (lot D6d) : angle de chaque servo (celui que montre son
+// élément, PCA9685 compris) et vitesse de chaque moteur (fraction du nominal,
+// 0 s'il a grillé), à chaque image, tant que la vue est ouverte. Le temps est
+// celui de la simulation quand le moteur le donne (pause et ralenti compris).
+let vue3dHorloge: number | undefined;
+function piloterVue3d(): void {
+  if (!engine || !vue3dPage.ouverte()) {
+    vue3dHorloge = undefined;
+    return;
+  }
+  const maintenant = engine.simulatedMs?.() ?? (engine.paused ? vue3dHorloge ?? 0 : performance.now());
+  const dt = vue3dHorloge === undefined ? 0 : Math.min(Math.max((maintenant - vue3dHorloge) / 1000, 0), 0.25);
+  vue3dHorloge = maintenant;
+  const servos: Record<string, number> = {};
+  const moteurs: Record<string, number> = {};
+  for (const part of editor.diagram.parts) {
+    const kind = partDef(part.type).kind;
+    if (kind === 'servo') {
+      const a = Number((editor.elementOf(part.id) as { angle?: unknown } | null)?.angle);
+      if (Number.isFinite(a)) servos[part.id] = a;
+    } else if (kind === 'motor') {
+      const st = motorFrame.get(part.id);
+      moteurs[part.id] = st && !burnedMotors.has(part.id) ? st.speed : 0;
+    }
+  }
+  vue3dPage.simuler({ servos, moteurs }, dt);
+}
+
 let renderRaf = 0;
 function renderTick(): void {
   if (!engine) {
@@ -1060,6 +1088,7 @@ function renderTick(): void {
   updateGbfs();
   updateMotion();
   montage.update();
+  piloterVue3d();
   updateHall();
   updateOpenDrain();
   updateSupplyChecks();
@@ -5799,6 +5828,8 @@ function stopRun(): void {
   editor.setLocked(false); // édition du schéma de nouveau possible
   showSimBanner(false); // masque le bandeau de simulation
   clearRelayFaults(); // plus de simulation : les cadres rouges n'ont plus de sens
+  vue3dHorloge = undefined;
+  vue3dPage.arreter(); // vue 3D : retour à la pose du document
   // Arrêt (ou nouveau lancement, qui commence par un stopRun) : on repart d'un
   // état propre — console vidée et composants réinitialisés (LED éteintes,
   // afficheurs vides…). Idem au (re)chargement d'un programme Python.

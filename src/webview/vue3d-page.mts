@@ -8,6 +8,7 @@
 
 import { t } from './i18n.mjs';
 import type { DonneesVue3D } from './mecanique/vue3d-donnees.mjs';
+import type { EtatSimulation } from './mecanique/pilotage.mjs';
 import type { TextesVue, VueOuverte } from './vue3d.mjs';
 
 declare global {
@@ -78,6 +79,12 @@ export interface Vue3DPage {
   /** Réponse `vue3d` de l'extension. */
   recevoir(donnees: DonneesVue3D): Promise<void>;
   fermer(): void;
+  /** Vue ouverte : la simulation peut la piloter. */
+  ouverte(): boolean;
+  /** Image de simulation (lot D6d) ; sans effet si la vue est fermée. */
+  simuler(etat: EtatSimulation, dt: number): void;
+  /** Fin de simulation : la vue revient à la pose du document. */
+  arreter(): void;
 }
 
 /** Branche le bouton et le panneau. `schema()` rend le schéma courant. */
@@ -119,6 +126,8 @@ export function brancherVue3D(poster: (msg: unknown) => void, schema: () => unkn
           repere: t('reference'),
           mecanique: t('mechanical part'),
           sansWebgl: t('3D view unavailable: WebGL is disabled.'),
+          butee: t('End stop'),
+          sansSource: t('Not driven by the simulation'),
           defauts: textesDefauts(),
         });
         if (moi !== jeton) vue.fermer();
@@ -132,5 +141,12 @@ export function brancherVue3D(poster: (msg: unknown) => void, schema: () => unkn
       }
     },
     fermer,
+    ouverte: () => ouverte !== undefined,
+    simuler(etat, dt) {
+      ouverte?.simuler(etat, dt);
+    },
+    arreter() {
+      ouverte?.arreter();
+    },
   };
 }

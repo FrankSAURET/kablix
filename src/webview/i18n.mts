@@ -1108,6 +1108,11 @@ const FR: Record<string, string> = {
     'pièce mécanique',
   '3D view unavailable: WebGL is disabled.':
     'Vue 3D indisponible : WebGL est désactivé.',
+  // Vue 3D pilotée par la simulation (lot D6d)
+  'End stop':
+    'En butée',
+  'Not driven by the simulation':
+    'Non piloté par la simulation',
   'Unreadable assembly file':
     'Fichier de montage illisible',
   'Assembly file from a newer version':

@@ -4,19 +4,31 @@
 // charge au premier clic sur « Vue 3D » (balise <script> à nonce) ; ce paquet
 // range alors `ouvrir` dans `globalThis.KablixVue3D`.
 //
-// Vue fixe : le montage à la pose du document, caméra orbitale (glisser =
-// tourner, clic droit = déplacer, molette = zoom), rôle et repère dans une
-// bulle au survol, pièces en défaut en rouge. Rendu à la demande (au geste,
-// au redimensionnement) : aucune boucle d'animation quand rien ne bouge.
+// Le montage à la pose du document, caméra orbitale (glisser = tourner, clic
+// droit = déplacer, molette = zoom), rôle et repère dans une bulle au survol,
+// pièces en défaut en rouge. Rendu à la demande (au geste, au
+// redimensionnement, à chaque image de simulation) : aucune boucle
+// d'animation propre. Pendant une simulation (lot D6d), `simuler` pose les
+// pièces d'après les servos et moteurs (`pilotage.mts`) ; `arreter` les
+// ramène à la pose du document.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { bulleDePiece, vue3D, type DonneesVue3D, type TextesBulle } from './mecanique/vue3d-donnees.mjs';
-import { construireScene, type SceneMontage } from './mecanique/scene3d.mjs';
+import { construireScene, matricePiece, type SceneMontage } from './mecanique/scene3d.mjs';
+import { montageCinematique } from './mecanique/volumes.mjs';
+import { Pilotage, type EtatSimulation, type ImagePilotee, type PiecePilotee } from './mecanique/pilotage.mjs';
+
+/** Défauts qui rendent une pièce inerte (lot D5) : son rôle est ignoré. */
+const INERTE = new Set(['role-inconnu', 'role-sans-repere', 'role-doublon', 'role-type', 'role-repere-absent', 'ref-absente']);
 
 export interface TextesVue extends TextesBulle {
   /** Message quand WebGL manque. */
   sansWebgl: string;
+  /** Liaison arrêtée à une borne (suivi de l'id de la liaison). */
+  butee: string;
+  /** Liaison dont le composant n'est pas simulé (suivi de l'id). */
+  sansSource: string;
 }
 
 export interface VueOuverte {
@@ -25,6 +37,13 @@ export interface VueOuverte {
   etat(): { pieces: number; enDefaut: string[]; camera: [number, number, number]; cible: [number, number, number] };
   /** Pour les bancs : pièce sous un point de la page (coordonnées client), ou null. */
   pieceSous(x: number, y: number): string | null;
+  /** Une image de simulation : `dt` secondes depuis la précédente. */
+  simuler(etat: EtatSimulation, dt: number): void;
+  /** Fin de simulation : retour à la pose du document. */
+  arreter(): void;
+  /** Pour les bancs : position monde d'une pièce et lignes d'état affichées. */
+  pose(id: string): [number, number, number] | null;
+  lignesEtat(): string[];
 }
 
 /** Ouvre la vue dans `conteneur` (vidé). Rend une poignée pour la fermer. */
@@ -39,7 +58,15 @@ export async function ouvrir(conteneur: HTMLElement, donnees: DonneesVue3D, text
     p.className = 'vue3d__message';
     p.textContent = textes.sansWebgl;
     conteneur.append(p);
-    return { fermer: () => conteneur.replaceChildren(), etat: () => ({ pieces: 0, enDefaut: [], camera: [0, 0, 0], cible: [0, 0, 0] }), pieceSous: () => null };
+    return {
+      fermer: () => conteneur.replaceChildren(),
+      etat: () => ({ pieces: 0, enDefaut: [], camera: [0, 0, 0], cible: [0, 0, 0] }),
+      pieceSous: () => null,
+      simuler: () => undefined,
+      arreter: () => undefined,
+      pose: () => null,
+      lignesEtat: () => [],
+    };
   }
   renderer.setPixelRatio(window.devicePixelRatio || 1);
   renderer.domElement.className = 'vue3d__canvas';
@@ -140,6 +167,54 @@ export async function ouvrir(conteneur: HTMLElement, donnees: DonneesVue3D, text
   renderer.domElement.addEventListener('pointermove', survol);
   renderer.domElement.addEventListener('pointerleave', quitter);
 
+  // Pilotage par la simulation : arbre du solveur, rôles des pièces.
+  const etatSim = document.createElement('div');
+  etatSim.className = 'vue3d__etat';
+  etatSim.hidden = true;
+  conteneur.append(etatSim);
+  const { tree } = montageCinematique(donnees.doc, donnees.volumes);
+  const pilotables: PiecePilotee[] = vue.pieces.map((p) => ({
+    id: p.id,
+    ...(p.role ? { role: p.role } : {}),
+    ...(p.repere ? { repere: p.repere } : {}),
+    inerte: p.defauts.some((c) => INERTE.has(c)),
+  }));
+  const pilotage = new Pilotage(tree, pilotables);
+  const parIdVue = new Map(vue.pieces.map((p) => [p.id, p]));
+  let lignes: string[] = [];
+  const appliquer = (image: ImagePilotee, enCours: boolean): void => {
+    for (const [id, pose] of Object.entries(image.solution.poses)) {
+      const g = montage.pieces.get(id);
+      const p = parIdVue.get(id);
+      if (g && p) g.matrix.copy(matricePiece({ matrice: pose.matrix, miroir: p.miroir }));
+    }
+    montage.racine.updateMatrixWorld(true);
+    // Cadres rouges : ils suivent leur pièce.
+    for (const id of montage.enDefaut) {
+      const aide = montage.racine.getObjectByName(`defaut:${id}`) as THREE.Box3Helper | undefined;
+      const g = montage.pieces.get(id);
+      if (aide && g) aide.box.setFromObject(g);
+    }
+    lignes = enCours
+      ? [
+          ...Object.keys(image.saturees).map((l) => `${textes.butee} : ${l}`),
+          ...image.problemes.map((pb) => `⚠ ${textes.defauts[pb.code] ?? pb.code}${pb.target ? ` (${pb.target})` : ''}`),
+          ...image.sansSource.map((l) => `${textes.sansSource} : ${l}`),
+        ]
+      : [];
+    const texte = lignes.join('|');
+    if (etatSim.dataset.texte !== texte) {
+      etatSim.dataset.texte = texte;
+      etatSim.replaceChildren(...lignes.map((l) => {
+        const d = document.createElement('div');
+        d.textContent = l;
+        return d;
+      }));
+      etatSim.hidden = lignes.length === 0;
+    }
+    rendre();
+  };
+
   return {
     fermer() {
       observateur.disconnect();
@@ -159,6 +234,15 @@ export async function ouvrir(conteneur: HTMLElement, donnees: DonneesVue3D, text
       cible: [controles.target.x, controles.target.y, controles.target.z],
     }),
     pieceSous,
+    simuler: (etat, dt) => appliquer(pilotage.pas(etat, dt), true),
+    arreter: () => appliquer(pilotage.remettre(), false),
+    pose: (id) => {
+      const g = montage.pieces.get(id);
+      if (!g) return null;
+      const v = new THREE.Vector3().setFromMatrixPosition(g.matrixWorld);
+      return [v.x, v.y, v.z];
+    },
+    lignesEtat: () => [...lignes],
   };
 }
 

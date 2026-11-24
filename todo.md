@@ -18,7 +18,7 @@
         2. ✅ **D6b** — volume et axes nommés de chaque pièce : `src/systemeVolumes.ts` (extension : paquets `.kompix`, `shape.mjs` en `node:vm`, maillages de `system/`), `src/webview/mecanique/volumes.mts` (paquet > élément intégré, miroir, `montageCinematique`), banc `verify:volumes` sur le robot deux roues (v344). ⏳ Convention du miroir (plan X = 0 de la pièce) à confirmer par Frank.
         2b. ✅ **D6b′ — défaut du solveur** — voie de la conduite différentielle = écart des roues (147 mm) et non des points d'axe du châssis (90 mm) : corrigé dans kompix-core (Kompix Editor `v2026.10.0.19`, consigne v345), relu et recopié dans `cinematique.mts`, `verify:volumes` contrôle le virage (v346).
         3. ✅ **D6c** — vue 3D fixe : three.js 0.186.1 dans `dist/vue3d.js` chargé au premier clic ; bouton « 3D » de la barre (projet avec `system.json`), panneau flottant, caméra orbitale, bulle au survol (rôle, repère, défauts), pièces en défaut en rouge ; banc `verify:vue3d` (dérive des copies, scène sous Node, Chrome à vraie souris) (v347). ⏳ Textes ES/ZH avant publication.
-        4. ⬜ **D6d** — pilotage pendant la simulation (M) : rôle `servo` → angle simulé (`servoAngleUs` de `sim.mts`) sur le pivot dont la pièce est parent ; rôle `moteur`/`roue` → vitesse de `motorStates` intégrée en angle ; `roue-sol` → `rollStep` ; saturation et problèmes du solveur affichés dans la vue ; arrêt de la simulation → retour à la pose du document.
+        4. ✅ **D6d** — pilotage pendant la simulation : `src/webview/mecanique/pilotage.mts` (rôles `servo`/`moteur`/`roue` → pivots, vitesse intégrée, `rollStep`), branché dans `renderTick` de `sim.mts`, encart des butées et problèmes, retour à la pose à l'arrêt ; banc `verify:vue3d` 50/50 (v348). ⏳ Régime nominal 200 tr/min à confirmer par Frank.
         5. ⬜ **D6e** — démonstrateurs et aide (S) : projets d'exemple bras servo + aimant et robot deux roues (`.projix` avec `system.json`), fiche d'aide FR de la vue 3D, entrée CHANGELOG. Composants mécaniques toujours Béta.
         - ℹ️ Pourquoi une copie du solveur : Kompix Editor est un dépôt séparé, Kablix n'en dépend pas (même choix que `controlerRoles` pour D5). Corriger dans kompix-core puis recopier ; le banc tombe si la copie dérive.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
@@ -30,6 +30,21 @@
     - ℹ️ **Numéros (22/11)** : `main` fusionné dans `mecatronique` ; les lots de la branche, nés en `2026.11.4.325` à `.333` (doublons de `main` en 325-327), sont renumérotés `2026.11.5.328` à `.336` (les messages des enregistrements gardent l'ancien numéro). **Règle** : le `buildNumber` d'un lot = le plus grand des deux branches (`git show main:package.json`) + 1 ; fusionner `main` dans `mecatronique` après chaque publication.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.348 — D6d : vue 3D pilotée par la simulation
+
+1. ✅ **Module pur [pilotage.mts](src/webview/mecanique/pilotage.mts)** : `commandesDuMontage` (pièce `servo:R`/`moteur:R` → pivots dont elle est le parent ; `roue:R` → pivot qui la porte ; pivot mené par engrenage jamais commandé ; première commande gardée ; pièce en défaut de rôle inerte) ; classe `Pilotage` : `pas(etat, dt)` (servo = angle absolu, moteur = vitesse × 200 tr/min intégrée depuis le `zero`, rotation des pivots depuis l'image précédente → `rollStep` → `rollBase`, puis `solve`), `remettre()` (pose du document).
+2. ✅ **Vue [vue3d.mts](src/webview/vue3d.mts)** : `simuler(etat, dt)` et `arreter()` reposent chaque groupe (miroir compris), les cadres rouges suivent leur pièce ; encart `.vue3d__etat` au bas de la vue (butées, problèmes du solveur, commandes sans composant simulé). `pose()` et `lignesEtat()` pour les bancs.
+3. ✅ **Page et simulation** : [vue3d-page.mts](src/webview/vue3d-page.mts) (`ouverte`, `simuler`, `arreter`) ; [sim.mts](src/webview/sim.mts) `piloterVue3d()` dans `renderTick` (angle de l'élément servo, PCA9685 compris ; vitesse de `motorFrame`, 0 si grillé ; temps simulé si le moteur le donne, borné à 0,25 s) et `arreter()` à la fin de la simulation.
+4. ✅ **Textes FR** : « En butée », « Non piloté par la simulation » ([i18n.mts](src/webview/i18n.mts)). ⏳ ES/ZH avant publication.
+5. ✅ **Banc `verify:vue3d`** 32 → 50 : étage D sous Node (robot : commandes, 1200° en 1 s, ligne droite de 680,7 mm, hauteur gardée, roue qui suit, retour à la pose, virage sur 147 mm, moteur absent signalé, temps nul ; servo + aimant : rotation autour du palonnier, butée à 120°, pièce inerte) et dans Chrome (le châssis roule, encart affiché, retour à la pose, encart masqué). Contre-épreuve : commandes neutralisées → 10 échecs.
+6. ✅ **[systeme_specification.md](docs/systeme_specification.md)** : règles du pilotage ; CHANGELOG (Projets).
+7. ⏳ **Régime nominal** du moteur à courant continu pris à 200 tr/min (motoréducteur TT 5 V), sans Frank : à confirmer. Le moteur n'a pas de sens de rotation dans la simulation (toujours positif).
+8. ⏳ **Pas de banc de bout en bout** dans l'atelier complet (simulation réelle → vue) : `piloterVue3d` n'est vérifié que par le typecheck ; essai F5 par Frank, ou démonstrateur de D6e.
+9. ✅ **Tests** `verify:all` : 180/184 verts. Rouges connus : `verify:i18n` (ES/ZH), `verify:help-bars` (doc EN), `verify:linter` (⏳ 6 de v343). `verify:analyseur-bouton` tombé sous la charge, vert rejoué seul. Une seconde passe lancée par erreur a échoué en masse (code 0xC0000142, lancement de processus impossible, machine saturée) : sans rapport avec le lot.
+10. ✅ `.vsix` construit, non installé (mode nuit).
 
 ---
 

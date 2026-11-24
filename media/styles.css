@@ -3840,6 +3840,22 @@ body.vscode-light .inspector__ref--nouveau {
 .vue3d__bulle[hidden] {
   display: none;
 }
+/* Butées et problèmes du solveur pendant la simulation (lot D6d). */
+.vue3d__etat {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  pointer-events: none;
+  max-width: calc(100% - 12px);
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--vscode-editorHoverWidget-background, #2d2d30);
+  border: 1px solid var(--vscode-editorWarning-foreground, #cca700);
+  font-size: 11px;
+}
+.vue3d__etat[hidden] {
+  display: none;
+}
 .vue3d__bulle-titre {
   font-weight: bold;
 }

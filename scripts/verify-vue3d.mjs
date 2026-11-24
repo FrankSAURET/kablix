@@ -11,7 +11,11 @@
 //      marqués en rouge, bulle de survol ;
 //   C. Chrome headless (WebGL logiciel) piloté en CDP, VRAIE souris : la vue
 //      s'ouvre, un glisser fait tourner la caméra, le survol d'une pièce ouvre
-//      sa bulle, la molette rapproche la caméra.
+//      sa bulle, la molette rapproche la caméra ;
+//   D. pilotage par la simulation (lot D6d) : sous Node, les rôles mènent les
+//      pivots (moteur intégré en angle, servo absolu, butée, pièce inerte,
+//      roulage du robot, retour à la pose du document) ; dans Chrome,
+//      `simuler` déplace le châssis et `arreter` le ramène.
 // A et B sont sautés (avec un avis) sans le dépôt de Kompix Editor ; C sans
 // Chrome. Contre-épreuve : sans `src/webview/vue3d.mts`, B et C échouent.
 //
@@ -70,6 +74,8 @@ if (editeur && existsSync(join(editeur, 'components/meca'))) {
         `export * from ${p('src/webview/mecanique/scene3d.mts')};`,
         `export { lireSysteme } from ${p('src/systeme.ts')};`,
         `export { volumesDuSysteme } from ${p('src/systemeVolumes.ts')};`,
+        `export * from ${p('src/webview/mecanique/pilotage.mts')};`,
+        `export { montageCinematique } from ${p('src/webview/mecanique/volumes.mts')};`,
       ].join('\n'),
       resolveDir: ROOT, loader: 'ts',
     },
@@ -88,6 +94,7 @@ if (editeur && existsSync(join(editeur, 'components/meca'))) {
   // Enrichi : repère absent du schéma (mg), rôle (md), paquet inconnu (x).
   brut.pieces.find((q) => q.id === 'mg').ref = 'M1';
   brut.pieces.find((q) => q.id === 'md').nom = 'moteur:M2';
+  brut.pieces.find((q) => q.id === 'rd').nom = 'roue:M2';
   brut.pieces.push({ id: 'x', source: { kind: 'kompix', type: 'introuvable' }, pose: { pos: { x: 0, y: 80, z: 10 }, rot: { x: 0, y: 0, z: 0 } } });
   const { systeme: doc, problemes } = M.lireSysteme(brut);
   check(doc && problemes.length === 0, 'robot enrichi lu sans problème', JSON.stringify(problemes));
@@ -132,6 +139,69 @@ if (editeur && existsSync(join(editeur, 'components/meca'))) {
   void v2;
   sc.dispose();
   sc2.dispose();
+
+  // ---------------------------------------------- D. pilotage sous Node
+  console.log('D. pilotage par la simulation (Node)');
+  const INERTE = new Set(['role-inconnu', 'role-sans-repere', 'role-doublon', 'role-type', 'role-repere-absent', 'ref-absente']);
+  const pilote = (dn) => {
+    const v = M.vue3D(dn);
+    const { tree } = M.montageCinematique(dn.doc, dn.volumes);
+    return new M.Pilotage(tree, v.pieces.map((q) => ({ id: q.id, role: q.role, repere: q.repere, inerte: q.defauts.some((c) => INERTE.has(c)) })));
+  };
+  // Robot : chaque roue suit son moteur.
+  const br = structuredClone(brut);
+  br.pieces = br.pieces.filter((q) => q.id !== 'x');
+  for (const [id, nom] of [['mg', 'moteur:M1'], ['md', 'moteur:M2'], ['rg', 'roue:M1'], ['rd', 'roue:M2']]) {
+    const q = br.pieces.find((z) => z.id === id);
+    q.nom = nom;
+    delete q.ref;
+  }
+  const dr = M.lireSysteme(br).systeme;
+  const vr = await M.volumesDuSysteme(dr, (t) => paquets.get(t), [{ path: 'sol.glb', data: new TextEncoder().encode(stl) }]);
+  const pr = pilote({ doc: dr, volumes: vr, problemes: [] });
+  const cmds = pr.commandes.map((c) => `${c.liaison}<${c.repere}`).sort().join(',');
+  check(cmds === 'Pd<M2,Pg<M1', 'robot : chaque roue menée par son moteur', cmds);
+  // 1 s au régime nominal, en 4 images : 200 tr/min → 1200°, 32,5 × 2π × 10/3 mm.
+  let im;
+  for (let k = 0; k < 4; k++) im = pr.pas({ servos: {}, moteurs: { M1: 1, M2: 1 } }, 0.25);
+  check(near(im.solution.values.Pg, 1200, 1e-6) && near(im.solution.values.Pd, 1200, 1e-6), 'moteur : vitesse intégrée en angle (1200° en 1 s)', JSON.stringify(im.solution.values));
+  const c1 = im.solution.poses.chassis.pos;
+  const att = 32.5 * 2 * Math.PI * (200 / 60);
+  check(near(Math.hypot(c1.x, c1.y), att, 1e-6) && near(im.solution.poses.chassis.rot.z, 0, 1e-9), 'deux moteurs égaux : ligne droite de 680,7 mm', `${c1.x.toFixed(3)}, ${c1.y.toFixed(3)} pour ${att.toFixed(3)}`);
+  check(near(im.solution.poses.chassis.pos.z, 43.75, 1e-9), 'le châssis garde sa hauteur', im.solution.poses.chassis.pos.z);
+  check(near(im.solution.poses.rg.pos.y - c1.y, -45, 1e-6), 'la roue suit le châssis', im.solution.poses.rg.pos.y);
+  const r0 = pr.remettre();
+  check(near(r0.solution.poses.chassis.pos.x, 0) && near(r0.solution.poses.chassis.pos.y, 0) && near(r0.solution.values.Pg, 0), 'arrêt : retour à la pose du document');
+  im = pr.pas({ servos: {}, moteurs: { M1: 1, M2: 0 } }, 0.25);
+  const lacet = im.solution.poses.chassis.rot.z;
+  const lacetAtt = (32.5 * (300 * Math.PI / 180) / 147) * 180 / Math.PI;
+  check(near(Math.abs(lacet), lacetAtt, 1e-6), 'un seul moteur : le robot tourne (voie 147 mm)', `${lacet} pour ±${lacetAtt}`);
+  pr.remettre();
+  im = pr.pas({ servos: {}, moteurs: { M1: 1 } }, 0.25);
+  check(im.sansSource.join() === 'Pd', 'moteur absent de la simulation : liaison signalée', JSON.stringify(im.sansSource));
+  check(pr.pas({ servos: {}, moteurs: { M1: 1, M2: 1 } }, 0).solution.values.Pg === im.solution.values.Pg, 'temps nul : rien ne tourne');
+
+  // Servo + aimant : pivot borné, servo absolu, pièce inerte.
+  const servoDoc = (nomServo, max) => M.lireSysteme({
+    format: 'kablix-system', version: 1,
+    pieces: [
+      { id: 's', nom: nomServo, source: { kind: 'kompix', type: 'servo' }, pose: { pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0 } } },
+      { id: 'a', source: { kind: 'kompix', type: 'aimant' }, pose: { pos: { x: 20, y: 0, z: 30.7 }, rot: { x: 0, y: 0, z: 0 } } },
+    ],
+    liaisons: [{ id: 'P', type: 'pivot', a: { piece: 'a', axe: 'pose' }, b: { piece: 's', axe: 'horn' }, params: { min: 0, max } }],
+  }).systeme;
+  const ds = servoDoc('servo:Act1', 120);
+  const vs = await M.volumesDuSysteme(ds, (t) => paquets.get(t), []);
+  const ps = pilote({ doc: ds, volumes: vs, problemes: [] });
+  check(ps.commandes.length === 1 && ps.commandes[0].liaison === 'P' && ps.commandes[0].repere === 'Act1', 'servo : le pivot dont il est le parent le suit', JSON.stringify(ps.commandes));
+  im = ps.pas({ servos: { Act1: 90 }, moteurs: {} }, 0.02);
+  const pa = im.solution.poses.a.pos;
+  check(near(pa.x, 0, 1e-6) && near(pa.y, 20, 1e-6) && near(pa.z, 30.7, 1e-6), 'servo à 90° : l\'aimant tourne autour du palonnier', JSON.stringify(pa));
+  check(Object.keys(im.saturees).length === 0, 'servo à 90° : pas de butée');
+  im = ps.pas({ servos: { Act1: 180 }, moteurs: {} }, 0.02);
+  check(im.saturees.P === 'max' && near(im.solution.values.P, 120), 'servo à 180°, borne 120° : butée signalée', JSON.stringify(im.saturees));
+  const pi = pilote({ doc: ds, volumes: vs, problemes: [{ cle: 'role-type', cible: 's' }] });
+  check(pi.commandes.length === 0, 'pièce en défaut de rôle : inerte, rien n\'est piloté', JSON.stringify(pi.commandes));
 } else {
   console.log('B. ⚠ dépôt de Kompix Editor absent : scène sautée');
 }
@@ -152,7 +222,7 @@ if (!donnees) {
     platform: 'browser', logLevel: 'error',
   });
   const css = readFileSync(join(ROOT, 'media', 'styles.css'), 'utf8');
-  const textes = { role: 'rôle', repere: 'repère', mecanique: 'pièce mécanique', sansWebgl: 'sans WebGL', defauts: { 'ref-absente': 'Repère absent' } };
+  const textes = { role: 'rôle', repere: 'repère', mecanique: 'pièce mécanique', sansWebgl: 'sans WebGL', butee: 'En butée', sansSource: 'Non piloté', defauts: { 'ref-absente': 'Repère absent' } };
   writeFileSync(join(CACHE, 'p.html'),
     `<!doctype html><meta charset=utf8><style>${css}</style><body style="margin:0">` +
     `<div id="vue3d" class="vue3d" style="left:0;top:0;width:800px;height:600px"><div class="vue3d__head">3D</div>` +
@@ -251,6 +321,19 @@ if (!donnees) {
       const e2 = await etat();
       const r2 = Math.hypot(...e2.camera.map((c, i) => c - e2.cible[i]));
       check(r2 < r1 * 0.95, 'molette réelle : la caméra se rapproche', `${r1.toFixed(1)} → ${r2.toFixed(1)}`);
+
+      // D. pilotage dans Chrome : la roue droite suit M2, le robot tourne.
+      const p0 = JSON.parse(await ev('JSON.stringify(window.vue.pose("chassis"))'));
+      for (let k = 0; k < 5; k++) await ev('window.vue.simuler({ servos: {}, moteurs: { M2: 1 } }, 0.1)');
+      const p1 = JSON.parse(await ev('JSON.stringify(window.vue.pose("chassis"))'));
+      check(Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) > 10, 'simuler : le châssis roule dans la vue', `${p0} → ${p1}`);
+      await ev('window.vue.simuler({ servos: {}, moteurs: {} }, 0.1)');
+      const lg = JSON.parse(await ev('JSON.stringify(window.vue.lignesEtat())'));
+      check(lg.some((l) => /Pd/.test(l)) && await ev('!document.querySelector(".vue3d__etat").hidden'), 'moteur absent : l\'encart d\'état le dit', JSON.stringify(lg));
+      await ev('window.vue.arreter()');
+      const p2 = JSON.parse(await ev('JSON.stringify(window.vue.pose("chassis"))'));
+      check(near(p2[0], p0[0]) && near(p2[1], p0[1]) && near(p2[2], p0[2]), 'arreter : retour à la pose du document', `${p2}`);
+      check(await ev('document.querySelector(".vue3d__etat").hidden'), 'arreter : encart d\'état masqué');
 
       await ev('window.vue.fermer()');
       check(await ev('document.getElementById("vue3d-scene").childElementCount === 0'), 'fermer vide la scène');
