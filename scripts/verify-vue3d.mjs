@@ -15,7 +15,10 @@
 //   D. pilotage par la simulation (lot D6d) : sous Node, les rôles mènent les
 //      pivots (moteur intégré en angle, servo absolu, butée, pièce inerte,
 //      roulage du robot, retour à la pose du document) ; dans Chrome,
-//      `simuler` déplace le châssis et `arreter` le ramène.
+//      `simuler` déplace le châssis et `arreter` le ramène ;
+//   E. capteurs lus dans la scène (lot D7a) : écart des boîtes, tri des
+//      pièces sous Node ; dans Chrome, le servo amène l'aimant devant le
+//      capteur Hall et `simuler` rend l'écart mesuré dans la vraie scène.
 // A et B sont sautés (avec un avis) sans le dépôt de Kompix Editor ; C sans
 // Chrome. Contre-épreuve : sans `src/webview/vue3d.mts`, B et C échouent.
 //
@@ -63,6 +66,7 @@ if (editeur) {
 
 // ------------------------------------------------ B. scène sous Node
 let donnees;
+let donneesHall;
 if (editeur && existsSync(join(editeur, 'components/meca'))) {
   console.log('B. robot à deux roues, scène three.js sous Node');
   const sortie = join(tmp, 'vue3d.mjs');
@@ -76,6 +80,7 @@ if (editeur && existsSync(join(editeur, 'components/meca'))) {
         `export { volumesDuSysteme } from ${p('src/systemeVolumes.ts')};`,
         `export * from ${p('src/webview/mecanique/pilotage.mts')};`,
         `export { montageCinematique } from ${p('src/webview/mecanique/volumes.mts')};`,
+        `export * from ${p('src/webview/mecanique/capteurs.mts')};`,
       ].join('\n'),
       resolveDir: ROOT, loader: 'ts',
     },
@@ -202,6 +207,40 @@ if (editeur && existsSync(join(editeur, 'components/meca'))) {
   check(im.saturees.P === 'max' && near(im.solution.values.P, 120), 'servo à 180°, borne 120° : butée signalée', JSON.stringify(im.saturees));
   const pi = pilote({ doc: ds, volumes: vs, problemes: [{ cle: 'role-type', cible: 's' }] });
   check(pi.commandes.length === 0, 'pièce en défaut de rôle : inerte, rien n\'est piloté', JSON.stringify(pi.commandes));
+
+  // ---------------------------------------------- E. capteurs (lot D7a)
+  console.log('E. capteurs Hall lus dans la scène (Node)');
+  const bx = (x, y, z, c = 5) => ({ min: [x - c, y - c, z - c], max: [x + c, y + c, z + c] });
+  check(M.ecartBoites(bx(0, 0, 0), bx(30, 0, 0)) === 20, 'écart de deux boîtes alignées', String(M.ecartBoites(bx(0, 0, 0), bx(30, 0, 0))));
+  check(near(M.ecartBoites(bx(0, 0, 0), bx(13, 14, 0)), 5), 'écart en diagonale : 3-4-5', String(M.ecartBoites(bx(0, 0, 0), bx(13, 14, 0))));
+  check(M.ecartBoites(bx(0, 0, 0), bx(4, 0, 0)) === 0, 'boîtes qui se chevauchent : écart nul');
+  const pcs = M.piecesCapteurs([
+    { id: 'h1', role: { nom: 'hall', repere: 'U1' }, repere: 'U1', inerte: false },
+    { id: 'h2', role: { nom: 'hall', repere: 'U1' }, repere: 'U1', inerte: false },
+    { id: 'h3', role: { nom: 'hall', repere: 'U3' }, repere: 'U3', inerte: true },
+    { id: 'a1', role: { nom: 'aimant', repere: 'A1' }, repere: 'A1', inerte: false },
+    { id: 'a2', role: { nom: 'aimant', repere: 'A2' }, repere: 'A2', inerte: false },
+    { id: 'a3', inerte: false },
+  ]);
+  check(JSON.stringify(pcs) === '{"hall":[{"piece":"h1","repere":"U1"}],"aimants":["a1","a2"]}', 'tri des pièces : un Hall par repère, inertes écartés', JSON.stringify(pcs));
+  const bts = { h1: bx(0, 0, 0), a1: bx(40, 0, 0), a2: bx(0, 18, 0) };
+  const lu = M.lireCapteurs(pcs, (id) => bts[id] ?? null);
+  check(JSON.stringify(lu) === '{"hall":{"U1":8}}', 'Hall : l\'aimant le plus proche l\'emporte', JSON.stringify(lu));
+  check(M.lireCapteurs({ hall: pcs.hall, aimants: [] }, (id) => bts[id] ?? null).hall.U1 === Infinity, 'sans aimant : écart infini (la scène pilote quand même)');
+  check(JSON.stringify(M.lireCapteurs({ hall: [], aimants: ['a1'] }, () => bx(0, 0, 0))) === '{"hall":{}}', 'sans pièce Hall : rien n\'est lu');
+  // Montage pour Chrome : servo, aimant porté, capteur Hall fixe à 32 mm en Y.
+  const hallBrut = (aimantNom, hallNom) => ({
+    format: 'kablix-system', version: 1,
+    pieces: [
+      { id: 's', nom: 'servo:Act1', source: { kind: 'kompix', type: 'servo' }, pose: { pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0 } } },
+      { id: 'a', nom: aimantNom, source: { kind: 'kompix', type: 'aimant' }, pose: { pos: { x: 20, y: 0, z: 30.7 }, rot: { x: 0, y: 0, z: 0 } } },
+      { id: 'h', nom: hallNom, source: { kind: 'kompix', type: 'hall' }, pose: { pos: { x: 0, y: 32, z: 30.7 }, rot: { x: 0, y: 0, z: 0 } } },
+    ],
+    liaisons: [{ id: 'P', type: 'pivot', a: { piece: 'a', axe: 'pose' }, b: { piece: 's', axe: 'horn' }, params: { min: 0, max: 180 } }],
+  });
+  const dh = M.lireSysteme(hallBrut('aimant:A1', 'hall:U1')).systeme;
+  check(!!dh, 'montage servo + aimant + Hall lu');
+  donneesHall = { doc: dh, volumes: await M.volumesDuSysteme(dh, (t) => paquets.get(t), []), problemes: [] };
 } else {
   console.log('B. ⚠ dépôt de Kompix Editor absent : scène sautée');
 }
@@ -337,6 +376,17 @@ if (!donnees) {
 
       await ev('window.vue.fermer()');
       check(await ev('document.getElementById("vue3d-scene").childElementCount === 0'), 'fermer vide la scène');
+
+      // E. capteur Hall dans la vraie scène : l'aimant tourne avec le palonnier.
+      if (donneesHall) {
+        await ev(`KablixVue3D.ouvrir(document.getElementById('vue3d-scene'), ${JSON.stringify(donneesHall).replace(/</g, '\u003c')}, ${JSON.stringify(textes)}).then((v) => { window.vue = v; })`, true);
+        const lit = async (angle) => JSON.parse(await ev(`JSON.stringify(window.vue.simuler({ servos: { Act1: ${angle} }, moteurs: {} }, 0.02).hall.U1 ?? null)`));
+        const loin = await lit(0);
+        const pres = await lit(90);
+        check(typeof loin === 'number' && loin > 10, 'servo à 0° : aimant hors de portée du Hall (> 10 mm)', String(loin));
+        check(typeof pres === 'number' && pres <= 10, 'servo à 90° : aimant devant le Hall (≤ 10 mm)', String(pres));
+        await ev('window.vue.fermer()');
+      }
     }
   } catch (e) {
     check(false, 'étage C sans exception', (e && e.stack) || String(e));

@@ -19,6 +19,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - Le nom d'une pièce du montage lui donne un rôle (`servo:Act1`, `roue:M2`, `sol`…). À l'ouverture, Kablix signale les rôles mal écrits, en double ou qui ne correspondent pas au composant du schéma.
 - **Vue 3D du montage** (Béta) : le bouton « 3D » de la barre montre le montage mécanique du projet en volume. Glisser pour tourner autour, molette pour zoomer ; le survol d'une pièce affiche son rôle, son repère et ses défauts. Les pièces en défaut sont en rouge.
 - La vue 3D suit la simulation : les servos et les moteurs à courant continu font tourner les pièces liées par leur rôle, et un robot à roues roule sur le sol. Les butées et les pièces non pilotées sont signalées dans un encart. À l'arrêt, le montage revient à sa position de départ.
+- Dans la vue 3D, un capteur à effet Hall du montage détecte l'aimant qui passe devant lui pendant la simulation.
 - Fiche d'aide de la vue 3D, et deux projets d'exemple dans le dépôt : un bras servo + aimant et un robot à deux roues.
 
 ## 2026.11.5 (21 novembre 2026)

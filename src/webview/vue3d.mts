@@ -10,7 +10,8 @@
 // redimensionnement, à chaque image de simulation) : aucune boucle
 // d'animation propre. Pendant une simulation (lot D6d), `simuler` pose les
 // pièces d'après les servos et moteurs (`pilotage.mts`) ; `arreter` les
-// ramène à la pose du document.
+// ramène à la pose du document. Chaque image rend ce que les capteurs lisent
+// dans la scène (lot D7a : écart des capteurs Hall à l'aimant le plus proche).
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -18,6 +19,7 @@ import { bulleDePiece, vue3D, type DonneesVue3D, type TextesBulle } from './meca
 import { construireScene, matricePiece, type SceneMontage } from './mecanique/scene3d.mjs';
 import { montageCinematique } from './mecanique/volumes.mjs';
 import { Pilotage, type EtatSimulation, type ImagePilotee, type PiecePilotee } from './mecanique/pilotage.mjs';
+import { lireCapteurs, piecesCapteurs, type LecturesCapteurs } from './mecanique/capteurs.mjs';
 
 /** Défauts qui rendent une pièce inerte (lot D5) : son rôle est ignoré. */
 const INERTE = new Set(['role-inconnu', 'role-sans-repere', 'role-doublon', 'role-type', 'role-repere-absent', 'ref-absente']);
@@ -37,8 +39,8 @@ export interface VueOuverte {
   etat(): { pieces: number; enDefaut: string[]; camera: [number, number, number]; cible: [number, number, number] };
   /** Pour les bancs : pièce sous un point de la page (coordonnées client), ou null. */
   pieceSous(x: number, y: number): string | null;
-  /** Une image de simulation : `dt` secondes depuis la précédente. */
-  simuler(etat: EtatSimulation, dt: number): void;
+  /** Une image de simulation : `dt` secondes depuis la précédente ; rend les lectures des capteurs. */
+  simuler(etat: EtatSimulation, dt: number): LecturesCapteurs;
   /** Fin de simulation : retour à la pose du document. */
   arreter(): void;
   /** Pour les bancs : position monde d'une pièce et lignes d'état affichées. */
@@ -62,7 +64,7 @@ export async function ouvrir(conteneur: HTMLElement, donnees: DonneesVue3D, text
       fermer: () => conteneur.replaceChildren(),
       etat: () => ({ pieces: 0, enDefaut: [], camera: [0, 0, 0], cible: [0, 0, 0] }),
       pieceSous: () => null,
-      simuler: () => undefined,
+      simuler: () => ({ hall: {} }),
       arreter: () => undefined,
       pose: () => null,
       lignesEtat: () => [],
@@ -180,6 +182,15 @@ export async function ouvrir(conteneur: HTMLElement, donnees: DonneesVue3D, text
     inerte: p.defauts.some((c) => INERTE.has(c)),
   }));
   const pilotage = new Pilotage(tree, pilotables);
+  const capteurs = piecesCapteurs(pilotables);
+  const boiteMonde = new THREE.Box3();
+  const boiteDe = (id: string): { min: [number, number, number]; max: [number, number, number] } | null => {
+    const g = montage.pieces.get(id);
+    if (!g) return null;
+    boiteMonde.setFromObject(g);
+    if (boiteMonde.isEmpty()) return null;
+    return { min: boiteMonde.min.toArray(), max: boiteMonde.max.toArray() };
+  };
   const parIdVue = new Map(vue.pieces.map((p) => [p.id, p]));
   let lignes: string[] = [];
   const appliquer = (image: ImagePilotee, enCours: boolean): void => {
@@ -234,7 +245,10 @@ export async function ouvrir(conteneur: HTMLElement, donnees: DonneesVue3D, text
       cible: [controles.target.x, controles.target.y, controles.target.z],
     }),
     pieceSous,
-    simuler: (etat, dt) => appliquer(pilotage.pas(etat, dt), true),
+    simuler: (etat, dt) => {
+      appliquer(pilotage.pas(etat, dt), true);
+      return lireCapteurs(capteurs, boiteDe);
+    },
     arreter: () => appliquer(pilotage.remettre(), false),
     pose: (id) => {
       const g = montage.pieces.get(id);

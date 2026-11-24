@@ -31,6 +31,7 @@ import './composants/tilt-switch-element.mjs';
 import './composants/hall-element.mjs';
 import './composants/aimant-element.mjs';
 import { MontageSim } from './montage-sim.mjs';
+import { hasAimant } from './diagram/montage.mjs';
 import './composants/servo-element.mjs';
 import './composants/lcd1602-element.mjs';
 import './composants/ssd1306-element.mjs';
@@ -1055,9 +1056,32 @@ function tickBehaviors(): void {
 // 0 s'il a grillé), à chaque image, tant que la vue est ouverte. Le temps est
 // celui de la simulation quand le moteur le donne (pause et ralenti compris).
 let vue3dHorloge: number | undefined;
+// Capteurs Hall lus dans la scène 3D (lot D7a) : un capteur dont le repère a
+// une pièce `hall:` dans le montage voit l'aimant de la SCÈNE (écart des
+// boîtes ≤ seuil), plus celui de la feuille 2D ni l'aimant glissant. Vue
+// fermée → il revient à la feuille (même état qu'au lancement de montage-sim).
+const hallsVue3d = new Set<string>();
+type HallScene = { external: boolean; field: boolean; trigger: number };
+function lireHallVue3d(lectures: Record<string, number>): void {
+  const aimantFeuille = hasAimant(editor.diagram);
+  for (const { binding, el } of hallTargets) {
+    const h = el as unknown as HallScene;
+    const ecart = lectures[binding.partId];
+    if (ecart !== undefined) {
+      hallsVue3d.add(binding.partId);
+      const seuil = Number.isFinite(Number(h.trigger)) ? Number(h.trigger) : 10;
+      if (!h.external) h.external = true;
+      if (h.field !== ecart <= seuil) h.field = ecart <= seuil;
+    } else if (hallsVue3d.delete(binding.partId)) {
+      h.external = aimantFeuille;
+      h.field = false;
+    }
+  }
+}
 function piloterVue3d(): void {
   if (!engine || !vue3dPage.ouverte()) {
     vue3dHorloge = undefined;
+    if (hallsVue3d.size) lireHallVue3d({});
     return;
   }
   const maintenant = engine.simulatedMs?.() ?? (engine.paused ? vue3dHorloge ?? 0 : performance.now());
@@ -1075,7 +1099,8 @@ function piloterVue3d(): void {
       moteurs[part.id] = st && !burnedMotors.has(part.id) ? st.speed : 0;
     }
   }
-  vue3dPage.simuler({ servos, moteurs }, dt);
+  const lectures = vue3dPage.simuler({ servos, moteurs }, dt);
+  lireHallVue3d(lectures?.hall ?? {});
 }
 
 let renderRaf = 0;
@@ -2161,6 +2186,7 @@ function clearRelayFaults(): void {
   icFrame = [];
   hallTargets = [];
   hallFaults.clear();
+  hallsVue3d.clear();
   montage.reset();
   openDrainTargets = [];
   openDrainFaults.clear();
@@ -4000,6 +4026,7 @@ function bindInputs(nouvelleMesure = false): void {
   // l'état (aimant, rappel interne) est relu à chaque frame (updateHall).
   hallTargets = [];
   hallFaults.clear();
+  hallsVue3d.clear();
   for (const binding of hallBindings(editor.diagram)) {
     const el = editor.elementOf(binding.partId);
     if (el) hallTargets.push({ binding, el });

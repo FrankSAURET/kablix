@@ -21,6 +21,10 @@
         4. ✅ **D6d** — pilotage pendant la simulation : `src/webview/mecanique/pilotage.mts` (rôles `servo`/`moteur`/`roue` → pivots, vitesse intégrée, `rollStep`), branché dans `renderTick` de `sim.mts`, encart des butées et problèmes, retour à la pose à l'arrêt ; banc `verify:vue3d` 50/50 (v348). ⏳ Régime nominal 200 tr/min à confirmer par Frank.
         5. ✅ **D6e** — démonstrateurs et aide : `docs/exemples/mecanique/` (bras servo + aimant, robot deux roues, fabriqués par `scripts/_exemples-meca.mjs`), banc `verify:exemples-meca`, fiche [docs/fr/3D-view.md](docs/fr/3D-view.md), CHANGELOG (v349). ⏳ Où les utilisateurs trouvent les paquets mécaniques (dépôt officiel ?) : décision de Frank.
         - ℹ️ Pourquoi une copie du solveur : Kompix Editor est un dépôt séparé, Kablix n'en dépend pas (même choix que `controlerRoles` pour D5). Corriger dans kompix-core puis recopier ; le banc tombe si la copie dérive.
+    - ⬜ **D7** — capteurs dans la scène 3D. Découpé le 24/11 (v350) en trois lots :
+        1. ✅ **D7a** — capteur à effet Hall : `src/webview/mecanique/capteurs.mts` (écart des boîtes monde `hall:`/`aimant:`), lu par `vue3d.mts` à chaque image, comparé au seuil `trigger` du capteur dans `sim.mts` ; banc `verify:vue3d` 60/60 (v350). ⏳ Règle de l'écart des boîtes et paquet 3D `hall` absent de la bibliothèque : voir v350.
+        2. ⬜ **D7b** — HC-SR04 : lancer de rayon depuis la pièce jusqu'au premier obstacle de la scène → distance lue par le moteur ultrason. Demande un **rôle nouveau** (`ultrason:U1`, type `hcsr04`) dans la convention : d'abord dans kompix-core (`roles.ts`, projet Kompix Editor, consigne à déposer), puis recopié dans `src/systeme.ts` de Kablix ; sens du rayon = un axe nommé de la pièce (à fixer dans la consigne).
+        3. ⏳ **D7c** — fin de course (contact) : **aucun composant fin de course dans Kablix** ; sa simulation (et s'il faut un nouveau composant ou un bouton-poussoir) est à préciser par Frank.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
@@ -30,6 +34,23 @@
     - ℹ️ **Numéros (22/11)** : `main` fusionné dans `mecatronique` ; les lots de la branche, nés en `2026.11.4.325` à `.333` (doublons de `main` en 325-327), sont renumérotés `2026.11.5.328` à `.336` (les messages des enregistrements gardent l'ancien numéro). **Règle** : le `buildNumber` d'un lot = le plus grand des deux branches (`git show main:package.json`) + 1 ; fusionner `main` dans `mecatronique` après chaque publication.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.350 — D7 découpé ; D7a : capteur à effet Hall dans la scène 3D
+
+1. ✅ **D7 découpé** en trois lots (D7a Hall, D7b HC-SR04, D7c fin de course), liste « à faire » en tête.
+2. ✅ **Module pur [capteurs.mts](src/webview/mecanique/capteurs.mts)** : `piecesCapteurs` (un capteur `hall:` par repère, le premier ; aimants `aimant:` ; pièces inertes écartées), `ecartBoites` (plus courte distance entre deux boîtes alignées, 0 au contact), `lireCapteurs` (écart à l'aimant le plus proche, `Infinity` sans aimant).
+3. ✅ **Vue [vue3d.mts](src/webview/vue3d.mts)** : `simuler` rend les lectures (`Box3.setFromObject` de chaque pièce posée) ; [vue3d-page.mts](src/webview/vue3d-page.mts) les transmet (null vue fermée).
+4. ✅ **Simulation [sim.mts](src/webview/sim.mts)** : `lireHallVue3d` — un capteur dont le repère a une pièce `hall:` passe en `external` et prend `field = écart ≤ trigger` ; vue fermée → retour à la feuille (`external = hasAimant`, `field` remis) ; ensemble vidé au lancement et à l'arrêt. Ordre de `renderTick` : `montage.update()` (2D) puis la scène, qui l'emporte.
+5. ✅ **Banc `verify:vue3d`** 50 → 60 : étage E sous Node (écarts alignés, diagonale 3-4-5, chevauchement, tri des pièces, aimant le plus proche, sans aimant, sans Hall) et dans Chrome (montage servo + aimant + Hall à 32 mm en Y : 0° → hors de portée, 90° → écart 0). Contre-épreuve : écart faussé de 1000 mm → 5 échecs.
+6. ✅ **Docs** : [systeme_specification.md](docs/systeme_specification.md) (règle de lecture), [docs/fr/3D-view.md](docs/fr/3D-view.md) (section Pendant la simulation) ; CHANGELOG (Projets).
+7. ⏳ **Règle choisie sans Frank** : écart entre boîtes englobantes alignées sur le monde (une pièce tournée grossit sa boîte), seuil = `trigger` du capteur du schéma. À confirmer.
+8. ⏳ **Pas de paquet 3D `hall`** dans la bibliothèque mécanique de Kompix Editor : une pièce `hall:` s'affiche en boîte rouge de 20 mm (`paquet-absent`), d'où l'absence de capteur dans le démonstrateur bras-servo-aimant. À ajouter avec D3 (validation des paquets par Frank) ou dans la consigne de D7b.
+9. ⏳ **Pas de banc de bout en bout** dans l'atelier complet (simulation réelle → vue → sortie du capteur) : `lireHallVue3d` n'est vérifié que par le typecheck ; essai F5 par Frank.
+10. ⏳ Version EN de la fiche d'aide avant publication.
+11. ✅ **Tests** `verify:all` : 181/185 verts. `verify:analyseur-sans-declenchement` tombé sous la charge, vert rejoué seul. Rouges connus : `verify:i18n` (ES/ZH), `verify:help-bars` (doc EN), `verify:linter` (⏳ 6 de v343).
+12. ✅ `.vsix` construit, non installé (mode nuit).
 
 ---
 

@@ -9,6 +9,7 @@
 import { t } from './i18n.mjs';
 import type { DonneesVue3D } from './mecanique/vue3d-donnees.mjs';
 import type { EtatSimulation } from './mecanique/pilotage.mjs';
+import type { LecturesCapteurs } from './mecanique/capteurs.mjs';
 import type { TextesVue, VueOuverte } from './vue3d.mjs';
 
 declare global {
@@ -81,8 +82,8 @@ export interface Vue3DPage {
   fermer(): void;
   /** Vue ouverte : la simulation peut la piloter. */
   ouverte(): boolean;
-  /** Image de simulation (lot D6d) ; sans effet si la vue est fermée. */
-  simuler(etat: EtatSimulation, dt: number): void;
+  /** Image de simulation (lot D6d) : lectures des capteurs (lot D7a), null si la vue est fermée. */
+  simuler(etat: EtatSimulation, dt: number): LecturesCapteurs | null;
   /** Fin de simulation : la vue revient à la pose du document. */
   arreter(): void;
 }
@@ -143,7 +144,7 @@ export function brancherVue3D(poster: (msg: unknown) => void, schema: () => unkn
     fermer,
     ouverte: () => ouverte !== undefined,
     simuler(etat, dt) {
-      ouverte?.simuler(etat, dt);
+      return ouverte?.simuler(etat, dt) ?? null;
     },
     arreter() {
       ouverte?.arreter();

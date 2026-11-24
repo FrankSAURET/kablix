@@ -38,6 +38,7 @@ Une pièce sans rôle (châssis, décor) suit les pièces auxquelles elle est fi
 - **Servo** : la pièce montée sur le palonnier prend l'angle du servo, de 0 à 180°.
 - **Moteur à courant continu** : la vitesse du moteur fait tourner son arbre ; à pleine vitesse, 200 tours par minute (motoréducteur jaune courant). Un moteur grillé s'arrête.
 - **Deux roues sur le même axe** : vitesses égales, le robot va tout droit ; vitesses différentes, il tourne.
+- **Capteur à effet Hall** (pièce nommée `hall:U1`) : il détecte l'aimant le plus proche du montage (pièce `aimant:A1`) quand l'écart entre les deux pièces ne dépasse pas son seuil de déclenchement (10 mm par défaut, propriété du capteur dans le schéma). Tant que la vue est ouverte, c'est la scène 3D qui décide : l'aimant de la feuille et l'aimant glissant ne comptent plus pour ce capteur. Vue fermée, il revient à la feuille.
 
 Un encart au bas de la vue signale ce qui cloche : pièce **en butée** (angle hors des bornes de sa liaison), pièce **non pilotée par la simulation** (son composant n'est pas dans le schéma), défaut du montage. À l'arrêt de la simulation, toutes les pièces reviennent à leur position de départ.
 
