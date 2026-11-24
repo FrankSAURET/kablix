@@ -711,6 +711,21 @@ export class KompixLibrary {
   }
 
   /**
+   * Octets du paquet .kompix d'un type installé (lu au scan), `undefined` s'il
+   * n'est pas dans la bibliothèque. Sert au volume 3D des pièces d'un montage
+   * (`systemeVolumes.ts`, lot D6b), même quand un élément intégré masque le type.
+   */
+  paquetDe(type: string): Uint8Array | undefined {
+    const source = this.sources.get(type);
+    if (!source) return undefined;
+    try {
+      return new Uint8Array(readFileSync(source));
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
    * Retourne la liste des composants actuellement chargés.
    */
   getComponents(): CustomPartData[] {

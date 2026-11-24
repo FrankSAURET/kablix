@@ -126,6 +126,22 @@ Règles qui en découlent pour le document système :
 
 Champs inconnus (ici ou à la racine, comme l'état de l'éditeur) : ignorés à la lecture, **conservés** à l'enregistrement — Kablix regrave le document brut.
 
+### Volume et axes d'une pièce dans Kablix (lot D6b)
+
+Lecture côté extension : [src/systemeVolumes.ts](../src/systemeVolumes.ts) (paquets `.kompix` et maillages de `system/`) ; choix du volume et des axes côté webview : [src/webview/mecanique/volumes.mts](../src/webview/mecanique/volumes.mts). Banc : `npm run verify:volumes`.
+
+| Pièce | Volume | Axes nommés |
+| --- | --- | --- |
+| `kompix`, paquet installé | `model3d.json` du paquet (ou le fichier désigné par `model3d` du manifeste) ; paquet à `shape` : le `model3d` rendu par `shape.mjs`, lancé avec les valeurs par défaut des propriétés | ceux de tous ses ensembles, le premier nom l'emporte (`modelAxes` de kompix-core) |
+| `kompix`, pas de paquet | élément intégré de Kablix à volume (`araignee`, `patte` : assemblages de `assemblages.mts`) | idem |
+| `fichier` | maillage `.stl`, `.glb` ou `.gltf` sous `system/` | aucun : la pièce ne peut porter ni pivot ni glissière (côté `b`) |
+
+- **Priorité** : le paquet de bibliothèque passe TOUJOURS avant l'élément intégré du même type, contrairement au schéma (règle du lot D3 : `servo`, `moteur-dc`, `aimant`).
+- **Miroir** (`pose.miroir: true`) : la pièce est le reflet de son volume par le plan X = 0 de son repère ; le point de chaque axe change de signe en X, sa direction (`x`/`y`/`z`, sans signe) est gardée. Le format ne disait pas l'axe du miroir : convention prise au lot D6b, **à confirmer par Frank**.
+- **`shape.mjs`** : lancé dans `node:vm` comme dans Kompix Editor (contexte vide, pas d'`import`, délai d'une seconde). Une erreur ou un délai dépassé rend la pièce sans volume, sans bloquer le reste.
+- **Pièce sans volume** (avertissement, la pièce reste dans le montage et dans le solveur) : `paquet-absent` (type ni dans la bibliothèque ni intégré à volume), `paquet-sans-volume` (paquet à plat, ou volume illisible), `fichier-absent` (maillage manquant ou d'un format inconnu).
+- Les maillages joints aux pièces `mesh` d'un paquet suivent en base64 ; la vue 3D (D6c) les lira.
+
 ## Contrôles faits à l'ouverture dans Kablix
 
 Un avertissement d'une ligne, sans bloquer l'ouverture, quand :
@@ -142,5 +158,6 @@ Un avertissement d'une ligne, sans bloquer l'ouverture, quand :
 - Convention de nommage (D5) : faite (kompix-core v2026.10.0.16, Kablix v2026.11.5.338). Affichage du rôle dans la vue 3D de Kablix : avec D6.
 - Bibliothèque mécanique (D3) : faite (Kompix Editor v2026.10.0.17), Béta, relue côté Kablix (v2026.11.5.340).
 - Fabrication (D4) : faite (Kompix Editor v2026.10.0.18), relue côté Kablix (v2026.11.5.342). Sans effet sur le document système : elle lit les pièces extrudées (`poly`, `ep`) du volume d'un composant, pas `system.json`. Détail (formats, unités, sens, convention de trait laser à valider par Frank) : `docs/fabrication.md` de Kompix Editor. Une pièce maillée (STL importé, `.scad` compris) ne sort ni en contour laser ni dans le STL de l'ensemble. Suivant : D6 (vue 3D dans Kablix).
-- Vue 3D dans Kablix (D6), découpée en cinq lots : D6a solveur, D6b volumes et axes des pièces, D6c vue fixe (three.js chargé à la demande), D6d pilotage par la simulation, D6e démonstrateurs et aide. D6a fait (v2026.11.5.343) : le solveur tourne dans la webview, `src/webview/mecanique/cinematique.mts`, copie de `kinematics.ts` de kompix-core dont seuls les imports changent ; `npm run verify:cinematique` tombe si la copie dérive et rejoue les tests de kompix-core contre elle. Correction du solveur : dans kompix-core d'abord, puis recopie.
+- Vue 3D dans Kablix (D6), découpée en cinq lots : D6a solveur, D6b volumes et axes des pièces, D6c vue fixe (three.js chargé à la demande), D6d pilotage par la simulation, D6e démonstrateurs et aide. D6a fait (v2026.11.5.343) : le solveur tourne dans la webview, `src/webview/mecanique/cinematique.mts`, copie de `kinematics.ts` de kompix-core dont seuls les imports changent ; `npm run verify:cinematique` tombe si la copie dérive et rejoue les tests de kompix-core contre elle. Correction du solveur : dans kompix-core d'abord, puis recopie. D6b fait (v2026.11.5.344) : volume et axes de chaque pièce, voir « Volume et axes d'une pièce dans Kablix » ; pas encore branché à un panneau (D6c).
+- Solveur, défaut relevé au lot D6b sur le robot à deux roues : en conduite différentielle, la voie prise est l'écart des **points des axes du châssis** (`moteur-gauche`/`moteur-droit`, 90 mm), pas celui des roues (147 mm) : le robot tourne 1,6 fois trop vite. À corriger dans `rollStep` de kompix-core (point de contact = position de la roue le long de l'axe), puis recopier.
 - Kablix : faire suivre un renommage de repère (`renommerRepere()` existe, pas encore branché à l'inspecteur).
