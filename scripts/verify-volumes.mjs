@@ -83,11 +83,13 @@ if (editeur) {
   check(near(Math.hypot(avant.x - s0.x, avant.y - s0.y), d, 1e-6) && near(avant.lacet, s0.lacet), 'roulage droit : 32,5 × π/2 mm, sans virage',
     JSON.stringify(avant));
   // Roues opposées : le châssis tourne autour du milieu de l'essieu (0, −45),
-  // son origine reste à 45 mm de ce point. (La voie prise par le solveur est
-  // l'écart des axes du châssis, 90 mm, pas celui des roues : défaut noté dans
-  // todo.md, à corriger dans kompix-core.)
+  // son origine reste à 45 mm de ce point. Voie = écart des roues (2 × 73,5 =
+  // 147 mm), pas celui des points d'axe du châssis (90 mm, défaut corrigé dans
+  // kompix-core v2026.10.0.19) : lacet = 2 × 32,5 × π/2 / 147 rad.
   const tour = M.rollStep(s0, tree, { Pg: 90, Pd: -90 });
   check(near(Math.hypot(tour.x - 0, tour.y + 45), 45, 1e-6) && !near(tour.lacet, s0.lacet), 'roues opposées : rotation autour du milieu de l\'essieu', JSON.stringify(tour));
+  const lacet = (2 * d / 147) * 180 / Math.PI;
+  check(near(Math.abs(tour.lacet - s0.lacet), lacet, 1e-6), `roues opposées : voie de 147 mm, virage de ${lacet.toFixed(3)}°`, JSON.stringify(tour));
   const pose = M.solve(tree, { Pg: 45 }).poses.rg;
   check(pose && near(pose.pos.x, -73.5, 1e-6) && near(pose.rot.x, 45, 1e-6), 'roue gauche tournée de 45° autour de son moyeu', JSON.stringify(pose?.pos) + JSON.stringify(pose?.rot));
   // Engrenage : forme calculée, propriété par défaut.

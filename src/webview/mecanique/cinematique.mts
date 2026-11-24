@@ -11,7 +11,7 @@
 //
 // Module pur : aucune dépendance, aucune mutation du document.
 
-// Kablix : COPIE de `kinematics.ts` de kompix-core (v2026.10.0.18), imports
+// Kablix : COPIE de `kinematics.ts` de kompix-core (v2026.10.0.19), imports
 // Kablix : seuls changés (voir `socle.mts`). Ne rien modifier ici : corriger
 // Kablix : dans kompix-core, puis recopier (`npm run verify:cinematique`).
 import type { Axis, Vec3, SystemDoc, SystemPiece, SystemLink } from './socle.mjs';
@@ -150,8 +150,8 @@ export type KinNode = {
 /** Couplage d'engrenage : `driven − zero = ratio·(driver − zero)`. */
 export type KinGear = { id: string; driver: string; driven: string; ratio: number };
 
-/** Roue sur le sol : pivot qui la porte, châssis = parent de ce pivot. */
-export type KinWheel = { id: string; joint: string; chassis: string; rayon: number };
+/** Roue sur le sol : pièce roue, pivot qui la porte, châssis = parent de ce pivot. */
+export type KinWheel = { id: string; piece: string; joint: string; chassis: string; rayon: number };
 
 export type KinTree = {
   nodes: Record<string, KinNode>;
@@ -321,11 +321,11 @@ export function buildKinematics(
         problems.push({ code: 'roue-sans-rayon', target: l.id });
         continue;
       }
-      wheelsRaw.push({ id: l.id, joint, chassis: joints[joint].parent, rayon: prm.rayon });
+      wheelsRaw.push({ id: l.id, piece: l.a.piece, joint, chassis: joints[joint].parent, rayon: prm.rayon });
     }
   }
 
-  return { tree: { nodes, joints, order, roots, gears: orderGears(gearsRaw, problems), wheels: checkWheels(wheelsRaw, joints, problems) }, problems };
+  return { tree: { nodes, joints, order, roots, gears: orderGears(gearsRaw, problems), wheels: checkWheels(wheelsRaw, joints, nodes, problems) }, problems };
 }
 
 /**
@@ -366,8 +366,23 @@ function orderGears(gears: KinGear[], problems: KinProblem[]): KinGear[] {
   return out;
 }
 
-/** Au plus deux roues, même châssis, axes confondus ; sinon toutes refusées. */
-function checkWheels(wheels: KinWheel[], joints: Record<string, KinJoint>, problems: KinProblem[]): KinWheel[] {
+/**
+ * Point de contact d'une roue, repère du châssis : l'origine de la pièce roue
+ * projetée sur l'axe de son pivot. `rel` = pose de la roue relative au châssis
+ * (parent du pivot) dans le document ; la rotation propre de la roue ne
+ * déplace pas ce point.
+ */
+function wheelContact(w: KinWheel, joints: Record<string, KinJoint>, nodes: Record<string, KinNode>): Vec3 {
+  const j = joints[w.joint];
+  const e = unit(j.dir);
+  return add(j.point, scale(e, dot(sub(nodes[w.piece].rel.t, j.point), e)));
+}
+
+/**
+ * Au plus deux roues, même châssis, axes confondus (propriété de la droite),
+ * points de contact distincts (voie non nulle) ; sinon toutes refusées.
+ */
+function checkWheels(wheels: KinWheel[], joints: Record<string, KinJoint>, nodes: Record<string, KinNode>, problems: KinProblem[]): KinWheel[] {
   if (wheels.length <= 1) return wheels;
   let ok = wheels.length === 2 && wheels[0].chassis === wheels[1].chassis;
   if (ok) {
@@ -376,6 +391,7 @@ function checkWheels(wheels: KinWheel[], joints: Record<string, KinJoint>, probl
     const gap = sub(j2.point, j1.point);
     ok = norm(cross(d, j2.dir)) < 1e-9 && norm(cross(d, gap)) < 1e-6;
   }
+  if (ok) ok = norm(sub(wheelContact(wheels[1], joints, nodes), wheelContact(wheels[0], joints, nodes))) > 1e-6;
   if (ok) return wheels;
   for (const w of wheels) problems.push({ code: 'roues-incompatibles', target: w.id });
   return [];
@@ -479,7 +495,8 @@ export function rollBase(tree: KinTree, s: RollState): Record<string, Pose> {
  * Un pas de roulage sans glissement. `deltas[idPivot]` = rotation de la roue
  * (degrés) depuis le pas précédent ; les engrenages la propagent. Une roue :
  * avance de `rayon × Δθ` ; deux roues sur un même axe : conduite
- * différentielle, voie = écart des points de contact. Rend le nouvel état.
+ * différentielle, voie = écart des points de contact, chacun = l'origine de
+ * la pièce roue projetée sur l'axe de son pivot. Rend le nouvel état.
  */
 export function rollStep(state: RollState, tree: KinTree, deltas: Record<string, number>): RollState {
   const c = rollChassis(tree);
@@ -496,7 +513,8 @@ export function rollStep(state: RollState, tree: KinTree, deltas: Record<string,
   const ws = tree.wheels.map((w) => {
     const j = tree.joints[w.joint];
     const e = unit(flat(matDir(m, j.dir)));
-    return { e, at: flat(matPoint(m, j.point)), f: cross(e, Z), s: w.rayon * (d[w.joint] ?? 0) * RAD };
+    const at = flat(matPoint(m, wheelContact(w, tree.joints, tree.nodes)));
+    return { e, at, f: cross(e, Z), s: w.rayon * (d[w.joint] ?? 0) * RAD };
   });
   const e = ws[0].e;
   const f = ws[0].f;
