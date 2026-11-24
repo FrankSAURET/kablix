@@ -31,6 +31,9 @@
         1. ✅ **D8a, partie Kompix Editor** — module pur `kompix-core/src/step.ts` (sortie de `occt-import-js` → `SystemDoc` + STL sous `system/meshes/`, noms passés par `parseRole`), fixture STEP fabriquée par FreeCAD, `occt-import-js` en dépendance de développement seulement. Consigne (v353), lot Kompix Editor `v2026.10.0.21` relu (159/159 rejoué), règles reportées dans [systeme_specification.md](docs/systeme_specification.md) (v354).
         2. ✅ **D8b, partie Kompix Editor** — téléchargement du WASM à la demande (version épinglée, SHA-256, cache), commande « Importer un assemblage STEP… » qui écrit `system.json` + `system/` dans un `.projix`. Consigne (v354), lot Kompix Editor `v2026.10.0.22` relu (159/159 et 52/53 rejoués) en v355.
         3. ✅ **D8c, partie Kablix** — démonstrateur `docs/exemples/mecanique/robot-step/`, pièces `fichier` non recentrées (défaut corrigé), `extra.couleur` lue ; bancs `verify:vue3d` 85/85, `verify:exemples-meca` 34/34 (v355).
+    - ⬜ **D9** — composants électroniques en 3D (décision 7 de Frank ; lot C6 du `roadmap.md` de Kompix Editor), projet **Kompix Editor**, un composant par lot :
+        1. ⬜ **D9a** — anneau de LED (`led-ring.kompix`, Béta) : consigne déposée (v356), à exécuter par le lanceur puis à relire ici.
+        2. ⬜ Suivants (C6) : matrice NeoPixel, afficheur à N chiffres, LCD ; puis le reste de la bibliothèque. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
@@ -40,6 +43,16 @@
     - ℹ️ **Numéros (22/11)** : `main` fusionné dans `mecatronique` ; les lots de la branche, nés en `2026.11.4.325` à `.333` (doublons de `main` en 325-327), sont renumérotés `2026.11.5.328` à `.336` (les messages des enregistrements gardent l'ancien numéro). **Règle** : le `buildNumber` d'un lot = le plus grand des deux branches (`git show main:package.json`) + 1 ; fusionner `main` dans `mecatronique` après chaque publication.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.356 — D9a : consigne Kompix Editor (anneau de LED converti en `.kompix` 3D)
+
+1. ✅ **Constat** : D1 à D8 faits ; D7c (fin de course) et le champ progressif bloqués par Frank. Lot faisable suivant de la piste 11 : la décision 7 de Frank (Kompix Editor crée aussi des composants 3D purement électroniques), qui correspond au lot C6 du `roadmap.md` de Kompix Editor (rang 7, « tout se convertit, dans l'ordre », décision A.1).
+2. ✅ **D9 ouvert** dans la liste « à faire » : composants électroniques en 3D, un composant par lot, en commençant par l'anneau de LED (le plus proche du ruban converti en C5).
+3. ✅ **Consigne D9a déposée** dans `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md` : `components/led-ring.kompix` (Béta) produit par `convert-led-ring.ts`, dessin = SVG retouché de Kablix tel quel, pattes contrôlées au px près contre une capture Kablix, volume (couronne 68/52 × 1,6 mm, 16 pièces `pixel` 5050), `sim` `led-chain` WS2812 16 LED, tests + contre-épreuve, CHANGELOG ; `v2026.10.0.23`. Rien à modifier dans Kablix.
+4. ⏳ **Choix faits sans Frank, à confirmer** : 16 LED fixes comme dans Kablix (nombre réglable 12/16/24 non fait) ; cotes de la couronne et des LED d'après un anneau du commerce.
+5. ℹ️ Lot sans code Kablix : pas de `.vsix`, pas de tests Kablix rejoués, pas d'entrée au CHANGELOG.
 
 ---
 
