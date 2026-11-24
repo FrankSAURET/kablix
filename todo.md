@@ -16,7 +16,7 @@
     - ⬜ **D6** — vue 3D de simulation dans Kablix (three.js), pilotée par servo, moteur DC et le solveur de D2 ; affichage du rôle. Découpé le 23/11 (v343) en cinq lots, tous Kablix, branche `mecatronique` :
         1. ✅ **D6a** — solveur cinématique porté dans la webview : `src/webview/mecanique/cinematique.mts`, copie à l'identique de `kinematics.ts` de kompix-core (imports exceptés, socle `socle.mts`) ; banc `verify:cinematique` (dérive de la copie, 16 tests de kompix-core rejoués, exemple du format lu par `lireSysteme`) (v343).
         2. ✅ **D6b** — volume et axes nommés de chaque pièce : `src/systemeVolumes.ts` (extension : paquets `.kompix`, `shape.mjs` en `node:vm`, maillages de `system/`), `src/webview/mecanique/volumes.mts` (paquet > élément intégré, miroir, `montageCinematique`), banc `verify:volumes` sur le robot deux roues (v344). ⏳ Convention du miroir (plan X = 0 de la pièce) à confirmer par Frank.
-        2b. ⬜ **D6b′ — défaut du solveur (projet Kompix Editor)** : en conduite différentielle, `rollStep` prend pour voie l'écart des points des axes du châssis (90 mm sur le robot deux roues) au lieu de celui des roues (147 mm) → virage 1,6 fois trop rapide. Corriger dans kompix-core (point de contact = position de la roue le long de son axe), test avec contre-épreuve, puis recopier dans `cinematique.mts` de Kablix (`verify:cinematique` le vérifie). Relevé en v344.
+        2b. ⬜ **D6b′ — défaut du solveur (projet Kompix Editor)** — consigne déposée (v345) dans `C:/Users/Frank/.claude/nuit/a-lancer/kompix_editor.md`, lot attendu `v2026.10.0.19` ; reste à le relire ici et à recopier. En conduite différentielle, `rollStep` prend pour voie l'écart des points des axes du châssis (90 mm sur le robot deux roues) au lieu de celui des roues (147 mm) → virage 1,6 fois trop rapide. Corriger dans kompix-core (point de contact = position de la roue le long de son axe), test avec contre-épreuve, puis recopier dans `cinematique.mts` de Kablix (`verify:cinematique` le vérifie). Relevé en v344.
         3. ⬜ **D6c** — vue 3D fixe (M) : three.js (même version que Kompix Editor, 0.186.1) dans un paquet esbuild À PART chargé à la demande (pas dans le bundle principal, ~600 Ko) ; panneau « Vue 3D » ouvert depuis la barre quand le projet a un `system.json` ; montage à sa pose du document, caméra orbitale, rôle et repère au survol ; pièce en défaut (problèmes D1/D5) marquée. Banc Chrome headless (géométrie) + `verify:souris` pour l'orbite.
         4. ⬜ **D6d** — pilotage pendant la simulation (M) : rôle `servo` → angle simulé (`servoAngleUs` de `sim.mts`) sur le pivot dont la pièce est parent ; rôle `moteur`/`roue` → vitesse de `motorStates` intégrée en angle ; `roue-sol` → `rollStep` ; saturation et problèmes du solveur affichés dans la vue ; arrêt de la simulation → retour à la pose du document.
         5. ⬜ **D6e** — démonstrateurs et aide (S) : projets d'exemple bras servo + aimant et robot deux roues (`.projix` avec `system.json`), fiche d'aide FR de la vue 3D, entrée CHANGELOG. Composants mécaniques toujours Béta.
@@ -30,6 +30,14 @@
     - ℹ️ **Numéros (22/11)** : `main` fusionné dans `mecatronique` ; les lots de la branche, nés en `2026.11.4.325` à `.333` (doublons de `main` en 325-327), sont renumérotés `2026.11.5.328` à `.336` (les messages des enregistrements gardent l'ancien numéro). **Règle** : le `buildNumber` d'un lot = le plus grand des deux branches (`git show main:package.json`) + 1 ; fusionner `main` dans `mecatronique` après chaque publication.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.345 — D6b′ : consigne Kompix Editor déposée
+
+1. ✅ **Consigne** `C:/Users/Frank/.claude/nuit/a-lancer/kompix_editor.md` : `KinWheel` reçoit l'identifiant de la pièce roue ; dans `rollStep`, point de contact = origine de la roue projetée sur l'axe du pivot (voie réelle 147 mm au lieu de 90 mm) ; nouveau test voie ≠ écart des points d'axe, avec contre-épreuve ; livraison `v2026.10.0.19`.
+2. ⬜ Au retour : relire le lot, recopier `kinematics.ts` dans `src/webview/mecanique/cinematique.mts` (imports exceptés), recaler le test de rotation sur place de `verify:volumes` sur 147 mm, rejouer `verify:cinematique` et `verify:volumes`.
+3. ℹ️ Kablix : aucun code touché, CHANGELOG inchangé, pas de `.vsix`.
 
 ---
 
