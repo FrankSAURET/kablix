@@ -42,8 +42,9 @@
         8. ✅ **D9h** — LED NeoPixel seule, WS2812 5050 (`neopixel.kompix`, Béta, volume fixe, `sim` `led-chain` à 1 LED) : consigne (v364), lot Kompix Editor `v2026.10.0.30` relu (172/172 et 96/97 rejoués) en v365. ⏳ Validation, cotes, forme marquée `pixel`, module ou LED 5 mm : Frank (points 87-89 du `todo.md` de Kompix Editor).
         9. ✅ **D9i** — capteurs DHT22 et DHT11 (`dht22.kompix`, `dht11.kompix`, Béta, volume fixe, nouveau modèle nommé `dht`) : consigne (v365), lot Kompix Editor `v2026.10.0.31` relu (174/174 et 106/107 rejoués) en v366. ⏳ Validation, cotes, deux paquets, face ajourée : Frank (points 92-93 du `todo.md` de Kompix Editor).
         10. ✅ **D9j** — détecteur de mouvement PIR (`pir.kompix`, Béta, volume fixe, nouveau modèle nommé `pir`) : consigne (v366), lot Kompix Editor `v2026.10.0.32` relu (176/176 et 111/112 rejoués) en v367. ⏳ Validation, cotes, dôme en disques, potentiomètres absents : Frank (points 96-97 du `todo.md` de Kompix Editor).
-        11. ⬜ **D9k** — capteur de flamme (`flame.kompix`, Béta, volume fixe + propriété `sensitivity`, nouveau modèle nommé générique `ao-do-sensor`, réutilisable pour gaz, son et lumière) : consigne déposée (v367), à exécuter par le lanceur puis à relire ici.
-        12. ⬜ Suivants (C6) : le reste de la bibliothèque. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
+        11. ✅ **D9k** — capteur de flamme (`flame.kompix`, Béta, volume fixe + propriété `sensitivity`, nouveau modèle nommé générique `ao-do-sensor`) : consigne (v367), lot Kompix Editor `v2026.10.0.33` relu (179/179 et 116/117 rejoués) en v368. ⏳ Validation, cotes, CMS, traitement du `pinScale` : Frank (points 100-102 du `todo.md` de Kompix Editor).
+        12. ⬜ **D9l** — capteur de gaz MQ (`gas-sensor.kompix`, Béta, volume fixe + `sensitivity`, réemploi du modèle `ao-do-sensor`) : consigne déposée (v368), à exécuter par le lanceur puis à relire ici.
+        13. ⬜ Suivants (C6) : le reste de la bibliothèque. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
@@ -54,6 +55,17 @@
 2. ⬜ **Recette de test** (Frank, 24/11) : une fois tout le point 1 terminé, écrire un `.md` de recette pour tout tester à la main (pas à pas : quoi ouvrir, quoi faire, quoi doit se passer), couvrant Kablix ET Kompix Editor.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.368 — D9k relu ; D9l : consigne Kompix Editor (capteur de gaz en 3D)
+
+1. ✅ **Relecture** du lot Kompix Editor `v2026.10.0.33` (enregistrement `971763b`, exécuté par le lanceur) : `convert-flame.ts`, `components/source/flame/` (`pins.json` aux positions brutes, SVG, capture), modèle `ao-do-sensor` de `sim.ts` (`ResolvedAoDoSensor`, `aoDoSensorSim`, champs `sensitivity`/`aout`/`dout`), nouveau type de champ `number`, `sim-ao-do-sensor.test.ts` (3), `flame.test.ts` (5). Conforme à la consigne : 4 pattes dans l'ordre de `pinInfo`, `pinScale` appliqué par le script (positions effectives 207,29 ; 15,21 à 45,21, contrôlées par le test), dessin sous un groupe `scale(10/9,6)`, DOUT actif bas, deux contre-épreuves faites, paquets existants refaits à l'identique. Rejoué : kompix-core 179/179, kompix-editor 116/117 (échec connu `led-strip.kompix`, point 29 de son `todo.md`).
+2. ✅ **Point 105 de Kompix Editor** (modèle `ao-do-sensor` à reporter côté Kablix) : paragraphe « Composants électroniques en 3D (D9) » ajouté à [systeme_specification.md](docs/systeme_specification.md) (modèles nommés du bloc `sim`, `ao-do-sensor`, type de champ `number`).
+3. ✅ **Constat pour la suite** : le capteur de gaz (`gas-sensor-element.mts`) a un dessin retouché `externe/gas-sensor.svg` 150 × 70, **sans `pinScale`**, pattes dans l'ordre AOUT, DOUT, GND, VCC (x = 140, y = 20 à 50, inverse du capteur de flamme) ; carte `path31` bleue 113,14 × 61,15 px à 4 trous, cylindre MQ r 32,06 px, pas de potentiomètre dessiné ; SVG Inkscape avec deux nœuds texte `false` et un `xlink:href` sans espace de noms (toléré par `unsafeSVG`).
+4. ✅ **Consigne D9l déposée** dans `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md` : `components/gas-sensor.kompix` (Béta), volume fixe à 10 px = 2,54 (carte trouée, cylindre MQ, 4 broches couchées), réemploi du modèle `ao-do-sensor` sans le modifier, contre-épreuves (échelle de la flamme appliquée à tort, ordre des broches inversé) ; `v2026.10.0.34`. Rien à modifier dans Kablix.
+5. ⏳ **Choix faits sans Frank, à confirmer** : cotes à l'échelle du dessin (carte ≈ 28,7 × 15,5 mm, cylindre ≈ 16,3 mm de diamètre, hauteur ≈ 10 mm) ; pas de potentiomètre (absent du dessin) ; LED CMS en plaques minces ou omises.
+6. ℹ️ Lot sans code Kablix (doc de spécification seulement) : pas de `.vsix`, pas de tests Kablix rejoués, pas d'entrée au CHANGELOG (le capteur de flamme en 3D est au CHANGELOG de Kompix Editor).
 
 ---
 
