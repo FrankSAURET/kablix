@@ -33,8 +33,9 @@
         3. ✅ **D8c, partie Kablix** — démonstrateur `docs/exemples/mecanique/robot-step/`, pièces `fichier` non recentrées (défaut corrigé), `extra.couleur` lue ; bancs `verify:vue3d` 85/85, `verify:exemples-meca` 34/34 (v355).
     - ⬜ **D9** — composants électroniques en 3D (décision 7 de Frank ; lot C6 du `roadmap.md` de Kompix Editor), projet **Kompix Editor**, un composant par lot :
         1. ✅ **D9a** — anneau de LED (`led-ring.kompix`, Béta) : consigne (v356), lot Kompix Editor `v2026.10.0.23` relu (159/159 et 57/58 rejoués) en v358. ⏳ Validation, cotes et nombre de LED réglable : Frank (points 58-59 du `todo.md` de Kompix Editor).
-        2. ⬜ **D9b** — matrice NeoPixel 8 × 8 (`neopixel-matrix.kompix`, Béta) + essai des LED d'un dessin à LED en groupes (`g.pixel`) : consigne déposée (v358), à exécuter par le lanceur puis à relire ici.
-        3. ⬜ Suivants (C6) : afficheur à N chiffres, LCD ; puis le reste de la bibliothèque. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
+        2. ✅ **D9b** — matrice NeoPixel 8 × 8 (`neopixel-matrix.kompix`, Béta) + essai des LED d'un dessin à LED en groupes (`g.pixel`) : consigne (v358), lot Kompix Editor `v2026.10.0.24` relu (159/159 et 64/65 rejoués) en v359. ⏳ Validation, cotes, taille réglable et serpentin : Frank (points 62-63 du `todo.md` de Kompix Editor).
+        3. ⬜ **D9c** — afficheur 7 segments 1, 2 ou 4 chiffres (`7seg.kompix`, Béta, forme calculée `shape.mjs` + modèle nommé `7segment`) : consigne déposée (v359), à exécuter par le lanceur puis à relire ici.
+        4. ⬜ Suivants (C6) : LCD ; puis le reste de la bibliothèque. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
@@ -45,6 +46,16 @@
 2. ⬜ **Recette de test** (Frank, 24/11) : une fois tout le point 1 terminé, écrire un `.md` de recette pour tout tester à la main (pas à pas : quoi ouvrir, quoi faire, quoi doit se passer), couvrant Kablix ET Kompix Editor.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.359 — D9b relu ; D9c : consigne Kompix Editor (afficheur 7 segments en 3D)
+
+1. ✅ **Relecture** du lot Kompix Editor `v2026.10.0.24` (enregistrement `ea89e06`, exécuté par le lanceur) : `convert-neopixel-matrix.ts`, `led-chain.ts` (`groupPixelStyle`, `paintPixel`), `updateLeds` de `main.ts`, `neopixel-matrix.test.ts`, source et capture. Conforme à la consigne : pattes = `pinInfo` (GND/VCC/DIN/DOUT, y = 190, x = 90 à 120), LED 0 au nord-ouest puis ligne par ligne (ordre de `sim.mts`), rendu des groupes copié de `setPixel`, LED simples inchangées, deux contre-épreuves faites. Rejoué : kompix-core 159/159, kompix-editor 64/65 (échec connu `led-strip.kompix`, point 29 de son `todo.md`).
+2. ✅ **Constat pour la suite** : l'afficheur 7 segments de Kablix change de dessin ET de pattes selon `digits` (1, 2 ou 4 : trois SVG retouchés, 10 ou 12 pattes) ; il demande donc une forme calculée (`shape.mjs`, comme le ruban), pas un paquet à volume fixe. Sa simulation n'est pas une chaîne de LED : modèle nommé repris de Kablix, sur le motif de D3. `capture-kablix.mjs` importe `<type>-element.mts` : passer `7segment`, pas `7seg`.
+3. ✅ **Consigne D9c déposée** dans `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md` : `components/7seg.kompix` (Béta), forme calculée selon `digits`/`colon`/`color`, dessins retouchés de Kablix tels quels, pattes contrôlées contre trois captures, volume d'afficheur 0,56″ (segments en pièces nommées, broches au pas de 2,54), modèle nommé `7segment` dans `sim.ts`, deux contre-épreuves ; `v2026.10.0.25`. Rien à modifier dans Kablix.
+4. ⏳ **Choix faits sans Frank, à confirmer** : 1, 2 ou 4 chiffres seulement comme dans Kablix (N quelconque non fait) ; cotes d'un afficheur 0,56″ du commerce ; pas d'« essai des segments » dans l'éditeur.
+5. ℹ️ Lot sans code Kablix : pas de `.vsix`, pas de tests Kablix rejoués, pas d'entrée au CHANGELOG (la matrice en 3D est au CHANGELOG de Kompix Editor).
 
 ---
 
