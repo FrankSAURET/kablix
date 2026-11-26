@@ -37,8 +37,9 @@
         3. ✅ **D9c** — afficheur 7 segments 1, 2 ou 4 chiffres (`7seg.kompix`, Béta, forme calculée `shape.mjs` + modèle nommé `7segment`) : consigne (v359), lot Kompix Editor `v2026.10.0.25` relu (161/161 et 69/70 rejoués) en v360. ⏳ Validation, cotes, N chiffres quelconque, essai des segments : Frank (points 66-68 du `todo.md` de Kompix Editor).
         4. ✅ **D9d** — afficheur LCD texte 16 × 2 / 20 × 4, I²C / parallèle (`lcd.kompix`, Béta, forme calculée + modèle nommé `lcd`) : consigne (v360), lot Kompix Editor `v2026.10.0.26` relu (163/163 et 74/75 rejoués) en v361. ⏳ Validation, cotes, bord des broches parallèles, texte dans le volume : Frank (points 71-72 du `todo.md` de Kompix Editor).
         5. ✅ **D9e** — barre de 10 LED (`led-bar.kompix`, Béta, forme calculée + modèle nommé `led-bar`) : consigne (v361), lot Kompix Editor `v2026.10.0.27` relu (167/167 et 79/80 rejoués) en v362. ⏳ Validation, cotes, repli de couleur, palette `BCYR` : Frank (points 75-76 du `todo.md` de Kompix Editor).
-        6. ⬜ **D9f** — écran OLED SSD1306 128 × 64, I²C / SPI (`oled-ssd1306.kompix`, Béta, forme calculée + modèle nommé `ssd1306`) : consigne déposée (v362), à exécuter par le lanceur puis à relire ici.
-        7. ⬜ Suivants (C6) : le reste de la bibliothèque. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
+        6. ✅ **D9f** — écran OLED SSD1306 128 × 64, I²C / SPI (`oled-ssd1306.kompix`, Béta, forme calculée + modèle nommé `ssd1306`) : consigne (v362), lot Kompix Editor `v2026.10.0.28` relu (170/170 et 84/85 rejoués) en v363. ⏳ Validation, cotes (module du commerce plus petit), image dans le volume : Frank (points 79-80 du `todo.md` de Kompix Editor).
+        7. ⬜ **D9g** — écran TFT ILI9341 240 × 320, SPI (`ili9341.kompix`, Béta, volume fixe + modèle nommé `ili9341`) : consigne déposée (v363), à exécuter par le lanceur puis à relire ici.
+        8. ⬜ Suivants (C6) : le reste de la bibliothèque. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
@@ -49,6 +50,17 @@
 2. ⬜ **Recette de test** (Frank, 24/11) : une fois tout le point 1 terminé, écrire un `.md` de recette pour tout tester à la main (pas à pas : quoi ouvrir, quoi faire, quoi doit se passer), couvrant Kablix ET Kompix Editor.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.363 — D9f relu ; D9g : consigne Kompix Editor (écran TFT ILI9341 en 3D)
+
+1. ✅ **Relecture** du lot Kompix Editor `v2026.10.0.28` (enregistrement `18c0e25`, exécuté par le lanceur) : `convert-oled-ssd1306.ts`, `components/source/oled-ssd1306/` (`pins.json`, `shape-logic.mjs`, `shape.mjs`, SVG), modèle `ssd1306` de `sim.ts` (`ResolvedSsd1306`, `ssd1306Roles`), `sim-ssd1306.test.ts`, `oled-ssd1306.test.ts`. Conforme à la consigne : 8 pattes des deux variantes identiques à `pinInfo` de `ssd1306-element.mts` (y = 20, x = 59 à 129), adresse `0x3c` en I²C seulement, toute valeur autre que `spi` → I²C, deux contre-épreuves faites. Rejoué : kompix-core 170/170, kompix-editor 84/85 (échec connu `led-strip.kompix`, point 29 de son `todo.md`).
+2. ℹ️ Écart signalé par le lot : à l'échelle du dessin la carte fait 48,3 × 35,6, alors qu'un module 0,96″ du commerce fait ≈ 27 × 27 ; laissé à Frank (point 79 du `todo.md` de Kompix Editor).
+3. ✅ **Constat pour la suite** : le TFT de Kablix (`ili9341-element.mts`) a un dessin 200 × 310 et 9 pattes fixes à y = 300, x = 60 à 140 (VCC, GND, CS, RST, D/C, MOSI, SCK, LED, MISO), aucune propriété au catalogue (`flipHorizontal`/`flipVertical` non exposés) ; écran = canvas 240 × 320 sur `rect60` ; SPI seulement (`spi-tft`, `Ili9341Device`).
+4. ✅ **Consigne D9g déposée** dans `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md` : `components/ili9341.kompix` (Béta), paquet à volume fixe (pas de propriété), dessin retouché tel quel, pattes contrôlées contre une capture, volume à l'échelle du dessin (carte ≈ 49,4 × 77,6 × 1,6, dalle `ecran`, 9 broches, `broche-dc` pour `D/C`), modèle nommé `ili9341` sans champ dans `sim.ts`, deux contre-épreuves ; `v2026.10.0.29`. Rien à modifier dans Kablix.
+5. ⏳ **Choix faits sans Frank, à confirmer** : cotes à l'échelle du dessin (proches d'un module 2,8″ du commerce, ≈ 50 × 86) ; pas d'image dans le volume 3D ; retournements non exposés, comme au catalogue.
+6. ℹ️ Lot sans code Kablix : pas de `.vsix`, pas de tests Kablix rejoués, pas d'entrée au CHANGELOG (l'OLED en 3D est au CHANGELOG de Kompix Editor).
 
 ---
 
