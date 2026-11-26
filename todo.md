@@ -40,8 +40,9 @@
         6. ✅ **D9f** — écran OLED SSD1306 128 × 64, I²C / SPI (`oled-ssd1306.kompix`, Béta, forme calculée + modèle nommé `ssd1306`) : consigne (v362), lot Kompix Editor `v2026.10.0.28` relu (170/170 et 84/85 rejoués) en v363. ⏳ Validation, cotes (module du commerce plus petit), image dans le volume : Frank (points 79-80 du `todo.md` de Kompix Editor).
         7. ✅ **D9g** — écran TFT ILI9341 240 × 320, SPI (`ili9341.kompix`, Béta, volume fixe + modèle nommé `ili9341`) : consigne (v363), lot Kompix Editor `v2026.10.0.29` relu (172/172 et 89/90 rejoués) en v364. ⏳ Validation, cotes, image dans le volume : Frank (points 83-84 du `todo.md` de Kompix Editor).
         8. ✅ **D9h** — LED NeoPixel seule, WS2812 5050 (`neopixel.kompix`, Béta, volume fixe, `sim` `led-chain` à 1 LED) : consigne (v364), lot Kompix Editor `v2026.10.0.30` relu (172/172 et 96/97 rejoués) en v365. ⏳ Validation, cotes, forme marquée `pixel`, module ou LED 5 mm : Frank (points 87-89 du `todo.md` de Kompix Editor).
-        9. ⬜ **D9i** — capteurs DHT22 et DHT11 (`dht22.kompix`, `dht11.kompix`, Béta, volume fixe, nouveau modèle nommé `dht`) : consigne déposée (v365), à exécuter par le lanceur puis à relire ici.
-        10. ⬜ Suivants (C6) : le reste de la bibliothèque. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
+        9. ✅ **D9i** — capteurs DHT22 et DHT11 (`dht22.kompix`, `dht11.kompix`, Béta, volume fixe, nouveau modèle nommé `dht`) : consigne (v365), lot Kompix Editor `v2026.10.0.31` relu (174/174 et 106/107 rejoués) en v366. ⏳ Validation, cotes, deux paquets, face ajourée : Frank (points 92-93 du `todo.md` de Kompix Editor).
+        10. ⬜ **D9j** — détecteur de mouvement PIR (`pir.kompix`, Béta, volume fixe, nouveau modèle nommé `pir`) : consigne déposée (v366), à exécuter par le lanceur puis à relire ici.
+        11. ⬜ Suivants (C6) : le reste de la bibliothèque. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
@@ -52,6 +53,17 @@
 2. ⬜ **Recette de test** (Frank, 24/11) : une fois tout le point 1 terminé, écrire un `.md` de recette pour tout tester à la main (pas à pas : quoi ouvrir, quoi faire, quoi doit se passer), couvrant Kablix ET Kompix Editor.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.366 — D9i relu ; D9j : consigne Kompix Editor (détecteur de mouvement PIR en 3D)
+
+1. ✅ **Relecture** du lot Kompix Editor `v2026.10.0.31` (enregistrement `e8218f0`, exécuté par le lanceur) : `convert-dht.ts`, `components/source/dht22/` et `dht11/` (`pins.json`, SVG, captures), modèle `dht` de `sim.ts` (`ResolvedDht`, `DHT_VARIANTS`, `dhtSim`, champ `variant` à liste `choices`), `sim-dht.test.ts` (2), `dht.test.ts` (10). Conforme à la consigne : 4 pattes identiques à `pinInfo` (VCC, DATA, NC, GND en x = 20 à 50 ; y = 120 et 90), deux paquets à volume fixe, plages recopiées de `MODELS`, `NC` sans rôle, deux contre-épreuves faites. Rejoué : kompix-core 174/174, kompix-editor 106/107 (échec connu `led-strip.kompix`, point 29 de son `todo.md`).
+2. ℹ️ Nouveauté générale du lot : les champs d'un modèle nommé admettent une liste `choices` (valeur en clair hors liste refusée par `validateSim`). Le DHT11 se capture par `dht22?model=dht11` (même élément Kablix).
+3. ✅ **Constat pour la suite** : le PIR de Kablix (`pir-motion-sensor-element.mts`) a un dessin 100 × 103,45 et 3 pattes (VCC 40,100 ; OUT 50,100 ; GND 60,100) ; aucune propriété ni `attrs` au catalogue (`kind: 'digital-source'`, `digitalPin: 'OUT'`) ; sortie active haute = simulation ET (survol OU verrouillage), lue en direct par `sim.mts`.
+4. ✅ **Consigne D9j déposée** dans `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md` : `components/pir.kompix` (Béta), volume fixe à 10 px = 2,54 (carte, dôme, 3 broches), nouveau modèle nommé `pir` (`output: 'digital'`, `activeHigh: true`, rôles `out`/`vcc`/`gnd`), deux contre-épreuves ; `v2026.10.0.32`. Rien à modifier dans Kablix.
+5. ⏳ **Choix faits sans Frank, à confirmer** : cotes à l'échelle du dessin (carte ≈ 17,3 mm, le HC-SR501 réel fait 32 × 24) ; potentiomètres et cavalier du module réel non représentés.
+6. ℹ️ Lot sans code Kablix : pas de `.vsix`, pas de tests Kablix rejoués, pas d'entrée au CHANGELOG (les DHT en 3D sont au CHANGELOG de Kompix Editor).
 
 ---
 
