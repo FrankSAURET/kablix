@@ -35,8 +35,9 @@
         1. ✅ **D9a** — anneau de LED (`led-ring.kompix`, Béta) : consigne (v356), lot Kompix Editor `v2026.10.0.23` relu (159/159 et 57/58 rejoués) en v358. ⏳ Validation, cotes et nombre de LED réglable : Frank (points 58-59 du `todo.md` de Kompix Editor).
         2. ✅ **D9b** — matrice NeoPixel 8 × 8 (`neopixel-matrix.kompix`, Béta) + essai des LED d'un dessin à LED en groupes (`g.pixel`) : consigne (v358), lot Kompix Editor `v2026.10.0.24` relu (159/159 et 64/65 rejoués) en v359. ⏳ Validation, cotes, taille réglable et serpentin : Frank (points 62-63 du `todo.md` de Kompix Editor).
         3. ✅ **D9c** — afficheur 7 segments 1, 2 ou 4 chiffres (`7seg.kompix`, Béta, forme calculée `shape.mjs` + modèle nommé `7segment`) : consigne (v359), lot Kompix Editor `v2026.10.0.25` relu (161/161 et 69/70 rejoués) en v360. ⏳ Validation, cotes, N chiffres quelconque, essai des segments : Frank (points 66-68 du `todo.md` de Kompix Editor).
-        4. ⬜ **D9d** — afficheur LCD texte 16 × 2 / 20 × 4, I²C / parallèle (`lcd.kompix`, Béta, forme calculée + modèle nommé `lcd`) : consigne déposée (v360), à exécuter par le lanceur puis à relire ici.
-        5. ⬜ Suivants (C6) : le reste de la bibliothèque. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
+        4. ✅ **D9d** — afficheur LCD texte 16 × 2 / 20 × 4, I²C / parallèle (`lcd.kompix`, Béta, forme calculée + modèle nommé `lcd`) : consigne (v360), lot Kompix Editor `v2026.10.0.26` relu (163/163 et 74/75 rejoués) en v361. ⏳ Validation, cotes, bord des broches parallèles, texte dans le volume : Frank (points 71-72 du `todo.md` de Kompix Editor).
+        5. ⬜ **D9e** — barre de 10 LED (`led-bar.kompix`, Béta, modèle nommé `led-bar`) : consigne déposée (v361), à exécuter par le lanceur puis à relire ici.
+        6. ⬜ Suivants (C6) : le reste de la bibliothèque. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
@@ -47,6 +48,17 @@
 2. ⬜ **Recette de test** (Frank, 24/11) : une fois tout le point 1 terminé, écrire un `.md` de recette pour tout tester à la main (pas à pas : quoi ouvrir, quoi faire, quoi doit se passer), couvrant Kablix ET Kompix Editor.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.361 — D9d relu ; D9e : consigne Kompix Editor (barre de 10 LED en 3D)
+
+1. ✅ **Relecture** du lot Kompix Editor `v2026.10.0.26` (enregistrement `15f5d55`, exécuté par le lanceur) : `convert-lcd.ts`, `components/source/lcd/` (`pins.json`, `shape-logic.mjs`, quatre SVG), modèle `lcd` de `sim.ts`, `sim-lcd.test.ts`, `lcd.test.ts`. Conforme à la consigne : pattes des quatre variantes identiques à `VARIANTS` de `lcd1602-element.mts` (I²C x = 20, y = 50 à 80 ; parallèle x = 40 à 190, y = 140 ou 190), adresse `0x27` en I²C seulement, deux contre-épreuves faites. Rejoué : kompix-core 163/163, kompix-editor 74/75 (échec connu `led-strip.kompix`, point 29 de son `todo.md`).
+2. ℹ️ Écart signalé par le lot : broches parallèles au bord SUD (comme le dessin de Kablix) et non au bord haut (modules du commerce) ; laissé à Frank (point 71 du `todo.md` de Kompix Editor).
+3. ✅ **Constat pour la suite** : la barre de LED de Kablix (`led-bar-graph-element.mts`) a un dessin et 20 pattes fixes (A1…A10 à x = 10, C1…C10 à x = 40, numéros 20 à 11) ; seule `color` change la couleur des segments (`GYR` par défaut au catalogue ; `BCYR` dans l'élément mais pas au catalogue). `capture-kablix.mjs` : passer `led-bar-graph`, pas `led-bar`.
+4. ✅ **Consigne D9e déposée** dans `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md` : `components/led-bar.kompix` (Béta), dessin retouché tel quel, pattes contrôlées contre une capture, volume DIP-20 du commerce (boîtier 25,4 × 10,1 × 7,9, 10 segments nommés aux couleurs de la palette, broches au pas de 2,54), modèle nommé `led-bar` dans `sim.ts`, deux contre-épreuves ; `v2026.10.0.27`. Rien à modifier dans Kablix.
+5. ⏳ **Choix faits sans Frank, à confirmer** : cotes d'une barre DIP-20 du commerce ; palette `BCYR` laissée hors du paquet comme hors du catalogue.
+6. ℹ️ Lot sans code Kablix : pas de `.vsix`, pas de tests Kablix rejoués, pas d'entrée au CHANGELOG (le LCD en 3D est au CHANGELOG de Kompix Editor).
 
 ---
 
