@@ -9,7 +9,7 @@ Capteur numérique 1-wire de température et d'humidité.
 | Broche | Rôle |
 |--------|------|
 | **VCC** | Alimentation (+) |
-| **SDA** | Données (1-wire) |
+| **DATA** | Données (1-wire) |
 | **NC** | Non connecté |
 | **GND** | Masse |
 
@@ -22,7 +22,7 @@ Capteur numérique 1-wire de température et d'humidité.
 
 ## Utilisation
 
-- SDA vers une broche numérique (pull-up 10 kΩ).
+- DATA vers une broche numérique (pull-up 10 kΩ).
 - Bibliothèque DHT : une lecture toutes les ~2 s.
 - En simulation, deux curseurs règlent la température et l'humidité **pendant** que le programme tourne : la lecture suivante renvoie la nouvelle valeur.
 - Si la valeur affichée semble figée, vérifiez que le programme attend au moins 2 s entre deux lectures : la bibliothèque DHT renvoie sa **valeur en cache** quand on la sollicite plus vite, exactement comme avec un vrai capteur.

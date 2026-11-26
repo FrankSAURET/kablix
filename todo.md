@@ -39,8 +39,9 @@
         5. ✅ **D9e** — barre de 10 LED (`led-bar.kompix`, Béta, forme calculée + modèle nommé `led-bar`) : consigne (v361), lot Kompix Editor `v2026.10.0.27` relu (167/167 et 79/80 rejoués) en v362. ⏳ Validation, cotes, repli de couleur, palette `BCYR` : Frank (points 75-76 du `todo.md` de Kompix Editor).
         6. ✅ **D9f** — écran OLED SSD1306 128 × 64, I²C / SPI (`oled-ssd1306.kompix`, Béta, forme calculée + modèle nommé `ssd1306`) : consigne (v362), lot Kompix Editor `v2026.10.0.28` relu (170/170 et 84/85 rejoués) en v363. ⏳ Validation, cotes (module du commerce plus petit), image dans le volume : Frank (points 79-80 du `todo.md` de Kompix Editor).
         7. ✅ **D9g** — écran TFT ILI9341 240 × 320, SPI (`ili9341.kompix`, Béta, volume fixe + modèle nommé `ili9341`) : consigne (v363), lot Kompix Editor `v2026.10.0.29` relu (172/172 et 89/90 rejoués) en v364. ⏳ Validation, cotes, image dans le volume : Frank (points 83-84 du `todo.md` de Kompix Editor).
-        8. ⬜ **D9h** — LED NeoPixel seule, WS2812 5050 (`neopixel.kompix`, Béta, volume fixe, `sim` `led-chain` à 1 LED) : consigne déposée (v364), à exécuter par le lanceur puis à relire ici.
-        9. ⬜ Suivants (C6) : le reste de la bibliothèque. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
+        8. ✅ **D9h** — LED NeoPixel seule, WS2812 5050 (`neopixel.kompix`, Béta, volume fixe, `sim` `led-chain` à 1 LED) : consigne (v364), lot Kompix Editor `v2026.10.0.30` relu (172/172 et 96/97 rejoués) en v365. ⏳ Validation, cotes, forme marquée `pixel`, module ou LED 5 mm : Frank (points 87-89 du `todo.md` de Kompix Editor).
+        9. ⬜ **D9i** — capteurs DHT22 et DHT11 (`dht22.kompix`, `dht11.kompix`, Béta, volume fixe, nouveau modèle nommé `dht`) : consigne déposée (v365), à exécuter par le lanceur puis à relire ici.
+        10. ⬜ Suivants (C6) : le reste de la bibliothèque. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
@@ -51,6 +52,19 @@
 2. ⬜ **Recette de test** (Frank, 24/11) : une fois tout le point 1 terminé, écrire un `.md` de recette pour tout tester à la main (pas à pas : quoi ouvrir, quoi faire, quoi doit se passer), couvrant Kablix ET Kompix Editor.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.365 — D9h relu ; D9i : consigne Kompix Editor (capteurs DHT22 et DHT11 en 3D)
+
+1. ✅ **Relecture** du lot Kompix Editor `v2026.10.0.30` (enregistrement `cbb194f`, exécuté par le lanceur) : `convert-neopixel.ts`, `components/source/neopixel/` (`pins.json`, SVG, capture), `neopixel.test.ts` (7 tests), `docs/bibliotheque.md`. Conforme à la consigne : 4 pattes identiques à `pinInfo` de `neopixel-element.mts` (VDD 10,10 ; DOUT 10,20 ; VSS 30,20 ; DIN 30,10), volume fixe, `led-chain` WS2812 à 1 LED (rôle `data` sur `DIN`), `sim.ts` non touché, deux contre-épreuves faites. Rejoué : kompix-core 172/172, kompix-editor 96/97 (échec connu `led-strip.kompix`, point 29 de son `todo.md`).
+2. ℹ️ Écarts justifiés par le lot : les quatre cercles R, V, B et halo regroupés en `g.pixel` (le halo seul serait resté à `opacity="0"`) ; volume à l'échelle propre du dessin (3,7795 px/mm) et non à 10 px = 2,54 ; pattes 3D réduites à leur partie hors du boîtier (le dessin les fait chevaucher). Points 87-91 du `todo.md` de Kompix Editor.
+3. ✅ **Constat pour la suite** : un seul élément Kablix (`dht22-element.mts`, table `MODELS`) habille deux types de catalogue, `dht22` (cadre 70 × 124,99, broches y = 120, 0-100 %, −40-80 °C, pas 0,1) et `dht11` (cadre 70 × 100, broches y = 90, 20-90 %, 0-50 °C, pas 1) ; 4 pattes VCC, DATA, NC, GND en x = 20 à 50 ; aucune propriété au catalogue ; moteur `engines/dht22.mts`.
+4. ✅ **Consigne D9i déposée** dans `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md` : `dht22.kompix` et `dht11.kompix` (Béta), un seul script `convert-dht.ts`, volume fixe à 10 px = 2,54 (boîtier, face ajourée simplifiée, 4 broches), nouveau modèle nommé `dht` (champ `variant`, plages recopiées de `MODELS`), deux contre-épreuves ; `v2026.10.0.31`. Rien à modifier dans Kablix.
+5. ✅ **Correction d'aide** relevée au passage : `docs/fr/composants/dht22.md` nommait encore la patte de données `SDA` (ancien nom de Wokwi) ; renommée `DATA` comme sur le composant et dans la fiche du DHT11. CHANGELOG (Correction, Aide).
+6. ⏳ Même correction dans `docs/en/composants/dht22.md` : avant publication, avec les autres langues.
+7. ⏳ **Choix faits sans Frank, à confirmer** : deux paquets séparés (comme au catalogue) plutôt qu'un paquet à propriété `model` ; cotes à l'échelle du dessin, profondeur du composant réel.
+8. ℹ️ Lot sans code Kablix (consigne + une fiche d'aide) : pas de `.vsix`, pas de tests Kablix rejoués.
 
 ---
 

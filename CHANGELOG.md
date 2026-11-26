@@ -49,6 +49,10 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 
 - Un atelier fermé pendant sa mise en place ne provoque plus d'erreur, et l'icône Kablix ouvre un atelier neuf si le précédent a disparu.
 
+**Aide**
+
+- Fiche du capteur DHT22 : la patte de données s'appelle DATA, comme sur le composant (elle était nommée SDA).
+
 ## 2026.11.4 (16 novembre 2026)
 
 ### Nouveauté
