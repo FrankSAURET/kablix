@@ -36,8 +36,9 @@
         2. ✅ **D9b** — matrice NeoPixel 8 × 8 (`neopixel-matrix.kompix`, Béta) + essai des LED d'un dessin à LED en groupes (`g.pixel`) : consigne (v358), lot Kompix Editor `v2026.10.0.24` relu (159/159 et 64/65 rejoués) en v359. ⏳ Validation, cotes, taille réglable et serpentin : Frank (points 62-63 du `todo.md` de Kompix Editor).
         3. ✅ **D9c** — afficheur 7 segments 1, 2 ou 4 chiffres (`7seg.kompix`, Béta, forme calculée `shape.mjs` + modèle nommé `7segment`) : consigne (v359), lot Kompix Editor `v2026.10.0.25` relu (161/161 et 69/70 rejoués) en v360. ⏳ Validation, cotes, N chiffres quelconque, essai des segments : Frank (points 66-68 du `todo.md` de Kompix Editor).
         4. ✅ **D9d** — afficheur LCD texte 16 × 2 / 20 × 4, I²C / parallèle (`lcd.kompix`, Béta, forme calculée + modèle nommé `lcd`) : consigne (v360), lot Kompix Editor `v2026.10.0.26` relu (163/163 et 74/75 rejoués) en v361. ⏳ Validation, cotes, bord des broches parallèles, texte dans le volume : Frank (points 71-72 du `todo.md` de Kompix Editor).
-        5. ⬜ **D9e** — barre de 10 LED (`led-bar.kompix`, Béta, modèle nommé `led-bar`) : consigne déposée (v361), à exécuter par le lanceur puis à relire ici.
-        6. ⬜ Suivants (C6) : le reste de la bibliothèque. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
+        5. ✅ **D9e** — barre de 10 LED (`led-bar.kompix`, Béta, forme calculée + modèle nommé `led-bar`) : consigne (v361), lot Kompix Editor `v2026.10.0.27` relu (167/167 et 79/80 rejoués) en v362. ⏳ Validation, cotes, repli de couleur, palette `BCYR` : Frank (points 75-76 du `todo.md` de Kompix Editor).
+        6. ⬜ **D9f** — écran OLED SSD1306 128 × 64, I²C / SPI (`oled-ssd1306.kompix`, Béta, forme calculée + modèle nommé `ssd1306`) : consigne déposée (v362), à exécuter par le lanceur puis à relire ici.
+        7. ⬜ Suivants (C6) : le reste de la bibliothèque. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
@@ -48,6 +49,17 @@
 2. ⬜ **Recette de test** (Frank, 24/11) : une fois tout le point 1 terminé, écrire un `.md` de recette pour tout tester à la main (pas à pas : quoi ouvrir, quoi faire, quoi doit se passer), couvrant Kablix ET Kompix Editor.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.362 — D9e relu ; D9f : consigne Kompix Editor (écran OLED SSD1306 en 3D)
+
+1. ✅ **Relecture** du lot Kompix Editor `v2026.10.0.27` (enregistrement `5851cac`, exécuté par le lanceur) : `convert-led-bar.ts`, `components/source/led-bar/` (`pins.json`, `shape-logic.mjs`, `shape.mjs`, SVG), modèle `led-bar` de `sim.ts` (`ledBarSim`, `ledBarColors`, palettes `GYR`/`BCYR`), `sim-led-bar.test.ts`, `led-bar.test.ts`. Conforme à la consigne : 20 pattes identiques à `pinInfo` de `led-bar-graph-element.mts` (A1…A10 x = 10, C1…C10 x = 40, numéros 20 à 11), palettes recopiées de l'élément, deux contre-épreuves faites. Rejoué : kompix-core 167/167, kompix-editor 79/80 (échec connu `led-strip.kompix`, point 29 de son `todo.md`).
+2. ℹ️ Choix du lot : forme calculée alors que dessin et pattes sont fixes (le format ne colore pas une pièce du volume d'après une propriété sans script) ; justifié dans le `todo.md` de Kompix Editor.
+3. ✅ **Constat pour la suite** : l'OLED de Kablix (`ssd1306-element.mts`) a un dessin 190 × 140 fixe et 8 pattes à y = 20, x = 59 à 129 (hors grille de 10, repris tel quel) ; `pins` (`i2c`/`spi`) ne change que leurs NOMS ; écran = canvas 128 × 64 calé sur le plus grand `rect` non texturé du dessin ; adresse `0x3c` en I²C seulement. `capture-kablix.mjs` : passer `ssd1306`, pas `oled-ssd1306`.
+4. ✅ **Consigne D9f déposée** dans `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md` : `components/oled-ssd1306.kompix` (Béta), forme calculée selon `pins`, dessin retouché tel quel, pattes contrôlées contre deux captures, volume à l'échelle du dessin (10 px = 2,54 mm : carte 48,3 × 35,6 × 1,6, dalle `ecran`, 8 broches), modèle nommé `ssd1306` dans `sim.ts`, deux contre-épreuves ; `v2026.10.0.28`. Rien à modifier dans Kablix.
+5. ⏳ **Choix faits sans Frank, à confirmer** : cotes prises à l'échelle du dessin ; pas d'image dans le volume 3D (dalle unie).
+6. ℹ️ Lot sans code Kablix : pas de `.vsix`, pas de tests Kablix rejoués, pas d'entrée au CHANGELOG (la barre de LED en 3D est au CHANGELOG de Kompix Editor).
 
 ---
 
