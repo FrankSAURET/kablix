@@ -32,8 +32,9 @@
         2. ✅ **D8b, partie Kompix Editor** — téléchargement du WASM à la demande (version épinglée, SHA-256, cache), commande « Importer un assemblage STEP… » qui écrit `system.json` + `system/` dans un `.projix`. Consigne (v354), lot Kompix Editor `v2026.10.0.22` relu (159/159 et 52/53 rejoués) en v355.
         3. ✅ **D8c, partie Kablix** — démonstrateur `docs/exemples/mecanique/robot-step/`, pièces `fichier` non recentrées (défaut corrigé), `extra.couleur` lue ; bancs `verify:vue3d` 85/85, `verify:exemples-meca` 34/34 (v355).
     - ⬜ **D9** — composants électroniques en 3D (décision 7 de Frank ; lot C6 du `roadmap.md` de Kompix Editor), projet **Kompix Editor**, un composant par lot :
-        1. ⬜ **D9a** — anneau de LED (`led-ring.kompix`, Béta) : consigne déposée (v356), à exécuter par le lanceur puis à relire ici.
-        2. ⬜ Suivants (C6) : matrice NeoPixel, afficheur à N chiffres, LCD ; puis le reste de la bibliothèque. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
+        1. ✅ **D9a** — anneau de LED (`led-ring.kompix`, Béta) : consigne (v356), lot Kompix Editor `v2026.10.0.23` relu (159/159 et 57/58 rejoués) en v358. ⏳ Validation, cotes et nombre de LED réglable : Frank (points 58-59 du `todo.md` de Kompix Editor).
+        2. ⬜ **D9b** — matrice NeoPixel 8 × 8 (`neopixel-matrix.kompix`, Béta) + essai des LED d'un dessin à LED en groupes (`g.pixel`) : consigne déposée (v358), à exécuter par le lanceur puis à relire ici.
+        3. ⬜ Suivants (C6) : afficheur à N chiffres, LCD ; puis le reste de la bibliothèque. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
@@ -44,6 +45,16 @@
 2. ⬜ **Recette de test** (Frank, 24/11) : une fois tout le point 1 terminé, écrire un `.md` de recette pour tout tester à la main (pas à pas : quoi ouvrir, quoi faire, quoi doit se passer), couvrant Kablix ET Kompix Editor.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.358 — D9a relu ; D9b : consigne Kompix Editor (matrice NeoPixel en 3D)
+
+1. ✅ **Relecture** du lot Kompix Editor `v2026.10.0.23` (enregistrement `17309ff`, exécuté par le lanceur) : `convert-led-ring.ts`, `led-ring.test.ts`, source et capture. Conforme à la consigne : pattes identiques à `pinInfo` de `led-ring-element.mts` (GND/VCC/DIN/DOUT, y = 160, x = 60 à 90), sens horaire cohérent entre dessin (rotate SVG) et volume (LED 0 au nord, LED 4 à l'est), pastilles sur la couronne, contre-épreuve faite. Rejoué : kompix-core 159/159, kompix-editor 57/58 (échec connu `led-strip.kompix`, point 29 de son `todo.md`).
+2. ✅ **Constat pour la suite** : la matrice NeoPixel de Kablix dessine ses LED en `<g class="pixel">` (4 cercles à `opacity="0"`), pas en `rect` ; l'« Essai des LED » de Kompix Editor, qui pose `fill`/`filter` sur `.pixel`, n'allumerait rien. Ordre des LED dans `sim.mts` : ligne par ligne, pas en serpentin.
+3. ✅ **Consigne D9b déposée** dans `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md` : `components/neopixel-matrix.kompix` (Béta), 64 LED fixes WS2812 ligne par ligne, dessin retouché de Kablix tel quel, pattes contrôlées contre une capture, volume carte 65 × 65 × 1,6 et LED 5050 au pas de 8 mm, essai des LED en groupe corrigé dans l'hôte, deux contre-épreuves ; `v2026.10.0.24`. Rien à modifier dans Kablix.
+4. ⏳ **Choix faits sans Frank, à confirmer** : 8 × 8 fixe comme dans Kablix (taille réglable et serpentin non faits) ; cotes d'une matrice rigide du commerce.
+5. ℹ️ Lot sans code Kablix : pas de `.vsix`, pas de tests Kablix rejoués, pas d'entrée au CHANGELOG (l'anneau en 3D est au CHANGELOG de Kompix Editor).
 
 ---
 
