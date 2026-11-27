@@ -8,20 +8,23 @@ Interrupteur à bille : se ferme/ouvre selon l'inclinaison.
 
 | Broche | Rôle |
 |--------|------|
-| **VCC** | Alimentation (+) |
-| **OUT** | Sortie numérique |
 | **GND** | Masse |
+| **VCC** | Alimentation (+) |
+| **OUT** | Sortie numérique (1 = incliné) |
 
 ## Propriétés
 
-| Propriété | Rôle | Défaut |
-|-----------|------|--------|
-| `state` | Incliné (0/1) | 0 |
+Aucune : en simulation, l'inclinaison se commande **à la souris** (voir ci-dessous).
 
 ## Utilisation
 
-- OUT vers une entrée numérique (souvent `INPUT_PULLUP`).
-- Basculer l'état dans l'inspecteur.
+- OUT vers une entrée numérique.
+
+## En simulation : la souris fait basculer le capteur
+
+- **Maintenez le clic** sur le capteur → il s'incline (le boîtier se déforme en perspective) et OUT passe à 1. **Relâchez** → il revient à plat et OUT retombe à 0.
+- **Ctrl+clic** → inclinaison **verrouillée** (OUT reste à 1, clic relâché). Ctrl+clic à nouveau pour la déverrouiller.
+- Une **bulle d'aide** rappelle ces gestes au survol du capteur.
 
 ---
 

@@ -29,6 +29,7 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 **Aide**
 
 - Fiches des capteurs de flamme, de gaz, de son et de lumière : elles décrivent la vraie propriété « Sensibilité » (seuil de détection), le sens réel des sorties (tension analogique qui baisse quand le signal monte, sortie numérique à LOW en détection) et le réglage par le curseur du composant.
+- Fiche du capteur d'inclinaison : elle ne parle plus d'une propriété disparue ; elle décrit la commande à la souris en simulation (clic maintenu, Ctrl+clic pour verrouiller).
 
 ## 2026.11.5 (21 novembre 2026)
 
