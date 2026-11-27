@@ -47,7 +47,8 @@
         13. ✅ **D9m** — capteur de son (`sound.kompix`, Béta, volume fixe + `sensitivity`, réemploi du modèle `ao-do-sensor`) : consigne (v369), lot Kompix Editor `v2026.10.0.35` relu (179/179 et 126/127 rejoués) en v370. ⏳ Validation, cotes, place du micro, hauteurs, CMS : Frank (points 112-115 du `todo.md` de Kompix Editor).
         14. ✅ **D9n** — capteur de lumière (`photoresistor.kompix`, Béta, volume fixe + `sensitivity`, réemploi du modèle `ao-do-sensor` avec pattes `AO`/`DO`) : consigne (v371), lot Kompix Editor `v2026.10.0.36` relu (179/179 et 131/132 rejoués) en v372. ⏳ Validation, cotes, pose de la photorésistance, hauteurs, CMS : Frank (points 118-121 du `todo.md` de Kompix Editor). Famille `ao-do-sensor` complète.
         15. ✅ **D9o** — capteur de température NTC (`ntc-temp.kompix`, Béta, volume fixe, sans propriété, nouveau modèle nommé `ntc-temp`) : consigne (v373), lot Kompix Editor `v2026.10.0.37` relu (182/182 et 136/137 rejoués) en v374. ⏳ Validation, cotes, pose de la perle, pattes droites, CMS, choix de `ntc-temp` sans Frank : points 124-128 du `todo.md` de Kompix Editor.
-        16. ⬜ Suivants (C6) : le reste de la bibliothèque. Proposition de Kompix Editor (point 124 de son `todo.md`, choix de Frank attendu mais non bloquant, comme pour D9a-n) : modules sur carte `ntc-temp`, `heartbeat`, `tilt`, `relais`, `pca9685`, `keypad`, puis les composants nus. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
+        16. ⬜ **D9p** — capteur de pouls (`heartbeat.kompix`, Béta, volume fixe, sans propriété, nouveau modèle nommé `heartbeat`) : consigne déposée (v375), lot Kompix Editor `v2026.10.0.38` à exécuter par le lanceur, puis relecture.
+        17. ⬜ Suivants (C6) : le reste de la bibliothèque. Proposition de Kompix Editor (point 124 de son `todo.md`, choix de Frank attendu mais non bloquant, comme pour D9a-n) : modules sur carte `ntc-temp` (fait), `heartbeat` (D9p), `tilt`, `relais`, `pca9685`, `keypad`, puis les composants nus. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
@@ -58,6 +59,15 @@
 2. ⬜ **Recette de test** (Frank, 24/11) : une fois tout le point 1 terminé, écrire un `.md` de recette pour tout tester à la main (pas à pas : quoi ouvrir, quoi faire, quoi doit se passer), couvrant Kablix ET Kompix Editor.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.375 — D9p : consigne Kompix Editor (capteur de pouls en 3D)
+
+1. ✅ **Constat** : le capteur de pouls (`heart-beat-sensor-element.mts`, type `heartbeat`, `kind` `analog-source`, `props: []`, curseur `bpm` 0 à 200) a un dessin retouché `externe/heartbeat.svg` au cadre entier 110 × 85, pattes **à l'est** dans l'ordre GND, VCC, OUT (x = 100, y = 20 à 40, avec `number`), sans `pinScale` ; tout le dessin décalé de −9,96 px (`g67`), sous-groupes à l'échelle 1,0218 ; carte `path26` `#19365e` à deux trous ; LED couchée vue en D (`path51`) ; élément hors carte côté sud (`g45`) sous un voile blanc à 63 % (`rect64`) ; deux résistances CMS ; broches décalées de −0,04 à +0,08 px ; groupe `g26` vide.
+2. ✅ **Consigne D9p déposée** dans `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md` : `components/heartbeat.kompix` (Béta), volume fixe à 10 px = 2,54, **nouveau modèle nommé `heartbeat`** dans kompix-core (pattes fixes GND/VCC/OUT, constantes de la courbe PPG de `analog-waves.mts` : base 0,6, amplitude 0,15, gaussiennes 0,16/0,42 de largeur 0,1, dicrote × 0,35, ligne plate 0,08 à 0 bpm, horloge réelle) ; `bpm` reste le curseur de Kablix, pas une propriété ; contre-épreuves (rôle sur patte inexistante, ordre ou côté des broches faux) ; `v2026.10.0.38`. Rien à modifier dans Kablix.
+3. ⏳ **Choix faits sans Frank, à confirmer** : `heartbeat` pris en suivant de la proposition (point 124 du `todo.md` de Kompix Editor) ; cotes à l'échelle du dessin ; LED en cylindre couché ; élément sud en pavé hors carte, nommé sans lui prêter de fonction ; CMS en plaques.
+4. ℹ️ Lot sans code Kablix : pas de `.vsix`, pas de tests Kablix rejoués, pas d'entrée au CHANGELOG.
 
 ---
 
