@@ -45,7 +45,8 @@
         11. ✅ **D9k** — capteur de flamme (`flame.kompix`, Béta, volume fixe + propriété `sensitivity`, nouveau modèle nommé générique `ao-do-sensor`) : consigne (v367), lot Kompix Editor `v2026.10.0.33` relu (179/179 et 116/117 rejoués) en v368. ⏳ Validation, cotes, CMS, traitement du `pinScale` : Frank (points 100-102 du `todo.md` de Kompix Editor).
         12. ✅ **D9l** — capteur de gaz MQ (`gas-sensor.kompix`, Béta, volume fixe + `sensitivity`, réemploi du modèle `ao-do-sensor`) : consigne (v368), lot Kompix Editor `v2026.10.0.34` relu (179/179 et 121/122 rejoués) en v369. ⏳ Validation, cotes, hauteur du MQ, potentiomètre absent, LED CMS : Frank (points 106-109 du `todo.md` de Kompix Editor).
         13. ✅ **D9m** — capteur de son (`sound.kompix`, Béta, volume fixe + `sensitivity`, réemploi du modèle `ao-do-sensor`) : consigne (v369), lot Kompix Editor `v2026.10.0.35` relu (179/179 et 126/127 rejoués) en v370. ⏳ Validation, cotes, place du micro, hauteurs, CMS : Frank (points 112-115 du `todo.md` de Kompix Editor).
-        14. ⬜ Suivants (C6) : le reste de la bibliothèque. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
+        14. ⬜ **D9n** — capteur de lumière (`photoresistor.kompix`, Béta, volume fixe + `sensitivity`, réemploi du modèle `ao-do-sensor` avec pattes `AO`/`DO`) : consigne déposée (v371), lot Kompix Editor `v2026.10.0.36` à exécuter par le lanceur, puis à relire.
+        15. ⬜ Suivants (C6) : le reste de la bibliothèque. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
@@ -56,6 +57,15 @@
 2. ⬜ **Recette de test** (Frank, 24/11) : une fois tout le point 1 terminé, écrire un `.md` de recette pour tout tester à la main (pas à pas : quoi ouvrir, quoi faire, quoi doit se passer), couvrant Kablix ET Kompix Editor.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.371 — D9n : consigne Kompix Editor (capteur de lumière en 3D)
+
+1. ✅ **Constat** : le capteur de lumière (`photoresistor-sensor-element.mts`, type `photoresistor`) a un dessin retouché `externe/photoresistor.svg` au cadre **non entier** 185,38074 × 66,60199, pattes **à l'est** dans l'ordre VCC, GND, DO, AO (x = 180, y = 20 à 50), noms courts `AO`/`DO`, sans `pinScale` ni `number` ; carte bleu nuit `path33` à trois trous (anneau `path64` décalé de 0,72 px du trou de fixation) ; photorésistance `path36` **hors de la carte, côté ouest**, reliée par deux pattes ; potentiomètre `rect62`, comparateur `rect61` ; tout le dessin à `opacity:0.85` ; groupes `g74`…`g77` vides.
+2. ✅ **Consigne D9n déposée** dans `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md` : `components/photoresistor.kompix` (Béta), volume fixe à 10 px = 2,54 (carte trouée, photorésistance posée comme la photodiode de la flamme, potentiomètre, comparateur, 4 broches côté est), modèle `ao-do-sensor` repris sans modification avec `aout: 'AO'`, `dout: 'DO'` ; contre-épreuves (noms de pattes retirés du `sim`, ordre ou côté des broches faux) ; `v2026.10.0.36`. Rien à modifier dans Kablix.
+3. ⏳ **Choix faits sans Frank, à confirmer** : cotes à l'échelle du dessin ; photorésistance en disque Ø ≈ 4,7 × 2 mm ; hauteurs du potentiomètre (≈ 5 mm) et du comparateur (≈ 1,5 mm) ; petits composants CMS en plaques ou omis.
+4. ℹ️ Dernier capteur de la famille `ao-do-sensor`. Suivant de C6 à proposer à Frank. Lot sans code Kablix : pas de `.vsix`, pas de tests Kablix rejoués, pas d'entrée au CHANGELOG.
 
 ---
 
