@@ -45,8 +45,8 @@
         11. ✅ **D9k** — capteur de flamme (`flame.kompix`, Béta, volume fixe + propriété `sensitivity`, nouveau modèle nommé générique `ao-do-sensor`) : consigne (v367), lot Kompix Editor `v2026.10.0.33` relu (179/179 et 116/117 rejoués) en v368. ⏳ Validation, cotes, CMS, traitement du `pinScale` : Frank (points 100-102 du `todo.md` de Kompix Editor).
         12. ✅ **D9l** — capteur de gaz MQ (`gas-sensor.kompix`, Béta, volume fixe + `sensitivity`, réemploi du modèle `ao-do-sensor`) : consigne (v368), lot Kompix Editor `v2026.10.0.34` relu (179/179 et 121/122 rejoués) en v369. ⏳ Validation, cotes, hauteur du MQ, potentiomètre absent, LED CMS : Frank (points 106-109 du `todo.md` de Kompix Editor).
         13. ✅ **D9m** — capteur de son (`sound.kompix`, Béta, volume fixe + `sensitivity`, réemploi du modèle `ao-do-sensor`) : consigne (v369), lot Kompix Editor `v2026.10.0.35` relu (179/179 et 126/127 rejoués) en v370. ⏳ Validation, cotes, place du micro, hauteurs, CMS : Frank (points 112-115 du `todo.md` de Kompix Editor).
-        14. ⬜ **D9n** — capteur de lumière (`photoresistor.kompix`, Béta, volume fixe + `sensitivity`, réemploi du modèle `ao-do-sensor` avec pattes `AO`/`DO`) : consigne déposée (v371), lot Kompix Editor `v2026.10.0.36` à exécuter par le lanceur, puis à relire.
-        15. ⬜ Suivants (C6) : le reste de la bibliothèque. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
+        14. ✅ **D9n** — capteur de lumière (`photoresistor.kompix`, Béta, volume fixe + `sensitivity`, réemploi du modèle `ao-do-sensor` avec pattes `AO`/`DO`) : consigne (v371), lot Kompix Editor `v2026.10.0.36` relu (179/179 et 131/132 rejoués) en v372. ⏳ Validation, cotes, pose de la photorésistance, hauteurs, CMS : Frank (points 118-121 du `todo.md` de Kompix Editor). Famille `ao-do-sensor` complète.
+        15. ⬜ Suivants (C6) : le reste de la bibliothèque. Proposition de Kompix Editor (point 124 de son `todo.md`, choix de Frank attendu mais non bloquant, comme pour D9a-n) : modules sur carte `ntc-temp`, `heartbeat`, `tilt`, `relais`, `pca9685`, `keypad`, puis les composants nus. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
@@ -57,6 +57,16 @@
 2. ⬜ **Recette de test** (Frank, 24/11) : une fois tout le point 1 terminé, écrire un `.md` de recette pour tout tester à la main (pas à pas : quoi ouvrir, quoi faire, quoi doit se passer), couvrant Kablix ET Kompix Editor.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.372 — D9n relu (capteur de lumière en 3D)
+
+1. ✅ **Relecture** du lot Kompix Editor `v2026.10.0.36` (enregistrement `62fd914`, exécuté par le lanceur le 27/11 à 19:11) : `convert-photoresistor.ts`, `components/source/photoresistor/` (`pins.json` = `pinInfo` brut VCC, GND, DO, AO à l'est, x = 180), capture, `photoresistor.test.ts` (5). Conforme à la consigne v371 : pas de `pinScale`, cadre non entier gardé, modèle `ao-do-sensor` repris sans modification avec `aout: 'AO'`, `dout: 'DO'`, deux contre-épreuves faites (sim sans noms de pattes, ordre du son).
+2. ✅ **Rejoué** : kompix-core 179/179, kompix-editor 131/132 (échec connu `led-strip.kompix`, point 29 de son `todo.md`). `photoresistor.kompix` md5 `0fd4c9e5…` = celui du journal ; `flame`, `gas-sensor`, `sound` inchangés depuis `2cb09fd`.
+3. ℹ️ Écarts relevés par le lot, sans conséquence : anneau `path64` décalé de 0,72 px du trou de fixation, anneaux `ellipse37`/`ellipse38` décalés d'environ 0,5 px des petits trous (dessin de Frank, non touché) ; le volume suit les trous de `path33`.
+4. ⏳ Choix faits sans Frank (points 118-124 du `todo.md` de Kompix Editor) : cotes, photorésistance en pavé vertical (la géométrie fixe n'extrude qu'à la verticale), hauteurs, CMS en plaques, lot suivant de C6.
+5. ℹ️ Lot sans code Kablix : pas de `.vsix`, pas de tests Kablix rejoués, pas d'entrée au CHANGELOG. Pas de consigne suivante déposée (un lot par passage).
 
 ---
 
