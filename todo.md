@@ -46,7 +46,8 @@
         12. ✅ **D9l** — capteur de gaz MQ (`gas-sensor.kompix`, Béta, volume fixe + `sensitivity`, réemploi du modèle `ao-do-sensor`) : consigne (v368), lot Kompix Editor `v2026.10.0.34` relu (179/179 et 121/122 rejoués) en v369. ⏳ Validation, cotes, hauteur du MQ, potentiomètre absent, LED CMS : Frank (points 106-109 du `todo.md` de Kompix Editor).
         13. ✅ **D9m** — capteur de son (`sound.kompix`, Béta, volume fixe + `sensitivity`, réemploi du modèle `ao-do-sensor`) : consigne (v369), lot Kompix Editor `v2026.10.0.35` relu (179/179 et 126/127 rejoués) en v370. ⏳ Validation, cotes, place du micro, hauteurs, CMS : Frank (points 112-115 du `todo.md` de Kompix Editor).
         14. ✅ **D9n** — capteur de lumière (`photoresistor.kompix`, Béta, volume fixe + `sensitivity`, réemploi du modèle `ao-do-sensor` avec pattes `AO`/`DO`) : consigne (v371), lot Kompix Editor `v2026.10.0.36` relu (179/179 et 131/132 rejoués) en v372. ⏳ Validation, cotes, pose de la photorésistance, hauteurs, CMS : Frank (points 118-121 du `todo.md` de Kompix Editor). Famille `ao-do-sensor` complète.
-        15. ⬜ Suivants (C6) : le reste de la bibliothèque. Proposition de Kompix Editor (point 124 de son `todo.md`, choix de Frank attendu mais non bloquant, comme pour D9a-n) : modules sur carte `ntc-temp`, `heartbeat`, `tilt`, `relais`, `pca9685`, `keypad`, puis les composants nus. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
+        15. ⬜ **D9o** — capteur de température NTC (`ntc-temp.kompix`, Béta, volume fixe, sans propriété, nouveau modèle nommé `ntc-temp`) : consigne déposée (v373), lot Kompix Editor `v2026.10.0.37` à exécuter par le lanceur, puis à relire. ⏳ Choix de `ntc-temp` comme suivant fait sans Frank.
+        16. ⬜ Suivants (C6) : le reste de la bibliothèque. Proposition de Kompix Editor (point 124 de son `todo.md`, choix de Frank attendu mais non bloquant, comme pour D9a-n) : modules sur carte `ntc-temp`, `heartbeat`, `tilt`, `relais`, `pca9685`, `keypad`, puis les composants nus. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
@@ -57,6 +58,15 @@
 2. ⬜ **Recette de test** (Frank, 24/11) : une fois tout le point 1 terminé, écrire un `.md` de recette pour tout tester à la main (pas à pas : quoi ouvrir, quoi faire, quoi doit se passer), couvrant Kablix ET Kompix Editor.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.373 — D9o : consigne Kompix Editor (capteur de température NTC en 3D)
+
+1. ✅ **Constat** : le capteur NTC (`ntc-temperature-sensor-element.mts`, type `ntc-temp`, `kind` `analog-source`, `props: []`) a un dessin retouché `externe/ntc-temp.svg` au cadre **non entier** 145,24001 × 77,485306, pattes **à l'est** dans l'ordre GND, VCC, OUT (x = 140, y = 30 à 50, avec `number`), sans `pinScale` ; carte `path32` `#0f3661` percée ; perle de thermistance `path52` **hors de la carte, côté ouest**, reliée par deux pattes courbes `path50`/`path51` ; résistance CMS `path40`/`path41` ; troisième broche décalée de 0,11 px (`g60`) ; restes de retouche (`circle53`/`circle54` de rayon 0, groupes `g56`…`g58` vides).
+2. ✅ **Consigne D9o déposée** dans `C:\Users\Frank\.claude\nuit\a-lancer\kompix_editor.md` : `components/ntc-temp.kompix` (Béta), volume fixe à 10 px = 2,54, **nouveau modèle nommé `ntc-temp`** dans kompix-core (pattes fixes GND/VCC/OUT, constantes de Kablix R0 = 10 kΩ à 25 °C, B = 3950 K, Rsérie = 10 kΩ, −55 à +125 °C) ; `temperature` reste le curseur de Kablix, pas une propriété ; contre-épreuves (rôle sur patte inexistante, ordre ou côté des broches faux) ; `v2026.10.0.37`. Rien à modifier dans Kablix.
+3. ⏳ **Choix faits sans Frank, à confirmer** : `ntc-temp` pris en premier de la proposition (point 124 du `todo.md` de Kompix Editor) ; cotes à l'échelle du dessin ; thermistance en pavé vertical comme la photorésistance de D9n ; pattes droites au lieu des courbes du dessin ; résistance CMS en plaque.
+4. ℹ️ Lot sans code Kablix : pas de `.vsix`, pas de tests Kablix rejoués, pas d'entrée au CHANGELOG.
 
 ---
 
