@@ -10,18 +10,19 @@ Capteur de gaz/fumée série MQ. Sorties analogique (concentration) et numériqu
 |--------|------|
 | **VCC** | Alimentation (+) |
 | **GND** | Masse |
-| **AOUT** | Sortie analogique |
-| **DOUT** | Sortie numérique (seuil) |
+| **AOUT** | Sortie analogique (tension qui baisse quand le gaz augmente) |
+| **DOUT** | Sortie numérique (LOW = seuil dépassé) |
 
 ## Propriétés
 
 | Propriété | Rôle | Défaut |
 |-----------|------|--------|
-| `value` | Niveau de gaz simulé (%) | 20 |
+| `sensitivity` | Seuil de détection (%) : DOUT passe à LOW quand le niveau de gaz dépasse ce seuil | 50 |
 
 ## Utilisation
 
-- AOUT vers une entrée analogique.
+- AOUT vers une entrée analogique, DOUT vers une numérique.
+- En simulation, régler le niveau de gaz avec le curseur du composant.
 - Préchauffage nécessaire sur le vrai capteur.
 
 ---

@@ -24,6 +24,12 @@ Format Calver : **ANNÉE.MOIS.incrément**, l'incrément repartant à 0 chaque m
 - La vue 3D montre un montage importé d'un assemblage STEP (SolidWorks, FreeCAD) par Kompix Editor : chaque pièce à sa place, dans sa couleur d'origine.
 - Fiche d'aide de la vue 3D, et trois projets d'exemple dans le dépôt : un bras servo + aimant, un robot à deux roues et un montage importé d'un STEP.
 
+### Correction
+
+**Aide**
+
+- Fiches des capteurs de flamme, de gaz, de son et de lumière : elles décrivent la vraie propriété « Sensibilité » (seuil de détection), le sens réel des sorties (tension analogique qui baisse quand le signal monte, sortie numérique à LOW en détection) et le réglage par le curseur du composant.
+
 ## 2026.11.5 (21 novembre 2026)
 
 ### Nouveauté

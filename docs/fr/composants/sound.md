@@ -10,19 +10,20 @@ Microphone avec comparateur. Sorties analogique (niveau) et numérique (seuil).
 |--------|------|
 | **VCC** | Alimentation (+) |
 | **GND** | Masse |
-| **AOUT** | Sortie analogique |
-| **DOUT** | Sortie numérique (seuil) |
+| **AOUT** | Sortie analogique (tension qui baisse quand le son monte) |
+| **DOUT** | Sortie numérique (LOW = seuil dépassé) |
 
 ## Propriétés
 
 | Propriété | Rôle | Défaut |
 |-----------|------|--------|
-| `state` | Son détecté (0/1) | 0 |
+| `sensitivity` | Seuil de détection (%) : DOUT passe à LOW quand le niveau sonore dépasse ce seuil | 50 |
 
 ## Utilisation
 
 - DOUT vers une entrée numérique, AOUT vers une analogique.
-- Régler le seuil sur le vrai module.
+- En simulation, régler le niveau sonore avec le curseur du composant.
+- Sur le vrai module, le seuil se règle au potentiomètre.
 
 ---
 

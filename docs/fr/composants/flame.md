@@ -10,19 +10,19 @@ Détecteur de flamme (infrarouge). Sorties analogique et numérique.
 |--------|------|
 | **VCC** | Alimentation (+) |
 | **GND** | Masse |
-| **DOUT** | Sortie numérique (1 = flamme) |
-| **AOUT** | Sortie analogique |
+| **DOUT** | Sortie numérique (LOW = flamme détectée) |
+| **AOUT** | Sortie analogique (tension qui baisse quand la flamme grandit) |
 
 ## Propriétés
 
 | Propriété | Rôle | Défaut |
 |-----------|------|--------|
-| `state` | Flamme détectée (0/1) | 0 |
+| `sensitivity` | Seuil de détection (%) : DOUT passe à LOW quand l'intensité dépasse ce seuil | 50 |
 
 ## Utilisation
 
-- DOUT vers une entrée numérique.
-- Basculer l'état dans l'inspecteur.
+- DOUT vers une entrée numérique, AOUT vers une analogique.
+- En simulation, régler l'intensité de la flamme avec le curseur du composant.
 
 ---
 

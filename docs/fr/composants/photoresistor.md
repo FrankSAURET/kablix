@@ -10,19 +10,20 @@ Capteur de lumière : sa résistance varie avec l'éclairement. Sortie analogiqu
 |--------|------|
 | **VCC** | Alimentation (+) |
 | **GND** | Masse |
-| **AO** | Sortie analogique (luminosité) |
-| **DO** | Sortie numérique (seuil) |
+| **AO** | Sortie analogique (tension qui baisse quand la lumière augmente) |
+| **DO** | Sortie numérique (LOW = seuil dépassé) |
 
 ## Propriétés
 
 | Propriété | Rôle | Défaut |
 |-----------|------|--------|
-| `value` | Luminosité simulée (%) | 50 |
+| `sensitivity` | Seuil de détection (%) : DO passe à LOW quand la luminosité dépasse ce seuil | 50 |
 
 ## Utilisation
 
 - AO vers une entrée analogique, lecture `analogRead()`.
-- DO bascule selon un seuil réglable (sur la vraie carte).
+- En simulation, régler la luminosité avec le curseur du composant.
+- Sur le vrai module, le seuil se règle au potentiomètre.
 
 ---
 

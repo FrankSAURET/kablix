@@ -44,7 +44,7 @@
         10. ✅ **D9j** — détecteur de mouvement PIR (`pir.kompix`, Béta, volume fixe, nouveau modèle nommé `pir`) : consigne (v366), lot Kompix Editor `v2026.10.0.32` relu (176/176 et 111/112 rejoués) en v367. ⏳ Validation, cotes, dôme en disques, potentiomètres absents : Frank (points 96-97 du `todo.md` de Kompix Editor).
         11. ✅ **D9k** — capteur de flamme (`flame.kompix`, Béta, volume fixe + propriété `sensitivity`, nouveau modèle nommé générique `ao-do-sensor`) : consigne (v367), lot Kompix Editor `v2026.10.0.33` relu (179/179 et 116/117 rejoués) en v368. ⏳ Validation, cotes, CMS, traitement du `pinScale` : Frank (points 100-102 du `todo.md` de Kompix Editor).
         12. ✅ **D9l** — capteur de gaz MQ (`gas-sensor.kompix`, Béta, volume fixe + `sensitivity`, réemploi du modèle `ao-do-sensor`) : consigne (v368), lot Kompix Editor `v2026.10.0.34` relu (179/179 et 121/122 rejoués) en v369. ⏳ Validation, cotes, hauteur du MQ, potentiomètre absent, LED CMS : Frank (points 106-109 du `todo.md` de Kompix Editor).
-        13. ⬜ **D9m** — capteur de son (`sound.kompix`, Béta, volume fixe + `sensitivity`, réemploi du modèle `ao-do-sensor`) : consigne déposée (v369), à exécuter par le lanceur puis à relire ici.
+        13. ✅ **D9m** — capteur de son (`sound.kompix`, Béta, volume fixe + `sensitivity`, réemploi du modèle `ao-do-sensor`) : consigne (v369), lot Kompix Editor `v2026.10.0.35` relu (179/179 et 126/127 rejoués) en v370. ⏳ Validation, cotes, place du micro, hauteurs, CMS : Frank (points 112-115 du `todo.md` de Kompix Editor).
         14. ⬜ Suivants (C6) : le reste de la bibliothèque. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
@@ -56,6 +56,17 @@
 2. ⬜ **Recette de test** (Frank, 24/11) : une fois tout le point 1 terminé, écrire un `.md` de recette pour tout tester à la main (pas à pas : quoi ouvrir, quoi faire, quoi doit se passer), couvrant Kablix ET Kompix Editor.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.370 — D9m relu ; fiches d'aide des capteurs à double sortie ; gras de la feuille de route
+
+1. ✅ **Relecture** du lot Kompix Editor `v2026.10.0.35` (enregistrement `2cb09fd`, exécuté par le lanceur le 26/11 à 19:26) : `convert-sound.ts`, `components/source/sound/` (`pins.json` = `pinInfo` brut AOUT, GND, VCC, DOUT à l'ouest, x = 10), capture, `sound.test.ts` (5). Conforme à la consigne : pas de `pinScale`, décalage `translate(-10,-10)` du groupe `g78` appliqué et contrôlé par contre-épreuve, modèle `ao-do-sensor` repris sans modification (`flame.kompix` et `gas-sensor.kompix` refaits identiques octet pour octet), deux contre-épreuves faites. Rejoué : kompix-core 179/179, kompix-editor 126/127 (échec connu `led-strip.kompix`, point 29 de son `todo.md`).
+2. ✅ **Écart à la consigne vérifié et approuvé** : micro posé au cercle gris `circle73` (côté est, centre (142,07 ; 43,21) dans le dessin) et non à l'anneau `path39`. Dans `externe/sound.svg`, `path39` a le même centre que le trou de la carte `path32` (≈ 68,8 ; 44,7) : c'est la pastille du trou de fixation. La consigne v369 se trompait.
+3. ✅ **Fiches d'aide FR** des quatre capteurs `ao-do-sensor` (`flame`, `gas-sensor`, `sound`, `photoresistor`) : propriétés Wokwi périmées (`state`, `value`) remplacées par `sensitivity` (seuil, défaut 50) ; sens réel des sorties (AOUT baisse quand l'intensité monte, DOUT/DO actif bas), comme dans `sim.mts` (`aoDoSensorBindings`) et `analog-digital-sensor.mts` ; réglage par le curseur du composant en simulation. Signalé par le point 15 du lot C6m, commencé par la session de nuit (coupée à 19:35, limite des 5 h) et terminé ici. ⏳ Fiches EN : avant publication.
+4. ✅ **[roadmap.md](roadmap.md)** : gras abîmé par une édition visuelle (paragraphe « Total », « Pièges », questions 1 à 6) remis comme avant ; la réponse de Frank à la question 6 (« On fait D5 puis D1, D2 puis le reste… ») est gardée.
+5. ℹ️ **Nuit du 26/11** : six lots enchaînés de 19:00 à 19:33 (D9j à D9m), puis arrêt sur la limite des 5 h (93 % à 19:33, retour à minuit). Le lanceur ne reprend pas après une limite : rien n'a tourné de minuit à 9 h.
+6. ℹ️ Pas de consigne D9n déposée (suivant naturel : capteur de lumière `photoresistor`, pattes `AO`/`DO`). Lot sans code : pas de `.vsix`.
 
 ---
 
