@@ -48,8 +48,8 @@
         14. ✅ **D9n** — capteur de lumière (`photoresistor.kompix`, Béta, volume fixe + `sensitivity`, réemploi du modèle `ao-do-sensor` avec pattes `AO`/`DO`) : consigne (v371), lot Kompix Editor `v2026.10.0.36` relu (179/179 et 131/132 rejoués) en v372. ⏳ Validation, cotes, pose de la photorésistance, hauteurs, CMS : Frank (points 118-121 du `todo.md` de Kompix Editor). Famille `ao-do-sensor` complète.
         15. ✅ **D9o** — capteur de température NTC (`ntc-temp.kompix`, Béta, volume fixe, sans propriété, nouveau modèle nommé `ntc-temp`) : consigne (v373), lot Kompix Editor `v2026.10.0.37` relu (182/182 et 136/137 rejoués) en v374. ⏳ Validation, cotes, pose de la perle, pattes droites, CMS, choix de `ntc-temp` sans Frank : points 124-128 du `todo.md` de Kompix Editor.
         16. ✅ **D9p** — capteur de pouls (`heartbeat.kompix`, Béta, volume fixe, sans propriété, nouveau modèle nommé `heartbeat`) : consigne (v375), lot Kompix Editor `v2026.10.0.38` relu (185/185 et 141/142 rejoués) en v376 ; modèles `ntc-temp` et `heartbeat` reportés dans [systeme_specification.md](docs/systeme_specification.md). ⏳ Validation, cotes, pose de la LED, nature de l'élément sud, CMS : points 131-134 du `todo.md` de Kompix Editor.
-        17. ⬜ **D9q** — capteur d'inclinaison (`tilt.kompix`, Béta, volume fixe, sans propriété, nouveau modèle nommé `tilt` actif haut) : consigne déposée (v377), à relire après le passage du lanceur (`v2026.10.0.39`).
-        18. ⬜ Suivants (C6) : le reste de la bibliothèque. Proposition de Kompix Editor (point 124 de son `todo.md`, choix de Frank attendu mais non bloquant, comme pour D9a-n) : modules sur carte `ntc-temp` (fait), `heartbeat` (D9p), `tilt` (D9q), `relais`, `pca9685`, `keypad`, puis les composants nus. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
+        17. ✅ **D9q** — capteur d'inclinaison (`tilt.kompix`, Béta, volume fixe, sans propriété, nouveau modèle nommé `tilt` actif haut) : consigne (v377), lot Kompix Editor `v2026.10.0.39` relu (187/187 et 146/147 rejoués) en v378 ; modèle `tilt` reporté dans [systeme_specification.md](docs/systeme_specification.md). ⏳ Validation, cotes, prisme, petits trous non percés, CMS : points 138-141 du `todo.md` de Kompix Editor.
+        18. ⬜ Suivants (C6) : le reste de la bibliothèque. Proposition de Kompix Editor (point 124 de son `todo.md`, choix de Frank attendu mais non bloquant, comme pour D9a-n) : modules sur carte `ntc-temp` (fait), `heartbeat` (fait), `tilt` (fait), `relais` (prochain), `pca9685`, `keypad`, puis les composants nus. Remplacement des éléments intégrés de Kablix par les paquets : sur demande de Frank seulement.
     - ✅ **Ordre fixé par Frank** (roadmap, question 6, réponse vue le 23/11) : D5, puis D1, D2 (faits), puis D3, D4, D6, D7, D8.
     - ℹ️ **Suite de la piste 7** (avant l'ordre de Frank, la nuit prenait les ⏳ faisables sans lui). Suivi du renommage : fait au collage (v333), le seul cas réel. Geste de fixation par glisser : fait (v334). Emplacements de `aimant-uno`/`aimant-pico` mesurés et corrigés (v335). Servo supprimé → aimants détachés (v336). ⏳ **Champ progressif bloqué** (⏳ 15 de v328) : il ne sert qu'à un capteur analogique ou polarisé qui n'existe pas ; sa simulation est à préciser par Frank. Les autres ⏳ de la piste 7 attendent Frank (validation, dessin, essai F5) ou la publication (traductions).
     - ⏳ **Nuit du 21/11 arrêtée (22/11)** : plus aucun lot faisable sans Frank, raison écrite dans `C:\Users\Frank\.claude\nuit\etat\Kablix.2026-11-21.bloque`. Pour relancer : fixer l'ordre de D3–D8 (question 6 de [roadmap.md](roadmap.md)) ou préciser le capteur du champ progressif.
@@ -60,6 +60,16 @@
 2. ⬜ **Recette de test** (Frank, 24/11) : une fois tout le point 1 terminé, écrire un `.md` de recette pour tout tester à la main (pas à pas : quoi ouvrir, quoi faire, quoi doit se passer), couvrant Kablix ET Kompix Editor.
 
 ## ne pas faire pour l'instant
+
+---
+
+# v2026.11.5.378 — D9q relu (capteur d'inclinaison en 3D)
+
+1. ✅ **Relecture** du lot Kompix Editor `v2026.10.0.39` (enregistrement `878cc7f`, exécuté par le lanceur le 27/11 à 23:00) : `convert-tilt.ts`, `components/source/tilt/` (`pins.json` = GND, VCC, OUT à l'est, x = 100, y = 20 à 40, identique au `pinInfo` de `tilt-switch-element.mts`), capture, modèle `tilt` dans `sim.ts` (`tiltSim`, actif haut, aucun champ), `sim-tilt.test.ts` (2), `tilt.test.ts` (5). Conforme à la consigne v377 : `pir` non réutilisé et inchangé, champs `sticky`/`state` refusés ; trois contre-épreuves faites (rôle `out` → `DO`, broches à l'ouest, ordre VCC/GND/OUT).
+2. ✅ **Rejoué** : kompix-core 187/187, kompix-editor 146/147 (échec connu `led-strip.kompix`, point 29 de son `todo.md`). `tilt.kompix` md5 `2ebccf87…` = celui du journal ; `heartbeat`, `ntc-temp`, `pir` inchangés.
+3. ✅ **Spécification** : modèle `tilt` ajouté à la liste des modèles nommés de [systeme_specification.md](docs/systeme_specification.md) (point 145 du `todo.md` de Kompix Editor).
+4. ⏳ Choix faits sans Frank (points 138-141 du `todo.md` de Kompix Editor) : cotes à l'échelle du dessin, corps en prisme diagonal posé à 2,2 sur les CMS, petits trous `g59`/`g63` non percés, CMS en plaques. Suivant proposé : `relais`.
+5. ℹ️ Lot sans code Kablix : pas de `.vsix`, pas de tests Kablix rejoués, pas d'entrée au CHANGELOG. Pas de consigne suivante déposée (un lot par passage).
 
 ---
 
